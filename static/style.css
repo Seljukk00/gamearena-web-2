@@ -3332,3 +3332,55 @@ button:disabled {
 .gizemCareerFlow {
     align-items: flex-start !important;
 }
+
+/* ==========================================
+   GOOGLE ADSENSE REKLAM
+   ========================================== */
+
+.ad-container {
+    max-width: 728px;
+    margin: 25px auto;
+    padding: 15px;
+    background: rgba(30, 35, 50, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    text-align: center;
+    min-height: 100px;
+    position: relative;
+}
+
+.ad-container::before {
+    content: "Reklam";
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    font-size: 10px;
+    color: #6c757d;
+    letter-spacing: 1px;
+    opacity: 0.5;
+}
+
+.ad-container ins {
+    background: transparent;
+    border-radius: 8px;
+    display: block;
+    min-height: 90px;
+}
+
+/* Overlay içindeki reklamlar (oyun sonu) */
+.overlayCard .ad-container {
+    background: rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    margin: 15px auto;
+    padding: 10px;
+    min-height: 90px;
+}
+
+/* Mobil optimizasyon */
+@media (max-width: 768px) {
+    .ad-container {
+        max-width: 100%;
+        margin: 15px auto;
+        padding: 10px;
+    }
+}
