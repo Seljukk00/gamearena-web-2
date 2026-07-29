@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bil Bakalım Futbol</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/app.js" defer></script>
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1324481943948742" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="starfield"></div>
+
+    <!-- GLOBAL SES KONTROLÜ (her ekranda görünür) -->
+    <div class="mlVolumeControl" id="globalVolumeControl">
+        <span id="mlVolumeIcon">🔊</span>
+        <input type="range" id="mlVolumeRange" min="0" max="100" value="30">
+        <span id="mlVolumeVal">30</span>
+    </div>
+
+    <div class="container">
+        <h1 class="mainTitle">🎮 Oyun Modları</h1>
+
+        <!-- ANA MENÜ -->
+        <section id="homeScreen" class="panel">
+            <h2 class="mainTitle">Ne Yapmak İstersin?</h2>
+            <div class="menuCards">
+                <div class="menuCard" id="menuCreateCard">
+                    <div class="menuIcon">🎮</div>
+                    <div class="menuTitle">Oda Oluştur</div>
+                    <div class="menuDesc">Yeni bir oyun kur, arkadaşını davet et</div>
+                </div>
+                <div class="menuCard" id="menuJoinCard">
+                    <div class="menuIcon">🚪</div>
+                    <div class="menuTitle">Odaya Katıl</div>
+                    <div class="menuDesc">Oda kodunla bir arkadaşına katıl</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MOD SEÇİM EKRANI -->
+        <section id="modSelectScreen" class="panel hidden">
+            <h2 class="mainTitle">🎮 Mod Seç</h2>
+            <p style="text-align:center; color:#adb5bd; margin-bottom:10px;">Oynamak istediğin modu seç</p>
+            <div class="mod-grid">
+
+                <div class="mod-card" data-mod="bil_bakalim">
+                    <img src="/mod_resimleri/bil_bakalim.png" alt="Bil Bakalım">
+                    <div class="mod-info">
+                        <h3>Bil Bakalım</h3>
+                        <p>Klasik futbolcu tahmin oyunu</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="takim_bilmece">
+                    <img src="/mod_resimleri/takim_bilmece.png" alt="Takım Bilmece">
+                    <div class="mod-info">
+                        <h3>Takım Bilmece</h3>
+                        <p>11 oyuncudan takımı bul</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="kim_milyoner">
+                    <img src="/mod_resimleri/kim_milyoner.png" alt="Kim Milyoner">
+                    <div class="mod-info">
+                        <h3>Kim Milyoner?</h3>
+                        <p>Milyoner tarzı bilgi yarışması</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="ilk_11_challenge">
+                    <img src="/mod_resimleri/ilk_11.png" alt="İlk 11">
+                    <div class="mod-info">
+                        <h3>İlk 11 Challenge</h3>
+                        <p>4-3-3 kadroyu kur, rakibi yen</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="gizemli_kariyer">
+                    <img src="/mod_resimleri/gizemli_kariyer.png" alt="Gizemli Kariyer">
+                    <div class="mod-info">
+                        <h3>Gizemli Kariyer</h3>
+                        <p>Kariyerden futbolcuyu bul</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="haritadan_bul">
+                    <img src="/mod_resimleri/haritadan_bul.png" alt="Haritadan Bul">
+                    <div class="mod-info">
+                        <h3>Haritadan Bul</h3>
+                        <p>Ülkeyi haritada göster</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="stadyum_tanima">
+                    <img src="/mod_resimleri/stadyum_tanima.png" alt="Stadyum Tanıma">
+                    <div class="mod-info">
+                        <h3>Stadyum Tanıma</h3>
+                        <p>Stadyumu gör, adını yaz</p>
+                    </div>
+                </div>
+
+            </div>
+            <button id="modSelectBackBtn" class="bigBtn">← Ana Menüye Dön</button>
+        </section>
+
+        <!-- ODA OLUŞTUR -->
+        <section id="createScreen" class="panel hidden">
+            <h2 class="mainTitle">Bil Bakalım</h2>
+            <div class="centerBox">
+                <input id="createNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Süresi:
+                    <select id="turnSecondsSelect">
+                        <option value="30">30 saniye</option>
+                        <option value="45" selected>45 saniye</option>
+                        <option value="60">60 saniye</option>
+                        <option value="90">90 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tahmin Hakkı:
+                    <select id="guessLimitSelect">
+                        <option value="0" selected>Sınırsız</option>
+                        <option value="1">1 (Riskli!)</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="row">
+                <button id="createBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createMsg" class="msg"></p>
+        </section>
+		
+		<!-- KİM MİLYONER ODA OLUŞTUR -->
+        <section id="createMlScreen" class="panel hidden">
+            <h2 class="mainTitle">Kim Milyoner - Oda Oluştur</h2>
+            
+            <div class="centerBox">
+                <input id="createMlNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Soru Kategorisi:
+                    <select id="mlCategorySelect">
+                        <option value="futbol" selected>⚽ Futbol</option>
+                        <option value="genel_kultur">📚 Genel Kültür</option>
+                        <option value="karisik">🎲 Karışık</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Zorluk Seviyesi:
+                    <select id="mlDifficultySelect">
+                        <option value="kolay">🟢 Kolay</option>
+                        <option value="orta">🟡 Orta</option>
+                        <option value="zor">🔴 Zor</option>
+                        <option value="cok_zor">💀 Çok Zor (Uzman)</option>
+                        <option value="karisik" selected>🎯 Karışık (Klasik)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Süresi:
+                    <select id="mlTurnSecondsSelect">
+                        <option value="15">15 saniye</option>
+                        <option value="30">30 saniye</option>
+                        <option value="45">45 saniye</option>
+                        <option value="60" selected>60 saniye</option>
+                        <option value="120">120 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="mlInfoBox">
+                <h3>🏆 Ödül Bilgisi</h3>
+                <p>12 soru cevaplayacaksın</p>
+                <p>Her doğru cevap: <b style="color:#ffd43b">o sorunun para değeri</b></p>
+                <p>Yanlış cevap: <b style="color:#ff6b6b">0 TL</b></p>
+                <p>3 Joker: 50:50 | Seyirci | Telefon</p>
+                <p>En çok parayı toplayan <b style="color:#51cf66">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createMlBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createMlBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createMlMsg" class="msg"></p>
+        </section>
+
+        <!-- HARITADAN BUL - ODA OLUŞTUR -->
+        <section id="createHaritaScreen" class="panel hidden">
+            <h2 class="mainTitle">Haritadan Bul - Oda Oluştur</h2>
+            
+            <div class="centerBox">
+                <input id="createHaritaNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Süresi:
+                    <select id="haritaTurnSecondsSelect">
+                        <option value="15">15 saniye</option>
+                        <option value="20">20 saniye</option>
+                        <option value="30" selected>30 saniye</option>
+                        <option value="45">45 saniye</option>
+                        <option value="60">60 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="haritaInfoBox">
+                <h3>🌍 Nasıl Oynanır?</h3>
+                <p>10 rastgele futbolcu gösterilir</p>
+                <p>Sırayla oynanır (host çift, misafir tek turlar)</p>
+                <p>Futbolcunun <b style="color:#51cf66">doğduğu ülkeyi</b> haritada tıkla</p>
+                <p>Doğru cevap: <b style="color:#51cf66">+1 puan</b></p>
+                <p>Yanlış cevap: <b style="color:#ff6b6b">0 puan</b></p>
+                <p>En çok doğru bilen <b style="color:#ffd43b">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createHaritaBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createHaritaBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createHaritaMsg" class="msg"></p>
+        </section>
+
+        <!-- HARITADAN BUL - LOBBY -->
+        <section id="haritaLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Haritadan Bul - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="haritaRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="haritaCopyHint" class="copyHint"></span>
+            </div>
+            <ul id="haritaPlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>Toplam Tur: 10</span>
+                <span style="margin-left: 20px;">Süre: <span id="haritaLobbyTurnSeconds">30</span> sn</span>
+            </div>
+            <div class="centerBox">
+                <button id="haritaStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="haritaLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="haritaLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- HARITADAN BUL - OYUN EKRANI -->
+        <section id="haritaGameScreen" class="hidden">
+            <div class="haritaTopBar">
+                <div class="haritaTopLeft">
+                    <div id="haritaRoundInfo">Tur 1/10</div>
+                    <div id="haritaTurnInfo">Sıra: ---</div>
+                </div>
+                <div class="haritaScoreboard">
+                    <span id="haritaP1Name" class="scoreMine">---</span>
+                    <span id="haritaScore" class="haritaScoreText">0 - 0</span>
+                    <span id="haritaP2Name" class="scoreOpp">---</span>
+                </div>
+                <div class="haritaTopRight">
+                    <div id="haritaTimer" class="haritaTimerBig">30s</div>
+                </div>
+            </div>
+
+            <div class="haritaMainLayout">
+                <!-- Sol: Futbolcu Kartı -->
+                <div class="haritaLeftPanel">
+                    <div class="haritaPlayerCard">
+                        <h3>FUTBOLCU</h3>
+                        <img id="haritaPlayerImg" src="" alt="Futbolcu">
+                        <div id="haritaPlayerName" class="haritaPlayerName">---</div>
+                        <div id="haritaPlayerStatus" class="haritaPlayerStatus">Bekleniyor...</div>
+                        <div id="haritaCorrectAnswer" class="haritaCorrectAnswer hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Orta: Harita -->
+                <div class="haritaMapContainer" id="haritaMapContainer">
+                    <div class="haritaMapWrapper" id="haritaMapWrapper">
+                        <img id="haritaWorldMap" src="/harita_assets/world_map.png" alt="Dünya Haritası" draggable="false">
+                        <div id="haritaMarkers" class="haritaMarkers"></div>
+                        <div id="haritaFakeCursor" class="haritaFakeCursor hidden"></div>
+                        <div id="haritaTooltip" class="haritaTooltip hidden"></div>
+                    </div>
+                    <div id="haritaSpectatorOverlay" class="haritaSpectatorOverlay hidden">
+                        👁️ RAKİBİ İZLİYORSUN
+                    </div>
+					<div id="haritaCorrectBanner" class="haritaCorrectBanner hidden"></div>
+                    <div id="haritaBigOverlay" class="haritaBigOverlay hidden">
+                        <div id="haritaBigOverlayText"></div>
+                    </div>
+                    <div id="haritaFakeTooltip" class="haritaTooltip hidden"></div>
+                    <div class="haritaMapControls">
+                        <button id="haritaZoomOut" class="haritaZoomBtn" title="Uzaklaş">−</button>
+                        <span id="haritaZoomLevel">100%</span>
+                        <button id="haritaZoomIn" class="haritaZoomBtn" title="Yakınlaş">+</button>
+                        <button id="haritaZoomReset" class="haritaZoomBtn" title="Sıfırla">⟲</button>
+                    </div>
+                    <p id="haritaStatusMsg" class="haritaStatus"></p>
+                </div>
+            </div>
+
+            <div class="centerBox">
+                <button id="haritaBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- HARITADAN BUL - ONAY POPUP -->
+        <div id="haritaConfirmBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h2 style="color:#ffd43b;">Ülke Seçimi</h2>
+                <p style="font-size:26px; margin:15px 0; color:#51cf66; font-weight:bold;" id="haritaConfirmCountry">---</p>
+                <p style="font-size:16px; color:#adb5bd;">Bu ülkeyi seçmek istediğine emin misin?</p>
+                <div class="confirmButtons">
+                    <button id="haritaConfirmYesBtn" class="bigBtn greenBtn">EVET</button>
+                    <button id="haritaConfirmNoBtn" class="bigBtn redBtn">İPTAL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HARITADAN BUL - OYUN SONU -->
+        <div id="haritaGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="haritaGameOverTitle"></h1>
+                <p id="haritaGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <div class="confirmButtons">
+                    <button id="haritaRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="haritaBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GİZEMLİ KARİYER - ODA OLUŞTUR -->
+        <section id="createGizemScreen" class="panel hidden">
+            <h2 class="mainTitle">Gizemli Kariyer - Oda Oluştur</h2>
+
+            <div class="centerBox">
+                <input id="createGizemNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Süresi:
+                    <select id="gizemTurnSecondsSelect">
+                        <option value="30">30 saniye</option>
+                        <option value="45">45 saniye</option>
+                        <option value="60" selected>60 saniye</option>
+                        <option value="90">90 saniye</option>
+                        <option value="120">120 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="gizemInfoBox">
+                <h3>🎭 Nasıl Oynanır?</h3>
+                <p>Ekranda bir futbolcunun <b style="color:#ffd43b">kariyeri (oynadığı takımlar sırasıyla)</b> gösterilir</p>
+                <p>6 isim şıkkından <b style="color:#51cf66">doğru futbolcuyu</b> bulmaya çalış</p>
+                <p>Doğru cevap: <b style="color:#51cf66">+10 puan</b></p>
+                <p>30 sn'den önce bilirsen: <b style="color:#ffd43b">+5 bonus</b></p>
+                <p>Jokerler: <b>İpucu</b> (3 şık gizler) | <b>Pas</b> (soruyu atla)</p>
+                <p>10 tur sonunda en çok puan alan <b style="color:#51cf66">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createGizemBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createGizemBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createGizemMsg" class="msg"></p>
+        </section>
+
+        <!-- GİZEMLİ KARİYER - LOBBY -->
+        <section id="gizemLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Gizemli Kariyer - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="gizemRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="gizemCopyHint" class="copyHint"></span>
+            </div>
+            <ul id="gizemPlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>Toplam Tur: 10</span>
+                <span style="margin-left: 20px;">Süre: <span id="gizemLobbyTurnSeconds">60</span> sn</span>
+            </div>
+            <div class="centerBox">
+                <button id="gizemStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="gizemLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="gizemLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- GİZEMLİ KARİYER - OYUN EKRANI -->
+        <section id="gizemGameScreen" class="hidden">
+            <div class="gizemTopBar">
+                <div class="gizemTopLeft">
+                    <div id="gizemRoundInfo">Tur 1/10</div>
+                    <div id="gizemTurnInfo">Sıra: ---</div>
+                </div>
+                <div class="gizemScoreboard">
+                    <span id="gizemP1Name" class="scoreMine">---</span>
+                    <span id="gizemScore" class="gizemScoreText">0 - 0</span>
+                    <span id="gizemP2Name" class="scoreOpp">---</span>
+                </div>
+                <div class="gizemTopRight">
+                    <div id="gizemTimer" class="gizemTimerBig">60s</div>
+                </div>
+            </div>
+
+            <!-- Kariyer Akışı -->
+            <div class="gizemCareerBox">
+                <h3 class="gizemCareerTitle">🎭 Bu Futbolcunun Kariyeri</h3>
+                <div id="gizemCareerFlow" class="gizemCareerFlow"></div>
+            </div>
+
+            <!-- Jokerler -->
+            <div class="gizemJokerBar">
+                <button id="gizemJokerHintBtn" class="gizemJokerBtn blueJoker">
+                    💡 İPUCU (3 şık gizler)
+                </button>
+                <button id="gizemJokerPassBtn" class="gizemJokerBtn orangeJoker">
+                    ⏭️ PAS GEÇ
+                </button>
+            </div>
+
+            <!-- 6 Şık -->
+            <div id="gizemOptionsBox" class="gizemOptions">
+                <button class="gizemOptBtn" data-choice="0"><span class="optLetter">A)</span> <span class="optText">---</span></button>
+                <button class="gizemOptBtn" data-choice="1"><span class="optLetter">B)</span> <span class="optText">---</span></button>
+                <button class="gizemOptBtn" data-choice="2"><span class="optLetter">C)</span> <span class="optText">---</span></button>
+                <button class="gizemOptBtn" data-choice="3"><span class="optLetter">D)</span> <span class="optText">---</span></button>
+                <button class="gizemOptBtn" data-choice="4"><span class="optLetter">E)</span> <span class="optText">---</span></button>
+                <button class="gizemOptBtn" data-choice="5"><span class="optLetter">F)</span> <span class="optText">---</span></button>
+            </div>
+
+            <p id="gizemStatusMsg" class="gizemStatus"></p>
+
+            <div class="centerBox">
+                <button id="gizemBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- GİZEMLİ KARİYER - PAS ONAY -->
+        <div id="gizemPassConfirmBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h2 style="color:#ffa94d;">⏭️ Pas Geçmek İster misin?</h2>
+                <p style="font-size:16px; margin:15px 0; color:#adb5bd;">
+                    Bu soruyu geçersen 0 puan alırsın.
+                </p>
+                <div class="confirmButtons">
+                    <button id="gizemPassYesBtn" class="bigBtn greenBtn">EVET, PAS GEÇ</button>
+                    <button id="gizemPassNoBtn" class="bigBtn redBtn">İPTAL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GİZEMLİ KARİYER - OYUN SONU -->
+        <div id="gizemGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="gizemGameOverTitle"></h1>
+                <p id="gizemGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <div class="confirmButtons">
+                    <button id="gizemRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="gizemBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAKIM BİLMECE ODA OLUŞTUR -->
+        <section id="createTakimScreen" class="panel hidden">
+            <h2 class="mainTitle">Takım Bilmece</h2>
+            
+            <div class="centerBox">
+                <input id="createTakimNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Süresi:
+                    <select id="takimTurnSecondsSelect">
+                        <option value="15">15 saniye</option>
+                        <option value="30">30 saniye</option>
+                        <option value="45">45 saniye</option>
+                        <option value="60" selected>60 saniye</option>
+                        <option value="120">120 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Zorluk Seviyesi:
+                    <select id="takimDifficultySelect">
+                        <option value="kolay" selected>🟢 Kolay</option>
+                        <option value="orta">🟡 Orta</option>
+                        <option value="zor">🔴 Zor</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="jokerInfoBox">
+                <h3 id="jokerInfoTitle">🟢 KOLAY - Jokerler</h3>
+                <div class="jokerList">
+                    <div class="jokerItem">
+                        <span>👤 İsim Göster</span>
+                        <span id="jokerName" class="jokerCount">3</span>
+                    </div>
+                    <div class="jokerItem">
+                        <span>📅 Yıl Göster</span>
+                        <span id="jokerYear" class="jokerCount">3</span>
+                    </div>
+                    <div class="jokerItem">
+                        <span>❌ Şık Ele</span>
+                        <span id="jokerElim" class="jokerCount">3</span>
+                    </div>
+                    <div class="jokerItem">
+                        <span>⏭️ Pas Geç</span>
+                        <span id="jokerPass" class="jokerCount">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <button id="createTakimBtn" class="bigBtn greenBtn">Bil Bakalım</button>
+                <button id="createTakimBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createTakimMsg" class="msg"></p>
+        </section>
+
+        <!-- ODAYA KATIL -->
+        <section id="joinScreen" class="panel hidden">
+            <h2 class="mainTitle">Odaya Katıl</h2>
+            <div class="centerBox">
+                <input id="joinNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <input id="roomInput" type="text" placeholder="Oda kodu" maxlength="8">
+            </div>
+
+            <div class="row">
+                <button id="joinBtn" class="bigBtn greenBtn">Katıl</button>
+                <button id="joinBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="joinMsg" class="msg"></p>
+        </section>
+
+        <!-- LOBBY -->
+        <section id="lobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="roomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="copyHint" class="copyHint"></span>
+            </div>
+            <ul id="playersList"></ul>
+            <div class="lobbyInfo">
+                <span>Tur Süresi: <span id="lobbyTurnSeconds">45</span> saniye</span>
+                <span style="margin-left: 20px;">Tahmin Hakkı: <span id="lobbyGuessLimit">Sınırsız</span></span>
+            </div>
+            <div class="centerBox">
+                <button id="startBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="lobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="lobbyMsg" class="msg"></p>
+        </section>
+		
+		<!-- KİM MİLYONER - LOBBY -->
+        <section id="mlLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Kim Milyoner - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="mlRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="mlCopyHint" class="copyHint"></span>
+            </div>
+            <ul id="mlPlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>Kategori: <span id="mlLobbyCategory">Futbol</span></span>
+                <span style="margin-left: 15px;">Zorluk: <span id="mlLobbyDifficulty">Karışık</span></span>
+                <span style="margin-left: 15px;">Soru: 12</span>
+                <span style="margin-left: 15px;">Süre: <span id="mlLobbyTurnSeconds">60</span> sn</span>
+            </div>
+            <div class="lobbyInfo" style="margin-top:10px;">
+                <span id="mlAiStatus" style="color:#ffa94d;">⏳ Sorular hazırlanıyor...</span>
+            </div>
+            <div class="centerBox">
+                <button id="mlStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="mlLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="mlLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- TAKIM BİLMECE - LOBBY -->
+        <section id="takimLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Takım Bilmece - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="takimRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="takimCopyHint" class="copyHint"></span>
+            </div>
+            <ul id="takimPlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>Zorluk: <span id="takimLobbyDifficulty">Kolay</span></span>
+                <span style="margin-left: 20px;">Soru: 12</span>
+                <span style="margin-left: 20px;">Süre: <span id="takimLobbyTurnSeconds">60</span> sn</span>
+            </div>
+            <div class="centerBox">
+                <button id="takimStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="takimLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="takimLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- KİM MİLYONER - OYUN EKRANI -->
+        <section id="mlGameScreen" class="hidden">
+            <div class="mlTopBar">
+                <div class="mlTopSide">
+                    <div id="mlP1Name" class="mlPlayerName scoreMine">---</div>
+                    <div id="mlP1Money" class="mlMoneyText">0 TL</div>
+                </div>
+                <div class="mlTopCenter">
+                    <div id="mlTimer" class="mlTimerBig">60</div>
+                    <div id="mlScoreLine">0 - 0</div>
+                </div>
+                <div class="mlTopSide" style="text-align:right;">
+                    <div id="mlP2Name" class="mlPlayerName scoreOpp">---</div>
+                    <div id="mlP2Money" class="mlMoneyText">0 TL</div>
+                </div>
+            </div>
+
+            <div class="mlMainLayout">
+                <div class="mlLeftPanel">
+                    <div class="mlQuestionBox" id="mlQuestionBox">
+                        <div class="mlQuestionHeader">
+                            <span id="mlQuestionInfo">Soru 1/12</span>
+                            <span id="mlPrizeInfo">Ödül: 500 TL</span>
+                        </div>
+                        <div id="mlQuestionText" class="mlQuestionText">---</div>
+                    </div>
+
+                    <div class="mlOptions">
+                        <button class="mlOptBtn" data-letter="A"><span class="optLetter">A)</span> <span class="optText">---</span></button>
+                        <button class="mlOptBtn" data-letter="B"><span class="optLetter">B)</span> <span class="optText">---</span></button>
+                        <button class="mlOptBtn" data-letter="C"><span class="optLetter">C)</span> <span class="optText">---</span></button>
+                        <button class="mlOptBtn" data-letter="D"><span class="optLetter">D)</span> <span class="optText">---</span></button>
+                    </div>
+
+                    <div id="mlInfoText" class="mlInfoText"></div>
+
+                    <div id="mlAudienceBox" class="mlAudienceBox hidden">
+                        <div class="mlAudBar" data-letter="A"><span>A</span><div class="mlAudBarFill"></div><span class="mlAudPct">0%</span></div>
+                        <div class="mlAudBar" data-letter="B"><span>B</span><div class="mlAudBarFill"></div><span class="mlAudPct">0%</span></div>
+                        <div class="mlAudBar" data-letter="C"><span>C</span><div class="mlAudBarFill"></div><span class="mlAudPct">0%</span></div>
+                        <div class="mlAudBar" data-letter="D"><span>D</span><div class="mlAudBarFill"></div><span class="mlAudPct">0%</span></div>
+                    </div>
+
+                    <div class="mlJokers">
+                        <button id="mlJokerFifty" class="mlJokerBtn purpleJoker">50:50</button>
+                        <button id="mlJokerAudience" class="mlJokerBtn tealJoker">SEYİRCİ</button>
+                        <button id="mlJokerPhone" class="mlJokerBtn orangeJoker">TELEFON</button>
+                    </div>
+                </div>
+
+                <div class="mlRightPanel">
+                    <h3 class="mlParaAgaciTitle">💰 PARA AĞACI</h3>
+                    <div id="mlParaAgaci" class="mlParaAgaci"></div>
+                </div>
+            </div>
+
+            <div class="centerBox">
+                <button id="mlBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- KİM MİLYONER - OYUN SONU -->
+        <div id="mlGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="mlGameOverTitle"></h1>
+                <p id="mlGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <div class="confirmButtons">
+                    <button id="mlRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="mlBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAKIM BİLMECE - OYUN EKRANI -->
+        <section id="takimGameScreen" class="hidden">
+            <div class="takimTopBar">
+                <div class="takimTopLeft">
+                    <div id="takimQuestionNo">Soru 1/12</div>
+                    <div id="takimTurnInfo">Sıra: ---</div>
+                </div>
+                <div class="takimScoreboard">
+                    <span id="takimP1Name" class="scoreMine">---</span>
+                    <span id="takimScore" class="takimScoreText">0 - 0</span>
+                    <span id="takimP2Name" class="scoreOpp">---</span>
+                </div>
+                <div class="takimTopRight">
+                    <div id="takimTimer" class="takimTimerBig">60s</div>
+                    <div id="takimPlayerScores">
+                        <div><span id="takimP1ScoreName">---</span>: <span id="takimP1Score" class="scoreMine">0</span></div>
+                        <div><span id="takimP2ScoreName">---</span>: <span id="takimP2Score" class="scoreOpp">0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="takimYearDisplay" class="takimYearBig">Yıl: ???</div>
+
+            <div class="takimMainLayout">
+                <!-- Sol panel: Jokerler / Rakip Jokerler -->
+                <div class="takimSidePanel" id="takimJokerPanel">
+                    <h3 id="takimJokerTitle">JOKERLER</h3>
+                    <div class="takimJokerList">
+                        <button id="takimJokerNameBtn" class="takimJokerBtn purpleJoker">
+                            İSİM GÖSTER (<span id="takimJokerNameCount">0</span>)
+                        </button>
+                        <button id="takimJokerYearBtn" class="takimJokerBtn blueJoker">
+                            YIL GÖSTER (<span id="takimJokerYearCount">0</span>)
+                        </button>
+                        <button id="takimJokerElimBtn" class="takimJokerBtn orangeJoker">
+                            ŞIK ELE (<span id="takimJokerElimCount">0</span>)
+                        </button>
+                        <button id="takimJokerPassBtn" class="takimJokerBtn cyanJoker">
+                            PAS GEÇ (<span id="takimJokerPassCount">0</span>)
+                        </button>
+                        <button id="takimJokerCancelBtn" class="takimJokerBtn cancelJoker hidden">
+                            ✕ İPTAL ET
+                        </button>
+                    </div>
+                    <p id="takimDifficultyLabel" class="takimDiffLabel">Zorluk: KOLAY</p>
+                </div>
+
+                <!-- Orta: Futbol Sahası -->
+                <div class="takimFieldContainer">
+                    <div id="takimField" class="takimField"></div>
+                    <p id="takimStatusMsg" class="takimStatus"></p>
+                </div>
+
+                <!-- Sağ panel (boş, dengeleme için) -->
+                <div class="takimSidePanel"></div>
+            </div>
+
+            <div id="takimOptionsBox" class="takimOptions">
+                <button class="takimOptBtn" data-choice="0"><span class="optLetter">A)</span> <span class="optText">---</span></button>
+                <button class="takimOptBtn" data-choice="1"><span class="optLetter">B)</span> <span class="optText">---</span></button>
+                <button class="takimOptBtn" data-choice="2"><span class="optLetter">C)</span> <span class="optText">---</span></button>
+                <button class="takimOptBtn" data-choice="3"><span class="optLetter">D)</span> <span class="optText">---</span></button>
+            </div>
+
+            <div class="centerBox">
+                <button id="takimBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- TAKIM BİLMECE - PAS GEÇ ONAY -->
+        <div id="takimPassConfirmBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h2 style="color:#ffa94d;">⏭️ Pas Geçmek İster misin?</h2>
+                <p style="font-size:16px; margin:15px 0; color:#adb5bd;">
+                    Bu soruyu geçersen puan almazsın ama puan da kaybetmezsin.
+                </p>
+                <div class="confirmButtons">
+                    <button id="takimPassYesBtn" class="bigBtn greenBtn">EVET, PAS GEÇ</button>
+                    <button id="takimPassNoBtn" class="bigBtn redBtn">İPTAL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAKIM BİLMECE - OYUN SONU -->
+        <div id="takimGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="takimGameOverTitle"></h1>
+                <p id="takimGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <div class="confirmButtons">
+                    <button id="takimRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="takimBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- İLK 11 CHALLENGE - ODA OLUŞTUR -->
+        <section id="createIlk11Screen" class="panel hidden">
+            <h2 class="mainTitle">İlk 11 Challenge - Oda Oluştur</h2>
+
+            <div class="centerBox">
+                <input id="createIlk11NameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Kadro Kurma Süresi:
+                    <select id="ilk11TurnSecondsSelect">
+                        <option value="60">60 saniye</option>
+                        <option value="90">90 saniye</option>
+                        <option value="120" selected>120 saniye</option>
+                        <option value="180">180 saniye</option>
+                        <option value="240">240 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="ilk11InfoBox">
+                <h3>⚽ Nasıl Oynanır?</h3>
+                <p>Her iki oyuncu aynı anda <b style="color:#ffd43b">4-3-3 formasyonunda</b> kadrosunu kurar</p>
+                <p>Her pozisyon için <b style="color:#51cf66">5 futbolcu aday</b> gösterilir</p>
+                <p>Doğru pozisyona doğru oyuncu: <b style="color:#51cf66">Yüksek rating</b></p>
+                <p>Aynı ülke/lig oyuncuları: <b style="color:#ffd43b">Kimya bonusu</b></p>
+                <p><b>Toplam Rating + Kimya = Skor</b></p>
+                <p>En yüksek skoru alan <b style="color:#51cf66">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createIlk11Btn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createIlk11BackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createIlk11Msg" class="msg"></p>
+        </section>
+
+        <!-- İLK 11 CHALLENGE - LOBBY -->
+        <section id="ilk11LobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">İlk 11 Challenge - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="ilk11RoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="ilk11CopyHint" class="copyHint"></span>
+            </div>
+            <ul id="ilk11PlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>Kadro Süresi: <span id="ilk11LobbyTurnSeconds">120</span> sn</span>
+            </div>
+            <div class="centerBox">
+                <button id="ilk11StartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="ilk11LobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="ilk11LobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- İLK 11 CHALLENGE - OYUN EKRANI -->
+        <section id="ilk11GameScreen" class="hidden">
+            <div class="ilk11TopBar">
+                <div class="ilk11TopLeft">
+                    <div id="ilk11MyProgress">Kadrom: 0/11</div>
+                    <div id="ilk11OppProgress">Rakip: 0/11</div>
+                </div>
+                <div class="ilk11TopCenter">
+                    <h2 style="color:#ffd43b; margin:0;">⚽ İLK 11 CHALLENGE</h2>
+                </div>
+                <div class="ilk11TopRight">
+                    <div id="ilk11Timer" class="ilk11TimerBig">120s</div>
+                </div>
+            </div>
+
+            <div class="ilk11MainLayout">
+                <!-- Saha -->
+                <div class="ilk11FieldContainer">
+                    <div id="ilk11Field" class="ilk11Field">
+                        <!-- Saha çizgileri CSS ile -->
+                        <div class="ilk11FieldLines">
+                            <div class="ilk11HalfLine"></div>
+                            <div class="ilk11CenterCircle"></div>
+                            <div class="ilk11PenaltyTop"></div>
+                            <div class="ilk11PenaltyBottom"></div>
+                        </div>
+                        <!-- Pozisyon slotları JS ile doldurulacak -->
+                        <div id="ilk11Slots" class="ilk11Slots"></div>
+                    </div>
+                    <p id="ilk11StatusMsg" class="ilk11Status">Mevki seç ve takımını kur!</p>
+                </div>
+
+                <!-- Sağ panel: Log -->
+                <div class="ilk11SidePanel">
+                    <div class="ilk11MyCard">
+                        <h3 id="ilk11MyName">---</h3>
+                        <div id="ilk11MyCount" class="ilk11CountBig">0 / 11</div>
+                    </div>
+                    <div class="ilk11OppCard">
+                        <h3 id="ilk11OppName">Rakip</h3>
+                        <div id="ilk11OppStatus" class="ilk11OppStatusText">Seçiyor...</div>
+                    </div>
+                    <div class="ilk11LogBox">
+                        <h4>📋 Seçimlerin</h4>
+                        <div id="ilk11LogList" class="ilk11LogList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="centerBox">
+                <button id="ilk11BackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- İLK 11 CHALLENGE - FUTBOLCU SEÇ POPUP -->
+        <div id="ilk11PopupBox" class="overlay hidden">
+            <div class="overlayCard ilk11PopupCard">
+                <h2 id="ilk11PopupTitle" style="color:#ffd43b;">--- için futbolcu seç</h2>
+                <div id="ilk11PopupOptions" class="ilk11PopupGrid"></div>
+                <button id="ilk11PopupCloseBtn" class="bigBtn">✕ İPTAL</button>
+            </div>
+        </div>
+
+        <!-- İLK 11 CHALLENGE - SONUÇ EKRANI -->
+        <div id="ilk11ResultBox" class="overlay hidden">
+            <div class="overlayCard ilk11ResultCard">
+                <h1 style="color:#ffd43b; margin-bottom:10px;">⚽ MAÇ SONUCU</h1>
+
+                <div class="ilk11ResultTeams">
+                    <!-- Sol: Benim takım -->
+                    <div class="ilk11ResultTeam" id="ilk11ResultMyTeam">
+                        <h3 id="ilk11ResultMyName" class="ilk11ResultName" style="color:#51cf66;">---</h3>
+                        <div class="ilk11ResultMiniField" id="ilk11ResultMyField"></div>
+                        <div class="ilk11ResultScoreBox">
+                            <div>Rating: <span id="ilk11ResultMyRating" class="ilk11ResultNum">0</span></div>
+                            <div>Kimya: <span id="ilk11ResultMyChem" class="ilk11ResultNum">0</span></div>
+                            <div class="ilk11ResultTotal">TOPLAM: <span id="ilk11ResultMyTotal" class="ilk11ResultBigNum">0</span></div>
+                        </div>
+                    </div>
+
+                    <!-- VS -->
+                    <div class="ilk11ResultVS">
+                        <span>VS</span>
+                    </div>
+
+                    <!-- Sağ: Rakip takım -->
+                    <div class="ilk11ResultTeam" id="ilk11ResultOppTeam">
+                        <h3 id="ilk11ResultOppName" class="ilk11ResultName" style="color:#ffa94d;">---</h3>
+                        <div class="ilk11ResultMiniField" id="ilk11ResultOppField"></div>
+                        <div class="ilk11ResultScoreBox">
+                            <div>Rating: <span id="ilk11ResultOppRating" class="ilk11ResultNum">0</span></div>
+                            <div>Kimya: <span id="ilk11ResultOppChem" class="ilk11ResultNum">0</span></div>
+                            <div class="ilk11ResultTotal">TOPLAM: <span id="ilk11ResultOppTotal" class="ilk11ResultBigNum">0</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="ilk11ResultWinner" class="ilk11ResultWinnerText"></h2>
+
+                <div class="confirmButtons">
+                    <button id="ilk11RematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="ilk11BackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STADYUM TANIMA - ODA OLUŞTUR -->
+        <section id="createStadScreen" class="panel hidden">
+            <h2 class="mainTitle">Stadyum Tanıma - Oda Oluştur</h2>
+
+            <div class="centerBox">
+                <input id="createStadNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Süresi:
+                    <select id="stadTurnSecondsSelect">
+                        <option value="15">15 saniye</option>
+                        <option value="20" selected>20 saniye</option>
+                        <option value="30">30 saniye</option>
+                        <option value="45">45 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="ilk11InfoBox">
+                <h3>🏟️ Nasıl Oynanır?</h3>
+                <p>Stadyum resmi ve <b style="color:#ffd43b">4 şık</b> gösterilir</p>
+                <p>Sırayla oynanır, ilk turu host başlatır</p>
+                <p>Doğru şık: <b style="color:#51cf66">+10</b></p>
+                <p>10 sn içinde doğru bilirsen: <b style="color:#ffd43b">+5 bonus</b></p>
+                <p>Yanlış şık: <b style="color:#ff6b6b">-3</b></p>
+                <p>Her joker kullanımında: <b style="color:#ffa94d">-2 ceza</b></p>
+                <p>Jokerler: <b>🏆 Takım</b> / <b>🌍 Ülke</b> / <b>💡 50:50</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createStadBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createStadBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createStadMsg" class="msg"></p>
+        </section>
+
+        <!-- STADYUM TANIMA - LOBBY -->
+        <section id="stadLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Stadyum Tanıma - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="stadRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="stadCopyHint" class="copyHint"></span>
+            </div>
+            <ul id="stadPlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>Toplam Tur: 10</span>
+                <span style="margin-left:20px;">Süre: <span id="stadLobbyTurnSeconds">30</span> sn</span>
+            </div>
+            <div class="centerBox">
+                <button id="stadStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="stadLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="stadLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- STADYUM TANIMA - OYUN -->
+        <section id="stadGameScreen" class="hidden">
+            <div class="haritaTopBar">
+                <div class="haritaTopLeft">
+                    <div id="stadRoundInfo">Tur 1/10</div>
+                    <div id="stadTurnInfo">Sıra: ---</div>
+                </div>
+                <div class="haritaScoreboard">
+                    <span id="stadP1Name" class="scoreMine">---</span>
+                    <span id="stadScore" class="haritaScoreText">0 - 0</span>
+                    <span id="stadP2Name" class="scoreOpp">---</span>
+                </div>
+                <div class="haritaTopRight">
+                    <div id="stadTimer" class="haritaTimerBig">30s</div>
+                </div>
+            </div>
+
+            <div class="stadMainLayout">
+                <div class="stadImagePanel">
+                    <img id="stadImage" src="" alt="Stadyum">
+                    <div id="stadAnswerReveal" class="stadAnswerReveal hidden"></div>
+
+                    <div class="stadOptions" id="stadOptions">
+                        <button class="stadOptBtn" data-index="0"><span class="optLetter">A)</span> <span class="optText">---</span></button>
+                        <button class="stadOptBtn" data-index="1"><span class="optLetter">B)</span> <span class="optText">---</span></button>
+                        <button class="stadOptBtn" data-index="2"><span class="optLetter">C)</span> <span class="optText">---</span></button>
+                        <button class="stadOptBtn" data-index="3"><span class="optLetter">D)</span> <span class="optText">---</span></button>
+                    </div>
+                </div>
+
+                <div class="stadSidePanel">
+                    <div class="stadJokerBox">
+                        <h3>Jokerler (<span id="stadJokerCount">3</span>)</h3>
+                        <div class="stadJokerGrid">
+                            <button id="stadJokerTakimBtn" class="takimJokerBtn purpleJoker">🏆 TAKIM</button>
+                            <button id="stadJokerUlkeBtn" class="takimJokerBtn blueJoker">🌍 ÜLKE</button>
+                            <button id="stadJoker5050Btn" class="takimJokerBtn cyanJoker">💡 50:50</button>
+                        </div>
+                    </div>
+
+                    <div class="stadHintBox">
+                        <h3>İpuçları</h3>
+                        <div id="stadHintTakim" class="stadHintLine hidden"></div>
+                        <div id="stadHintUlke" class="stadHintLine hidden"></div>
+                    </div>
+
+                    <p id="stadStatusMsg" class="gizemStatus"></p>
+                </div>
+            </div>
+
+            <div class="centerBox">
+                <button id="stadBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- STADYUM TANIMA - OYUN SONU -->
+        <div id="stadGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="stadGameOverTitle"></h1>
+                <p id="stadGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <div class="confirmButtons">
+                    <button id="stadRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="stadBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇİM EKRANI -->
+        <section id="selectScreen" class="hidden">
+            <div class="panel">
+                <h2 class="mainTitle">Gizli Futbolcunu Seç</h2>
+                <div class="topbar">
+                    <div>Süre: <span id="selectTimer" class="timerText">--</span></div>
+                    <div id="selectMsg" class="msg"></div>
+                </div>
+            </div>
+            <div id="selectGrid" class="grid"></div>
+        </section>
+
+        <!-- OYUN EKRANI -->
+        <section id="gameScreen" class="hidden">
+            <div class="topbar">
+                <div id="turnText">Sıra:</div>
+                <div id="scoreText">Skor:</div>
+                <div id="remainText">Kalan:</div>
+                <div>Süre: <span id="gameTimer" class="timerText">--</span></div>
+                <div id="guessLeftBox">Tahmin: <span id="guessLeftText" class="guessLeft">--</span></div>
+            </div>
+
+            <div class="gameLayout">
+                <div class="board">
+                    <div id="gameGrid" class="grid"></div>
+                </div>
+
+                <div class="sidebar">
+                    <div class="panel">
+                        <h3>Sorular</h3>
+                        <div id="questionsBox" class="questionList"></div>
+                        <button id="guessModeBtn" class="guessBtn">TAHMİN ET</button>
+                        <p id="gameMsg" class="msg"></p>
+                    </div>
+
+                    <div id="answerPanel" class="panel hidden">
+                        <h3 class="orangeText">Rakibin Sorusu</h3>
+                        <p id="answerQuestionText" class="questionShow"></p>
+                        <div class="answerButtons">
+                            <button id="answerYesBtn" class="answerBtn">EVET</button>
+                            <button id="answerNoBtn" class="answerBtn">HAYIR</button>
+                        </div>
+                        <p class="hint">Doğru cevaba tıkla</p>
+                    </div>
+
+                    <div class="panel">
+                        <h3>Log</h3>
+                        <div id="logBox" class="logBox"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- FUTBOLCU DETAY TOOLTIP -->
+    <div id="playerTooltip" class="tooltip hidden"></div>
+
+    <!-- ONAY POPUP (SEÇME / TAHMIN) -->
+    <div id="confirmBox" class="overlay hidden">
+        <div class="overlayCard">
+            <h2 id="confirmTitle"></h2>
+            <img id="confirmImg" src="" alt="">
+            <p id="confirmName" class="bigName"></p>
+            <p id="confirmMsg"></p>
+            <div class="confirmButtons">
+                <button id="confirmYesBtn" class="bigBtn greenBtn">EVET</button>
+                <button id="confirmNoBtn" class="bigBtn redBtn">HAYIR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OYUN SONU -->
+    <div id="gameOverBox" class="overlay hidden">
+        <div class="overlayCard">
+            <h1 id="gameOverTitle"></h1>
+            <p id="gameOverText"></p>
+            <div class="confirmButtons">
+                <button id="newRoundBtn" class="bigBtn greenBtn hidden">Yeni Tur Başlat</button>
+                <button id="backToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RAKİP AYRILDI -->
+    <div id="opponentLeftBox" class="overlay hidden">
+        <div class="overlayCard">
+            <h1 style="color:#ff6b6b;">😢 Rakip Ayrıldı</h1>
+            <p id="opponentLeftText" style="font-size:18px; margin:20px 0;"></p>
+            <div class="confirmButtons">
+                <button id="opponentLeftOkBtn" class="bigBtn greenBtn">Ana Menüye Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SAĞ ALT BİLDİRİM (Yanlış tahmin vs.) -->
+    <div id="toastBox" class="toastBox hidden">
+        <img id="toastImg" src="" alt="">
+        <div class="toastContent">
+            <div id="toastTitle" class="toastTitle"></div>
+            <div id="toastMsg" class="toastMsg"></div>
+        </div>
+    </div>
+
+    <!-- KONFETI -->
+    <canvas id="confetti"></canvas>
+</body>
+</html>

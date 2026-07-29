@@ -1,0 +1,77 @@
+"""
+Futbolcu Bil - Soru Verileri
+"""
+
+ALL_QUESTIONS = [
+    ("Genc yetenek mi?", "young", True),
+    ("30 yas ustu mu?", "over30", True),
+    ("Sakalli mi?", "beard", True),
+    ("Sarisin mi?", "blonde", True),
+    ("Kel mi?", "bald", True),
+    ("Sac bandi var mi?", "headband", True),
+    ("Dovmesi var mi?", "tattoo", True),
+    ("Ballon dOr var mi?", "ballondor", True),
+    ("100+ gol mu?", "goals100", True),
+    ("S.Ligi kazandi mi?", "ucl", True),
+    ("D.Kupasi kazandi mi?", "worldcup", True),
+    ("Kaptan mi?", "captain", True),
+    ("Sol ayakli mi?", "leftfoot", True),
+    ("Avrupada mi?", "europe", True),
+    ("SuperLig gecmisi?", "superlig", True),
+    ("Afrikali mi?", "african", True),
+    ("10 numara mi?", "number10", True),
+    ("9 numara mi?", "number9", True),
+    ("7 numara mi?", "number7", True),
+    ("Brezilyali mi?", "nationality", "Brezilya"),
+    ("Arjantinli mi?", "nationality", "Arjantin"),
+    ("Turk mu?", "nationality", "Turkiye"),
+    ("Fransiz mi?", "nationality", "Fransa"),
+    ("Ingiliz mi?", "nationality", "Ingiltere"),
+    ("Portekizli mi?", "nationality", "Portekiz"),
+    ("Alman mi?", "nationality", "Almanya"),
+    ("Ispanyol mu?", "nationality", "Ispanya"),
+    ("Polonyali mi?", "nationality", "Polonya"),
+    ("Belcikali mi?", "nationality", "Belcika"),
+    ("Hollandali mi?", "nationality", "Hollanda"),
+    ("Koreli mi?", "nationality", "G.Kore"),
+    ("Norvecli mi?", "nationality", "Norvec"),
+    ("Kolombiyali mi?", "nationality", "Kolombiya"),
+    ("Uruguayli mi?", "nationality", "Uruguay"),
+    ("Isvecli mi?", "nationality", "Isvec"),
+    ("Bosnali mi?", "nationality", "Bosna"),
+    ("Hirvatistanli mi?", "nationality", "Hirvatistan"),
+    ("Italyan mi?", "nationality", "Italya"),
+    ("Cek mi?", "nationality", "Cek Cumhuriyeti"),
+    ("Danimarkali mi?", "nationality", "Danimarka"),
+    ("Ukraynali mi?", "nationality", "Ukrayna"),
+    ("Rus mu?", "nationality", "Rusya"),
+    ("Macar mi?", "nationality", "Macaristan"),
+    ("Kuzey Irlandali mi?", "nationality", "Kuzey irlanda"),
+    ("Sili li mi?", "nationality", "Sili"),
+    ("Galli mi?", "nationality", "Galler"),
+    ("Avrupali mi?", "continent", "Avrupa"),
+    ("G.Amerikali mi?", "continent", "G.Amerika"),
+    ("Afrikali(kita)?", "continent", "Afrika"),
+    ("Asyali mi?", "continent", "Asya"),
+    ("Forvet mi?", "position", "Forvet"),
+    ("Orta saha mi?", "position", "OrtaSaha"),
+    ("Defans mi?", "position", "Defans"),
+    ("Kaleci mi?", "position", "Kaleci"),
+    ("LaLigada mi?", "league", "LaLiga"),
+    ("Premier Ligde mi?", "league", "Premier"),
+    ("SuperLigde mi?", "league", "SuperLig"),
+    ("Suudi Ligde mi?", "league", "Suudi"),
+    ("Ligue1 de mi?", "league", "Ligue1"),
+    ("SerieA da mi?", "league", "SerieA"),
+    ("Bundesliga da mi?", "league", "Bundesliga"),
+    ("Emekli mi?", "league", "Emekli"),
+    ("MLS de mi?", "league", "MLS"),
+]
+
+
+def check_question(footballer, question_index):
+    """Bir futbolcunun soruya cevabini kontrol eder"""
+    text, key, value = ALL_QUESTIONS[question_index]
+    if isinstance(value, bool):
+        return footballer[key] == value
+    return footballer[key] == value
