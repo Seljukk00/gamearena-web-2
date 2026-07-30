@@ -138,7 +138,7 @@ ALL_TEAMS = {
     # ============================================
     "Celtic":                   {"color": (0, 132, 61),    "tm_id": 371},
     "Rangers":                  {"color": (0, 65, 138),    "tm_id": 246},
-    "Olympiakos":               {"color": (200, 16, 46),   "tm_id": 143},
+    "Olympiakos":               {"color": (200, 16, 46),   "tm_id": 683},
     "Panathinaikos":            {"color": (0, 100, 50),    "tm_id": 124},
     "Shakhtar Donetsk":         {"color": (253, 225, 0),   "tm_id": 660},
     "Dynamo Kyiv":              {"color": (0, 65, 138),    "tm_id": 338},

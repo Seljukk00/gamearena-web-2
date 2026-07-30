@@ -3384,3 +3384,273 @@ button:disabled {
         padding: 10px;
     }
 }
+
+/* ==========================================
+   YENİ SES KONTROLÜ - Sağ Alt Köşe
+   ========================================== */
+
+.volumeWidget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    font-family: inherit;
+}
+
+/* Görünmez köprü: buton ile slider arası (hover kapanmasın) */
+.volumeWidget::before {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 60px;
+    height: 280px;
+    background: transparent;
+    pointer-events: none;
+}
+
+.volumeWidget:hover::before {
+    pointer-events: auto;
+}
+
+/* Ses Butonu */
+.volumeButton {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4dabf7 0%, #339af0 100%);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(77, 171, 247, 0.4);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 3;
+}
+
+.volumeButton:hover {
+    background: linear-gradient(135deg, #339af0 0%, #228be6 100%);
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(77, 171, 247, 0.6);
+}
+
+.volumeButton:active {
+    transform: scale(0.95);
+}
+
+.volumeButton svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+/* Dalgaların temel görünümü */
+.volumeWave {
+    transition: opacity 0.3s ease;
+}
+
+/* Varsayılan olarak tüm dalgalar görünmez */
+#volumeWave1,
+#volumeWave2,
+#volumeWave3 {
+    opacity: 0;
+}
+
+/* Ses seviyesine göre dalgalar */
+.volumeButton[data-level="1"] #volumeWave1 {
+    opacity: 1;
+}
+
+.volumeButton[data-level="2"] #volumeWave1,
+.volumeButton[data-level="2"] #volumeWave2 {
+    opacity: 1;
+}
+
+.volumeButton[data-level="3"] #volumeWave1,
+.volumeButton[data-level="3"] #volumeWave2,
+.volumeButton[data-level="3"] #volumeWave3 {
+    opacity: 1;
+}
+
+/* Sessiz mod - tüm dalgalar kaybolur */
+.volumeButton.muted .volumeWave {
+    opacity: 0 !important;
+}
+
+.volumeButton.muted {
+    background: linear-gradient(135deg, #868e96 0%, #495057 100%);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Slider Container (hover ile açılır) */
+.volumeSlider {
+    position: absolute;
+    bottom: 65px;
+    right: 0;
+    left: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.8);
+    transform-origin: bottom center;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 2;
+    width: 55px;
+}
+
+.volumeWidget:hover .volumeSlider {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+/* Slider Kutusu */
+.volumeSliderBox {
+    background: linear-gradient(135deg, rgba(30, 35, 50, 0.95) 0%, rgba(20, 25, 40, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(77, 171, 247, 0.3);
+    border-radius: 30px;
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    height: 240px;
+    width: 55px;
+}
+
+/* Ses değeri (üstte) */
+.volumeSliderVal {
+    color: #ffd43b;
+    font-weight: bold;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    background: rgba(255, 212, 59, 0.1);
+    padding: 3px 8px;
+    border-radius: 10px;
+    min-width: 30px;
+    text-align: center;
+    border: 1px solid rgba(255, 212, 59, 0.3);
+    flex-shrink: 0;
+}
+
+/* Slider track container - CUSTOM DIKEY */
+.volumeSliderTrack {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    position: relative;
+    cursor: pointer;
+    min-height: 150px;
+    /* Thumb'ın taşmasını engelle */
+    padding: 15px 0;
+}
+
+/* Native slider gizli, sadece klik için */
+#mlVolumeRange {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    z-index: 10;
+    transform: rotate(-90deg);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Custom dikey slider görünümü - TRACK ÇİZGİSİ */
+.volumeSliderTrack::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    pointer-events: none;
+}
+
+/* Dolu kısım - alttan yukarı sarı dolgu */
+.volumeSliderTrack::after {
+    content: "";
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: calc((100% - 30px) * var(--volume-percent, 0.3));
+    background: linear-gradient(to top, #ffd43b, #fcc419);
+    border-radius: 10px;
+    pointer-events: none;
+    transition: height 0.1s ease;
+}
+
+/* Thumb (yuvarlak top) - track içinde kalır */
+.volumeThumb {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 18px;
+    background: #ffd43b;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    pointer-events: none;
+    z-index: 5;
+    transition: bottom 0.1s ease;
+    /* Thumb pozisyonu: alttaki padding (15px) + track dolgu yüksekliği - thumb yarısı (9px) */
+    bottom: calc(15px + (100% - 30px) * var(--volume-percent, 0.3) - 9px);
+}
+
+/* Min ikonu (altta) */
+.volumeSliderMin {
+    font-size: 14px;
+    opacity: 0.5;
+    color: white;
+    flex-shrink: 0;
+}
+
+/* Mobil optimizasyon */
+@media (max-width: 768px) {
+    .volumeWidget {
+        bottom: 15px;
+        right: 15px;
+    }
+    
+    .volumeButton {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .volumeButton svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .volumeSliderBox {
+        height: 200px;
+        width: 50px;
+    }
+}
+
+/* Eski ses kontrolünü tamamen gizle */
+.mlVolumeControl {
+    display: none !important;
+}

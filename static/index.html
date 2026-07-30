@@ -12,11 +12,33 @@
 <body>
     <div id="starfield"></div>
 
-    <!-- GLOBAL SES KONTROLÜ (her ekranda görünür) -->
-    <div class="mlVolumeControl" id="globalVolumeControl">
-        <span id="mlVolumeIcon">🔊</span>
-        <input type="range" id="mlVolumeRange" min="0" max="100" value="30">
-        <span id="mlVolumeVal">30</span>
+    <!-- GLOBAL SES KONTROLÜ (sağ alt köşe - hover ile açılan) -->
+    <div class="volumeWidget" id="globalVolumeControl">
+        <div class="volumeSlider" id="volumeSliderContainer">
+            <div class="volumeSliderBox">
+                <span class="volumeSliderVal" id="mlVolumeVal">0</span>
+                <div class="volumeSliderTrack" id="volumeTrack">
+                    <div class="volumeThumb" id="volumeThumb"></div>
+                    <input type="range" id="mlVolumeRange" min="0" max="100" value="0">
+                </div>
+                <span class="volumeSliderMin">🔇</span>
+            </div>
+        </div>
+        <button class="volumeButton" id="volumeButton" aria-label="Ses Ayarı">
+            <svg id="mlVolumeIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" width="30" height="30">
+                <!-- Hoparlör (her zaman görünür) -->
+                <path fill="currentColor" d="M215.03 71.05L126.06 160H24c-13.26 0-24 10.74-24 24v144c0 13.25 10.74 24 24 24h102.06l88.97 88.95c15.03 15.03 40.97 4.47 40.97-16.97V88.02c0-21.46-25.96-31.98-40.97-16.97z"/>
+                
+                <!-- Küçük dalga (1. seviye - düşük ses) -->
+                <path fill="currentColor" class="volumeWave" id="volumeWave1" d="M338.23 179.77l-22.82 22.82c17.5 17.5 27.31 41.24 27.31 66.05 0 25.44-9.77 49.12-27.5 66.85l22.83 22.83c26.06-26.05 40.4-60.68 40.4-97.68 0-36.99-14.34-71.62-40.22-96.87z"/>
+                
+                <!-- Orta dalga (2. seviye - orta ses) -->
+                <path fill="currentColor" class="volumeWave" id="volumeWave2" d="M412.06 128.16c-9.37-9.37-24.57-9.37-33.94 0-9.37 9.37-9.37 24.57 0 33.94C406.44 190.4 424 221.44 424 256s-17.56 65.6-45.88 93.9c-9.37 9.37-9.37 24.57 0 33.94 9.36 9.37 24.57 9.37 33.94 0C449.53 346.24 472 302.72 472 256s-22.47-90.24-59.94-127.84z"/>
+                
+                <!-- Büyük dalga (3. seviye - yüksek ses) -->
+                <path fill="currentColor" class="volumeWave" id="volumeWave3" d="M480.25 76.19c-9.34-9.4-24.53-9.4-33.86 0-9.36 9.4-9.36 24.61 0 34.01C494.34 158.61 520 205.34 520 256s-25.66 97.39-73.61 145.8c-9.36 9.4-9.36 24.61 0 34.01 9.34 9.4 24.52 9.4 33.86 0C536.44 379.06 568 320.61 568 256s-31.56-123.06-87.75-179.81z"/>
+            </svg>
+        </button>
     </div>
 
     <div class="container">

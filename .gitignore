@@ -20,3 +20,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Kişisel bat dosyaları (GitHub'a atma)
+batlar/
+*.bat

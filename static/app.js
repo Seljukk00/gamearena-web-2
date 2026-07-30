@@ -2116,9 +2116,9 @@ function loadMlSounds() {
         mlSounds.question = new Audio("/ml_assets/question.WAV");
         mlSounds.menu = new Audio("/ml_assets/menu.mp3");
         
-        // Kayıtlı ses seviyesini getir (Yoksa 30) - int olarak parse et
+        // Kayıtlı ses seviyesini getir (Yoksa 0 - default sessiz)
         const saved = localStorage.getItem("mlVolume");
-        const savedVol = saved !== null ? parseInt(saved) : 30;
+        const savedVol = saved !== null ? parseInt(saved) : 0;
         updateAllVolumes(savedVol);
         
         if (mlSounds.question) mlSounds.question.loop = true;
@@ -2129,21 +2129,60 @@ function loadMlSounds() {
 }
 
 function updateAllVolumes(val) {
+    val = parseInt(val);
+    if (isNaN(val)) val = 0;
+    if (val < 0) val = 0;
+    if (val > 100) val = 100;
+    
     const volume = val / 100;
     Object.values(mlSounds).forEach(s => {
         if (s) s.volume = volume;
     });
+    
     // UI Güncelle
     const range = document.getElementById("mlVolumeRange");
     const text = document.getElementById("mlVolumeVal");
-    const icon = document.getElementById("mlVolumeIcon");
+    const button = document.getElementById("volumeButton");
+    const waves = document.getElementById("volumeWaves");
+    const track = document.getElementById("volumeTrack");
+    const thumb = document.getElementById("volumeThumb");
     
     if (range) range.value = val;
     if (text) text.textContent = val;
-    if (icon) icon.textContent = val == 0 ? "🔇" : (val < 50 ? "🔉" : "🔊");
+    
+    // Custom slider dolgusu ve thumb pozisyonu
+    // val: 0-100 arası → percent: 0-1 arası
+    const percent = val / 100;
+    
+    if (track) {
+        track.style.setProperty('--volume-percent', percent);
+    }
+    if (thumb) {
+        thumb.style.setProperty('--volume-percent', percent);
+    }
+    
+    // Butonu renklendir (sessiz mi değil mi)
+    if (button) {
+        if (val == 0) {
+            button.classList.add("muted");
+        } else {
+            button.classList.remove("muted");
+        }
+    }
+    
+    // Ses seviyesine göre dalga sayısı (0, 1, 2 veya 3)
+    if (button) {
+        let level = 0;
+        if (val == 0) level = 0;           // Sessiz
+        else if (val <= 33) level = 1;     // 1 dalga
+        else if (val <= 66) level = 2;     // 2 dalga
+        else level = 3;                     // 3 dalga
+        
+        button.setAttribute("data-level", level);
+    }
 }
 
-// Ses slider listener
+// Ses slider listener (input)
 document.addEventListener("input", (e) => {
     if (e.target && e.target.id === "mlVolumeRange") {
         const val = e.target.value;
@@ -2151,6 +2190,95 @@ document.addEventListener("input", (e) => {
         localStorage.setItem("mlVolume", val);
     }
 });
+
+// Custom track'e tıklama & sürükleme
+function initVolumeTrack() {
+    const track = document.getElementById("volumeTrack");
+    if (!track) return;
+    
+    let isDragging = false;
+    
+    function updateFromPosition(clientY) {
+        const rect = track.getBoundingClientRect();
+        const trackHeight = rect.height - 20; // padding çıkar
+        const relativeY = clientY - rect.top - 10; // padding düzeltmesi
+        
+        // Ters mantık: yukarı = daha çok ses
+        let percent = 100 - (relativeY / trackHeight * 100);
+        percent = Math.max(0, Math.min(100, percent));
+        percent = Math.round(percent);
+        
+        updateAllVolumes(percent);
+        localStorage.setItem("mlVolume", percent);
+    }
+    
+    // Mouse
+    track.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        updateFromPosition(e.clientY);
+        e.preventDefault();
+    });
+    
+    document.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+            updateFromPosition(e.clientY);
+        }
+    });
+    
+    document.addEventListener("mouseup", () => {
+        isDragging = false;
+    });
+    
+    // Touch (mobil)
+    track.addEventListener("touchstart", (e) => {
+        isDragging = true;
+        updateFromPosition(e.touches[0].clientY);
+        e.preventDefault();
+    });
+    
+    document.addEventListener("touchmove", (e) => {
+        if (isDragging && e.touches[0]) {
+            updateFromPosition(e.touches[0].clientY);
+        }
+    });
+    
+    document.addEventListener("touchend", () => {
+        isDragging = false;
+    });
+}
+
+// Sayfa yüklendiğinde track'i aktif et
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initVolumeTrack);
+} else {
+    initVolumeTrack();
+}
+
+// Ses butonuna tıklama (mute toggle)
+document.addEventListener("DOMContentLoaded", () => {
+    const button = document.getElementById("volumeButton");
+    if (button) {
+        button.addEventListener("click", () => {
+            const range = document.getElementById("mlVolumeRange");
+            if (!range) return;
+            
+            const currentVal = parseInt(range.value);
+            
+            if (currentVal > 0) {
+                // Sessize al
+                localStorage.setItem("mlVolumeBackup", currentVal);
+                updateAllVolumes(0);
+                localStorage.setItem("mlVolume", 0);
+            } else {
+                // Eski seviyeye dön
+                const backup = parseInt(localStorage.getItem("mlVolumeBackup") || "30");
+                updateAllVolumes(backup);
+                localStorage.setItem("mlVolume", backup);
+            }
+        });
+    }
+});
+
 loadMlSounds();
 
 function playMlSound(name) {
