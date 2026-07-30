@@ -2339,6 +2339,29 @@ if (_savedName) {
 }
 
 // Oda oluştur butonu
+// Turnstile token saklama
+let mlTurnstileToken = null;
+
+// Turnstile callback fonksiyonları (global scope)
+window.onTurnstileSuccess = function(token) {
+    console.log("[TURNSTILE] Doğrulama başarılı");
+    mlTurnstileToken = token;
+    const msg = document.getElementById("createMlMsg");
+    if (msg && msg.textContent.includes("güvenlik")) {
+        msg.textContent = "";
+    }
+};
+
+window.onTurnstileError = function() {
+    console.error("[TURNSTILE] Doğrulama hatası");
+    mlTurnstileToken = null;
+};
+
+window.onTurnstileExpired = function() {
+    console.log("[TURNSTILE] Token süresi doldu");
+    mlTurnstileToken = null;
+};
+
 document.getElementById("createMlBtn").onclick = () => {
     const name = document.getElementById("createMlNameInput").value.trim();
     if (!name) {
@@ -2346,19 +2369,41 @@ document.getElementById("createMlBtn").onclick = () => {
         document.getElementById("createMlMsg").style.color = "#ff6b6b";
         return;
     }
+    
+    // Turnstile doğrulama kontrolü
+    if (!mlTurnstileToken) {
+        document.getElementById("createMlMsg").textContent = "⏳ Güvenlik doğrulaması bekleniyor... Lütfen 1 saniye bekleyin.";
+        document.getElementById("createMlMsg").style.color = "#ffa94d";
+        return;
+    }
+    
     localStorage.setItem("playerName", name);
     myName = name;
     
     const category = document.getElementById("mlCategorySelect").value;
     const difficulty = document.getElementById("mlDifficultySelect").value;
     const turnSec = parseInt(document.getElementById("mlTurnSecondsSelect").value) || 60;
+    
     send({
         type: "ml_create_room",
         name: name,
         category: category,
         difficulty: difficulty,
-        turn_seconds: turnSec
+        turn_seconds: turnSec,
+        turnstile_token: mlTurnstileToken
     });
+    
+    // Token'ı sıfırla (tek kullanımlık)
+    mlTurnstileToken = null;
+    
+    // Widget'ı yeniden yükle (yeni token için)
+    if (window.turnstile) {
+        try {
+            window.turnstile.reset("#mlTurnstileWidget");
+        } catch (e) {
+            console.error("Turnstile reset hatası:", e);
+        }
+    }
 };
 
 document.getElementById("createMlBackBtn").onclick = () => {
@@ -5430,3 +5475,39 @@ handleMessage = function(msg) {
 
 // başlangıç gizle
 document.getElementById("stadGameOverBox").classList.add("hidden");
+
+// ==========================================
+// FOOTER POPUP FONKSİYONLARI
+// ==========================================
+
+function showDisclaimer() {
+    document.getElementById("disclaimerBox").classList.remove("hidden");
+}
+
+function closeDisclaimer() {
+    document.getElementById("disclaimerBox").classList.add("hidden");
+}
+
+function showAbout() {
+    document.getElementById("aboutBox").classList.remove("hidden");
+}
+
+function closeAbout() {
+    document.getElementById("aboutBox").classList.add("hidden");
+}
+
+function showContact() {
+    document.getElementById("contactBox").classList.remove("hidden");
+}
+
+function closeContact() {
+    document.getElementById("contactBox").classList.add("hidden");
+}
+
+// Global scope'a al (HTML'de onclick için)
+window.showDisclaimer = showDisclaimer;
+window.closeDisclaimer = closeDisclaimer;
+window.showAbout = showAbout;
+window.closeAbout = closeAbout;
+window.showContact = showContact;
+window.closeContact = closeContact;

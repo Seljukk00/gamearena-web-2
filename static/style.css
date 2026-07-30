@@ -3654,3 +3654,98 @@ button:disabled {
 .mlVolumeControl {
     display: none !important;
 }
+
+/* ==========================================
+   CLOUDFLARE TURNSTILE
+   ========================================== */
+
+.cf-turnstile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 65px;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* Widget yüklenene kadar loading göster */
+.cf-turnstile:empty::before {
+    content: "🛡️ Güvenlik doğrulaması yükleniyor...";
+    color: #ffa94d;
+    font-size: 13px;
+    padding: 20px;
+}
+
+/* ==========================================
+   FOOTER - YASAL BİLGİ
+   ========================================== */
+
+.siteFooter {
+    background: linear-gradient(135deg, rgba(10, 15, 30, 0.95) 0%, rgba(15, 20, 40, 0.95) 100%);
+    border-top: 1px solid rgba(77, 171, 247, 0.2);
+    padding: 25px 20px;
+    margin-top: 60px;
+    color: #adb5bd;
+    text-align: center;
+    font-size: 13px;
+    position: relative;
+    z-index: 100;
+}
+
+.footerContent {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.footerLinks {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.footerLinks a {
+    color: #4dabf7;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.footerLinks a:hover {
+    color: #74c0fc;
+    background: rgba(77, 171, 247, 0.1);
+}
+
+.footerSeparator {
+    color: #495057;
+    opacity: 0.5;
+}
+
+.footerCopy {
+    color: #6c757d;
+    font-size: 12px;
+    line-height: 1.6;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Mobil */
+@media (max-width: 768px) {
+    .siteFooter {
+        padding: 20px 15px;
+        margin-top: 40px;
+    }
+    
+    .footerLinks {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .footerSeparator {
+        display: none;
+    }
+}

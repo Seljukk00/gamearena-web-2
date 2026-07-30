@@ -1,8 +1,54 @@
 import asyncio
 import random
+import os
+import urllib.request
+import urllib.parse
+import json
 
 from oyun_modlari.kim_milyoner.questions import QUESTIONS as ML_QUESTIONS
 from oyun_modlari.kim_milyoner.ai_soru_uretici import generate_questions_async
+
+# Turnstile secret (Cloudflare)
+TURNSTILE_SECRET = os.getenv("TURNSTILE_SECRET", "")
+
+
+def verify_turnstile_token(token, remote_ip=""):
+    """Cloudflare Turnstile token'ını doğrula"""
+    if not TURNSTILE_SECRET:
+        # Secret yoksa (dev ortamı) doğrulama atla
+        print("[TURNSTILE] Secret yok, doğrulama atlandı")
+        return True
+    
+    if not token:
+        print("[TURNSTILE] Token yok, reddedildi")
+        return False
+    
+    try:
+        # Cloudflare'e istek gönder
+        url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+        data = urllib.parse.urlencode({
+            "secret": TURNSTILE_SECRET,
+            "response": token,
+            "remoteip": remote_ip
+        }).encode("utf-8")
+        
+        req = urllib.request.Request(url, data=data, method="POST")
+        
+        # 5 saniye timeout
+        with urllib.request.urlopen(req, timeout=5) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        
+        if result.get("success"):
+            print(f"[TURNSTILE] ✓ Doğrulama başarılı")
+            return True
+        else:
+            errors = result.get("error-codes", [])
+            print(f"[TURNSTILE] ✗ Doğrulama başarısız: {errors}")
+            return False
+    except Exception as e:
+        print(f"[TURNSTILE] Hata: {e}")
+        # Cloudflare'e ulaşılamıyorsa varsayılan olarak kabul et (site down olmasın)
+        return True
 
 ML_PARA = [500, 1000, 2000, 3000, 5000, 7500, 15000, 30000, 60000, 125000, 250000, 1000000]
 ML_PARA_STR = ["500", "1.000", "2.000", "3.000", "5.000", "7.500", "15.000", "30.000", "60.000", "125.000", "250.000", "1.000.000"]
@@ -260,9 +306,35 @@ async def send_ml_lobby_update(room, broadcast):
     })
 
 
+# Global AI rate limit (herkes için)
+_last_ai_calls = []
+_MAX_AI_PER_MINUTE = 10  # Tüm siteden dakikada max 10 AI çağrısı
+
+
+def _check_global_ai_rate_limit():
+    """Global AI rate limit kontrolü"""
+    global _last_ai_calls
+    import time
+    now = time.time()
+    _last_ai_calls = [t for t in _last_ai_calls if now - t < 60]
+    if len(_last_ai_calls) >= _MAX_AI_PER_MINUTE:
+        return False
+    _last_ai_calls.append(now)
+    return True
+
+
 async def _background_generate_ai_questions(room, broadcast):
     """Oda oluştururken arka planda AI sorularını üret"""
     try:
+        # Global AI rate limit kontrolü
+        if not _check_global_ai_rate_limit():
+            print(f"[ML BG] ⚠️ Global AI rate limit aşıldı, manuel sorular kullanılacak")
+            room["ml_ai_questions"] = {}
+            room["ml_ai_ready"] = True  # Ready olarak işaretle (manuel devreye girsin)
+            if room.get("phase") == "lobby":
+                await send_ml_lobby_update(room, broadcast)
+            return
+        
         category = room.get("ml_category", "futbol")
         difficulty = room.get("ml_difficulty", "karisik")
         
@@ -313,9 +385,25 @@ async def handle_milyoner_message(
         category = (data.get("category") or "futbol").strip()
         difficulty = (data.get("difficulty") or "karisik").strip()
         turn_seconds_raw = data.get("turn_seconds", 60)
+        turnstile_token = data.get("turnstile_token", "")
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
+            return _handled(current_room_code, current_player_id)
+        
+        # Turnstile doğrulama (bot koruması)
+        client_ip = ""
+        try:
+            if hasattr(websocket, 'client') and websocket.client:
+                client_ip = websocket.client.host
+        except:
+            pass
+        
+        if not verify_turnstile_token(turnstile_token, client_ip):
+            await safe_send(websocket, {
+                "type": "error",
+                "message": "Güvenlik doğrulaması başarısız. Sayfayı yenileyip tekrar deneyin."
+            })
             return _handled(current_room_code, current_player_id)
 
         if category not in ["futbol", "genel_kultur", "karisik"]:

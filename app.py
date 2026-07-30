@@ -2,10 +2,14 @@ import random
 import string
 import os
 import asyncio
+import time
+import re
+from collections import defaultdict, deque
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from oyun_modlari.bil_bakalim.footballers import ALL_FOOTBALLERS
 from oyun_modlari.bil_bakalim.questions import ALL_QUESTIONS, check_question
@@ -19,6 +23,113 @@ from oyun_modlari.ilk_11_challenge.ilk11_handler import handle_ilk11_message
 from oyun_modlari.stadyum_tanima.stadyum_handler import handle_stadyum_message
 
 app = FastAPI()
+
+# ==========================================
+# GÜVENLİK: CORS AYARLARI
+# ==========================================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://futbolcubil-web.onrender.com",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+# ==========================================
+# GÜVENLİK: RATE LIMITING
+# ==========================================
+
+# IP başına istek geçmişi
+request_history = defaultdict(lambda: deque(maxlen=100))
+ws_connection_history = defaultdict(lambda: deque(maxlen=50))
+room_creation_history = defaultdict(lambda: deque(maxlen=20))
+ai_call_history = defaultdict(lambda: deque(maxlen=20))
+
+# Ban listesi (geçici ban - 10 dakika)
+banned_ips = {}
+
+
+def get_client_ip(request_or_ws):
+    """Client IP'sini al (Render/Cloudflare arkasında bile)"""
+    # Cloudflare header'ı
+    if hasattr(request_or_ws, 'headers'):
+        cf_ip = request_or_ws.headers.get("cf-connecting-ip")
+        if cf_ip:
+            return cf_ip
+        # Standard proxy header
+        x_forwarded = request_or_ws.headers.get("x-forwarded-for")
+        if x_forwarded:
+            return x_forwarded.split(",")[0].strip()
+        # Direct IP
+        if hasattr(request_or_ws, 'client'):
+            return request_or_ws.client.host if request_or_ws.client else "unknown"
+    return "unknown"
+
+
+def is_banned(ip):
+    """IP banlı mı kontrol et"""
+    if ip in banned_ips:
+        ban_time = banned_ips[ip]
+        if time.time() - ban_time < 600:  # 10 dakika ban
+            return True
+        else:
+            del banned_ips[ip]
+    return False
+
+
+def ban_ip(ip, reason=""):
+    """IP'yi 10 dakika banla"""
+    banned_ips[ip] = time.time()
+    print(f"[SECURITY] IP banlandı: {ip} - Sebep: {reason}")
+
+
+def check_rate_limit(ip, history_dict, max_per_minute=60, action="request"):
+    """Rate limit kontrolü"""
+    if is_banned(ip):
+        return False, "IP geçici olarak banlı (10 dakika)"
+
+    now = time.time()
+    history = history_dict[ip]
+
+    # Son 60 saniyedeki istekleri say
+    recent = [t for t in history if now - t < 60]
+
+    if len(recent) >= max_per_minute:
+        # Rate limit aşıldı - banla
+        ban_ip(ip, f"{action} rate limit aşıldı: {len(recent)}/dk")
+        return False, f"Çok fazla istek. 10 dakika bekle."
+
+    history.append(now)
+    history_dict[ip] = deque([t for t in history if now - t < 60], maxlen=100)
+    return True, "OK"
+
+
+def sanitize_string(text, max_length=50):
+    """String'i temizle (XSS koruması)"""
+    if not text:
+        return ""
+    text = str(text).strip()
+    # HTML tag'lerini kaldır
+    text = re.sub(r'<[^>]*>', '', text)
+    # JavaScript pattern'lerini engelle
+    text = re.sub(r'(javascript:|onerror=|onclick=|onload=)', '', text, flags=re.IGNORECASE)
+    # Kontrol karakterlerini kaldır
+    text = re.sub(r'[\x00-\x1f\x7f]', '', text)
+    # Maksimum uzunluk
+    return text[:max_length]
+
+
+def is_valid_room_code(code):
+    """Oda kodu formatı doğru mu?"""
+    if not code or len(code) != 6:
+        return False
+    return bool(re.match(r'^[A-Z0-9]{6}$', code))
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/mod_resimleri", StaticFiles(directory="mod_resimleri"), name="mod_resimleri")
 app.mount("/flags", StaticFiles(directory="oyun_modlari/takim_bilmece/flags"), name="flags")
@@ -58,8 +169,23 @@ rooms = {}
 
 
 @app.get("/")
-async def home():
+async def home(request: Request):
+    ip = get_client_ip(request)
+    
+    # Ban kontrolü
+    if is_banned(ip):
+        return JSONResponse(
+            status_code=429,
+            content={"error": "Çok fazla istek. Lütfen 10 dakika sonra tekrar deneyin."}
+        )
+    
     return FileResponse("static/index.html")
+
+
+@app.get("/health")
+async def health():
+    """Uptime Robot için sağlık kontrolü"""
+    return {"status": "ok", "timestamp": time.time()}
 
 
 def make_room_code(length=6):
@@ -292,7 +418,24 @@ async def send_turn_update(room: dict):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # IP kontrolü
+    client_ip = get_client_ip(websocket)
+    
+    # Ban kontrolü
+    if is_banned(client_ip):
+        await websocket.close(code=1008, reason="IP banned")
+        print(f"[SECURITY] Banlı IP bağlantı denemesi: {client_ip}")
+        return
+    
+    # WebSocket bağlantı rate limit (dakikada 20)
+    ok, msg = check_rate_limit(client_ip, ws_connection_history, max_per_minute=20, action="ws_connect")
+    if not ok:
+        await websocket.close(code=1008, reason=msg)
+        print(f"[SECURITY] WS rate limit aşıldı: {client_ip}")
+        return
+    
     await websocket.accept()
+    print(f"[WS] Yeni bağlantı: {client_ip}")
 
     room_code = None
     player_id = None
@@ -378,7 +521,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # --- QUERY ROOM MODE ---
             if msg_type == "query_room_mode":
-                query_code = (data.get("room_code") or "").strip().upper()
+                # Rate limit: Oda arama (dakikada 20)
+                ok, msg = check_rate_limit(client_ip, request_history, max_per_minute=20, action="query_room")
+                if not ok:
+                    await safe_send(websocket, {"type": "error", "message": msg})
+                    continue
+                
+                query_code = sanitize_string(data.get("room_code", ""), max_length=6).upper()
+                
+                # Oda kodu formatı doğru mu?
+                if not is_valid_room_code(query_code):
+                    await safe_send(websocket, {"type": "room_mode_result", "found": False})
+                    continue
+                
                 if query_code not in rooms:
                     await safe_send(websocket, {"type": "room_mode_result", "found": False})
                     continue
@@ -393,7 +548,14 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # --- CREATE ROOM (Bil Bakalım) ---
             if msg_type == "create_room":
-                name = (data.get("name") or "").strip()
+                # Rate limit: Oda oluşturma (dakikada 5)
+                ok, msg = check_rate_limit(client_ip, room_creation_history, max_per_minute=5, action="create_room")
+                if not ok:
+                    await safe_send(websocket, {"type": "error", "message": msg})
+                    continue
+                
+                # Input validation
+                name = sanitize_string(data.get("name", ""), max_length=15)
                 turn_seconds_raw = data.get("turn_seconds", 45)
                 guess_limit_raw = data.get("guess_limit", 0)
 
@@ -453,12 +615,25 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # --- JOIN ROOM (Bil Bakalım) ---
             if msg_type == "join_room":
-                name = (data.get("name") or "").strip()
-                join_code = (data.get("room_code") or "").strip().upper()
+                # Rate limit: Katılım denemeleri (dakikada 15)
+                ok, msg = check_rate_limit(client_ip, request_history, max_per_minute=15, action="join_room")
+                if not ok:
+                    await safe_send(websocket, {"type": "error", "message": msg})
+                    continue
+                
+                # Input validation
+                name = sanitize_string(data.get("name", ""), max_length=15)
+                join_code = sanitize_string(data.get("room_code", ""), max_length=6).upper()
 
                 if not name:
                     await safe_send(websocket, {"type": "error", "message": "İsim gir."})
                     continue
+                
+                # Oda kodu formatı doğru mu?
+                if not is_valid_room_code(join_code):
+                    await safe_send(websocket, {"type": "error", "message": "Geçersiz oda kodu formatı."})
+                    continue
+                
                 if join_code not in rooms:
                     await safe_send(websocket, {"type": "error", "message": "Oda bulunamadı."})
                     continue
