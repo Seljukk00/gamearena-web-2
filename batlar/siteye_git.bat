@@ -1,29 +1,15 @@
 @echo off
-title Siteye Git - FutbolcuBil
+title GameArena Sitesi Aciliyor...
 
 echo.
 echo ================================================
-echo   FUTBOLCU BIL - SITELERI ACIYOR
+echo   GAMEARENA - SITE ACILIYOR
 echo ================================================
 echo.
-
-echo [1] Canli siteye gidiliyor...
-start https://futbolcubil-web.onrender.com
-
-timeout /t 1 /nobreak >nul
-
-echo [2] GitHub reposuna gidiliyor...
-start https://github.com/selcukaydin927-ctrl/futbolcubil-web
-
-timeout /t 1 /nobreak >nul
-
-echo [3] Render dashboard'a gidiliyor...
-start https://dashboard.render.com
-
-echo.
-echo ================================================
-echo   Tum siteler tarayicida acildi!
-echo ================================================
+echo Site: https://gamearena-web.onrender.com
 echo.
 
-timeout /t 3 /nobreak >nul
+start https://gamearena-web.onrender.com
+
+timeout /t 2 /nobreak >nul
+exit

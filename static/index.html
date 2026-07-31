@@ -3,9 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bil Bakalım Futbol</title>
+    <title>GameArena - Online Futbol Bilgi Oyunu</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/oyun_modlari/kim_milyoner/kim_milyoner.css">
+    <link rel="stylesheet" href="/oyun_modlari/takim_bilmece/takim_bilmece.css">
+    <link rel="stylesheet" href="/oyun_modlari/haritadan_bul/haritadan_bul.css">
+    <link rel="stylesheet" href="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.css">
+    <link rel="stylesheet" href="/oyun_modlari/ilk_11_challenge/ilk_11.css">
+    <link rel="stylesheet" href="/oyun_modlari/stadyum_tanima/stadyum_tanima.css">
     <script src="/static/app.js" defer></script>
+    <script src="/oyun_modlari/kim_milyoner/kim_milyoner.js" defer></script>
+    <script src="/oyun_modlari/takim_bilmece/takim_bilmece.js" defer></script>
+    <script src="/oyun_modlari/haritadan_bul/haritadan_bul.js" defer></script>
+    <script src="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.js" defer></script>
+    <script src="/oyun_modlari/ilk_11_challenge/ilk_11.js" defer></script>
+    <script src="/oyun_modlari/stadyum_tanima/stadyum_tanima.js" defer></script>
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1324481943948742" crossorigin="anonymous"></script>
     <!-- Cloudflare Turnstile -->
@@ -326,7 +338,14 @@
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="haritaRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <button class="eyeToggleBtn" id="haritaRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="haritaCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="haritaInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="haritaInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="haritaInviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="haritaPlayersList"></ul>
             <div class="lobbyInfo">
@@ -372,8 +391,7 @@
                 <!-- Orta: Harita -->
                 <div class="haritaMapContainer" id="haritaMapContainer">
                     <div class="haritaMapWrapper" id="haritaMapWrapper">
-                        <img id="haritaWorldMap" src="/harita_assets/world_map.png" alt="Dünya Haritası" draggable="false">
-                        <div id="haritaMarkers" class="haritaMarkers"></div>
+                        <div id="haritaSvgContainer"></div>
                         <div id="haritaFakeCursor" class="haritaFakeCursor hidden"></div>
                         <div id="haritaTooltip" class="haritaTooltip hidden"></div>
                     </div>
@@ -484,7 +502,14 @@
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="gizemRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <button class="eyeToggleBtn" id="gizemRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="gizemCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="gizemInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="gizemInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="gizemInviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="gizemPlayersList"></ul>
             <div class="lobbyInfo">
@@ -658,7 +683,7 @@
             </div>
 
             <div class="centerBox">
-                <input id="roomInput" type="text" placeholder="Oda kodu" maxlength="8">
+                <input id="roomInput" type="text" placeholder="Oda kodu" maxlength="8">			
             </div>
 
             <div class="row">
@@ -666,7 +691,9 @@
                 <button id="joinBackBtn" class="bigBtn">← Geri</button>
             </div>
 
-            <p id="joinMsg" class="msg"></p>
+            <div id="joinRoomModeInfo" class="joinRoomModeInfo"></div>
+			
+			<p id="joinMsg" class="msg"></p>
         </section>
 
         <!-- LOBBY -->
@@ -674,8 +701,15 @@
             <h2 class="mainTitle">Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="roomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="roomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
+                <button class="eyeToggleBtn" id="roomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="copyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox" id="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="inviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="inviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="inviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="playersList"></ul>
             <div class="lobbyInfo">
@@ -695,7 +729,14 @@
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="mlRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <button class="eyeToggleBtn" id="mlRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="mlCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="mlInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="mlInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="mlInviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="mlPlayersList"></ul>
             <div class="lobbyInfo">
@@ -720,7 +761,14 @@
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="takimRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <button class="eyeToggleBtn" id="takimRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="takimCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="takimInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="takimInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="takimInviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="takimPlayersList"></ul>
             <div class="lobbyInfo">
@@ -770,6 +818,13 @@
                     </div>
 
                     <div id="mlInfoText" class="mlInfoText"></div>
+					
+					<!-- Telefon Jokeri Kutusu -->
+                    <div id="mlPhoneBox" class="mlPhoneBox hidden">
+                        <div class="mlPhoneTitle">📞 TELEFON JOKERI - Kimi aramak istersin?</div>
+                        <div id="mlPhoneList" class="mlPhoneList"></div>
+                        <div id="mlPhoneAnswer" class="mlPhoneAnswer hidden"></div>
+                    </div>
 
                     <div id="mlAudienceBox" class="mlAudienceBox hidden">
                         <div class="mlAudBar" data-letter="A"><span>A</span><div class="mlAudBarFill"></div><span class="mlAudPct">0%</span></div>
@@ -976,7 +1031,14 @@
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="ilk11RoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <button class="eyeToggleBtn" id="ilk11RoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="ilk11CopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="ilk11InviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="ilk11InviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="ilk11InviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="ilk11PlayersList"></ul>
             <div class="lobbyInfo">
@@ -1140,7 +1202,14 @@
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="stadRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <button class="eyeToggleBtn" id="stadRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="stadCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="stadInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="stadInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="stadInviteLinkHint" class="copyHint"></span>
             </div>
             <ul id="stadPlayersList"></ul>
             <div class="lobbyInfo">
@@ -1247,6 +1316,17 @@
             <div id="selectGrid" class="grid"></div>
         </section>
 
+        <!-- Sol Üst Geri Butonu (Bil Bakalım oyun ekranı) -->
+        <button id="bilBackTopBtn" class="bilBackTopBtn hidden">← Geri</button>
+
+        <!-- Gizli Futbolcu Göster Checkbox (Sol Üst) -->
+        <div id="showSecretToggle" class="showSecretToggle hidden">
+            <label>
+                <input type="checkbox" id="showSecretCheckbox" checked>
+                <span>👁️ Gizli futbolcumu göster</span>
+            </label>
+        </div>
+
         <!-- OYUN EKRANI -->
         <section id="gameScreen" class="hidden">
             <div class="topbar">
@@ -1278,6 +1358,11 @@
                             <button id="answerNoBtn" class="answerBtn">HAYIR</button>
                         </div>
                         <p class="hint">Doğru cevaba tıkla</p>
+                        <label class="autoAnswerLabel">
+                            <input type="checkbox" id="autoAnswerCheckbox">
+                            <span>🤖 Otomatik Cevapla (3 sn)</span>
+                        </label>
+                        <p id="autoAnswerCountdown" class="autoAnswerCountdown hidden"></p>
                     </div>
 
                     <div class="panel">
@@ -1331,6 +1416,45 @@
             </div>
         </div>
     </div>
+	
+	<!-- KICK ONAY POPUP -->
+    <div id="kickConfirmBox" class="overlay hidden">
+        <div class="overlayCard">
+            <div style="font-size:48px;">⚠️</div>
+            <h2 style="color:#ff6b6b;">Oyuncuyu At</h2>
+            <p id="kickConfirmText" style="font-size:16px; margin:15px 0; color:#adb5bd;"></p>
+            <div class="confirmButtons">
+                <button id="kickYesBtn" class="bigBtn redBtn">EVET, AT</button>
+                <button id="kickNoBtn" class="bigBtn greenBtn">İPTAL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TARAYICI GERİ BUTONU POPUP -->
+    <div id="backConfirmBox" class="overlay hidden">
+        <div class="overlayCard escConfirmCard">
+            <div class="escIcon">⬅️</div>
+            <h2 class="escTitle">Geri Dönmek İstiyor musun?</h2>
+            <p class="escMsg">Oyundan çıkarsan oda kapanacak ve rakibin de ayrılacak.</p>
+            <div class="confirmButtons">
+                <button id="backYesBtn" class="bigBtn redBtn">⬅️ EVET, ÇIK</button>
+                <button id="backNoBtn" class="bigBtn greenBtn">↩️ HAYIR, KAL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ESC / GERİ POPUP -->
+    <div id="escConfirmBox" class="overlay hidden">
+        <div class="overlayCard escConfirmCard">
+            <div class="escIcon">🚪</div>
+            <h2 class="escTitle">Çıkmak İstediğine Emin misin?</h2>
+            <p class="escMsg">Oyundan çıkarsan oda kapanacak ve rakibin de ayrılacak.</p>
+            <div class="confirmButtons">
+                <button id="escYesBtn" class="bigBtn redBtn">🚪 EVET, ÇIKIŞ</button>
+                <button id="escNoBtn" class="bigBtn greenBtn">↩️ HAYIR, DEVAM</button>
+            </div>
+        </div>
+    </div>
 
     <!-- RAKİP AYRILDI -->
     <div id="opponentLeftBox" class="overlay hidden">
@@ -1341,6 +1465,11 @@
                 <button id="opponentLeftOkBtn" class="bigBtn greenBtn">Ana Menüye Dön</button>
             </div>
         </div>
+    </div>
+
+    <!-- SOL ALT CEVAP BİLDİRİMİ -->
+    <div id="answerToast" class="answerToast hidden">
+        <span id="answerToastText"></span>
     </div>
 
     <!-- SAĞ ALT BİLDİRİM (Yanlış tahmin vs.) -->
@@ -1366,7 +1495,7 @@
                 <a href="#" onclick="showContact(); return false;">✉️ İletişim</a>
             </div>
             <div class="footerCopy">
-                © 2025 FutbolcuBil - Eğlence amaçlı bir projedir. 
+                © 2026 GameArena - Eğlence amaçlı bir projedir. 
                 <br>
                 Tüm marka, logo ve isimler sahiplerine aittir.
             </div>
@@ -1379,7 +1508,7 @@
             <h2 style="color:#ffd43b;">📋 Yasal Bilgilendirme</h2>
             <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6;">
                 <p><b>🔹 Site Hakkında:</b></p>
-                <p>FutbolcuBil, futbol severler için hazırlanmış eğlence amaçlı bir web sitesidir. Kullanıcılara farklı oyun modlarında futbol bilgilerini test etme imkanı sunar.</p>
+                <p>GameArena, futbol severler için hazırlanmış eğlence amaçlı bir web sitesidir. Kullanıcılara farklı oyun modlarında futbol bilgilerini test etme imkanı sunar.</p>
                 
                 <p style="margin-top:15px;"><b>🔹 Telif Hakları:</b></p>
                 <p>Sitede kullanılan tüm takım logoları, futbolcu isimleri ve diğer marka öğeleri kendi sahiplerinin telif haklarına tabidir. Bu içerikler yalnızca <b>bilgilendirme ve eğlence</b> amacıyla kullanılmıştır.</p>
@@ -1409,8 +1538,8 @@
         <div class="overlayCard" style="max-width: 500px;">
             <h2 style="color:#51cf66;">ℹ️ Hakkımızda</h2>
             <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6;">
-                <p><b>🎮 FutbolcuBil Nedir?</b></p>
-                <p>Futbol severler için 7 farklı oyun modu sunan online multiplayer bir eğlence platformudur.</p>
+                <p><b>🎮 GameArena Nedir?</b></p>
+                <p>GameArena, futbol severler için 7 farklı oyun modu sunan online multiplayer bir eğlence platformudur.</p>
                 
                 <p style="margin-top:15px;"><b>⚽ Modlarımız:</b></p>
                 <ul style="padding-left:20px;">
@@ -1427,7 +1556,7 @@
                 <p>Arkadaşlarınla eğlenceli vakit geçir, futbol bilgini test et, kazanmanın tadını çıkar!</p>
                 
                 <p style="margin-top:15px;"><b>🎯 Sürüm:</b> v1.0</p>
-                <p><b>📅 Kuruluş:</b> 2025</p>
+                <p><b>📅 Kuruluş:</b> 28 Temmuz 2026</p>
             </div>
             <div class="confirmButtons" style="margin-top:20px;">
                 <button onclick="closeAbout()" class="bigBtn greenBtn">Kapat</button>
@@ -1437,15 +1566,34 @@
 
     <!-- CONTACT POPUP -->
     <div id="contactBox" class="overlay hidden">
-        <div class="overlayCard" style="max-width: 500px;">
+        <div class="overlayCard contactPopupCard" style="max-width: 500px;">
             <h2 style="color:#4dabf7;">✉️ İletişim</h2>
             <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6;">
                 <p>Bize aşağıdaki yollardan ulaşabilirsiniz:</p>
                 
-                <div style="background:rgba(77,171,247,0.1); padding:15px; border-radius:10px; margin:15px 0;">
-                    <p style="margin:5px 0;"><b>📧 E-posta:</b></p>
-                    <p style="color:#4dabf7;">selcukaydin050505248@gmail.com</p>
+                <!-- E-POSTA (Kopyalanabilir) -->
+                <div class="contactCard emailCard" onclick="copyEmail()" title="Tıkla, kopyala">
+                    <div class="contactCardIcon">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" alt="Gmail" class="contactIconImg">
+                    </div>
+                    <div class="contactCardContent">
+                        <div class="contactCardTitle">E-posta</div>
+                        <div class="contactCardValue" id="emailValue">selcukaydin050505248@gmail.com</div>
+                        <div class="contactCardHint" id="emailHint">🔗 Kopyalamak için tıkla</div>
+                    </div>
                 </div>
+                
+                <!-- INSTAGRAM (Tıklayınca açar) -->
+                <a href="https://www.instagram.com/selcuk_aydin00/" target="_blank" class="contactCard instagramCard">
+                    <div class="contactCardIcon">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png" alt="Instagram" class="contactIconImg">
+                    </div>
+                    <div class="contactCardContent">
+                        <div class="contactCardTitle">Instagram</div>
+                        <div class="contactCardValue">@selcuk_aydin00</div>
+                        <div class="contactCardHint">🔗 Instagram'da aç</div>
+                    </div>
+                </a>
                 
                 <div style="background:rgba(81,207,102,0.1); padding:15px; border-radius:10px; margin:15px 0;">
                     <p style="margin:5px 0;"><b>💬 Konular:</b></p>

@@ -1,0 +1,379 @@
+/* ==================== TAKIM BİLMECE ==================== */
+
+/* Üst Bar */
+.takimTopBar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 20px;
+    background: rgba(20, 30, 60, 0.9);
+    border: 1px solid #3b4c63;
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
+}
+
+.takimTopLeft {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.takimTopLeft div {
+    margin: 2px 0;
+}
+
+.takimScoreboard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid gold;
+    border-radius: 10px;
+    padding: 6px 20px;
+    font-size: 18px;
+}
+
+.takimScoreText {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.takimTopRight {
+    text-align: right;
+    color: #fff;
+}
+
+.takimTimerBig {
+    color: #51cf66;
+    font-size: 32px;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 14px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.takimTimerBig.warning {
+    color: #ffa94d;
+}
+
+.takimTimerBig.danger {
+    color: #ff6b6b;
+    border: 2px solid #ff6b6b;
+    animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+#takimPlayerScores {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* Yıl */
+.takimYearBig {
+    text-align: center;
+    color: #adb5bd;
+    font-size: 28px;
+    font-weight: bold;
+    margin: 10px 0;
+    letter-spacing: 2px;
+}
+
+.takimYearBig.revealed {
+    color: #74c0fc;
+}
+
+/* Layout */
+.takimMainLayout {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.takimSidePanel {
+    background: rgba(32, 40, 52, 0.85);
+    border: 1px solid #3b4c63;
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 400px;
+}
+
+.takimSidePanel h3 {
+    color: gold;
+    margin: 0 0 12px 0;
+    text-align: center;
+    font-size: 18px;
+    letter-spacing: 1px;
+}
+
+/* Jokerler */
+.takimJokerList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.takimJokerBtn {
+    padding: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    color: gold;
+    border: 2px solid gold;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.purpleJoker {
+    background: #6a0072;
+}
+.purpleJoker:hover:not(:disabled) {
+    background: #8a10a3;
+}
+
+.blueJoker {
+    background: #003e8a;
+    color: #74c0fc;
+    border-color: #74c0fc;
+}
+.blueJoker:hover:not(:disabled) {
+    background: #005bb8;
+}
+
+.orangeJoker {
+    background: #b06d00;
+    color: #ffec99;
+    border-color: #ffec99;
+}
+.orangeJoker:hover:not(:disabled) {
+    background: #d68500;
+}
+
+.cyanJoker {
+    background: #005a5a;
+    color: #66d9d9;
+    border-color: #66d9d9;
+}
+.cyanJoker:hover:not(:disabled) {
+    background: #007a7a;
+}
+
+.takimJokerBtn:disabled {
+    background: #2a2a2a !important;
+    color: #555 !important;
+    border-color: #444 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.cancelJoker {
+    background: #a02020 !important;
+    color: white !important;
+    border-color: #ff6b6b !important;
+    margin-top: 5px;
+    animation: cancelPulse 1s ease-in-out infinite alternate;
+}
+
+.cancelJoker:hover {
+    background: #c92a2a !important;
+    transform: translateY(-2px);
+}
+
+@keyframes cancelPulse {
+    from { box-shadow: 0 0 5px rgba(255, 107, 107, 0.5); }
+    to { box-shadow: 0 0 15px rgba(255, 107, 107, 1); }
+}
+
+/* Rakip jokerlerini gösterirken daha okunabilir yap */
+.takimSidePanel.opponent-view .takimJokerBtn {
+    opacity: 1 !important;
+    background: rgba(255, 165, 77, 0.15) !important;
+    color: #ffd43b !important;
+    border-color: #ffa94d !important;
+    cursor: default;
+}
+
+.takimSidePanel.opponent-view .takimJokerBtn:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.takimDiffLabel {
+    text-align: center;
+    color: #51cf66;
+    margin: 12px 0 0 0;
+    font-weight: 600;
+}
+
+/* Futbol Sahası */
+.takimFieldContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.takimField {
+    position: relative;
+    background: linear-gradient(180deg, #1a7a1a 0%, #0d5a0d 100%);
+    border: 3px solid #2b8a2b;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 550px;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+}
+
+.takimField::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 5%;
+    right: 5%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.takimField::after {
+    content: '';
+    position: absolute;
+    top: calc(50% - 40px);
+    left: calc(50% - 40px);
+    width: 80px;
+    height: 80px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+}
+
+.takimPlayerSlot {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.takimFlagBox {
+    background: #fff;
+    padding: 3px;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    position: relative;
+}
+
+.takimFlagBox img {
+    width: 44px;
+    height: 30px;
+    display: block;
+    object-fit: cover;
+    border-radius: 2px;
+}
+
+.takimFlagBox.clickable {
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.takimFlagBox.clickable:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 12px gold;
+}
+
+.takimPlayerPos {
+    color: gold;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 2px;
+    text-shadow: 1px 1px 2px black;
+}
+
+.takimPlayerName {
+    background: rgba(0, 0, 0, 0.7);
+    color: gold;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+.takimStatus {
+    text-align: center;
+    color: #ffa94d;
+    font-size: 18px;
+    font-weight: bold;
+    margin: 10px 0;
+    min-height: 24px;
+}
+
+/* Cevap Butonları */
+.takimOptions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 10px auto;
+    max-width: 800px;
+}
+
+.takimOptBtn {
+    background: #0055aa;
+    color: #fff;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    border: 2px solid #fff;
+    border-radius: 10px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.takimOptBtn:hover:not(:disabled) {
+    background: #0077dd;
+    transform: translateY(-2px);
+}
+
+.takimOptBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.takimOptBtn.eliminated {
+    background: #1a1a1a;
+    color: #444;
+    border-color: #333;
+}
+
+.takimOptBtn.correct {
+    background: #2f9e44;
+    border-color: #51cf66;
+    color: #fff;
+}
+
+.takimOptBtn.wrong {
+    background: #a02020;
+    border-color: #ff6b6b;
+    color: #fff;
+}
+
+.optLetter {
+    margin-right: 6px;
+}
+
+/* Mobil için */
+@media (max-width: 900px) {
+    .takimMainLayout {
+        grid-template-columns: 1fr;
+    }
+    .takimSidePanel:last-child {
+        display: none;
+    }
+    .takimTopBar {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+}

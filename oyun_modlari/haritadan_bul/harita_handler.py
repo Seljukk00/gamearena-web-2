@@ -138,7 +138,12 @@ async def start_harita_game(room, safe_send, broadcast):
 
     countries_data = {}
     for code, cdata in HARITA_COUNTRIES.items():
-        countries_data[code] = {"x": cdata["x"], "y": cdata["y"], "tr": cdata["tr"]}
+        countries_data[code] = {
+            "x": cdata["x"],
+            "y": cdata["y"],
+            "tr": cdata["tr"],
+            "iso": cdata.get("iso", "")
+        }
 
     for pid, pdata in room["players"].items():
         await safe_send(pdata["ws"], {

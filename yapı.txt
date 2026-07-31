@@ -1,0 +1,249 @@
+🎮 FutbolcuBil Web - Proje Devam Promptu (v3)
+📋 PROJE ÖZETİ
+Bu, çoklu mod destekleyen online multiplayer futbol bilgi/tahmin web oyunudur.
+
+Backend: FastAPI + WebSocket (Python)
+Frontend: HTML + CSS + JavaScript (vanilla, framework yok)
+Hosting: Render.com (Free Plan)
+GitHub: https://github.com/selcukaydin927-ctrl/futbolcubil-web
+Canlı Site: https://futbolcubil-web.onrender.com
+Eski Masaüstü (Pygame ref): C:\Users\Seljuk\Desktop\FutbolcuBil\
+Web Projesi: C:\Users\Seljuk\Desktop\FutbolcuBil_Web\
+📁 TAM KLASÖR YAPISI (MODÜLER - v3)
+text
+
+FutbolcuBil_Web/
+│
+├── app.py                          ← ANA BACKEND (~250 satır, ÇOK SADE)
+│                                     • FastAPI + WebSocket endpoint
+│                                     • Rate limiting + IP banning
+│                                     • CORS middleware
+│                                     • Static mounts
+│                                     • WebSocket → handler'lara yönlendirme
+│                                     • Bil Bakalım da handler'a taşındı!
+│
+├── requirements.txt
+├── runtime.txt                     ← Python 3.11.9
+├── render.yaml
+├── .env                            ← GİZLİ (GEMINI_API_KEY + TURNSTILE_SECRET)
+├── .gitignore
+├── venv/
+├── batlar/                         ← test_lokal.bat, guncelle_ve_gonder.bat vs.
+│
+├── static/                         ← FRONTEND ORTAK
+│   ├── index.html                  (~2000 satır - tüm ekranlar)
+│   │                                • 7 mod kartı, oda oluştur/lobby/game ekranları
+│   │                                • ESC popup, iletişim popup, footer
+│   │                                • Turnstile widget, AdSense
+│   │                                • Oda kodu gizle/göster + davet linki
+│   │
+│   ├── style.css                   (~2000 satır - SADECE ORTAK STİLLER)
+│   │                                • Bil Bakalım stilleri
+│   │                                • Ses kontrolü (sağ alt)
+│   │                                • Footer + popup + ESC popup
+│   │                                • Oda kodu göz butonu + davet linki
+│   │                                • Diğer mod CSS'leri kendi klasörlerinde!
+│   │
+│   ├── app.js                      (~1500 satır - ORTAK JS + BİL BAKALIM)
+│   │                                • WebSocket + handleMessage
+│   │                                • showScreen (ortak)
+│   │                                • Bil Bakalım tüm frontend
+│   │                                • ESC popup + navigation
+│   │                                • Oda kodu / davet linki helper (window.setupRoomCodeAndLink)
+│   │                                • Footer popup fonksiyonları
+│   │                                • Ses kontrolü Kim Milyoner JS'de değil, ml_ dosyasında
+│   │
+│   └── images/                     ← 250+ futbolcu .webp
+│
+├── mod_resimleri/                  ← 7 mod kartı görseli
+│
+└── oyun_modlari/                   ← 7 MOD (MODÜLER - v3'te frontend de ayrıldı)
+    │
+    ├── __init__.py
+    │
+    ├── bil_bakalim/
+    │   ├── __init__.py
+    │   ├── footballers.py
+    │   ├── questions.py
+    │   ├── bil_bakalim_handler.py  ← YENİ! (Backend handler ayrıldı)
+    │   └── images/
+    │
+    ├── takim_bilmece/
+    │   ├── __init__.py
+    │   ├── teams.py
+    │   ├── takim_handler.py        ← Backend
+    │   ├── takim_bilmece.css       ← YENİ! Frontend CSS
+    │   ├── takim_bilmece.js        ← YENİ! Frontend JS
+    │   └── flags/
+    │
+    ├── kim_milyoner/
+    │   ├── __init__.py
+    │   ├── questions.py
+    │   ├── ai_soru_uretici.py      (google-genai paketi)
+    │   ├── milyoner_handler.py     ← Backend
+    │   ├── kim_milyoner.css        ← YENİ! Frontend CSS
+    │   ├── kim_milyoner.js         ← YENİ! Frontend JS (Ses kontrolü + telefon jokeri)
+    │   └── assets/                  (Ses dosyaları)
+    │
+    ├── haritadan_bul/
+    │   ├── __init__.py
+    │   ├── harita_data.py
+    │   ├── harita_handler.py       ← Backend
+    │   ├── haritadan_bul.css       ← YENİ! Frontend CSS
+    │   ├── haritadan_bul.js        ← YENİ! Frontend JS
+    │   └── world_map.png
+    │
+    ├── gizemli_kariyer/
+    │   ├── __init__.py
+    │   ├── futbolcular.py
+    │   ├── takimlar.py             (TM_ID sistemi)
+    │   ├── gizem_handler.py        ← Backend
+    │   ├── gizemli_kariyer.css     ← YENİ! Frontend CSS
+    │   └── gizemli_kariyer.js      ← YENİ! Frontend JS
+    │
+    ├── ilk_11_challenge/
+    │   ├── __init__.py
+    │   ├── ilk11_handler.py        ← Backend
+    │   ├── ilk_11.css              ← YENİ! Frontend CSS
+    │   └── ilk_11.js               ← YENİ! Frontend JS
+    │
+    └── stadyum_tanima/
+        ├── __init__.py
+        ├── stadyumlar.py
+        ├── stadyum_handler.py      ← Backend
+        ├── stadyum_tanima.css      ← YENİ! Frontend CSS
+        ├── stadyum_tanima.js       ← YENİ! Frontend JS
+        └── images/
+index.html'de mount'lar:
+
+HTML
+
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/oyun_modlari/kim_milyoner/kim_milyoner.css">
+<link rel="stylesheet" href="/oyun_modlari/takim_bilmece/takim_bilmece.css">
+<link rel="stylesheet" href="/oyun_modlari/haritadan_bul/haritadan_bul.css">
+<link rel="stylesheet" href="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.css">
+<link rel="stylesheet" href="/oyun_modlari/ilk_11_challenge/ilk_11.css">
+<link rel="stylesheet" href="/oyun_modlari/stadyum_tanima/stadyum_tanima.css">
+<script src="/static/app.js" defer></script>
+<script src="/oyun_modlari/kim_milyoner/kim_milyoner.js" defer></script>
+<script src="/oyun_modlari/takim_bilmece/takim_bilmece.js" defer></script>
+<script src="/oyun_modlari/haritadan_bul/haritadan_bul.js" defer></script>
+<script src="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.js" defer></script>
+<script src="/oyun_modlari/ilk_11_challenge/ilk_11.js" defer></script>
+<script src="/oyun_modlari/stadyum_tanima/stadyum_tanima.js" defer></script>
+app.py'de mount:
+
+Python
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/oyun_modlari", StaticFiles(directory="oyun_modlari"), name="oyun_modlari")
+🎯 7 MOD - HEPSİ ÇALIŞIYOR ✅
+Bil Bakalım - 32 futbolcu, soru-cevap, gizli futbolcu toggle (sol üst)
+Takım Bilmece - 12 soru, 4 zorluk, 4 joker
+Kim Milyoner - AI (Gemini), 12 soru, 3 joker (50:50, Seyirci, Telefon), telefon jokeri artık 5 kişilik güzel popup
+Haritadan Bul - 10 tur, zoom+pan, rakip mouse sync
+Gizemli Kariyer - 10 tur, 6 şık, TM CDN logolar
+İlk 11 Challenge - 4-3-3, Rating + Kimya
+Stadyum Tanıma - 10 tur, 4 şık, 3 joker
+🆕 SON EKLENEN ÖZELLİKLER (v3)
+Frontend Modülerleştirme (BÜYÜK)
+Her mod kendi klasöründe CSS + JS dosyasına sahip
+app.js sadece Bil Bakalım + ortak kod
+style.css sadece ortak stiller
+Bil Bakalım Backend Ayrıldı
+oyun_modlari/bil_bakalim/bil_bakalim_handler.py oluşturuldu
+app.py ~250 satıra düştü (eskiden 1100)
+Yeni Özellikler
+ESC Popup - Modern tema, oyun içinde çıkış onayı, diğer ekranlarda direkt geri
+Oda Kodu Gizle/Göster - 👁️ butonu ile, gizliyken ###### gösterir
+Davet Linki - ?join=XXXXX formatında, gizle/göster + kopyala, tıklayınca Katıl ekranına dolu gelir
+Katıl Ekranında Mod Göstergesi - Kod yazınca otomatik "🎮 Bu oda: Kim Milyoner" yeşil kutu (ama katılım için buton lazım!)
+Gizli Futbolcu Toggle (Bil Bakalım) - Sol üstte checkbox, kendi gizli futbolcunu görüp görmemek için
+Otomatik Son Tahmin - Bil Bakalım'da 1 futbolcu kalınca otomatik tahmin
+Kim Milyoner Telefon Jokeri - 14 farklı karakterden 5 rastgele, güzel popup, "Aranıyor..." animasyonu
+Kim Milyoner Seyirci Animasyonu - Yüzdeler dalgalanır sonra sabitlenir
+50:50 Animasyonu - Şıklar shake ile kaybolur
+Joker Kullanıldı Görünümü - Kullanılan joker gri + üzerinde ✓
+⚠️ ÖNEMLİ NOTLAR
+JS Wrap Sistemi
+Her mod dosyası ortak showScreen ve handleMessage fonksiyonlarını wrap ediyor:
+
+JavaScript
+
+const _prevShowScreen = showScreen;
+showScreen = function(screenName) {
+    _prevShowScreen(screenName);
+    // Modun kendi ekranlarını gizle/göster
+};
+
+const _prevHandleMessage = handleMessage;
+handleMessage = function(msg) {
+    if (msg.type.startsWith("ml_")) { /* handle */ return; }
+    _prevHandleMessage(msg);
+};
+Ortak Oda Kodu / Link Helper
+JavaScript
+
+window.setupRoomCodeAndLink({
+    codeTextId: "mlRoomCodeText",
+    codeEyeBtnId: "mlRoomCodeEyeBtn",
+    copyHintId: "mlCopyHint",
+    linkTextId: "mlInviteLinkText",
+    linkEyeBtnId: "mlInviteLinkEyeBtn",
+    linkHintId: "mlInviteLinkHint",
+    getRoomCode: () => mlData.roomCode
+});
+Gemini AI Paketi
+❌ ESKİ: google-generativeai
+✅ YENİ: google-genai
+Import: from google import genai
+Model: gemini-flash-lite-latest
+Turnstile Keys
+Site Key (public): 0x4AAAAAAEBYi6PHf6n7Q2Pn
+Secret Key (gizli): .env içinde
+E-posta / Instagram
+selcukaydin050505248@gmail.com
+@selcuk_aydin00
+🔒 GÜVENLİK
+IP başına dakikada: Oda oluştur 5, Katıl 15, Query 20, WS 20
+Otomatik 10 dk BAN
+sanitize_string, is_valid_room_code
+Cloudflare Turnstile (Kim Milyoner)
+🎯 ÇALIŞMA KURALLARI
+BUL ve DEĞİŞTİR formatı kullan (tam dosya yerine)
+Adım adım ilerle
+Türkçe, samimi dil
+Kullanıcı test etmeden GitHub'a atma
+F12 Console + CMD log ile sorun çöz
+Kullanıcı Windows + Notepad, kod yazmıyor
+.env ASLA GitHub'a
+Turnstile keys biliyor, tekrar sorma
+Uzun kod bloğu yerine küçük değişiklikler
+Emin olmadan büyük değişiklik yapma
+🎬 YEREL ÇALIŞTIRMA
+bat
+
+cd C:\Users\Seljuk\Desktop\FutbolcuBil_Web
+venv\Scripts\activate
+uvicorn app:app --reload
+Kolay yol: batlar/test_lokal.bat çift tıkla → http://127.0.0.1:8000
+
+📝 SIRADA MUHTEMEL İSTEKLER
+Bug düzeltme
+Yeni mod ekleme
+UI iyileştirmesi
+Domain alma + Cloudflare
+8 kişilik multiplayer
+Mobil optimizasyon
+Premium üyelik sistemi
+🎯 SEN NE YAPACAKSIN?
+Selamla, hazır olduğunu belirt
+Ne istediğini sor
+Klasör yapısını biliyor gibi davran
+Kod isteğinde BUL ve DEĞİŞTİR formatı
+Kullanıcı Windows + Notepad++, basit anlat
+Test etmeden push isteme
+Türkçe, samimi dil kullan
+
+bul değiştir olarak ver kodları ve kodu görmeden kesin çözüm olmayan şeyleri önerme

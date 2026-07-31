@@ -1,13 +1,14 @@
 @echo off
 chcp 65001 >nul
 color 0A
-title Guncelle ve Gonder - FutbolcuBil
+title Guncelle ve Gonder - GameArena
 
-cd /d "C:\Users\Seljuk\Desktop\FutbolcuBil_Web"
+REM Proje ana klasörüne git
+cd /d "%~dp0.."
 
 echo.
 echo ================================================
-echo   FUTBOLCU BIL - GITHUB'A GONDERME
+echo   GAMEARENA - GITHUB'A GONDERME
 echo ================================================
 echo.
 
@@ -15,7 +16,6 @@ echo [1] DEGISEN DOSYALAR:
 echo ------------------------------------------------
 git status --short
 echo.
-
 echo ------------------------------------------------
 echo.
 
@@ -25,7 +25,6 @@ if %errorlevel% neq 0 goto :devam
 git diff --cached --quiet 2>nul
 if %errorlevel% neq 0 goto :devam
 
-REM Yeni dosya var mi kontrol
 for /f %%i in ('git ls-files --others --exclude-standard 2^>nul') do (
     goto :devam
 )
@@ -53,16 +52,51 @@ echo   ISLEM BASLIYOR...
 echo ================================================
 echo.
 
-echo [2] Dosyalar hazirlaniyor (git add)...
+echo [2] Once GitHub'dan degisiklikler cekiliyor (git pull)...
+git pull origin main --no-edit
+
+if %errorlevel% neq 0 (
+    echo.
+    echo ================================================
+    echo   [HATA] Pull basarisiz! Conflict olabilir.
+    echo ================================================
+    echo.
+    echo Lutfen manuel olarak:
+    echo   1. git status
+    echo   2. Conflict'leri cozun
+    echo   3. Tekrar deneyin
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [3] Dosyalar hazirlaniyor (git add)...
 git add .
 
 echo.
-echo [3] Commit yapiliyor...
+echo [4] Commit yapiliyor...
 git commit -m "%mesaj%"
 
+if %errorlevel% neq 0 (
+    echo [BILGI] Yeni commit yok, push icin devam...
+)
+
 echo.
-echo [4] GitHub'a gonderiliyor (git push)...
+echo [5] GitHub'a gonderiliyor (git push)...
 git push
+
+if %errorlevel% neq 0 (
+    echo.
+    echo ================================================
+    echo   [HATA] Push basarisiz!
+    echo ================================================
+    echo.
+    echo Yukaridaki hata mesajini kontrol edin.
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ================================================
@@ -73,7 +107,7 @@ echo Render otomatik olarak yeni deploy baslatacak.
 echo Site 2-3 dakika icinde guncellenecek.
 echo.
 echo Kontrol icin:
-echo   Site: https://futbolcubil-web.onrender.com
+echo   Site: https://gamearena-web.onrender.com
 echo   Render: https://dashboard.render.com
 echo.
 

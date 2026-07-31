@@ -214,6 +214,69 @@ button:disabled {
     opacity: 1;
 }
 
+/* Oda Kodu / Link Gizle-Göster */
+.eyeToggleBtn {
+    background: rgba(81, 207, 102, 0.1);
+    border: 2px solid rgba(81, 207, 102, 0.3);
+    padding: 5px 10px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: all 0.2s;
+}
+
+.eyeToggleBtn:hover {
+    background: rgba(81, 207, 102, 0.25);
+    transform: scale(1.1);
+    border-color: #51cf66;
+}
+
+.roomCode.hiddenCode {
+    color: #495057;
+}
+
+.inviteLink.hiddenLink {
+    color: #495057;
+    text-decoration: none;
+}
+
+/* Davet Linki */
+.inviteLinkBox {
+    text-align: center;
+    margin: 12px 0;
+    padding: 10px;
+    background: rgba(77, 171, 247, 0.08);
+    border: 1px solid rgba(77, 171, 247, 0.3);
+    border-radius: 10px;
+}
+
+.inviteLinkLabel {
+    color: #adb5bd;
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.inviteLink {
+    color: #4dabf7;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(77, 171, 247, 0.1);
+    border: 1px dashed rgba(77, 171, 247, 0.3);
+    text-decoration: underline;
+    word-break: break-all;
+}
+
+.inviteLink:hover {
+    background: rgba(77, 171, 247, 0.25);
+}
+
+.inviteLinkBox.hiddenBox {
+    display: none;
+}
+
 .lobbyInfo {
     text-align: center;
     color: #adb5bd;
@@ -649,12 +712,42 @@ button:disabled {
 }
 
 #playersList li {
-    margin: 8px 0;
+    margin: 8px auto;
     padding: 10px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     font-size: 17px;
     font-weight: 600;
+    display: grid;
+    grid-template-columns: 45px 20px 12px 1fr;
+    align-items: center;
+    justify-content: center;
+    column-gap: 2px;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    max-width: 320px;
+    overflow: hidden;
+}
+
+#playersList li .kickCell {
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#playersList li .numCell {
+    text-align: right;
+}
+
+#playersList li .dashCell {
+    text-align: center;
+    opacity: 0.6;
+}
+
+#playersList li .nameCell {
+    text-align: left;
 }
 
 #playersList li.playerMine {
@@ -976,732 +1069,6 @@ button:disabled {
     text-align: center;
 }
 
-/* ==================== TAKIM BİLMECE ==================== */
-
-/* Üst Bar */
-.takimTopBar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 20px;
-    background: rgba(20, 30, 60, 0.9);
-    border: 1px solid #3b4c63;
-    border-radius: 12px;
-    padding: 12px 20px;
-    margin-bottom: 12px;
-}
-
-.takimTopLeft {
-    color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.takimTopLeft div {
-    margin: 2px 0;
-}
-
-.takimScoreboard {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 2px solid gold;
-    border-radius: 10px;
-    padding: 6px 20px;
-    font-size: 18px;
-}
-
-.takimScoreText {
-    font-size: 24px;
-    font-weight: bold;
-    color: #fff;
-}
-
-.takimTopRight {
-    text-align: right;
-    color: #fff;
-}
-
-.takimTimerBig {
-    color: #51cf66;
-    font-size: 32px;
-    font-weight: bold;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 4px 14px;
-    border-radius: 8px;
-    display: inline-block;
-}
-
-.takimTimerBig.warning {
-    color: #ffa94d;
-}
-
-.takimTimerBig.danger {
-    color: #ff6b6b;
-    border: 2px solid #ff6b6b;
-    animation: pulse 0.5s ease-in-out infinite alternate;
-}
-
-#takimPlayerScores {
-    margin-top: 4px;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-/* Yıl */
-.takimYearBig {
-    text-align: center;
-    color: #adb5bd;
-    font-size: 28px;
-    font-weight: bold;
-    margin: 10px 0;
-    letter-spacing: 2px;
-}
-
-.takimYearBig.revealed {
-    color: #74c0fc;
-}
-
-/* Layout */
-.takimMainLayout {
-    display: grid;
-    grid-template-columns: 220px 1fr 220px;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.takimSidePanel {
-    background: rgba(32, 40, 52, 0.85);
-    border: 1px solid #3b4c63;
-    border-radius: 12px;
-    padding: 12px;
-    min-height: 400px;
-}
-
-.takimSidePanel h3 {
-    color: gold;
-    margin: 0 0 12px 0;
-    text-align: center;
-    font-size: 18px;
-    letter-spacing: 1px;
-}
-
-/* Jokerler */
-.takimJokerList {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.takimJokerBtn {
-    padding: 12px;
-    font-size: 13px;
-    font-weight: bold;
-    color: gold;
-    border: 2px solid gold;
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: center;
-    letter-spacing: 0.5px;
-}
-
-.purpleJoker {
-    background: #6a0072;
-}
-.purpleJoker:hover:not(:disabled) {
-    background: #8a10a3;
-}
-
-.blueJoker {
-    background: #003e8a;
-    color: #74c0fc;
-    border-color: #74c0fc;
-}
-.blueJoker:hover:not(:disabled) {
-    background: #005bb8;
-}
-
-.orangeJoker {
-    background: #b06d00;
-    color: #ffec99;
-    border-color: #ffec99;
-}
-.orangeJoker:hover:not(:disabled) {
-    background: #d68500;
-}
-
-.cyanJoker {
-    background: #005a5a;
-    color: #66d9d9;
-    border-color: #66d9d9;
-}
-.cyanJoker:hover:not(:disabled) {
-    background: #007a7a;
-}
-
-.takimJokerBtn:disabled {
-    background: #2a2a2a !important;
-    color: #555 !important;
-    border-color: #444 !important;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.cancelJoker {
-    background: #a02020 !important;
-    color: white !important;
-    border-color: #ff6b6b !important;
-    margin-top: 5px;
-    animation: cancelPulse 1s ease-in-out infinite alternate;
-}
-
-.cancelJoker:hover {
-    background: #c92a2a !important;
-    transform: translateY(-2px);
-}
-
-@keyframes cancelPulse {
-    from { box-shadow: 0 0 5px rgba(255, 107, 107, 0.5); }
-    to { box-shadow: 0 0 15px rgba(255, 107, 107, 1); }
-}
-
-/* Rakip jokerlerini gösterirken daha okunabilir yap */
-.takimSidePanel.opponent-view .takimJokerBtn {
-    opacity: 1 !important;
-    background: rgba(255, 165, 77, 0.15) !important;
-    color: #ffd43b !important;
-    border-color: #ffa94d !important;
-    cursor: default;
-}
-
-.takimSidePanel.opponent-view .takimJokerBtn:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-.takimDiffLabel {
-    text-align: center;
-    color: #51cf66;
-    margin: 12px 0 0 0;
-    font-weight: 600;
-}
-
-/* Futbol Sahası */
-.takimFieldContainer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.takimField {
-    position: relative;
-    background: linear-gradient(180deg, #1a7a1a 0%, #0d5a0d 100%);
-    border: 3px solid #2b8a2b;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 550px;
-    aspect-ratio: 3/2;
-    overflow: hidden;
-}
-
-.takimField::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 5%;
-    right: 5%;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.4);
-}
-
-.takimField::after {
-    content: '';
-    position: absolute;
-    top: calc(50% - 40px);
-    left: calc(50% - 40px);
-    width: 80px;
-    height: 80px;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    border-radius: 50%;
-}
-
-.takimPlayerSlot {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transform: translate(-50%, -50%);
-    text-align: center;
-}
-
-.takimFlagBox {
-    background: #fff;
-    padding: 3px;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-    position: relative;
-}
-
-.takimFlagBox img {
-    width: 44px;
-    height: 30px;
-    display: block;
-    object-fit: cover;
-    border-radius: 2px;
-}
-
-.takimFlagBox.clickable {
-    cursor: pointer;
-    transition: transform 0.15s;
-}
-
-.takimFlagBox.clickable:hover {
-    transform: scale(1.15);
-    box-shadow: 0 0 12px gold;
-}
-
-.takimPlayerPos {
-    color: gold;
-    font-size: 12px;
-    font-weight: bold;
-    margin-top: 2px;
-    text-shadow: 1px 1px 2px black;
-}
-
-.takimPlayerName {
-    background: rgba(0, 0, 0, 0.7);
-    color: gold;
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-top: 2px;
-    white-space: nowrap;
-}
-
-.takimStatus {
-    text-align: center;
-    color: #ffa94d;
-    font-size: 18px;
-    font-weight: bold;
-    margin: 10px 0;
-    min-height: 24px;
-}
-
-/* Cevap Butonları */
-.takimOptions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin: 10px auto;
-    max-width: 800px;
-}
-
-.takimOptBtn {
-    background: #0055aa;
-    color: #fff;
-    padding: 15px;
-    font-size: 16px;
-    font-weight: bold;
-    border: 2px solid #fff;
-    border-radius: 10px;
-    text-align: left;
-    cursor: pointer;
-}
-
-.takimOptBtn:hover:not(:disabled) {
-    background: #0077dd;
-    transform: translateY(-2px);
-}
-
-.takimOptBtn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-.takimOptBtn.eliminated {
-    background: #1a1a1a;
-    color: #444;
-    border-color: #333;
-}
-
-.takimOptBtn.correct {
-    background: #2f9e44;
-    border-color: #51cf66;
-    color: #fff;
-}
-
-.takimOptBtn.wrong {
-    background: #a02020;
-    border-color: #ff6b6b;
-    color: #fff;
-}
-
-.optLetter {
-    margin-right: 6px;
-}
-
-/* Mobil için */
-@media (max-width: 900px) {
-    .takimMainLayout {
-        grid-template-columns: 1fr;
-    }
-    .takimSidePanel:last-child {
-        display: none;
-    }
-    .takimTopBar {
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-}
-
-/* ==================== KİM MİLYONER ==================== */
-
-/* Ödül bilgi kutusu (menü) */
-.mlInfoBox {
-    max-width: 500px;
-    margin: 20px auto;
-    background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,165,0,0.1));
-    border: 2px solid #ffd43b;
-    border-radius: 14px;
-    padding: 18px;
-    text-align: center;
-}
-
-.mlInfoBox h3 {
-    color: #ffd43b;
-    margin: 0 0 12px 0;
-    font-size: 1.2rem;
-}
-
-.mlInfoBox p {
-    color: #fff;
-    font-size: 15px;
-    margin: 5px 0;
-}
-
-/* Üst bar */
-.mlTopBar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 20px;
-    background: rgba(10, 15, 40, 0.95);
-    border: 1px solid #3b4c63;
-    border-radius: 12px;
-    padding: 15px 25px;
-    margin-bottom: 15px;
-}
-
-.mlTopSide {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.mlPlayerName {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-.mlMoneyText {
-    color: #ffd43b;
-    font-size: 22px;
-    font-weight: bold;
-}
-
-.mlTopCenter {
-    text-align: center;
-}
-
-.mlTimerBig {
-    color: #51cf66;
-    font-size: 46px;
-    font-weight: bold;
-    line-height: 1;
-}
-
-.mlTimerBig.warning {
-    color: #ffa94d;
-}
-
-.mlTimerBig.danger {
-    color: #ff6b6b;
-    animation: pulse 0.5s ease-in-out infinite alternate;
-}
-
-#mlScoreLine {
-    color: #adb5bd;
-    font-size: 15px;
-    margin-top: 4px;
-}
-
-/* Ana layout */
-.mlMainLayout {
-    display: grid;
-    grid-template-columns: 1fr 260px;
-    gap: 15px;
-    margin-bottom: 15px;
-}
-
-.mlLeftPanel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.mlRightPanel {
-    background: rgba(10, 15, 40, 0.95);
-    border: 2px solid #ffd43b;
-    border-radius: 12px;
-    padding: 15px;
-    max-height: 600px;
-    overflow-y: auto;
-}
-
-.mlParaAgaciTitle {
-    color: #ffd43b;
-    text-align: center;
-    margin: 0 0 12px 0;
-    font-size: 1.05rem;
-    letter-spacing: 1px;
-}
-
-.mlParaAgaci {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.mlParaSatir {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
-    background: rgba(255,255,255,0.03);
-    transition: all 0.2s;
-}
-
-.mlParaSatir.aktif {
-    background: #ffd43b;
-    color: #000;
-    transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(255, 212, 59, 0.6);
-}
-
-.mlParaSatir .paraSira {
-    opacity: 0.7;
-    margin-right: 8px;
-}
-
-/* Soru kutusu */
-.mlQuestionBox {
-    background: linear-gradient(135deg, #17233d, #0f1a30);
-    border: 2px solid #3b4c63;
-    border-radius: 12px;
-    padding: 15px 20px;
-    min-height: 110px;
-}
-
-.mlQuestionHeader {
-    display: flex;
-    justify-content: space-between;
-    color: #7cc8f0;
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 8px;
-}
-
-#mlPrizeInfo {
-    color: #ffd43b;
-}
-
-.mlQuestionText {
-    color: #fff;
-    font-size: 19px;
-    font-weight: bold;
-    line-height: 1.4;
-    padding: 8px 0;
-}
-
-/* Şıklar */
-.mlOptions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-.mlOptBtn {
-    background: #1a3a8a;
-    color: #fff;
-    padding: 16px 20px;
-    font-size: 16px;
-    font-weight: bold;
-    border: 2px solid #fff;
-    border-radius: 10px;
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.mlOptBtn:hover:not(:disabled) {
-    background: #2550b0;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(37, 80, 176, 0.4);
-}
-
-.mlOptBtn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.mlOptBtn.eliminated {
-    background: #1a1a1a;
-    color: #444;
-    border-color: #333;
-}
-
-.mlOptBtn.correct {
-    background: #1b8a3a !important;
-    border-color: #51cf66 !important;
-    color: #fff !important;
-    animation: correctPulse 0.6s ease-in-out;
-}
-
-.mlOptBtn.wrong {
-    background: #b71c1c !important;
-    border-color: #ff6b6b !important;
-    color: #fff !important;
-    animation: wrongShake 0.5s ease-in-out;
-}
-
-@keyframes correctPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-@keyframes wrongShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-8px); }
-    75% { transform: translateX(8px); }
-}
-
-/* Jokerler */
-.mlJokers {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-    margin-top: 5px;
-}
-
-.mlJokerBtn {
-    padding: 14px;
-    font-size: 15px;
-    font-weight: bold;
-    color: #fff;
-    border: 2px solid #ffd43b;
-    border-radius: 10px;
-    cursor: pointer;
-    letter-spacing: 1px;
-    transition: all 0.2s;
-}
-
-.mlJokerBtn.purpleJoker { background: #6a1b9a; }
-.mlJokerBtn.tealJoker { background: #00897b; }
-.mlJokerBtn.orangeJoker { background: #ef6c00; }
-
-.mlJokerBtn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255,215,0,0.3);
-}
-
-.mlJokerBtn:disabled {
-    background: #2a2a2a !important;
-    color: #555 !important;
-    border-color: #444 !important;
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-/* Info text */
-.mlInfoText {
-    text-align: center;
-    color: #ffa94d;
-    font-size: 17px;
-    font-weight: bold;
-    min-height: 24px;
-    padding: 5px;
-}
-
-.mlInfoText.correct { color: #51cf66; }
-.mlInfoText.wrong { color: #ff6b6b; }
-.mlInfoText.info { color: #74c0fc; }
-
-/* Seyirci grafik */
-.mlAudienceBox {
-    background: rgba(10, 15, 40, 0.95);
-    border: 2px solid #00897b;
-    border-radius: 10px;
-    padding: 12px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 10px;
-}
-
-.mlAudBar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    color: #fff;
-    font-weight: bold;
-    font-size: 13px;
-    height: 100px;
-    gap: 4px;
-}
-
-.mlAudBar > span:first-child {
-    color: #ffd43b;
-    margin-bottom: 4px;
-}
-
-.mlAudBarFill {
-    width: 100%;
-    max-width: 50px;
-    background: linear-gradient(180deg, #74c0fc, #1971c2);
-    border-radius: 4px 4px 0 0;
-    min-height: 4px;
-    transition: height 0.5s ease-out;
-}
-
-.mlAudPct {
-    color: #adb5bd;
-    font-size: 12px;
-}
-
-/* Mobil */
-@media (max-width: 900px) {
-    .mlMainLayout {
-        grid-template-columns: 1fr;
-    }
-    .mlRightPanel {
-        max-height: 300px;
-    }
-    .mlTopBar {
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-    .mlTopSide {
-        align-items: center;
-    }
-    .mlOptions {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* Ses Kontrolü - Global (her ekranda sağ üstte sabit) */
 .mlVolumeControl {
     position: fixed;
@@ -1817,1520 +1184,6 @@ button:disabled {
 
 #mlVolumeIcon {
     font-size: 18px;
-}
-
-/* ==================== HARITADAN BUL ==================== */
-
-/* Bilgi kutusu (menü) */
-.haritaInfoBox {
-    max-width: 500px;
-    margin: 20px auto;
-    background: linear-gradient(135deg, rgba(81, 207, 102, 0.1), rgba(116, 192, 252, 0.1));
-    border: 2px solid #51cf66;
-    border-radius: 14px;
-    padding: 18px;
-    text-align: center;
-}
-
-.haritaInfoBox h3 {
-    color: #51cf66;
-    margin: 0 0 12px 0;
-    font-size: 1.2rem;
-}
-
-.haritaInfoBox p {
-    color: #fff;
-    font-size: 15px;
-    margin: 5px 0;
-}
-
-/* Üst bar */
-.haritaTopBar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 20px;
-    background: rgba(20, 30, 60, 0.9);
-    border: 1px solid #3b4c63;
-    border-radius: 12px;
-    padding: 12px 20px;
-    margin-bottom: 12px;
-}
-
-.haritaTopLeft {
-    color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.haritaTopLeft div {
-    margin: 2px 0;
-}
-
-.haritaScoreboard {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 2px solid gold;
-    border-radius: 10px;
-    padding: 6px 20px;
-    font-size: 18px;
-}
-
-.haritaScoreText {
-    font-size: 24px;
-    font-weight: bold;
-    color: #fff;
-}
-
-.haritaTopRight {
-    text-align: right;
-}
-
-.haritaTimerBig {
-    color: #51cf66;
-    font-size: 32px;
-    font-weight: bold;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 4px 14px;
-    border-radius: 8px;
-    display: inline-block;
-}
-
-.haritaTimerBig.warning { color: #ffa94d; }
-.haritaTimerBig.danger {
-    color: #ff6b6b;
-    animation: pulse 0.5s ease-in-out infinite alternate;
-}
-
-/* Ana Layout */
-.haritaMainLayout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 15px;
-    margin-bottom: 12px;
-}
-
-.haritaLeftPanel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-/* Futbolcu Kartı */
-.haritaPlayerCard {
-    background: rgba(32, 40, 52, 0.9);
-    border: 2px solid gold;
-    border-radius: 14px;
-    padding: 15px;
-    text-align: center;
-}
-
-.haritaPlayerCard h3 {
-    color: gold;
-    margin: 0 0 12px 0;
-    font-size: 1.05rem;
-    letter-spacing: 1px;
-}
-
-.haritaPlayerCard img {
-    width: 160px;
-    height: 160px;
-    object-fit: cover;
-    border-radius: 12px;
-    border: 3px solid #fff;
-    background: #111;
-    display: block;
-    margin: 0 auto;
-}
-
-.haritaPlayerName {
-    color: #fff;
-    font-size: 20px;
-    font-weight: bold;
-    margin-top: 10px;
-}
-
-.haritaPlayerStatus {
-    color: #adb5bd;
-    font-size: 13px;
-    margin-top: 6px;
-}
-
-/* Harita Container */
-.haritaMapContainer {
-    background: rgba(32, 40, 52, 0.9);
-    border: 2px solid #74c0fc;
-    border-radius: 14px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    position: relative;
-}
-
-/* İzleyici modu - harita solgun */
-.haritaMapContainer.spectator .haritaMapWrapper {
-    opacity: 0.65;
-    filter: grayscale(20%);
-}
-
-/* Wrapper'a değil, HARITA ve MARKER container'a pointer-events müdahalesi yapmıyoruz.
-   Sadece wrapper zaten kendisi mouse eventlerini yakalıyor - onu bloklayalım */
-.haritaMapContainer.spectator .haritaMapWrapper {
-    cursor: default !important;
-}
-
-/* Rakip cursor - izleyicide görünür (mapWrapper içinde) */
-.haritaFakeCursor {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #ff6b6b;
-    background: rgba(255, 107, 107, 0.3);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    z-index: 40;
-    box-shadow: 0 0 12px rgba(255, 107, 107, 0.8);
-    transition: left 0.08s linear, top 0.08s linear;
-    top: 0;
-    left: 0;
-}
-
-.haritaFakeCursor::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 4px;
-    height: 4px;
-    background: #ff6b6b;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-}
-
-/* İzleyici overlay yazısı - üstte, küçük */
-.haritaSpectatorOverlay {
-    position: absolute;
-    top: 15px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(200, 30, 30, 0.92);
-    color: #fff;
-    font-size: 14px;
-    font-weight: bold;
-    padding: 6px 16px;
-    border-radius: 20px;
-    border: 1px solid #ff6b6b;
-    box-shadow: 0 3px 12px rgba(255, 107, 107, 0.4);
-    z-index: 50;
-    pointer-events: none;
-    letter-spacing: 1px;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.haritaMapWrapper {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 2 / 1;
-    overflow: hidden;
-    border-radius: 10px;
-    background: #0d1a30;
-    cursor: crosshair;
-    user-select: none;
-}
-
-#haritaWorldMap {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transform-origin: 0 0;
-    transition: transform 0.15s ease-out;
-    pointer-events: none;
-}
-
-.haritaMarkers {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transform-origin: 0 0;
-    transition: transform 0.15s ease-out;
-    pointer-events: none;
-}
-
-.haritaMarker {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: rgba(255, 165, 0, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.35);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transform-origin: center center;
-    cursor: pointer;
-    pointer-events: auto;
-    transition: background 0.15s, box-shadow 0.15s;
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
-    will-change: transform;
-}
-
-.haritaMarker:hover {
-    background: gold;
-    width: 18px;
-    height: 18px;
-    box-shadow: 0 0 10px gold;
-    z-index: 10;
-    border-color: rgba(0, 0, 0, 0.6);
-}
-
-.haritaMarker.pending {
-    background: #ffd43b;
-    width: 18px;
-    height: 18px;
-    box-shadow: 0 0 12px #ffd43b;
-    border-color: rgba(0, 0, 0, 0.6);
-    animation: pulse 0.5s ease-in-out infinite alternate;
-}
-
-.haritaMarker.correct {
-    background: #51cf66;
-    width: 20px;
-    height: 20px;
-    box-shadow: 0 0 18px #51cf66;
-    border-color: rgba(0, 0, 0, 0.6);
-    animation: correctPulse 0.6s ease-in-out;
-}
-
-/* Doğru cevap halkası - marker etrafında soluk pulse */
-.haritaMarker.correct::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60px;
-    height: 60px;
-    border: 3px solid rgba(81, 207, 102, 0.8);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    animation: correctRing 1.5s ease-in-out infinite;
-    pointer-events: none;
-}
-
-@keyframes correctRing {
-    0% {
-        width: 30px;
-        height: 30px;
-        opacity: 1;
-        border-width: 3px;
-    }
-    100% {
-        width: 80px;
-        height: 80px;
-        opacity: 0;
-        border-width: 1px;
-    }
-}
-
-/* Büyük ekran ortası overlay - DOĞRU / YANLIŞ / SIRA SENDE */
-.haritaBigOverlay {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 80;
-    pointer-events: none;
-    animation: bigOverlayIn 0.5s ease-out;
-}
-
-#haritaBigOverlayText {
-    font-size: 90px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    text-shadow: 
-        0 0 30px currentColor,
-        0 0 60px currentColor,
-        4px 4px 10px rgba(0, 0, 0, 0.7);
-    padding: 20px 60px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 25px;
-    border: 4px solid currentColor;
-    box-shadow: 0 0 50px currentColor;
-    white-space: nowrap;
-}
-
-.haritaBigOverlay.correct #haritaBigOverlayText {
-    color: #51cf66;
-}
-
-.haritaBigOverlay.wrong #haritaBigOverlayText {
-    color: #ff6b6b;
-}
-
-.haritaBigOverlay.turn #haritaBigOverlayText {
-    color: #ffd43b;
-}
-
-@keyframes bigOverlayIn {
-    0% {
-        transform: translate(-50%, -50%) scale(0.3);
-        opacity: 0;
-    }
-    60% {
-        transform: translate(-50%, -50%) scale(1.15);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(-50%, -50%) scale(1);
-        opacity: 1;
-    }
-}
-
-/* Futbolcu kartının altında "Doğru: Türkiye" yazısı */
-.haritaCorrectAnswer {
-    margin-top: 12px;
-    padding: 10px 14px;
-    background: linear-gradient(135deg, rgba(45, 130, 60, 0.35), rgba(30, 100, 45, 0.35));
-    border: 2px solid #51cf66;
-    border-radius: 10px;
-    color: #51cf66;
-    font-size: 16px;
-    font-weight: bold;
-    text-align: center;
-    letter-spacing: 0.5px;
-    animation: correctAnswerIn 0.5s ease-out;
-}
-
-.haritaCorrectAnswer .cavLabel {
-    display: block;
-    font-size: 12px;
-    color: #adb5bd;
-    margin-bottom: 4px;
-    font-weight: 600;
-    letter-spacing: 1px;
-}
-
-@keyframes correctAnswerIn {
-    from {
-        transform: translateY(-10px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-/* Eski banner'ı kullanmıyoruz artık ama kalabilir (hidden) */
-.haritaCorrectBanner {
-    display: none;
-}
-
-.haritaMarker.wrong {
-    background: #ff6b6b;
-    width: 20px;
-    height: 20px;
-    box-shadow: 0 0 18px #ff6b6b;
-    border-color: rgba(0, 0, 0, 0.6);
-}
-
-.haritaMarker.disabled {
-    pointer-events: none;
-}
-
-/* Tooltip */
-.haritaTooltip {
-    position: fixed;
-    background: rgba(10, 10, 20, 0.95);
-    color: #fff;
-    padding: 5px 12px;
-    border-radius: 6px;
-    border: 1px solid gold;
-    font-size: 13px;
-    font-weight: bold;
-    pointer-events: none;
-    z-index: 1000;
-    white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-}
-
-/* Zoom Controls */
-.haritaMapControls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-}
-
-.haritaZoomBtn {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    font-size: 18px;
-    font-weight: bold;
-    background: #1971c2;
-    border: 1px solid #74c0fc;
-    color: #fff;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.haritaZoomBtn:hover:not(:disabled) {
-    background: #1c7ed6;
-}
-
-#haritaZoomLevel {
-    color: #74c0fc;
-    font-weight: bold;
-    min-width: 60px;
-    text-align: center;
-}
-
-.haritaStatus {
-    text-align: center;
-    color: #ffa94d;
-    font-size: 16px;
-    font-weight: bold;
-    min-height: 22px;
-    margin: 5px 0;
-}
-
-.haritaStatus.correct { color: #51cf66; }
-.haritaStatus.wrong { color: #ff6b6b; }
-.haritaStatus.info { color: #74c0fc; }
-
-/* Mobil */
-@media (max-width: 900px) {
-    .haritaMainLayout {
-        grid-template-columns: 1fr;
-    }
-    .haritaTopBar {
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-    .haritaPlayerCard img {
-        width: 120px;
-        height: 120px;
-    }
-}
-
-/* ==================== GİZEMLİ KARİYER ==================== */
-
-/* Bilgi kutusu (menü) */
-.gizemInfoBox {
-    max-width: 550px;
-    margin: 20px auto;
-    background: linear-gradient(135deg, rgba(150, 0, 150, 0.12), rgba(255, 215, 0, 0.1));
-    border: 2px solid #c084fc;
-    border-radius: 14px;
-    padding: 18px;
-    text-align: center;
-}
-
-.gizemInfoBox h3 {
-    color: #c084fc;
-    margin: 0 0 12px 0;
-    font-size: 1.2rem;
-}
-
-.gizemInfoBox p {
-    color: #fff;
-    font-size: 15px;
-    margin: 5px 0;
-}
-
-/* Üst bar */
-.gizemTopBar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 20px;
-    background: rgba(20, 30, 60, 0.9);
-    border: 1px solid #3b4c63;
-    border-radius: 12px;
-    padding: 12px 20px;
-    margin-bottom: 12px;
-}
-
-.gizemTopLeft {
-    color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.gizemTopLeft div {
-    margin: 2px 0;
-}
-
-.gizemScoreboard {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 2px solid gold;
-    border-radius: 10px;
-    padding: 6px 20px;
-    font-size: 18px;
-}
-
-.gizemScoreText {
-    font-size: 24px;
-    font-weight: bold;
-    color: #fff;
-}
-
-.gizemTopRight {
-    text-align: right;
-}
-
-.gizemTimerBig {
-    color: #51cf66;
-    font-size: 32px;
-    font-weight: bold;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 4px 14px;
-    border-radius: 8px;
-    display: inline-block;
-}
-
-.gizemTimerBig.warning { color: #ffa94d; }
-.gizemTimerBig.danger {
-    color: #ff6b6b;
-    animation: pulse 0.5s ease-in-out infinite alternate;
-}
-
-/* Kariyer Kutusu */
-.gizemCareerBox {
-    background: rgba(32, 40, 52, 0.9);
-    border: 2px solid gold;
-    border-radius: 14px;
-    padding: 15px;
-    margin-bottom: 12px;
-}
-
-.gizemCareerTitle {
-    color: gold;
-    text-align: center;
-    margin: 0 0 15px 0;
-    font-size: 1.1rem;
-    letter-spacing: 1px;
-}
-
-.gizemCareerFlow {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px;
-    min-height: 130px;
-}
-
-.gizemCareerItem {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-width: 100px;
-    max-width: 120px;
-}
-    gap: 5px;
-    min-width: 100px;
-    animation: careerFadeIn 0.5s ease-out;
-}
-
-@keyframes careerFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.gizemTeamLogo {
-    width: 80px;
-    height: 80px;
-    background: #fff;
-    border-radius: 12px;
-    border: 3px solid gold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    overflow: hidden;
-    position: relative;
-}
-
-.gizemTeamLogo img {
-    width: 90%;
-    height: 90%;
-    object-fit: contain;
-}
-
-.gizemTeamLogo.fallback {
-    color: #fff;
-    font-size: 11px;
-    font-weight: bold;
-    text-align: center;
-    padding: 6px;
-    line-height: 1.1;
-}
-
-.gizemTeamName {
-    color: #e9ecef;
-    font-size: 12px;
-    text-align: center;
-    margin-top: 8px;
-    word-wrap: break-word;
-    max-width: 110px;
-    line-height: 1.2;
-    min-height: 30px;
-}
-
-.gizemCareerArrow {
-    color: gold;
-    font-size: 28px;
-    font-weight: bold;
-    margin: 0 4px;
-    align-self: center;
-    padding-bottom: 20px;
-}
-
-/* Joker Bar */
-.gizemJokerBar {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.gizemJokerBtn {
-    padding: 12px 20px;
-    font-size: 14px;
-    font-weight: bold;
-    border: 2px solid;
-    border-radius: 10px;
-    cursor: pointer;
-    letter-spacing: 0.5px;
-    color: #fff;
-    min-width: 220px;
-    transition: all 0.2s;
-}
-
-.gizemJokerBtn.blueJoker {
-    background: #003e8a;
-    color: #74c0fc;
-    border-color: #74c0fc;
-}
-.gizemJokerBtn.blueJoker:hover:not(:disabled) {
-    background: #005bb8;
-    transform: translateY(-2px);
-}
-
-.gizemJokerBtn.orangeJoker {
-    background: #b06d00;
-    color: #ffec99;
-    border-color: #ffec99;
-}
-.gizemJokerBtn.orangeJoker:hover:not(:disabled) {
-    background: #d68500;
-    transform: translateY(-2px);
-}
-
-.gizemJokerBtn:disabled {
-    background: #2a2a2a !important;
-    color: #555 !important;
-    border-color: #444 !important;
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-
-/* 6 Şık */
-.gizemOptions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    max-width: 800px;
-    margin: 0 auto 12px auto;
-}
-
-.gizemOptBtn {
-    background: #1a3a8a;
-    color: #fff;
-    padding: 14px 18px;
-    font-size: 16px;
-    font-weight: bold;
-    border: 2px solid #fff;
-    border-radius: 10px;
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.gizemOptBtn:hover:not(:disabled) {
-    background: #2550b0;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(37, 80, 176, 0.4);
-}
-
-.gizemOptBtn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.gizemOptBtn.hidden-opt {
-    background: #1a1a1a !important;
-    color: transparent !important;
-    border-color: #333 !important;
-    position: relative;
-}
-
-.gizemOptBtn.hidden-opt::after {
-    content: '✕';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #ff6b6b;
-    font-size: 24px;
-    font-weight: bold;
-}
-
-.gizemOptBtn.correct {
-    background: #1b8a3a !important;
-    border-color: #51cf66 !important;
-    color: #fff !important;
-    animation: correctPulse 0.6s ease-in-out;
-}
-
-.gizemOptBtn.wrong {
-    background: #b71c1c !important;
-    border-color: #ff6b6b !important;
-    color: #fff !important;
-    animation: wrongShake 0.5s ease-in-out;
-}
-
-.gizemStatus {
-    text-align: center;
-    color: #ffa94d;
-    font-size: 18px;
-    font-weight: bold;
-    margin: 10px 0;
-    min-height: 24px;
-}
-
-.gizemStatus.correct { color: #51cf66; }
-.gizemStatus.wrong { color: #ff6b6b; }
-.gizemStatus.info { color: #74c0fc; }
-
-/* Mobil */
-@media (max-width: 900px) {
-    .gizemTopBar {
-        grid-template-columns: 1fr;
-        text-align: center;
-    }
-    .gizemOptions {
-        grid-template-columns: 1fr;
-    }
-    .gizemTeamLogo {
-        width: 60px;
-        height: 60px;
-    }
-    .gizemTeamName {
-        font-size: 10px;
-    }
-    .gizemCareerArrow {
-        font-size: 20px;
-    }
-    .gizemJokerBar {
-        flex-direction: column;
-        align-items: center;
-    }
-}
-
-/* ==========================================
-   İLK 11 CHALLENGE
-   ========================================== */
-
-.ilk11InfoBox {
-    background: rgba(30, 80, 30, 0.3);
-    border: 1px solid #51cf66;
-    border-radius: 12px;
-    padding: 15px 20px;
-    margin: 15px auto;
-    max-width: 500px;
-    text-align: left;
-}
-.ilk11InfoBox h3 {
-    color: #51cf66;
-    margin-bottom: 8px;
-    text-align: center;
-}
-.ilk11InfoBox p {
-    color: #ced4da;
-    margin: 4px 0;
-    font-size: 14px;
-}
-
-/* Top Bar */
-.ilk11TopBar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #1a3a2a 0%, #0d1b2a 100%);
-    padding: 10px 20px;
-    border-bottom: 2px solid #51cf66;
-    min-height: 60px;
-}
-.ilk11TopLeft, .ilk11TopRight {
-    min-width: 160px;
-}
-.ilk11TopCenter {
-    text-align: center;
-    flex: 1;
-}
-.ilk11TimerBig {
-    font-size: 32px;
-    font-weight: bold;
-    color: #ffd43b;
-    text-align: right;
-}
-
-/* Ana Layout */
-.ilk11MainLayout {
-    display: flex;
-    gap: 15px;
-    padding: 10px 15px;
-    max-width: 1200px;
-    margin: 0 auto;
-    min-height: 550px;
-}
-
-/* Saha Container */
-.ilk11FieldContainer {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.ilk11Field {
-    position: relative;
-    width: 520px;
-    height: 580px;
-    background: linear-gradient(180deg,
-        #1e6e32 0%, #1a5e2a 8.3%,
-        #22753a 8.3%, #1e6e32 16.6%,
-        #1a5e2a 16.6%, #22753a 25%,
-        #1e6e32 25%, #1a5e2a 33.3%,
-        #22753a 33.3%, #1e6e32 41.6%,
-        #1a5e2a 41.6%, #22753a 50%,
-        #1e6e32 50%, #1a5e2a 58.3%,
-        #22753a 58.3%, #1e6e32 66.6%,
-        #1a5e2a 66.6%, #22753a 75%,
-        #1e6e32 75%, #1a5e2a 83.3%,
-        #22753a 83.3%, #1e6e32 91.6%,
-        #1a5e2a 91.6%, #22753a 100%
-    );
-    border: 3px solid white;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-/* Saha çizgileri */
-.ilk11FieldLines {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    pointer-events: none;
-}
-.ilk11HalfLine {
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: rgba(255,255,255,0.5);
-}
-.ilk11CenterCircle {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 110px;
-    height: 110px;
-    border: 2px solid rgba(255,255,255,0.5);
-    border-radius: 50%;
-}
-.ilk11PenaltyTop {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 180px;
-    height: 70px;
-    border: 2px solid rgba(255,255,255,0.4);
-    border-top: none;
-}
-.ilk11PenaltyBottom {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 180px;
-    height: 70px;
-    border: 2px solid rgba(255,255,255,0.4);
-    border-bottom: none;
-}
-
-/* Pozisyon Slotları */
-.ilk11Slots {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-}
-
-.ilk11Slot {
-    position: absolute;
-    width: 85px;
-    height: 100px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.ilk11Slot.empty {
-    background: rgba(100, 100, 100, 0.6);
-    border: 2px dashed rgba(255,255,255,0.5);
-}
-.ilk11Slot.empty:hover {
-    background: rgba(140, 200, 100, 0.7);
-    border-color: #51cf66;
-    transform: scale(1.05);
-}
-
-.ilk11Slot.filled {
-    background: rgba(15, 70, 15, 0.8);
-    border: 2px solid #51cf66;
-}
-
-.ilk11SlotPosName {
-    color: white;
-    font-size: 13px;
-    font-weight: bold;
-}
-.ilk11SlotPosId {
-    color: #adb5bd;
-    font-size: 11px;
-}
-
-.ilk11SlotImg {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-top: 2px;
-}
-
-.ilk11SlotName {
-    color: white;
-    font-size: 11px;
-    margin-top: 2px;
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ilk11Status {
-    color: #ffd43b;
-    text-align: center;
-    margin-top: 8px;
-    font-size: 15px;
-}
-
-/* Sağ Panel */
-.ilk11SidePanel {
-    width: 220px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.ilk11MyCard, .ilk11OppCard {
-    padding: 12px;
-    border-radius: 10px;
-    text-align: center;
-}
-.ilk11MyCard {
-    background: rgba(15, 50, 15, 0.8);
-    border: 2px solid #51cf66;
-}
-.ilk11MyCard h3 {
-    color: #51cf66;
-    margin: 0 0 5px 0;
-}
-.ilk11OppCard {
-    background: rgba(60, 30, 0, 0.8);
-    border: 2px solid #ffa94d;
-}
-.ilk11OppCard h3 {
-    color: #ffa94d;
-    margin: 0 0 5px 0;
-}
-
-.ilk11CountBig {
-    font-size: 28px;
-    font-weight: bold;
-    color: white;
-}
-
-.ilk11OppStatusText {
-    color: #ffa94d;
-    font-size: 14px;
-}
-
-.ilk11LogBox {
-    background: rgba(15, 15, 30, 0.8);
-    border: 2px solid #00bcd4;
-    border-radius: 10px;
-    padding: 10px;
-    flex: 1;
-    overflow-y: auto;
-    max-height: 300px;
-}
-.ilk11LogBox h4 {
-    color: #00bcd4;
-    margin: 0 0 8px 0;
-    font-size: 14px;
-}
-.ilk11LogList {
-    font-size: 13px;
-    color: #ced4da;
-}
-.ilk11LogItem {
-    padding: 3px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-/* Popup */
-.ilk11PopupCard {
-    max-width: 800px !important;
-    width: 90vw;
-}
-
-.ilk11PopupGrid {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin: 20px 0;
-}
-
-.ilk11PopupOption {
-    width: 130px;
-    background: rgba(40, 40, 60, 0.9);
-    border: 2px solid #ffd43b;
-    border-radius: 10px;
-    padding: 12px 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-}
-.ilk11PopupOption:hover {
-    background: rgba(50, 90, 50, 0.9);
-    border-color: #51cf66;
-    transform: scale(1.05);
-}
-
-.ilk11PopupImg {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 8px;
-}
-
-.ilk11PopupName {
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 3px;
-}
-.ilk11PopupPos {
-    color: #00bcd4;
-    font-size: 12px;
-}
-.ilk11PopupLeague {
-    color: #adb5bd;
-    font-size: 11px;
-}
-.ilk11PopupNat {
-    color: #b0b8c8;
-    font-size: 11px;
-}
-
-/* Sonuç Ekranı */
-.ilk11ResultCard {
-    max-width: 1100px !important;
-    width: 95vw;
-}
-
-.ilk11ResultTeams {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 15px;
-    margin: 15px 0;
-}
-
-.ilk11ResultTeam {
-    flex: 1;
-    max-width: 450px;
-    border-radius: 12px;
-    padding: 10px;
-    text-align: center;
-}
-#ilk11ResultMyTeam {
-    background: rgba(15, 50, 15, 0.6);
-    border: 2px solid #51cf66;
-}
-#ilk11ResultOppTeam {
-    background: rgba(60, 30, 0, 0.5);
-    border: 2px solid #ffa94d;
-}
-
-.ilk11ResultName {
-    margin: 0 0 8px 0;
-    font-size: 20px;
-}
-
-.ilk11ResultVS {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 50px;
-}
-.ilk11ResultVS span {
-    font-size: 28px;
-    font-weight: bold;
-    color: #ffd43b;
-}
-
-/* Mini Saha (Sonuçta) */
-.ilk11ResultMiniField {
-    position: relative;
-    width: 100%;
-    max-width: 380px;
-    height: 350px;
-    margin: 0 auto 10px;
-    background: linear-gradient(180deg,
-        #1e6e32 0%, #1a5e2a 50%,
-        #22753a 50%, #1e6e32 100%
-    );
-    border: 2px solid white;
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-.ilk11MiniSlot {
-    position: absolute;
-    width: 62px;
-    height: 75px;
-    text-align: center;
-    border-radius: 6px;
-    background: rgba(0,0,0,0.4);
-}
-
-.ilk11MiniImg {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-top: 3px;
-}
-
-.ilk11MiniRating {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    background: #ffd43b;
-    color: black;
-    font-size: 11px;
-    font-weight: bold;
-    padding: 1px 4px;
-    border-radius: 3px;
-}
-
-.ilk11MiniName {
-    color: white;
-    font-size: 10px;
-    margin-top: 2px;
-    max-width: 58px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Skor Kutusu */
-.ilk11ResultScoreBox {
-    font-size: 14px;
-    color: #ced4da;
-    margin-top: 5px;
-}
-.ilk11ResultNum {
-    color: #ffd43b;
-    font-weight: bold;
-}
-.ilk11ResultTotal {
-    font-size: 18px;
-    font-weight: bold;
-    color: white;
-    margin-top: 5px;
-    padding-top: 5px;
-    border-top: 1px solid rgba(255,255,255,0.2);
-}
-.ilk11ResultBigNum {
-    color: #51cf66;
-    font-size: 24px;
-}
-
-.ilk11ResultWinnerText {
-    font-size: 32px;
-    margin: 15px 0;
-    text-align: center;
-}
-
-/* Responsive */
-@media (max-width: 900px) {
-    .ilk11MainLayout {
-        flex-direction: column;
-        align-items: center;
-    }
-    .ilk11SidePanel {
-        width: 100%;
-        max-width: 520px;
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-    .ilk11Field {
-        width: 100%;
-        max-width: 520px;
-        height: auto;
-        aspect-ratio: 520/580;
-    }
-    .ilk11ResultTeams {
-        flex-direction: column;
-        align-items: center;
-    }
-    .ilk11ResultVS span {
-        font-size: 22px;
-    }
-}
-
-/* ==========================================
-   STADYUM TANIMA
-   ========================================== */
-
-.stadMainLayout {
-    display: flex;
-    gap: 20px;
-    padding: 20px;
-    align-items: flex-start;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.stadImagePanel {
-    width: min(700px, 90vw);
-    background: rgba(20, 25, 35, 0.8);
-    border: 2px solid #ffd43b;
-    border-radius: 14px;
-    padding: 10px;
-    text-align: center;
-}
-
-.stadImagePanel img {
-    width: 100%;
-    max-height: 420px;
-    object-fit: cover;
-    border-radius: 10px;
-    display: block;
-}
-
-.stadSidePanel {
-    width: 320px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.stadInputBox {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: rgba(20, 25, 35, 0.8);
-    border: 2px solid #4dabf7;
-    border-radius: 12px;
-    padding: 15px;
-}
-
-#stadAnswerInput {
-    width: 100%;
-    padding: 14px;
-    font-size: 20px;
-    border-radius: 10px;
-    border: 2px solid #495057;
-    background: #111827;
-    color: white;
-    outline: none;
-}
-
-#stadAnswerInput:focus {
-    border-color: #ffd43b;
-}
-
-.stadJokerBox,
-.stadHintBox {
-    background: rgba(20, 25, 35, 0.8);
-    border: 2px solid #6c757d;
-    border-radius: 12px;
-    padding: 15px;
-}
-
-.stadJokerBox h3,
-.stadHintBox h3 {
-    margin-bottom: 10px;
-    color: #ffd43b;
-}
-
-.stadJokerGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-.stadHintLine {
-    background: rgba(255,255,255,0.05);
-    border-left: 4px solid #ffd43b;
-    padding: 10px;
-    border-radius: 8px;
-    color: #e9ecef;
-    margin-bottom: 8px;
-    font-size: 15px;
-}
-
-.stadAnswerReveal {
-    margin-top: 10px;
-    padding: 10px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.08);
-    color: #ffd43b;
-    font-size: 18px;
-    font-weight: bold;
-}
-
-@media (max-width: 900px) {
-    .stadSidePanel {
-        width: min(700px, 90vw);
-    }
-}
-
-/* Stadyum Şık Butonları */
-.stadOptions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.stadOptBtn {
-    padding: 14px 12px;
-    font-size: 16px;
-    font-weight: bold;
-    background: rgba(40, 45, 60, 0.9);
-    border: 2px solid #4dabf7;
-    border-radius: 10px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: left;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.stadOptBtn:hover:not(:disabled) {
-    background: rgba(60, 90, 130, 0.9);
-    border-color: #ffd43b;
-    transform: translateY(-2px);
-}
-
-.stadOptBtn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.stadOptBtn .optLetter {
-    color: #ffd43b;
-    font-size: 18px;
-    min-width: 28px;
-}
-
-.stadOptBtn.correct {
-    background: rgba(40, 180, 80, 0.4) !important;
-    border-color: #51cf66 !important;
-    animation: stadCorrectFlash 0.5s;
-}
-
-.stadOptBtn.wrong {
-    background: rgba(200, 60, 60, 0.4) !important;
-    border-color: #ff6b6b !important;
-}
-
-.stadOptBtn.eliminated {
-    opacity: 0.2;
-    text-decoration: line-through;
-    pointer-events: none;
-}
-
-@keyframes stadCorrectFlash {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-}
-
-/* Gizemli Kariyer - Uzun isim düzeltme */
-.gizemCareerItem {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    min-width: 100px;
-    max-width: 120px;
-    vertical-align: top;
-}
-
-.gizemTeamLogo {
-    flex-shrink: 0;
-}
-
-.gizemTeamName {
-    margin-top: 8px !important;
-    word-wrap: break-word;
-    max-width: 110px;
-    line-height: 1.2;
-    text-align: center;
-    font-size: 12px;
-    color: #e9ecef;
-}
-
-.gizemCareerFlow {
-    align-items: flex-start !important;
 }
 
 /* ==========================================
@@ -3680,16 +1533,37 @@ button:disabled {
    FOOTER - YASAL BİLGİ
    ========================================== */
 
+/* HTML ve body min yükseklik ayarı */
+html, body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Container flex-grow ile aşağıyı iter */
+body > .container {
+    flex: 1 0 auto;
+}
+
+/* Footer en altta sabit */
 .siteFooter {
+    flex-shrink: 0;
     background: linear-gradient(135deg, rgba(10, 15, 30, 0.95) 0%, rgba(15, 20, 40, 0.95) 100%);
     border-top: 1px solid rgba(77, 171, 247, 0.2);
-    padding: 25px 20px;
-    margin-top: 60px;
+    padding: 20px;
+    margin-top: auto;
     color: #adb5bd;
     text-align: center;
     font-size: 13px;
     position: relative;
     z-index: 100;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .footerContent {
@@ -3748,4 +1622,675 @@ button:disabled {
     .footerSeparator {
         display: none;
     }
+}
+
+/* ==========================================
+   CONTACT POPUP - E-POSTA & INSTAGRAM
+   ========================================== */
+
+.contactCard {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border-radius: 12px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+    border: 2px solid transparent;
+}
+
+/* E-posta kartı */
+.emailCard {
+    background: linear-gradient(135deg, rgba(77, 171, 247, 0.1) 0%, rgba(77, 171, 247, 0.05) 100%);
+    border-color: rgba(77, 171, 247, 0.3);
+}
+
+.emailCard:hover {
+    background: linear-gradient(135deg, rgba(77, 171, 247, 0.2) 0%, rgba(77, 171, 247, 0.1) 100%);
+    border-color: #4dabf7;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(77, 171, 247, 0.3);
+}
+
+/* Instagram kartı */
+.instagramCard {
+    background: linear-gradient(135deg, rgba(225, 48, 108, 0.1) 0%, rgba(129, 52, 175, 0.05) 100%);
+    border-color: rgba(225, 48, 108, 0.3);
+}
+
+.instagramCard:hover {
+    background: linear-gradient(135deg, rgba(225, 48, 108, 0.2) 0%, rgba(129, 52, 175, 0.1) 100%);
+    border-color: #e1306c;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(225, 48, 108, 0.3);
+}
+
+.contactCardIcon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 65px;
+    height: 65px;
+    max-width: 65px;
+    max-height: 65px;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* İkon resimleri (Instagram, Gmail) */
+.contactIconImg {
+    width: 100%;
+    height: 100%;
+    max-width: 60px;
+    max-height: 60px;
+    object-fit: contain;
+    background: transparent;
+    border: none;
+    outline: none;
+    transition: transform 0.3s ease;
+    display: block;
+}
+
+.contactCard:hover .contactIconImg {
+    transform: scale(1.1);
+}
+
+.contactCard:hover .contactIconImg {
+    transform: scale(1.1);
+}
+
+.contactCardContent {
+    flex: 1;
+    text-align: left;
+}
+
+.contactCardTitle {
+    font-size: 12px;
+    color: #adb5bd;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.contactCardValue {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.emailCard .contactCardValue {
+    color: #4dabf7;
+}
+
+.instagramCard .contactCardValue {
+    color: #e1306c;
+    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.contactCardHint {
+    font-size: 11px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Kopyalandı animasyonu */
+.contactCard.copied {
+    background: linear-gradient(135deg, rgba(81, 207, 102, 0.2) 0%, rgba(81, 207, 102, 0.1) 100%) !important;
+    border-color: #51cf66 !important;
+    animation: copiedPulse 0.5s ease;
+}
+
+.contactCard.copied .contactCardHint {
+    color: #51cf66;
+    font-weight: bold;
+}
+
+@keyframes copiedPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+}
+
+/* Mobil */
+@media (max-width: 768px) {
+    .contactCard {
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .contactCardIcon {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .contactCardValue {
+        font-size: 14px;
+    }
+}
+
+/* Contact popup için özel border - sarıyı kaldır */
+.contactPopupCard {
+    border: 2px solid rgba(77, 171, 247, 0.3) !important;
+}
+
+/* ==========================================
+   İLETİŞİM İKONLARI - Border/Background Kaldır
+   ========================================== */
+
+.contactCardIcon {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 65px !important;
+    height: 65px !important;
+    max-width: 65px !important;
+    max-height: 65px !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
+}
+
+.contactIconImg {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    max-width: 60px !important;
+    max-height: 60px !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+}
+
+/* Icon'un parent container'ı da temiz olsun */
+.emailCard .contactCardIcon,
+.instagramCard .contactCardIcon {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Mobil için de */
+@media (max-width: 768px) {
+    .contactCardIcon {
+        width: 55px !important;
+        height: 55px !important;
+        max-width: 55px !important;
+        max-height: 55px !important;
+    }
+}
+
+/* ==========================================
+   ESC ÇIKIŞ POPUP - Modern Tema
+   ========================================== */
+
+.escConfirmCard {
+    max-width: 480px !important;
+    background: linear-gradient(135deg, #1a1f3a 0%, #0d1220 100%) !important;
+    border: 2px solid #ff6b6b !important;
+    box-shadow: 
+        0 20px 60px rgba(255, 107, 107, 0.3),
+        0 0 100px rgba(255, 107, 107, 0.15) !important;
+    animation: escPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes escPopIn {
+    from {
+        opacity: 0;
+        transform: scale(0.5) translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.escIcon {
+    font-size: 70px;
+    margin: 10px 0 15px 0;
+    animation: escIconBounce 0.6s ease-out;
+    filter: drop-shadow(0 4px 10px rgba(255, 107, 107, 0.5));
+}
+
+@keyframes escIconBounce {
+    0% { transform: scale(0) rotate(-180deg); }
+    60% { transform: scale(1.2) rotate(10deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.escTitle {
+    color: #ff6b6b !important;
+    font-size: 26px !important;
+    margin: 10px 0 15px 0 !important;
+    text-shadow: 0 0 20px rgba(255, 107, 107, 0.4);
+    letter-spacing: 0.5px;
+}
+
+.escMsg {
+    color: #adb5bd;
+    font-size: 15px;
+    margin: 0 0 25px 0;
+    line-height: 1.5;
+    padding: 0 20px;
+}
+
+.escConfirmCard .confirmButtons {
+    gap: 12px;
+    padding: 0 10px;
+}
+
+.escConfirmCard .bigBtn {
+    padding: 14px 24px;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.escConfirmCard .greenBtn {
+    background: linear-gradient(135deg, #2f9e44, #40c057) !important;
+    box-shadow: 0 4px 15px rgba(47, 158, 68, 0.4);
+}
+
+.escConfirmCard .greenBtn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(47, 158, 68, 0.6);
+}
+
+.escConfirmCard .redBtn {
+    background: linear-gradient(135deg, #c92a2a, #e03131) !important;
+    box-shadow: 0 4px 15px rgba(201, 42, 42, 0.4);
+}
+
+.escConfirmCard .redBtn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(201, 42, 42, 0.6);
+}
+
+/* Kapatma animasyonu */
+.escConfirmCard.closing {
+    animation: escPopOut 0.3s ease-in forwards;
+}
+
+@keyframes escPopOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.7);
+    }
+}
+
+/* Mobil */
+@media (max-width: 600px) {
+    .escConfirmCard {
+        padding: 20px !important;
+    }
+    .escIcon {
+        font-size: 50px;
+    }
+    .escTitle {
+        font-size: 20px !important;
+    }
+    .escConfirmCard .confirmButtons {
+        flex-direction: column;
+    }
+    .escConfirmCard .bigBtn {
+        width: 100%;
+        min-width: auto;
+    }
+}
+
+/* Gizli Futbolcu Göster Toggle (Sol Üst - Sayfaya yapışık, scroll ile gider) */
+.showSecretToggle {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(20, 30, 60, 0.95);
+    border: 2px solid #51cf66;
+    border-radius: 12px;
+    padding: 10px 15px;
+    z-index: 500;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.showSecretToggle label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.showSecretToggle input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #51cf66;
+    margin: 0;
+}
+
+.showSecretToggle:hover {
+    border-color: #ffd43b;
+}
+
+/* Elenmiş olsa bile gizli futbolcu çerçevesi kaybolmasın */
+.card.mysecret.eliminated {
+    opacity: 0.65 !important;
+    border-color: #51cf66 !important;
+    box-shadow: 0 0 15px rgba(81, 207, 102, 0.4) !important;
+}
+
+.card.mysecret.eliminated .overlayX {
+    color: #ff6b6b;
+    text-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+.joinRoomModeInfo {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    color: #86efac;
+    transition: all 0.3s ease;
+}
+
+.joinRoomModeInfo.show {
+    display: block;
+}
+
+.joinRoomModeInfo.error {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+}
+
+/* Odaya Katıl - Mod Bilgi Kutusu */
+.joinRoomModeInfo {
+    display: none;
+    width: 100%;
+    margin: 15px 0 0 0;
+    padding: 0;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #51cf66;
+    background: transparent;
+    border: none;
+    transition: all 0.3s ease;
+    align-self: center;
+}
+
+.joinRoomModeInfo.show {
+    display: block;
+    text-align: center;
+}
+
+.joinRoomModeInfo.show {
+    display: block;
+}
+
+.joinRoomModeInfo.error {
+    color: #ff6b6b;
+}
+
+.joinRoomModeInfo.show {
+    display: block;
+    animation: modeInfoFadeIn 0.3s ease;
+}
+
+.joinRoomModeInfo.error {
+    background: rgba(255, 107, 107, 0.15);
+    border: 1px solid rgba(255, 107, 107, 0.4);
+    color: #ff6b6b;
+}
+
+.joinRoomModeInfo.loading {
+    background: rgba(255, 212, 59, 0.15);
+    border: 1px solid rgba(255, 212, 59, 0.4);
+    color: #ffd43b;
+}
+
+@keyframes modeInfoFadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Kick Butonu (span olarak) */
+.kickBtn {
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+    opacity: 0.95;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+    display: inline-block;
+    user-select: none;
+    text-shadow: none;
+    margin-top: -2px;
+}
+
+.kickBtn:hover {
+    color: #ff1744 !important;
+    opacity: 1;
+    text-shadow:
+        0 0 10px rgba(255, 23, 68, 0.9),
+        0 0 20px rgba(255, 23, 68, 0.7),
+        0 0 30px rgba(255, 23, 68, 0.5);
+    animation: kickPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes kickPulse {
+    from {
+        text-shadow:
+            0 0 10px rgba(255, 23, 68, 0.9),
+            0 0 20px rgba(255, 23, 68, 0.7);
+    }
+    to {
+        text-shadow:
+            0 0 15px rgba(255, 23, 68, 1),
+            0 0 30px rgba(255, 23, 68, 0.9),
+            0 0 45px rgba(255, 23, 68, 0.6);
+    }
+}
+
+/* ==========================================
+   RAKIP SORU PANELI - ANIMASYON
+   ========================================== */
+
+#questionsBox {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+#questionsBox.slideOut {
+    opacity: 0;
+    transform: translateX(-30px);
+    pointer-events: none;
+}
+
+#answerPanel {
+    animation: answerPanelSlideIn 0.3s ease-out;
+}
+
+#answerPanel.slideOut {
+    animation: answerPanelSlideOut 0.25s ease-in forwards;
+}
+
+@keyframes answerPanelSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes answerPanelSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+}
+
+/* Otomatik Cevapla Checkbox */
+.autoAnswerLabel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 212, 59, 0.08);
+    border: 1px solid rgba(255, 212, 59, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    color: #ffd43b;
+    font-size: 13px;
+    font-weight: 500;
+    user-select: none;
+    transition: all 0.2s;
+}
+
+.autoAnswerLabel:hover {
+    background: rgba(255, 212, 59, 0.15);
+    border-color: rgba(255, 212, 59, 0.5);
+}
+
+.autoAnswerLabel input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #ffd43b;
+    margin: 0;
+}
+
+.autoAnswerCountdown {
+    text-align: center;
+    color: #ffd43b;
+    font-size: 13px;
+    font-weight: bold;
+    margin: 8px 0 0 0;
+    animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+/* SOL ALT CEVAP BİLDİRİMİ */
+.answerToast {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 400;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    animation: answerToastIn 0.4s ease-out;
+    backdrop-filter: blur(10px);
+    border: 2px solid;
+}
+
+.answerToast.hidden {
+    display: none !important;
+}
+
+.answerToast.hiding {
+    animation: answerToastOut 0.4s ease-in forwards;
+}
+
+.answerToast.yes {
+    background: rgba(47, 158, 68, 0.9);
+    border-color: #51cf66;
+    color: white;
+}
+
+.answerToast.no {
+    background: rgba(201, 42, 42, 0.9);
+    border-color: #ff6b6b;
+    color: white;
+}
+
+@keyframes answerToastIn {
+    from {
+        transform: translateX(-500px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes answerToastOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-500px);
+        opacity: 0;
+    }
+}
+
+/* Sol Üst Geri Butonu (Bil Bakalım oyun/seçim) */
+.bilBackTopBtn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(20, 30, 60, 0.95);
+    border: 2px solid #ff6b6b;
+    color: #ff6b6b;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 500;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s;
+}
+
+.bilBackTopBtn:hover {
+    background: rgba(255, 107, 107, 0.15);
+    border-color: #ff4444;
+    color: #ff4444;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.3);
+}
+
+/* Toggle'ı yandan biraz kaydır (butonla çakışmasın) */
+.showSecretToggle {
+    top: 15px;
+    left: 130px;
 }

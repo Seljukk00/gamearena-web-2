@@ -79,7 +79,6 @@ ALL_PLAYERS = [
     # ============================================
     {"name": "Vinicius Jr", "career": ["Flamengo", "Real Madrid"]},
     {"name": "Rodrygo", "career": ["Santos", "Real Madrid"]},
-    {"name": "Salah", "career": ["Chelsea", "Roma", "Liverpool"]},
     {"name": "Mane", "career": ["Red Bull Salzburg", "Liverpool", "Bayern Munih", "Al-Nassr"]},
     {"name": "Firmino", "career": ["Liverpool", "Al-Ahli"]},  # Al-Ahli listede yok
     {"name": "Sterling", "career": ["Liverpool", "Manchester City", "Chelsea"]},
@@ -140,7 +139,7 @@ ALL_PLAYERS = [
     {"name": "Koulibaly", "career": ["Napoli", "Chelsea", "Al-Hilal"]},
     {"name": "Onana", "career": ["Ajax", "Inter", "Manchester United"]},
     {"name": "Hakimi", "career": ["Real Madrid", "Borussia Dortmund", "Inter", "PSG"]},
-    {"name": "Salah Mohamed", "career": ["Chelsea", "Roma", "Liverpool"]},
+    {"name": "Salah", "career": ["Chelsea", "Roma", "Liverpool"]},
     {"name": "Kanu", "career": ["Ajax", "Inter", "Arsenal", "West Bromwich", "Portsmouth"]},  # Bazilari yok
     {"name": "Eto'o (Samuel)", "career": ["Real Madrid", "Barcelona", "Inter", "Anderlecht", "Chelsea"]},
 

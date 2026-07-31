@@ -1,13 +1,13 @@
 @echo off
 chcp 65001 >nul
 color 0B
-title Degisiklikleri Goster - FutbolcuBil
+title Degisiklikleri Goster - GameArena
 
-cd /d "C:\Users\Seljuk\Desktop\FutbolcuBil_Web"
+cd /d "C:\Users\Seljuk\Desktop\GameArena_Web"
 
 echo.
 echo ================================================
-echo   FUTBOLCU BIL - DEGISIKLIKLERI GOSTER
+echo   GAMEARENA - DEGISIKLIKLERI GOSTER
 echo ================================================
 echo.
 
