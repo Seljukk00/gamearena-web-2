@@ -1,243 +1,263 @@
-🎮 FutbolcuBil Web - Proje Devam Promptu (v3)
+🎮 GameArena Web - Proje Devam Promptu (v5 - Güncel)
+
 📋 PROJE ÖZETİ
-Bu, çoklu mod destekleyen online multiplayer futbol bilgi/tahmin web oyunudur.
+Bu, çoklu mod destekleyen online multiplayer futbol bilgi/tahmin + real-time oyun web sitesidir.
 
 Backend: FastAPI + WebSocket (Python)
 Frontend: HTML + CSS + JavaScript (vanilla, framework yok)
 Hosting: Render.com (Free Plan)
-GitHub: https://github.com/selcukaydin927-ctrl/futbolcubil-web
-Canlı Site: https://futbolcubil-web.onrender.com
-Eski Masaüstü (Pygame ref): C:\Users\Seljuk\Desktop\FutbolcuBil\
-Web Projesi: C:\Users\Seljuk\Desktop\FutbolcuBil_Web\
-📁 TAM KLASÖR YAPISI (MODÜLER - v3)
-text
+Web Projesi: C:\Users\Seljuk\Desktop\GameArena_Web\
 
-FutbolcuBil_Web/
+📁 TAM KLASÖR YAPISI
+
+GameArena_Web/
 │
-├── app.py                          ← ANA BACKEND (~250 satır, ÇOK SADE)
-│                                     • FastAPI + WebSocket endpoint
-│                                     • Rate limiting + IP banning
-│                                     • CORS middleware
-│                                     • Static mounts
-│                                     • WebSocket → handler'lara yönlendirme
-│                                     • Bil Bakalım da handler'a taşındı!
+├── app.py ← ANA BACKEND
+│ • FastAPI + WebSocket endpoint
+│ • Rate limiting + IP banning
+│ • CORS middleware
+│ • Static mounts
+│ • WebSocket → handler'lara yönlendirme
+│ • Ortak kick handler
+│ • Mini Futbol için özel disconnect (oda kapanmaz)
 │
 ├── requirements.txt
-├── runtime.txt                     ← Python 3.11.9
+├── runtime.txt ← Python 3.11.9
 ├── render.yaml
-├── .env                            ← GİZLİ (GEMINI_API_KEY + TURNSTILE_SECRET)
+├── .env ← GİZLİ (GEMINI_API_KEY + TURNSTILE_SECRET)
 ├── .gitignore
 ├── venv/
-├── batlar/                         ← test_lokal.bat, guncelle_ve_gonder.bat vs.
+├── batlar/ ← test_lokal.bat, guncelle_ve_gonder.bat vs.
 │
-├── static/                         ← FRONTEND ORTAK
-│   ├── index.html                  (~2000 satır - tüm ekranlar)
-│   │                                • 7 mod kartı, oda oluştur/lobby/game ekranları
-│   │                                • ESC popup, iletişim popup, footer
-│   │                                • Turnstile widget, AdSense
-│   │                                • Oda kodu gizle/göster + davet linki
-│   │
-│   ├── style.css                   (~2000 satır - SADECE ORTAK STİLLER)
-│   │                                • Bil Bakalım stilleri
-│   │                                • Ses kontrolü (sağ alt)
-│   │                                • Footer + popup + ESC popup
-│   │                                • Oda kodu göz butonu + davet linki
-│   │                                • Diğer mod CSS'leri kendi klasörlerinde!
-│   │
-│   ├── app.js                      (~1500 satır - ORTAK JS + BİL BAKALIM)
-│   │                                • WebSocket + handleMessage
-│   │                                • showScreen (ortak)
-│   │                                • Bil Bakalım tüm frontend
-│   │                                • ESC popup + navigation
-│   │                                • Oda kodu / davet linki helper (window.setupRoomCodeAndLink)
-│   │                                • Footer popup fonksiyonları
-│   │                                • Ses kontrolü Kim Milyoner JS'de değil, ml_ dosyasında
-│   │
-│   └── images/                     ← 250+ futbolcu .webp
+├── static/
+│ ├── index.html ← TÜM ekranlar (9 mod kartı, lobby, game, popup'lar)
+│ ├── style.css ← ORTAK stiller
+│ ├── app.js ← ORTAK JS + Bil Bakalım + openRoomSettingsGeneric
+│ └── images/ ← 250+ futbolcu .webp
 │
-├── mod_resimleri/                  ← 7 mod kartı görseli
+├── mod_resimleri/ ← 9 mod kartı görseli
 │
-└── oyun_modlari/                   ← 7 MOD (MODÜLER - v3'te frontend de ayrıldı)
-    │
-    ├── __init__.py
-    │
-    ├── bil_bakalim/
-    │   ├── __init__.py
-    │   ├── footballers.py
-    │   ├── questions.py
-    │   ├── bil_bakalim_handler.py  ← YENİ! (Backend handler ayrıldı)
-    │   └── images/
-    │
-    ├── takim_bilmece/
-    │   ├── __init__.py
-    │   ├── teams.py
-    │   ├── takim_handler.py        ← Backend
-    │   ├── takim_bilmece.css       ← YENİ! Frontend CSS
-    │   ├── takim_bilmece.js        ← YENİ! Frontend JS
-    │   └── flags/
-    │
-    ├── kim_milyoner/
-    │   ├── __init__.py
-    │   ├── questions.py
-    │   ├── ai_soru_uretici.py      (google-genai paketi)
-    │   ├── milyoner_handler.py     ← Backend
-    │   ├── kim_milyoner.css        ← YENİ! Frontend CSS
-    │   ├── kim_milyoner.js         ← YENİ! Frontend JS (Ses kontrolü + telefon jokeri)
-    │   └── assets/                  (Ses dosyaları)
-    │
-    ├── haritadan_bul/
-    │   ├── __init__.py
-    │   ├── harita_data.py
-    │   ├── harita_handler.py       ← Backend
-    │   ├── haritadan_bul.css       ← YENİ! Frontend CSS
-    │   ├── haritadan_bul.js        ← YENİ! Frontend JS
-    │   └── world_map.png
-    │
-    ├── gizemli_kariyer/
-    │   ├── __init__.py
-    │   ├── futbolcular.py
-    │   ├── takimlar.py             (TM_ID sistemi)
-    │   ├── gizem_handler.py        ← Backend
-    │   ├── gizemli_kariyer.css     ← YENİ! Frontend CSS
-    │   └── gizemli_kariyer.js      ← YENİ! Frontend JS
-    │
-    ├── ilk_11_challenge/
-    │   ├── __init__.py
-    │   ├── ilk11_handler.py        ← Backend
-    │   ├── ilk_11.css              ← YENİ! Frontend CSS
-    │   └── ilk_11.js               ← YENİ! Frontend JS
-    │
-    └── stadyum_tanima/
-        ├── __init__.py
-        ├── stadyumlar.py
-        ├── stadyum_handler.py      ← Backend
-        ├── stadyum_tanima.css      ← YENİ! Frontend CSS
-        ├── stadyum_tanima.js       ← YENİ! Frontend JS
-        └── images/
-index.html'de mount'lar:
+└── oyun_modlari/
+├── init.py
+├── bil_bakalim/
+├── takim_bilmece/
+├── kim_milyoner/
+├── haritadan_bul/
+├── gizemli_kariyer/
+├── ilk_11_challenge/
+├── stadyum_tanima/
+├── meme_arena/
+└── mini_futbol/ ← ⚽ Mini Futbol (Haxball tarzı real-time)
+├── init.py
+├── mini_futbol_handler.py ← Backend fizik + oyun logic (~1200 satır)
+├── mini_futbol.js ← Frontend render + kontroller (~2400 satır)
+└── mini_futbol.css
 
-HTML
+🎯 9 MOD - TÜMÜ AKTİF ✅
 
-<link rel="stylesheet" href="/static/style.css">
-<link rel="stylesheet" href="/oyun_modlari/kim_milyoner/kim_milyoner.css">
-<link rel="stylesheet" href="/oyun_modlari/takim_bilmece/takim_bilmece.css">
-<link rel="stylesheet" href="/oyun_modlari/haritadan_bul/haritadan_bul.css">
-<link rel="stylesheet" href="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.css">
-<link rel="stylesheet" href="/oyun_modlari/ilk_11_challenge/ilk_11.css">
-<link rel="stylesheet" href="/oyun_modlari/stadyum_tanima/stadyum_tanima.css">
-<script src="/static/app.js" defer></script>
-<script src="/oyun_modlari/kim_milyoner/kim_milyoner.js" defer></script>
-<script src="/oyun_modlari/takim_bilmece/takim_bilmece.js" defer></script>
-<script src="/oyun_modlari/haritadan_bul/haritadan_bul.js" defer></script>
-<script src="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.js" defer></script>
-<script src="/oyun_modlari/ilk_11_challenge/ilk_11.js" defer></script>
-<script src="/oyun_modlari/stadyum_tanima/stadyum_tanima.js" defer></script>
-app.py'de mount:
-
-Python
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/oyun_modlari", StaticFiles(directory="oyun_modlari"), name="oyun_modlari")
-🎯 7 MOD - HEPSİ ÇALIŞIYOR ✅
-Bil Bakalım - 32 futbolcu, soru-cevap, gizli futbolcu toggle (sol üst)
+Bil Bakalım - 32 futbolcu, soru-cevap
 Takım Bilmece - 12 soru, 4 zorluk, 4 joker
-Kim Milyoner - AI (Gemini), 12 soru, 3 joker (50:50, Seyirci, Telefon), telefon jokeri artık 5 kişilik güzel popup
-Haritadan Bul - 10 tur, zoom+pan, rakip mouse sync
-Gizemli Kariyer - 10 tur, 6 şık, TM CDN logolar
+Kim Milyoner - AI (Gemini), 12 soru, 3 joker
+Haritadan Bul - 10 tur, zoom+pan
+Gizemli Kariyer - 10 tur, 6 şık
 İlk 11 Challenge - 4-3-3, Rating + Kimya
-Stadyum Tanıma - 10 tur, 4 şık, 3 joker
-🆕 SON EKLENEN ÖZELLİKLER (v3)
-Frontend Modülerleştirme (BÜYÜK)
-Her mod kendi klasöründe CSS + JS dosyasına sahip
-app.js sadece Bil Bakalım + ortak kod
-style.css sadece ortak stiller
-Bil Bakalım Backend Ayrıldı
-oyun_modlari/bil_bakalim/bil_bakalim_handler.py oluşturuldu
-app.py ~250 satıra düştü (eskiden 1100)
-Yeni Özellikler
-ESC Popup - Modern tema, oyun içinde çıkış onayı, diğer ekranlarda direkt geri
-Oda Kodu Gizle/Göster - 👁️ butonu ile, gizliyken ###### gösterir
-Davet Linki - ?join=XXXXX formatında, gizle/göster + kopyala, tıklayınca Katıl ekranına dolu gelir
-Katıl Ekranında Mod Göstergesi - Kod yazınca otomatik "🎮 Bu oda: Kim Milyoner" yeşil kutu (ama katılım için buton lazım!)
-Gizli Futbolcu Toggle (Bil Bakalım) - Sol üstte checkbox, kendi gizli futbolcunu görüp görmemek için
-Otomatik Son Tahmin - Bil Bakalım'da 1 futbolcu kalınca otomatik tahmin
-Kim Milyoner Telefon Jokeri - 14 farklı karakterden 5 rastgele, güzel popup, "Aranıyor..." animasyonu
-Kim Milyoner Seyirci Animasyonu - Yüzdeler dalgalanır sonra sabitlenir
-50:50 Animasyonu - Şıklar shake ile kaybolur
-Joker Kullanıldı Görünümü - Kullanılan joker gri + üzerinde ✓
-⚠️ ÖNEMLİ NOTLAR
-JS Wrap Sistemi
-Her mod dosyası ortak showScreen ve handleMessage fonksiyonlarını wrap ediyor:
+Stadyum Tanıma - 10 tur, 4 şık
+Meme Arena - Durum kartı + mem kartı, oy verme
+Mini Futbol - Haxball tarzı 1v1 real-time (5v5'e hazır altyapı)
+⚽ MİNİ FUTBOL - GÜNCEL DETAYLAR
 
-JavaScript
+TEMEL:
 
-const _prevShowScreen = showScreen;
-showScreen = function(screenName) {
-    _prevShowScreen(screenName);
-    // Modun kendi ekranlarını gizle/göster
-};
+Saha: 1000x500 px, canvas render
+Kaleler: Haxball tarzı (2 daire direk + kavisli file)
+Fizik: 60 FPS server-side
+Kontroller: WASD + Space/Num0 şut + Shift sprint (klavye özelleştirilebilir)
+Gamepad desteği (PS4/Xbox: Sol Stick + X/Kare + R2)
+FİZİK:
 
-const _prevHandleMessage = handleMessage;
-handleMessage = function(msg) {
-    if (msg.type.startsWith("ml_")) { /* handle */ return; }
-    _prevHandleMessage(msg);
-};
-Ortak Oda Kodu / Link Helper
-JavaScript
+Top yapışması (BALL_STICK_FACTOR=0.85)
+Hızlı top sekmesi (HARD_BALL_THRESHOLD=6.0)
+Top max hızı 18 (gelişmiş ayarlarda değişir)
+Duvar sekmesi (WALL_BOUNCE=0.55)
+Direk çarpışması (top + oyuncu)
+Oyuncu-oyuncu elastik çarpışma
+Oyuncu 55 px saha dışına çıkabilir (dış yeşil alan)
+SPRINT SİSTEMİ (Enerji bazlı):
 
-window.setupRoomCodeAndLink({
-    codeTextId: "mlRoomCodeText",
-    codeEyeBtnId: "mlRoomCodeEyeBtn",
-    copyHintId: "mlCopyHint",
-    linkTextId: "mlInviteLinkText",
-    linkEyeBtnId: "mlInviteLinkEyeBtn",
-    linkHintId: "mlInviteLinkHint",
-    getRoomCode: () => mlData.roomCode
-});
-Gemini AI Paketi
-❌ ESKİ: google-generativeai
-✅ YENİ: google-genai
-Import: from google import genai
-Model: gemini-flash-lite-latest
-Turnstile Keys
-Site Key (public): 0x4AAAAAAEBYi6PHf6n7Q2Pn
-Secret Key (gizli): .env içinde
-E-posta / Instagram
-selcukaydin050505248@gmail.com
-@selcuk_aydin00
+Max 100 enerji
+3 sn'de biter, 6 sn'de dolar
+Sarı halka göstergesi
+Sprint sırasında şut %30 daha güçlü
+Gol sonrası %100'e reset
+ŞUT SİSTEMİ:
+
+Basılı tutma = tek şut (makro engeli)
+Enerji oranında parlama efekti
+Sprint şut alev efekti (kırmızı/mavi)
+Köşe şutu: top duvarda sıkışırsa ters yöne fırlar
+⚡ PLASE (FALSO):
+
+Şut anında YÖNLÜ tuşa basılırsa plase (Space + W/S/A/D dik)
+Normal şuttan %75 güçte
+Kavis (spin) verilir, top kıvrılarak gider
+After-touch: 0.2 sn boyunca yön tuşuyla kavis yönü değişebilir
+Koşarak plase = %35 daha hızlı + %30 daha fazla kavis
+Duvar/direk/oyuncuya çarpınca spin azalır
+Oyuncuya yapışınca spin sıfırlanır
+"Falso'ya İzin Ver" ayarı ile kapatılabilir (default: açık)
+GOL SİSTEMİ:
+
+Top tamamen çizgiyi geçmeli
+Kendi kalesine gol algılama + özel gösterim
+Gol yazısı: "⚽ GOOOL!" + "Golü Atan: X" veya "X Kendi Kalesine Attı 🤦"
+Asist algılama (aynı takımdan önceki dokunan)
+4 sn kutlama (fizik devam eder, hareket edebilirsin)
+SANTRA SİSTEMİ:
+
+3-2-1 geri sayım
+Gol atan takım: santra çemberinin karşı kenarına bile giremez
+Gol yiyen takım: kendi yarısı + çemberin karşı kenarına kadar
+10 sn kuralı: Topa dokunulmazsa son 3 sn yanıp söner, otomatik pas gol atana
+Top uyarı rengi: hangi takıma gidecekse o renkte yanıp söner
+Tek kişi modunda (karşıda kimse yok) santra kuralı çalışmaz
+LOBBY (3 sütun):
+
+Kırmızı Takım | İzleyiciler | Mavi Takım
+Drag & Drop ile oyuncu taşıma (host)
+Kick butonu (❌ sadece host)
+Takım isimleri değiştirilebilir (✏️ sağ tık)
+Takım isimleri localStorage'a kaydedilir
+Split-screen toggle
+Host tek başına başlatabilir
+ODA AYARLARI:
+
+Oyuncu Sayısı: 1v1, 2v2, 3v3, 4v4, 5v5 (toplam limit, dağılım esnek)
+Kazanma Skoru: 1/3/5/7/10/15/20/30/Sınırsız
+Maç Süresi: 1dk - 120dk / Sınırsız
+Oyun Hızı: Yavaş/Normal/Hızlı (gelişmiş modda devre dışı)
+Split-Screen: İzin Ver/Reddet
+Falso: Açık/Kapalı (gelişmiş modda devre dışı)
+GELİŞMİŞ AYARLAR: Şut gücü, sprint bonusu, plase gücü, kavis şiddeti,
+after-touch, top max hız, sprint çarpanı, sprint süresi (hepsi slider)
+Ayarlar canlı güncellenir (kullanıcı popup'ında da anında)
+Süre değişince maç baştan başlar
+LocalStorage ile hatırlanır
+GAMEPAD DESTEĞİ:
+
+Otomatik algılama (bağla/çıkar)
+⚙️ Ayarlar popup'ından slot seç (Devre Dışı / 1. Oyuncu / 2. Oyuncu-Split)
+Sol Stick + D-Pad hareket
+X/Kare şut, R2/L2/R1 sprint
+Split-screen için P2 slot (host izin vermeli)
+Klavye + gamepad karışık çalışır
+KISAYOL AYARLARI (Ayarlar popup):
+
+Klavye tuşları özelleştirilebilir (WASD/Space/Shift değişebilir)
+TAB Skoreboard Görünürlüğü slider (%0-100, default %5)
+Varsayılana Sıfırla butonu
+LocalStorage'a kaydedilir
+TAB SCOREBOARD:
+
+TAB basılı tutarken açık, bırakınca kapanır
+3 sütun: Kırmızı | İzleyiciler | Mavi
+Her oyuncu için: İsim (takım renginde) + Gol + Asist + Pas + Ping
+Büyük final skor
+Yarı saydam arka plan (görünürlük ayarlanabilir)
+Diğer popup'lar açıkken TAB çalışmaz
+PAUSE SİSTEMİ:
+
+ESC: Host tam pause lobby popup (takım değiştir, ayarlar, kontroller, lobiye dön)
+Kullanıcı ESC: Özel menü (Lobiye Dön / Ayarlar / Oda Ayarları / Ana Menü)
+Host pause olunca kullanıcı "OYUN DURAKLATILDI" ekranı görür
+P: Hızlı pause (3-2-1 ile devam) - sadece host
+İSİM SİSTEMİ:
+
+Kendi ismine sağ tık → değiştir (modern popup)
+P2 (fake split) ismine de sağ tık → " (P2)" eki korunur
+Aynı isim engellenir (backend + frontend uyarı)
+PİNG SİSTEMİ:
+
+Her 3 sn'de bir ping/pong
+Lobby, pause popup ve scoreboard'da görünür
+Renk kodu: <80ms yeşil, <200ms sarı, >=200ms kırmızı
+DAVET LİNKİ:
+
+Her zaman gizli: http://127.0.0.1:8000/?join=******
+Tıklayınca gerçek link kopyalanır
+Göz ikonu ile 2 sn görünüm
+OYUN SONU:
+
+Kazanan / Berabere / Kaybettin
+Konfeti (kazanan için)
+Rematch (sadece host)
+Lobiye Dön (herkesi lobbye atar)
+DİĞER:
+
+Süre HUD'da yukarı yuvarlanır (10:00'dan başlar, 9:59 değil)
+Sınırsız süre: ♾️ görünür
+Sınırsız skor: 999 gol
+Oda 10 oyuncu max
+Kullanıcı ayrılınca oda KAPANMAZ (multiplayer)
+Host ayrılınca oda kapanır
+Kullanıcı geri katılabilir (oyun içindeyse izleyici olur)
+Split-screen "İzin Ver" ayarı gerekli, sonra Kontrol Ayarları'ndan P2 seçilir
+🎭 MEME ARENA - DETAYLAR
+
+Her oyuncuya FARKLI durum dağıtılır
+Oyuncular kendi durumunu ✏️ yazabilir veya 🔄 yenileyebilir
+5 mem kartı dağıtılır (GIF + foto karışımı)
+Kart değiştir jokeri (3 hak, aynı kart gelmez)
+Büyüteç: Sağ alt 🔍 butonu + sağ tık ile büyüt
+Oy verme: Sırayla, 🔥+2 / 👌+1 / 🥀-1 (oy vermezse otomatik +1)
+AFK cezası: Kart seçmezse -3 puan
+Skor tablosu: Geri sayımlı (5-4-3-2-1)
+Oy verirken durum kartı sahibinin durumunu gösterir
+⚠️ ÖNEMLİ TEKNİK NOTLAR
+
+JS Wrap Sistemi: Her mod kendi JS dosyasında showScreen ve handleMessage'ı wrap eder
+Ortak Oda Kodu Helper: window.setupRoomCodeAndLink({...})
+Ortak Oda Ayarları: window.openRoomSettingsGeneric({..., advancedFields, readonly, onSave})
+Gemini AI: google-genai paketi, Model: gemini-flash-lite-latest
+Turnstile: Site Key: 0x4AAAAAAEBYi6PHf6n7Q2Pn
+Ortak Kick: app.py'de tüm modlar için tek handler
+Mini Futbol Ping: Ayrı sistem, sadece bu modda
 🔒 GÜVENLİK
-IP başına dakikada: Oda oluştur 5, Katıl 15, Query 20, WS 20
+
+IP rate limiting (oda:5/dk, katıl:15/dk, WS:20/dk)
 Otomatik 10 dk BAN
 sanitize_string, is_valid_room_code
 Cloudflare Turnstile (Kim Milyoner)
+kicked_names listesi (aynı odaya tekrar giremez)
 🎯 ÇALIŞMA KURALLARI
+
 BUL ve DEĞİŞTİR formatı kullan (tam dosya yerine)
-Adım adım ilerle
+Adım adım ilerle, küçük parçalar
 Türkçe, samimi dil
 Kullanıcı test etmeden GitHub'a atma
 F12 Console + CMD log ile sorun çöz
-Kullanıcı Windows + Notepad, kod yazmıyor
+Kullanıcı Windows + Notepad++, kod yazmıyor
 .env ASLA GitHub'a
 Turnstile keys biliyor, tekrar sorma
 Uzun kod bloğu yerine küçük değişiklikler
 Emin olmadan büyük değişiklik yapma
+Kod görmeden kesin çözüm sunma - dosyayı iste önce
+EKLE değil, BUL ve DEĞİŞTİR (yanlış girinti/duplicate önlemek için)
+Bir kere test edilmemiş kodu tekrar tekrar değiştirme, önce test iste
+Hata verirse F12 Console + CMD çıktısını iste
 🎬 YEREL ÇALIŞTIRMA
-bat
+batlar/test_lokal.bat çift tıkla → http://127.0.0.1:8000
 
-cd C:\Users\Seljuk\Desktop\FutbolcuBil_Web
-venv\Scripts\activate
-uvicorn app:app --reload
-Kolay yol: batlar/test_lokal.bat çift tıkla → http://127.0.0.1:8000
+📌 YAPILACAKLAR LİSTESİ
 
-📝 SIRADA MUHTEMEL İSTEKLER
-Bug düzeltme
-Yeni mod ekleme
-UI iyileştirmesi
-Domain alma + Cloudflare
-8 kişilik multiplayer
-Mobil optimizasyon
-Premium üyelik sistemi
+⬜ Top tunneling (içinden geçme) fix - CCD (Continuous Collision Detection)
+⬜ Top oyuncuya arkadan yaklaşırken anlık ışınlanma sorununu düzelt
+⬜ Oyun içi chat sistemi
+⬜ 2v2 / 3v3 / 4v4 / 5v5 gerçek multi-player fizik (şu an 1v1)
+⬜ Mobil optimizasyon
+⬜ Domain + Cloudflare
+⬜ Haxball tarzı oda içinde mod değiştirme
 🎯 SEN NE YAPACAKSIN?
+
 Selamla, hazır olduğunu belirt
 Ne istediğini sor
 Klasör yapısını biliyor gibi davran
@@ -245,5 +265,6 @@ Kod isteğinde BUL ve DEĞİŞTİR formatı
 Kullanıcı Windows + Notepad++, basit anlat
 Test etmeden push isteme
 Türkçe, samimi dil kullan
-
-bul değiştir olarak ver kodları ve kodu görmeden kesin çözüm olmayan şeyleri önerme
+Kodu görmeden kesin çözüm önerme - dosyayı iste
+Kod değişikliği verirken önce plan sun, sonra kod ver
+Büyük iş ise adımlara böl (Adım 1, Adım 2 gibi)

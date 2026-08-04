@@ -8,6 +8,7 @@ let haritaData = {
     roomCode: "",
     players: [],
     turnSeconds: 30,
+    difficulty: "karisik",
     totalRounds: 10,
     currentTurn: null,
     roundNo: 0,
@@ -102,10 +103,12 @@ document.getElementById("createHaritaBtn").onclick = () => {
     myName = name;
     
     const turnSec = parseInt(document.getElementById("haritaTurnSecondsSelect").value) || 30;
+    const difficulty = document.getElementById("haritaDifficultySelect").value || "karisik";
     send({
         type: "harita_create_room",
         name: name,
-        turn_seconds: turnSec
+        turn_seconds: turnSec,
+        difficulty: difficulty
     });
 };
 
@@ -119,10 +122,46 @@ document.getElementById("haritaStartBtn").onclick = () => {
 };
 
 document.getElementById("haritaLobbyLeaveBtn").onclick = () => {
-    if (confirm("Odadan ayrılmak istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
+};
+
+// Oda Ayarları butonu
+document.getElementById("haritaRoomSettingsBtn").onclick = () => {
+    window.openRoomSettingsGeneric({
+        title: "Haritadan Bul - Oda Ayarları",
+        fields: [
+            {
+                id: "difficulty",
+                label: "🎯 Zorluk",
+                current: haritaData.difficulty || "karisik",
+                options: [
+                    {value: "kolay", label: "🟢 Kolay"},
+                    {value: "orta", label: "🟡 Orta"},
+                    {value: "zor", label: "🔴 Zor"},
+                    {value: "karisik", label: "🎯 Karışık (Progresif)"}
+                ]
+            },
+            {
+                id: "turnSec",
+                label: "⏱️ Tur Süresi",
+                current: haritaData.turnSeconds || 30,
+                options: [
+                    {value: 15, label: "15 saniye"},
+                    {value: 20, label: "20 saniye"},
+                    {value: 30, label: "30 saniye"},
+                    {value: 45, label: "45 saniye"},
+                    {value: 60, label: "60 saniye"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "harita_update_settings",
+                turn_seconds: parseInt(values.turnSec) || 30,
+                difficulty: values.difficulty
+            });
+        }
+    });
 };
 
 const haritaRoomHelper = window.setupRoomCodeAndLink({
@@ -132,15 +171,13 @@ const haritaRoomHelper = window.setupRoomCodeAndLink({
     linkTextId: "haritaInviteLinkText",
     linkEyeBtnId: "haritaInviteLinkEyeBtn",
     linkHintId: "haritaInviteLinkHint",
-    getRoomCode: () => haritaData.roomCode
+    getRoomCode: () => haritaData.roomCode,
+    getPlayerId: () => haritaData.playerId
 });
 
 // Oyun butonları
 document.getElementById("haritaBackBtn").onclick = () => {
-    if (confirm("Ana menüye dönmek istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
 };
 
 document.getElementById("haritaBackToMenuBtn").onclick = () => {
@@ -407,14 +444,40 @@ function updateHaritaLobby() {
     if (haritaRoomHelper) { haritaRoomHelper.renderCode(); haritaRoomHelper.renderLink(); }
     document.getElementById("haritaLobbyTurnSeconds").textContent = haritaData.turnSeconds || 30;
     
+    // Zorluk göster
+    const diffNames = {
+        "kolay": "🟢 Kolay",
+        "orta": "🟡 Orta",
+        "zor": "🔴 Zor",
+        "karisik": "🎯 Karışık"
+    };
+    const diffEl = document.getElementById("haritaLobbyDifficulty");
+    if (diffEl) {
+        diffEl.textContent = diffNames[haritaData.difficulty] || "🎯 Karışık";
+    }
+    
     const list = document.getElementById("haritaPlayersList");
     list.innerHTML = "";
     haritaData.players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${p.id}. ${p.name}`;
+        
+        const nameCell = document.createElement("span");
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === haritaData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        li.appendChild(nameCell);
+        
+        if (p.id !== haritaData.playerId && haritaData.playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
+        
         if (p.id === haritaData.playerId) {
             li.classList.add("playerMine");
-            li.textContent += " (Sen)";
         } else {
             li.classList.add("playerOpp");
         }
@@ -436,6 +499,12 @@ function updateHaritaLobby() {
         startBtn.classList.add("hidden");
         msg.textContent = "Host bekleniyor...";
         msg.style.color = "#51cf66";
+    }
+    
+    const settingsBtn = document.getElementById("haritaRoomSettingsBtn");
+    if (settingsBtn) {
+        if (haritaData.playerId === 1) settingsBtn.classList.remove("hidden");
+        else settingsBtn.classList.add("hidden");
     }
 }
 
@@ -618,6 +687,7 @@ handleMessage = function(msg) {
         haritaData.playerId = msg.player_id;
         haritaData.roomCode = msg.room_code;
         haritaData.turnSeconds = msg.turn_seconds || 30;
+        haritaData.difficulty = msg.difficulty || "karisik";
         haritaData.inGame = true;
         inRoom = true;
         showScreen("haritaLobby");
@@ -629,6 +699,7 @@ handleMessage = function(msg) {
         haritaData.roomCode = msg.room_code;
         haritaData.players = msg.players;
         haritaData.turnSeconds = msg.turn_seconds || 30;
+        haritaData.difficulty = msg.difficulty || haritaData.difficulty || "karisik";
         updateHaritaLobby();
         return;
     }
@@ -824,29 +895,7 @@ handleMessage = function(msg) {
     _prevHandleMessageHarita(msg);
 };
 
-// room_mode_result için harita desteği
-const _origHandleForModeHarita = handleMessage;
-handleMessage = function(msg) {
-    if (msg.type === "room_mode_result") {
-        if (!msg.found) {
-            setMsg(joinMsg, "Oda bulunamadı.", "#ff6b6b");
-            return;
-        }
-        const name = joinNameInput.value.trim();
-        const code = msg.room_code;
-        if (msg.mode === "takim_bilmece") {
-            send({ type: "takim_join_room", name: name, room_code: code });
-        } else if (msg.mode === "kim_milyoner") {
-            send({ type: "ml_join_room", name: name, room_code: code });
-        } else if (msg.mode === "haritadan_bul") {
-            send({ type: "harita_join_room", name: name, room_code: code });
-        } else {
-            send({ type: "join_room", name: name, room_code: code });
-        }
-        return;
-    }
-    _origHandleForModeHarita(msg);
-};
+// (Bu blok silindi - app.js zaten room_mode_result işliyor)
 
 // Başlangıçta popup'ları kapat
 document.getElementById("haritaGameOverBox").classList.add("hidden");

@@ -6,7 +6,7 @@ Takım Bilmece - Takım Verileri
 ALL_TEAMS = [
     # ==================== AVRUPA KULÜP TAKIMLARI ====================
     {
-        "name": "Real Madrid", "year": "2018",
+        "name": "Real Madrid", "year": "2018", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "kostarika", "name": "Navas"},
             {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
@@ -24,7 +24,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Real Madrid", "year": "2002",
+        "name": "Real Madrid", "year": "2002", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
             {"pos": "RB", "flag": "ispanya", "name": "Salgado"},
@@ -42,7 +42,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Barcelona", "year": "2009",
+        "name": "Barcelona", "year": "2009", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Valdes"},
             {"pos": "RB", "flag": "brezilya", "name": "Dani Alves"},
@@ -60,7 +60,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Barcelona", "year": "2015",
+        "name": "Barcelona", "year": "2015", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Ter Stegen"},
             {"pos": "RB", "flag": "brezilya", "name": "Dani Alves"},
@@ -78,7 +78,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Liverpool", "year": "2019",
+        "name": "Liverpool", "year": "2019", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Alisson"},
             {"pos": "RB", "flag": "ingiltere", "name": "Alexander-Arnold"},
@@ -96,7 +96,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Manchester United", "year": "2008",
+        "name": "Manchester United", "year": "2008", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "hollanda", "name": "Van der Sar"},
             {"pos": "RB", "flag": "ingiltere", "name": "Brown"},
@@ -114,7 +114,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Bayern Munih", "year": "2020",
+        "name": "Bayern Munih", "year": "2020", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Neuer"},
             {"pos": "RB", "flag": "almanya", "name": "Kimmich"},
@@ -132,7 +132,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Chelsea", "year": "2021",
+        "name": "Chelsea", "year": "2021", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "senegal", "name": "Mendy"},
             {"pos": "CB", "flag": "almanya", "name": "Rudiger"},
@@ -150,7 +150,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Inter Milan", "year": "2023",
+        "name": "Inter Milan", "year": "2023", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "kamerun", "name": "Onana"},
             {"pos": "CB", "flag": "italya", "name": "Darmian"},
@@ -168,7 +168,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "AC Milan", "year": "2007",
+        "name": "AC Milan", "year": "2007", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Dida"},
             {"pos": "RB", "flag": "italya", "name": "Oddo"},
@@ -186,7 +186,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Manchester City", "year": "2018",
+        "name": "Manchester City", "year": "2018", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Ederson"},
             {"pos": "RB", "flag": "ingiltere", "name": "Walker"},
@@ -204,7 +204,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "PSG", "year": "2018",
+        "name": "PSG", "year": "2018", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "fransa", "name": "Areola"},
             {"pos": "RB", "flag": "brezilya", "name": "Dani Alves"},
@@ -222,7 +222,7 @@ ALL_TEAMS = [
         "answer": 3
     },
     {
-        "name": "Atletico Madrid", "year": "2014",
+        "name": "Atletico Madrid", "year": "2014", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "belcika", "name": "Courtois"},
             {"pos": "RB", "flag": "ispanya", "name": "Juanfran"},
@@ -240,7 +240,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Juventus", "year": "1996",
+        "name": "Juventus", "year": "1996", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "italya", "name": "Peruzzi"},
             {"pos": "RB", "flag": "italya", "name": "Porrini"},
@@ -258,7 +258,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Borussia Dortmund", "year": "1997",
+        "name": "Borussia Dortmund", "year": "1997", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Klos"},
             {"pos": "RB", "flag": "almanya", "name": "Kohler"},
@@ -276,7 +276,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Manchester City", "year": "2012",
+        "name": "Manchester City", "year": "2012", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "ingiltere", "name": "Hart"},
             {"pos": "RB", "flag": "ingiltere", "name": "Richards"},
@@ -294,7 +294,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Roma", "year": "2018",
+        "name": "Roma", "year": "2018", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Alisson"},
             {"pos": "RB", "flag": "brezilya", "name": "Bruno Peres"},
@@ -312,7 +312,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Sevilla", "year": "2020",
+        "name": "Sevilla", "year": "2020", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "fas", "name": "Bono"},
             {"pos": "RB", "flag": "ispanya", "name": "Jesus Navas"},
@@ -330,7 +330,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Marseille", "year": "1993",
+        "name": "Marseille", "year": "1993", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "fransa", "name": "Barthez"},
             {"pos": "RB", "flag": "fransa", "name": "Angloma"},
@@ -348,7 +348,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Ajax", "year": "1995",
+        "name": "Ajax", "year": "1995", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "hollanda", "name": "Van der Sar"},
             {"pos": "RB", "flag": "hollanda", "name": "Reiziger"},
@@ -366,7 +366,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Porto", "year": "2004",
+        "name": "Porto", "year": "2004", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Vitor Baia"},
             {"pos": "RB", "flag": "portekiz", "name": "Paulo Ferreira"},
@@ -384,7 +384,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Napoli", "year": "2023",
+        "name": "Napoli", "year": "2023", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "italya", "name": "Meret"},
             {"pos": "RB", "flag": "italya", "name": "Di Lorenzo"},
@@ -402,7 +402,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Tottenham", "year": "2019",
+        "name": "Tottenham", "year": "2019", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "fransa", "name": "Lloris"},
             {"pos": "RB", "flag": "ingiltere", "name": "Trippier"},
@@ -420,7 +420,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Lazio", "year": "2000",
+        "name": "Lazio", "year": "2000", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "italya", "name": "Marchegiani"},
             {"pos": "RB", "flag": "italya", "name": "Pancaro"},
@@ -438,7 +438,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Valencia", "year": "2001",
+        "name": "Valencia", "year": "2001", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Canizares"},
             {"pos": "RB", "flag": "fransa", "name": "Angloma"},
@@ -456,7 +456,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Monaco", "year": "2017",
+        "name": "Monaco", "year": "2017", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "hirvatistan", "name": "Subasic"},
             {"pos": "RB", "flag": "fransa", "name": "Sidibe"},
@@ -474,7 +474,7 @@ ALL_TEAMS = [
         "answer": 3
     },
     {
-        "name": "Leverkusen", "year": "2024",
+        "name": "Leverkusen", "year": "2024", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "finlandiya", "name": "Hradecky"},
             {"pos": "RB", "flag": "hollanda", "name": "Frimpong"},
@@ -492,7 +492,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Manchester City", "year": "2024",
+        "name": "Manchester City", "year": "2024", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Ederson"},
             {"pos": "RB", "flag": "ingiltere", "name": "Walker"},
@@ -510,7 +510,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Arsenal", "year": "2024",
+        "name": "Arsenal", "year": "2024", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Raya"},
             {"pos": "RB", "flag": "ingiltere", "name": "White"},
@@ -528,7 +528,7 @@ ALL_TEAMS = [
         "answer": 3
     },
     {
-        "name": "Real Madrid", "year": "2024",
+        "name": "Real Madrid", "year": "2024", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "belcika", "name": "Courtois"},
             {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
@@ -546,7 +546,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Bayern Munih", "year": "2001",
+        "name": "Bayern Munih", "year": "2001", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Kahn"},
             {"pos": "RB", "flag": "almanya", "name": "Sagnol"},
@@ -564,7 +564,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Chelsea", "year": "2005",
+        "name": "Chelsea", "year": "2005", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "cek", "name": "Cech"},
             {"pos": "RB", "flag": "portekiz", "name": "Ferreira"},
@@ -582,7 +582,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "PSG", "year": "2024",
+        "name": "PSG", "year": "2024", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "italya", "name": "Donnarumma"},
             {"pos": "RB", "flag": "fas", "name": "Hakimi"},
@@ -602,7 +602,7 @@ ALL_TEAMS = [
 
     # ==================== TURK TAKIMLARI ====================
     {
-        "name": "Galatasaray", "year": "2000",
+        "name": "Galatasaray", "year": "2000", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Taffarel"},
             {"pos": "RB", "flag": "turkiye", "name": "Ergun Penbe"},
@@ -620,7 +620,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Galatasaray", "year": "2013",
+        "name": "Galatasaray", "year": "2013", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "uruguay", "name": "Muslera"},
             {"pos": "RB", "flag": "fildisi", "name": "Eboue"},
@@ -638,7 +638,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Galatasaray", "year": "2024",
+        "name": "Galatasaray", "year": "2024", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "uruguay", "name": "Muslera"},
             {"pos": "RB", "flag": "fas", "name": "Sacha Boey"},
@@ -656,7 +656,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Fenerbahce", "year": "2008",
+        "name": "Fenerbahce", "year": "2008", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Volkan Demirel"},
             {"pos": "RB", "flag": "turkiye", "name": "Gokhan Gonul"},
@@ -674,7 +674,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Fenerbahce", "year": "2024",
+        "name": "Fenerbahce", "year": "2024", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "hirvatistan", "name": "Livakovic"},
             {"pos": "RB", "flag": "ingiltere", "name": "Osayi-Samuel"},
@@ -692,7 +692,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Besiktas", "year": "2017",
+        "name": "Besiktas", "year": "2017", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Fabri"},
             {"pos": "RB", "flag": "turkiye", "name": "Gokhan Gonul"},
@@ -710,7 +710,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Trabzonspor", "year": "2022",
+        "name": "Trabzonspor", "year": "2022", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Ugurcan Cakir"},
             {"pos": "RB", "flag": "turkiye", "name": "Hugo Vieira"},
@@ -728,7 +728,7 @@ ALL_TEAMS = [
         "answer": 3
     },
     {
-        "name": "Fenerbahce", "year": "1996",
+        "name": "Fenerbahce", "year": "1996", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Engin Ipekoglu"},
             {"pos": "RB", "flag": "turkiye", "name": "Tayfur Havutcu"},
@@ -746,7 +746,7 @@ ALL_TEAMS = [
         "answer": 2
     },
     {
-        "name": "Besiktas", "year": "2003",
+        "name": "Besiktas", "year": "2003", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Oscar Cordoba"},
             {"pos": "RB", "flag": "turkiye", "name": "Ibrahim Akin"},
@@ -764,7 +764,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Basaksehir", "year": "2020",
+        "name": "Basaksehir", "year": "2020", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Mert Gunok"},
             {"pos": "RB", "flag": "turkiye", "name": "Junior Caicara"},
@@ -784,7 +784,7 @@ ALL_TEAMS = [
 
     # ==================== MILLI TAKIMLAR ====================
     {
-        "name": "Fransa Milli", "year": "1998",
+        "name": "Fransa Milli", "year": "1998", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "fransa", "name": "Barthez"},
             {"pos": "RB", "flag": "fransa", "name": "Thuram"},
@@ -802,7 +802,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Brezilya Milli", "year": "2002",
+        "name": "Brezilya Milli", "year": "2002", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Marcos"},
             {"pos": "RB", "flag": "brezilya", "name": "Cafu"},
@@ -820,7 +820,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Almanya Milli", "year": "2014",
+        "name": "Almanya Milli", "year": "2014", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Neuer"},
             {"pos": "RB", "flag": "almanya", "name": "Lahm"},
@@ -838,7 +838,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Ispanya Milli", "year": "2010",
+        "name": "Ispanya Milli", "year": "2010", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
             {"pos": "RB", "flag": "ispanya", "name": "Ramos"},
@@ -856,7 +856,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Italya Milli", "year": "2006",
+        "name": "Italya Milli", "year": "2006", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "italya", "name": "Buffon"},
             {"pos": "RB", "flag": "italya", "name": "Zambrotta"},
@@ -874,7 +874,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Arjantin Milli", "year": "2022",
+        "name": "Arjantin Milli", "year": "2022", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "arjantin", "name": "E.Martinez"},
             {"pos": "RB", "flag": "arjantin", "name": "Molina"},
@@ -892,7 +892,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Hollanda Milli", "year": "2010",
+        "name": "Hollanda Milli", "year": "2010", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "hollanda", "name": "Stekelenburg"},
             {"pos": "RB", "flag": "hollanda", "name": "Van der Wiel"},
@@ -910,7 +910,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Portekiz Milli", "year": "2016",
+        "name": "Portekiz Milli", "year": "2016", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "portekiz", "name": "Rui Patricio"},
             {"pos": "RB", "flag": "portekiz", "name": "Cedric"},
@@ -928,7 +928,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Hirvatistan Milli", "year": "2018",
+        "name": "Hirvatistan Milli", "year": "2018", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "hirvatistan", "name": "Subasic"},
             {"pos": "RB", "flag": "hirvatistan", "name": "Vrsaljko"},
@@ -946,7 +946,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Belcika Milli", "year": "2018",
+        "name": "Belcika Milli", "year": "2018", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "belcika", "name": "Courtois"},
             {"pos": "RB", "flag": "belcika", "name": "Meunier"},
@@ -964,7 +964,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Ingiltere Milli", "year": "2018",
+        "name": "Ingiltere Milli", "year": "2018", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "ingiltere", "name": "Pickford"},
             {"pos": "RB", "flag": "ingiltere", "name": "Walker"},
@@ -982,7 +982,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Brezilya Milli", "year": "1998",
+        "name": "Brezilya Milli", "year": "1998", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Taffarel"},
             {"pos": "RB", "flag": "brezilya", "name": "Cafu"},
@@ -1000,7 +1000,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Almanya Milli", "year": "1990",
+        "name": "Almanya Milli", "year": "1990", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Illgner"},
             {"pos": "RB", "flag": "almanya", "name": "Reuter"},
@@ -1018,7 +1018,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Turkiye Milli", "year": "2002",
+        "name": "Turkiye Milli", "year": "2002", "difficulty": "kolay",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Rustu Recber"},
             {"pos": "RB", "flag": "turkiye", "name": "Fatih Akyel"},
@@ -1036,7 +1036,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Turkiye Milli", "year": "2008",
+        "name": "Turkiye Milli", "year": "2008", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "turkiye", "name": "Volkan Demirel"},
             {"pos": "RB", "flag": "turkiye", "name": "Sabri Sarioglu"},
@@ -1054,7 +1054,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Ispanya Milli", "year": "2024",
+        "name": "Ispanya Milli", "year": "2024", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Unai Simon"},
             {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
@@ -1072,7 +1072,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Fransa Milli", "year": "2018",
+        "name": "Fransa Milli", "year": "2018", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "fransa", "name": "Lloris"},
             {"pos": "RB", "flag": "fransa", "name": "Pavard"},
@@ -1090,7 +1090,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Uruguay Milli", "year": "2010",
+        "name": "Uruguay Milli", "year": "2010", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "uruguay", "name": "Muslera"},
             {"pos": "RB", "flag": "uruguay", "name": "Maxi Pereira"},
@@ -1108,7 +1108,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Almanya Milli", "year": "1996",
+        "name": "Almanya Milli", "year": "1996", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Kopke"},
             {"pos": "RB", "flag": "almanya", "name": "Babbel"},
@@ -1126,7 +1126,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Italya Milli", "year": "2020",
+        "name": "Italya Milli", "year": "2020", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "italya", "name": "Donnarumma"},
             {"pos": "RB", "flag": "italya", "name": "Di Lorenzo"},
@@ -1144,7 +1144,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Yunanistan Milli", "year": "2004",
+        "name": "Yunanistan Milli", "year": "2004", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "yunanistan", "name": "Nikopolidis"},
             {"pos": "RB", "flag": "yunanistan", "name": "Seitaridis"},
@@ -1162,7 +1162,7 @@ ALL_TEAMS = [
         "answer": 1
     },
     {
-        "name": "Brezilya Milli", "year": "1970",
+        "name": "Brezilya Milli", "year": "1970", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Felix"},
             {"pos": "RB", "flag": "brezilya", "name": "Carlos Alberto"},
@@ -1180,7 +1180,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Hollanda Milli", "year": "1988",
+        "name": "Hollanda Milli", "year": "1988", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "hollanda", "name": "Van Breukelen"},
             {"pos": "RB", "flag": "hollanda", "name": "Van Aerle"},
@@ -1198,7 +1198,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Arjantin Milli", "year": "1986",
+        "name": "Arjantin Milli", "year": "1986", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "arjantin", "name": "Pumpido"},
             {"pos": "RB", "flag": "arjantin", "name": "Cuciuffo"},
@@ -1216,7 +1216,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Ingiltere Milli", "year": "1966",
+        "name": "Ingiltere Milli", "year": "1966", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "ingiltere", "name": "Banks"},
             {"pos": "RB", "flag": "ingiltere", "name": "Cohen"},
@@ -1234,7 +1234,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Brezilya Milli", "year": "1994",
+        "name": "Brezilya Milli", "year": "1994", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "brezilya", "name": "Taffarel"},
             {"pos": "RB", "flag": "brezilya", "name": "Jorginho"},
@@ -1252,7 +1252,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Fransa Milli", "year": "2022",
+        "name": "Fransa Milli", "year": "2022", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "fransa", "name": "Lloris"},
             {"pos": "RB", "flag": "fransa", "name": "Kounde"},
@@ -1270,7 +1270,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Fas Milli", "year": "2022",
+        "name": "Fas Milli", "year": "2022", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "fas", "name": "Bono"},
             {"pos": "RB", "flag": "fas", "name": "Hakimi"},
@@ -1287,4 +1287,1820 @@ ALL_TEAMS = [
         "options": ["Fas 2022", "Tunus 2022", "Senegal 2022", "Cezayir 2022"],
         "answer": 0
     },
+
+    # ==================== PART 1: 20 KOLAY TAKIM ====================
+
+    {
+        "name": "Barcelona", "year": "2011", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Valdes"},
+            {"pos": "RB", "flag": "brezilya", "name": "Dani Alves"},
+            {"pos": "CB", "flag": "ispanya", "name": "Pique"},
+            {"pos": "CB", "flag": "ispanya", "name": "Puyol"},
+            {"pos": "LB", "flag": "fransa", "name": "Abidal"},
+            {"pos": "CM", "flag": "ispanya", "name": "Busquets"},
+            {"pos": "CM", "flag": "ispanya", "name": "Xavi"},
+            {"pos": "CM", "flag": "ispanya", "name": "Iniesta"},
+            {"pos": "RW", "flag": "ispanya", "name": "Pedro"},
+            {"pos": "ST", "flag": "arjantin", "name": "Messi"},
+            {"pos": "LW", "flag": "ispanya", "name": "Villa"},
+        ],
+        "options": ["Bayern Munih", "Real Madrid", "Barcelona", "Manchester United"],
+        "answer": 2
+    },
+    {
+        "name": "Real Madrid", "year": "2014", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
+            {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
+            {"pos": "CB", "flag": "ispanya", "name": "Ramos"},
+            {"pos": "CB", "flag": "portekiz", "name": "Pepe"},
+            {"pos": "LB", "flag": "brezilya", "name": "Marcelo"},
+            {"pos": "CM", "flag": "almanya", "name": "Khedira"},
+            {"pos": "CM", "flag": "ispanya", "name": "Alonso"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Modric"},
+            {"pos": "RW", "flag": "galler", "name": "Bale"},
+            {"pos": "ST", "flag": "fransa", "name": "Benzema"},
+            {"pos": "LW", "flag": "portekiz", "name": "Ronaldo"},
+        ],
+        "options": ["Real Madrid", "Barcelona", "Atletico Madrid", "Bayern Munih"],
+        "answer": 0
+    },
+    {
+        "name": "Real Madrid", "year": "2017", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "kostarika", "name": "Navas"},
+            {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
+            {"pos": "CB", "flag": "ispanya", "name": "Ramos"},
+            {"pos": "CB", "flag": "fransa", "name": "Varane"},
+            {"pos": "LB", "flag": "brezilya", "name": "Marcelo"},
+            {"pos": "CM", "flag": "brezilya", "name": "Casemiro"},
+            {"pos": "CM", "flag": "almanya", "name": "Kroos"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Modric"},
+            {"pos": "RW", "flag": "ispanya", "name": "Isco"},
+            {"pos": "ST", "flag": "fransa", "name": "Benzema"},
+            {"pos": "LW", "flag": "portekiz", "name": "Ronaldo"},
+        ],
+        "options": ["Manchester City", "Real Madrid", "Barcelona", "Juventus"],
+        "answer": 1
+    },
+    {
+        "name": "Barcelona", "year": "2019", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Ter Stegen"},
+            {"pos": "RB", "flag": "portekiz", "name": "Semedo"},
+            {"pos": "CB", "flag": "ispanya", "name": "Pique"},
+            {"pos": "CB", "flag": "fransa", "name": "Lenglet"},
+            {"pos": "LB", "flag": "ispanya", "name": "Alba"},
+            {"pos": "CM", "flag": "ispanya", "name": "Busquets"},
+            {"pos": "CM", "flag": "hollanda", "name": "De Jong"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Rakitic"},
+            {"pos": "RW", "flag": "arjantin", "name": "Messi"},
+            {"pos": "ST", "flag": "uruguay", "name": "Suarez"},
+            {"pos": "LW", "flag": "fransa", "name": "Griezmann"},
+        ],
+        "options": ["Barcelona", "Bayern Munih", "Liverpool", "Real Madrid"],
+        "answer": 0
+    },
+    {
+        "name": "Manchester City", "year": "2023", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Ederson"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Walker"},
+            {"pos": "CB", "flag": "portekiz", "name": "Dias"},
+            {"pos": "CB", "flag": "hollanda", "name": "Ake"},
+            {"pos": "LB", "flag": "hollanda", "name": "Ake"},
+            {"pos": "CM", "flag": "ispanya", "name": "Rodri"},
+            {"pos": "CM", "flag": "belcika", "name": "De Bruyne"},
+            {"pos": "CM", "flag": "portekiz", "name": "B.Silva"},
+            {"pos": "RW", "flag": "almanya", "name": "Gundogan"},
+            {"pos": "ST", "flag": "norvec", "name": "Haaland"},
+            {"pos": "LW", "flag": "portekiz", "name": "Grealish"},
+        ],
+        "options": ["Liverpool", "Chelsea", "Manchester City", "Arsenal"],
+        "answer": 2
+    },
+    {
+        "name": "Liverpool", "year": "2022", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Alisson"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Alexander-Arnold"},
+            {"pos": "CB", "flag": "hollanda", "name": "Van Dijk"},
+            {"pos": "CB", "flag": "fransa", "name": "Konate"},
+            {"pos": "LB", "flag": "iskocya", "name": "Robertson"},
+            {"pos": "CM", "flag": "brezilya", "name": "Fabinho"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Henderson"},
+            {"pos": "CM", "flag": "ispanya", "name": "Thiago"},
+            {"pos": "RW", "flag": "misir", "name": "Salah"},
+            {"pos": "ST", "flag": "brezilya", "name": "Firmino"},
+            {"pos": "LW", "flag": "portekiz", "name": "Jota"},
+        ],
+        "options": ["Manchester City", "Liverpool", "Chelsea", "Tottenham"],
+        "answer": 1
+    },
+    {
+        "name": "Bayern Munih", "year": "2013", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Neuer"},
+            {"pos": "RB", "flag": "almanya", "name": "Lahm"},
+            {"pos": "CB", "flag": "almanya", "name": "Boateng"},
+            {"pos": "CB", "flag": "belcika", "name": "Van Buyten"},
+            {"pos": "LB", "flag": "avusturya", "name": "Alaba"},
+            {"pos": "CM", "flag": "almanya", "name": "Schweinsteiger"},
+            {"pos": "CM", "flag": "ispanya", "name": "Martinez"},
+            {"pos": "AM", "flag": "almanya", "name": "Muller"},
+            {"pos": "RW", "flag": "hollanda", "name": "Robben"},
+            {"pos": "ST", "flag": "almanya", "name": "Mandzukic"},
+            {"pos": "LW", "flag": "fransa", "name": "Ribery"},
+        ],
+        "options": ["Borussia Dortmund", "Bayern Munih", "Barcelona", "Real Madrid"],
+        "answer": 1
+    },
+    {
+        "name": "Manchester United", "year": "1999", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "danimarka", "name": "Schmeichel"},
+            {"pos": "RB", "flag": "ingiltere", "name": "G.Neville"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Stam"},
+            {"pos": "CB", "flag": "norvec", "name": "Johnsen"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Irwin"},
+            {"pos": "CM", "flag": "irlanda", "name": "Keane"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Scholes"},
+            {"pos": "RW", "flag": "ingiltere", "name": "Beckham"},
+            {"pos": "LW", "flag": "galler", "name": "Giggs"},
+            {"pos": "ST", "flag": "norvec", "name": "Solskjaer"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Cole"},
+        ],
+        "options": ["Bayern Munih", "Manchester United", "Real Madrid", "Milan"],
+        "answer": 1
+    },
+    {
+        "name": "Chelsea", "year": "2012", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "cek", "name": "Cech"},
+            {"pos": "RB", "flag": "portekiz", "name": "Ivanovic"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Terry"},
+            {"pos": "CB", "flag": "brezilya", "name": "David Luiz"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Cole"},
+            {"pos": "CM", "flag": "gana", "name": "Essien"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Lampard"},
+            {"pos": "CM", "flag": "portekiz", "name": "Mikel"},
+            {"pos": "AM", "flag": "ispanya", "name": "Mata"},
+            {"pos": "ST", "flag": "fildisi", "name": "Drogba"},
+            {"pos": "LW", "flag": "ispanya", "name": "Torres"},
+        ],
+        "options": ["Bayern Munih", "Chelsea", "Barcelona", "Real Madrid"],
+        "answer": 1
+    },
+    {
+        "name": "PSG", "year": "2020", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "fransa", "name": "Navas"},
+            {"pos": "RB", "flag": "fransa", "name": "Kehrer"},
+            {"pos": "CB", "flag": "fransa", "name": "Marquinhos"},
+            {"pos": "CB", "flag": "brezilya", "name": "Kimpembe"},
+            {"pos": "LB", "flag": "fransa", "name": "Bakker"},
+            {"pos": "CM", "flag": "italya", "name": "Verratti"},
+            {"pos": "CM", "flag": "fransa", "name": "Paredes"},
+            {"pos": "CM", "flag": "portekiz", "name": "Herrera"},
+            {"pos": "RW", "flag": "fransa", "name": "Mbappe"},
+            {"pos": "ST", "flag": "arjantin", "name": "Icardi"},
+            {"pos": "LW", "flag": "brezilya", "name": "Neymar"},
+        ],
+        "options": ["Bayern Munih", "PSG", "Real Madrid", "Manchester City"],
+        "answer": 1
+    },
+    {
+        "name": "Real Madrid", "year": "2022", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "belcika", "name": "Courtois"},
+            {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
+            {"pos": "CB", "flag": "avusturya", "name": "Alaba"},
+            {"pos": "CB", "flag": "brezilya", "name": "Militao"},
+            {"pos": "LB", "flag": "fransa", "name": "Mendy"},
+            {"pos": "CM", "flag": "brezilya", "name": "Casemiro"},
+            {"pos": "CM", "flag": "almanya", "name": "Kroos"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Modric"},
+            {"pos": "RW", "flag": "fransa", "name": "Valverde"},
+            {"pos": "ST", "flag": "fransa", "name": "Benzema"},
+            {"pos": "LW", "flag": "brezilya", "name": "Vinicius"},
+        ],
+        "options": ["Manchester City", "Real Madrid", "Liverpool", "Bayern Munih"],
+        "answer": 1
+    },
+    {
+        "name": "Barcelona", "year": "2006", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Valdes"},
+            {"pos": "RB", "flag": "meksika", "name": "Marquez"},
+            {"pos": "CB", "flag": "ispanya", "name": "Puyol"},
+            {"pos": "CB", "flag": "arjantin", "name": "Milito"},
+            {"pos": "LB", "flag": "brezilya", "name": "Belletti"},
+            {"pos": "CM", "flag": "ispanya", "name": "Xavi"},
+            {"pos": "CM", "flag": "ispanya", "name": "Van Bommel"},
+            {"pos": "CM", "flag": "portekiz", "name": "Deco"},
+            {"pos": "RW", "flag": "brezilya", "name": "Ronaldinho"},
+            {"pos": "ST", "flag": "kamerun", "name": "Eto'o"},
+            {"pos": "LW", "flag": "brezilya", "name": "Giuly"},
+        ],
+        "options": ["Barcelona", "Arsenal", "Milan", "Real Madrid"],
+        "answer": 0
+    },
+    {
+        "name": "Inter Milan", "year": "2010", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Julio Cesar"},
+            {"pos": "RB", "flag": "brezilya", "name": "Maicon"},
+            {"pos": "CB", "flag": "arjantin", "name": "Samuel"},
+            {"pos": "CB", "flag": "brezilya", "name": "Lucio"},
+            {"pos": "LB", "flag": "arjantin", "name": "Zanetti"},
+            {"pos": "CM", "flag": "hollanda", "name": "Sneijder"},
+            {"pos": "CM", "flag": "kolombiya", "name": "Cambiasso"},
+            {"pos": "CM", "flag": "gana", "name": "Muntari"},
+            {"pos": "RW", "flag": "portekiz", "name": "Pandev"},
+            {"pos": "ST", "flag": "kamerun", "name": "Eto'o"},
+            {"pos": "LW", "flag": "arjantin", "name": "Milito"},
+        ],
+        "options": ["Milan", "Inter Milan", "Barcelona", "Bayern Munih"],
+        "answer": 1
+    },
+    {
+        "name": "Milan", "year": "2003", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Dida"},
+            {"pos": "RB", "flag": "brezilya", "name": "Cafu"},
+            {"pos": "CB", "flag": "italya", "name": "Nesta"},
+            {"pos": "CB", "flag": "italya", "name": "Maldini"},
+            {"pos": "LB", "flag": "italya", "name": "Kaladze"},
+            {"pos": "CM", "flag": "hollanda", "name": "Seedorf"},
+            {"pos": "CM", "flag": "italya", "name": "Pirlo"},
+            {"pos": "CM", "flag": "italya", "name": "Gattuso"},
+            {"pos": "AM", "flag": "portekiz", "name": "Rui Costa"},
+            {"pos": "ST", "flag": "italya", "name": "Inzaghi"},
+            {"pos": "ST", "flag": "ukrayna", "name": "Shevchenko"},
+        ],
+        "options": ["Juventus", "Milan", "Inter Milan", "Real Madrid"],
+        "answer": 1
+    },
+    {
+        "name": "Fenerbahce", "year": "2007", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Volkan Demirel"},
+            {"pos": "RB", "flag": "turkiye", "name": "Gokhan Gonul"},
+            {"pos": "CB", "flag": "brezilya", "name": "Edu"},
+            {"pos": "CB", "flag": "turkiye", "name": "Onder Turaci"},
+            {"pos": "LB", "flag": "turkiye", "name": "Umit Ozat"},
+            {"pos": "CM", "flag": "turkiye", "name": "Selcuk Sahin"},
+            {"pos": "CM", "flag": "turkiye", "name": "Emre Belozoglu"},
+            {"pos": "AM", "flag": "brezilya", "name": "Alex"},
+            {"pos": "RW", "flag": "turkiye", "name": "Aurelio"},
+            {"pos": "ST", "flag": "nijerya", "name": "Kezman"},
+            {"pos": "ST", "flag": "turkiye", "name": "Semih Senturk"},
+        ],
+        "options": ["Galatasaray", "Besiktas", "Fenerbahce", "Trabzonspor"],
+        "answer": 2
+    },
+    {
+        "name": "Galatasaray", "year": "2019", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "uruguay", "name": "Muslera"},
+            {"pos": "RB", "flag": "fildisi", "name": "Nagatomo"},
+            {"pos": "CB", "flag": "belcika", "name": "Denayer"},
+            {"pos": "CB", "flag": "kolombiya", "name": "Luyindama"},
+            {"pos": "LB", "flag": "brezilya", "name": "Nagatomo"},
+            {"pos": "CM", "flag": "turkiye", "name": "Selcuk Inan"},
+            {"pos": "CM", "flag": "turkiye", "name": "Emre Akbaba"},
+            {"pos": "CM", "flag": "turkiye", "name": "Fernando"},
+            {"pos": "AM", "flag": "turkiye", "name": "Younes Belhanda"},
+            {"pos": "ST", "flag": "turkiye", "name": "Falcao"},
+            {"pos": "LW", "flag": "turkiye", "name": "Cenk Tosun"},
+        ],
+        "options": ["Fenerbahce", "Basaksehir", "Galatasaray", "Besiktas"],
+        "answer": 2
+    },
+    {
+        "name": "Besiktas", "year": "2016", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Tolga Zengin"},
+            {"pos": "RB", "flag": "turkiye", "name": "Gokhan Gonul"},
+            {"pos": "CB", "flag": "sili", "name": "Medel"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Tosic"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ismail Koybasi"},
+            {"pos": "CM", "flag": "portekiz", "name": "Ozyakup"},
+            {"pos": "CM", "flag": "portekiz", "name": "Hutchinson"},
+            {"pos": "CM", "flag": "brezilya", "name": "Talisca"},
+            {"pos": "RW", "flag": "portekiz", "name": "Quaresma"},
+            {"pos": "ST", "flag": "portekiz", "name": "Mario Gomez"},
+            {"pos": "LW", "flag": "portekiz", "name": "Cenk Tosun"},
+        ],
+        "options": ["Fenerbahce", "Trabzonspor", "Galatasaray", "Besiktas"],
+        "answer": 3
+    },
+    {
+        "name": "Almanya Milli", "year": "2010", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Neuer"},
+            {"pos": "RB", "flag": "almanya", "name": "Lahm"},
+            {"pos": "CB", "flag": "almanya", "name": "Mertesacker"},
+            {"pos": "CB", "flag": "almanya", "name": "Friedrich"},
+            {"pos": "LB", "flag": "almanya", "name": "Boateng"},
+            {"pos": "CM", "flag": "almanya", "name": "Khedira"},
+            {"pos": "CM", "flag": "almanya", "name": "Schweinsteiger"},
+            {"pos": "AM", "flag": "almanya", "name": "Ozil"},
+            {"pos": "AM", "flag": "almanya", "name": "Podolski"},
+            {"pos": "ST", "flag": "almanya", "name": "Klose"},
+            {"pos": "AM", "flag": "almanya", "name": "Muller"},
+        ],
+        "options": ["Ispanya 2010", "Almanya 2010", "Hollanda 2010", "Brezilya 2010"],
+        "answer": 1
+    },
+    {
+        "name": "Ispanya Milli", "year": "2012", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
+            {"pos": "RB", "flag": "ispanya", "name": "Arbeloa"},
+            {"pos": "CB", "flag": "ispanya", "name": "Ramos"},
+            {"pos": "CB", "flag": "ispanya", "name": "Pique"},
+            {"pos": "LB", "flag": "ispanya", "name": "Alba"},
+            {"pos": "CM", "flag": "ispanya", "name": "Busquets"},
+            {"pos": "CM", "flag": "ispanya", "name": "Xavi"},
+            {"pos": "CM", "flag": "ispanya", "name": "Alonso"},
+            {"pos": "CM", "flag": "ispanya", "name": "Iniesta"},
+            {"pos": "AM", "flag": "ispanya", "name": "Silva"},
+            {"pos": "ST", "flag": "ispanya", "name": "Fabregas"},
+        ],
+        "options": ["Ispanya 2012", "Almanya 2012", "Portekiz 2012", "Italya 2012"],
+        "answer": 0
+    },
+    {
+        "name": "Fransa Milli", "year": "2000", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "fransa", "name": "Barthez"},
+            {"pos": "RB", "flag": "fransa", "name": "Thuram"},
+            {"pos": "CB", "flag": "fransa", "name": "Blanc"},
+            {"pos": "CB", "flag": "fransa", "name": "Desailly"},
+            {"pos": "LB", "flag": "fransa", "name": "Lizarazu"},
+            {"pos": "CM", "flag": "fransa", "name": "Deschamps"},
+            {"pos": "CM", "flag": "fransa", "name": "Vieira"},
+            {"pos": "CM", "flag": "fransa", "name": "Zidane"},
+            {"pos": "AM", "flag": "fransa", "name": "Djorkaeff"},
+            {"pos": "ST", "flag": "fransa", "name": "Henry"},
+            {"pos": "ST", "flag": "fransa", "name": "Trezeguet"},
+        ],
+        "options": ["Fransa 2000", "Italya 2000", "Portekiz 2000", "Hollanda 2000"],
+        "answer": 0
+    },
+
+    # ==================== PART 2: 20 KOLAY TAKIM ====================
+
+    {
+        "name": "Arsenal", "year": "2004", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Lehmann"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Lauren"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Campbell"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Toure"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Cole"},
+            {"pos": "CM", "flag": "fransa", "name": "Vieira"},
+            {"pos": "CM", "flag": "brezilya", "name": "Gilberto"},
+            {"pos": "AM", "flag": "hollanda", "name": "Bergkamp"},
+            {"pos": "RW", "flag": "ingiltere", "name": "Ljungberg"},
+            {"pos": "ST", "flag": "fransa", "name": "Henry"},
+            {"pos": "LW", "flag": "fransa", "name": "Pires"},
+        ],
+        "options": ["Arsenal", "Chelsea", "Manchester United", "Liverpool"],
+        "answer": 0
+    },
+    {
+        "name": "Real Madrid", "year": "2000", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
+            {"pos": "RB", "flag": "ispanya", "name": "Salgado"},
+            {"pos": "CB", "flag": "ispanya", "name": "Hierro"},
+            {"pos": "CB", "flag": "ispanya", "name": "Karanka"},
+            {"pos": "LB", "flag": "brezilya", "name": "Roberto Carlos"},
+            {"pos": "CM", "flag": "ispanya", "name": "Redondo"},
+            {"pos": "CM", "flag": "ispanya", "name": "Guti"},
+            {"pos": "AM", "flag": "portekiz", "name": "Figo"},
+            {"pos": "RW", "flag": "ispanya", "name": "Raul"},
+            {"pos": "ST", "flag": "ispanya", "name": "Morientes"},
+            {"pos": "LW", "flag": "ispanya", "name": "McManaman"},
+        ],
+        "options": ["Bayern Munih", "Barcelona", "Real Madrid", "Valencia"],
+        "answer": 2
+    },
+    {
+        "name": "Barcelona", "year": "2012", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Valdes"},
+            {"pos": "RB", "flag": "brezilya", "name": "Dani Alves"},
+            {"pos": "CB", "flag": "ispanya", "name": "Pique"},
+            {"pos": "CB", "flag": "arjantin", "name": "Mascherano"},
+            {"pos": "LB", "flag": "ispanya", "name": "Alba"},
+            {"pos": "CM", "flag": "ispanya", "name": "Busquets"},
+            {"pos": "CM", "flag": "ispanya", "name": "Xavi"},
+            {"pos": "CM", "flag": "ispanya", "name": "Iniesta"},
+            {"pos": "RW", "flag": "ispanya", "name": "Pedro"},
+            {"pos": "ST", "flag": "arjantin", "name": "Messi"},
+            {"pos": "LW", "flag": "brezilya", "name": "Alexis"},
+        ],
+        "options": ["Real Madrid", "Barcelona", "Bayern Munih", "Chelsea"],
+        "answer": 1
+    },
+    {
+        "name": "Bayern Munih", "year": "2023", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Neuer"},
+            {"pos": "RB", "flag": "almanya", "name": "Pavard"},
+            {"pos": "CB", "flag": "hollanda", "name": "De Ligt"},
+            {"pos": "CB", "flag": "fransa", "name": "Upamecano"},
+            {"pos": "LB", "flag": "kanada", "name": "Davies"},
+            {"pos": "CM", "flag": "almanya", "name": "Kimmich"},
+            {"pos": "CM", "flag": "almanya", "name": "Goretzka"},
+            {"pos": "AM", "flag": "almanya", "name": "Musiala"},
+            {"pos": "RW", "flag": "almanya", "name": "Sane"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Kane"},
+            {"pos": "LW", "flag": "fransa", "name": "Coman"},
+        ],
+        "options": ["Bayern Munih", "Dortmund", "PSG", "Real Madrid"],
+        "answer": 0
+    },
+    {
+        "name": "Chelsea", "year": "2017", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "belcika", "name": "Courtois"},
+            {"pos": "RB", "flag": "ispanya", "name": "Azpilicueta"},
+            {"pos": "CB", "flag": "brezilya", "name": "David Luiz"},
+            {"pos": "CB", "flag": "almanya", "name": "Rudiger"},
+            {"pos": "LB", "flag": "italya", "name": "Marcos Alonso"},
+            {"pos": "CM", "flag": "fransa", "name": "Kante"},
+            {"pos": "CM", "flag": "italya", "name": "Fabregas"},
+            {"pos": "CM", "flag": "brezilya", "name": "Willian"},
+            {"pos": "AM", "flag": "belcika", "name": "Hazard"},
+            {"pos": "ST", "flag": "ispanya", "name": "Morata"},
+            {"pos": "LW", "flag": "brezilya", "name": "Pedro"},
+        ],
+        "options": ["Manchester City", "Chelsea", "Tottenham", "Arsenal"],
+        "answer": 1
+    },
+    {
+        "name": "PSG", "year": "2022", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Donnarumma"},
+            {"pos": "RB", "flag": "fas", "name": "Hakimi"},
+            {"pos": "CB", "flag": "brezilya", "name": "Marquinhos"},
+            {"pos": "CB", "flag": "brezilya", "name": "Kimpembe"},
+            {"pos": "LB", "flag": "portekiz", "name": "Nuno Mendes"},
+            {"pos": "CM", "flag": "italya", "name": "Verratti"},
+            {"pos": "CM", "flag": "fransa", "name": "Danilo"},
+            {"pos": "CM", "flag": "ispanya", "name": "Ruiz"},
+            {"pos": "RW", "flag": "fransa", "name": "Mbappe"},
+            {"pos": "ST", "flag": "arjantin", "name": "Messi"},
+            {"pos": "LW", "flag": "brezilya", "name": "Neymar"},
+        ],
+        "options": ["Real Madrid", "PSG", "Bayern Munih", "Manchester City"],
+        "answer": 1
+    },
+    {
+        "name": "Liverpool", "year": "2014", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "belcika", "name": "Mignolet"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Johnson"},
+            {"pos": "CB", "flag": "slovakya", "name": "Skrtel"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Agger"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Flanagan"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Henderson"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Gerrard"},
+            {"pos": "CM", "flag": "brezilya", "name": "Coutinho"},
+            {"pos": "AM", "flag": "ingiltere", "name": "Sterling"},
+            {"pos": "ST", "flag": "uruguay", "name": "Suarez"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Sturridge"},
+        ],
+        "options": ["Chelsea", "Liverpool", "Manchester City", "Arsenal"],
+        "answer": 1
+    },
+    {
+        "name": "Manchester United", "year": "2013", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "De Gea"},
+            {"pos": "RB", "flag": "ekvador", "name": "Valencia"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Ferdinand"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Vidic"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Evra"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Carrick"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Cleverley"},
+            {"pos": "RW", "flag": "ingiltere", "name": "Young"},
+            {"pos": "AM", "flag": "japonya", "name": "Kagawa"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Rooney"},
+            {"pos": "ST", "flag": "hollanda", "name": "Van Persie"},
+        ],
+        "options": ["Manchester City", "Manchester United", "Chelsea", "Arsenal"],
+        "answer": 1
+    },
+    {
+        "name": "Juventus", "year": "2015", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Buffon"},
+            {"pos": "RB", "flag": "brezilya", "name": "Lichtsteiner"},
+            {"pos": "CB", "flag": "italya", "name": "Bonucci"},
+            {"pos": "CB", "flag": "italya", "name": "Barzagli"},
+            {"pos": "LB", "flag": "italya", "name": "Chiellini"},
+            {"pos": "CM", "flag": "italya", "name": "Marchisio"},
+            {"pos": "CM", "flag": "italya", "name": "Pirlo"},
+            {"pos": "CM", "flag": "sili", "name": "Vidal"},
+            {"pos": "AM", "flag": "fransa", "name": "Pogba"},
+            {"pos": "ST", "flag": "arjantin", "name": "Tevez"},
+            {"pos": "ST", "flag": "italya", "name": "Morata"},
+        ],
+        "options": ["Juventus", "Milan", "Inter Milan", "Roma"],
+        "answer": 0
+    },
+    {
+        "name": "Juventus", "year": "2020", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "polonya", "name": "Szczesny"},
+            {"pos": "RB", "flag": "brezilya", "name": "Danilo"},
+            {"pos": "CB", "flag": "hollanda", "name": "De Ligt"},
+            {"pos": "CB", "flag": "italya", "name": "Bonucci"},
+            {"pos": "LB", "flag": "italya", "name": "Alex Sandro"},
+            {"pos": "CM", "flag": "fransa", "name": "Rabiot"},
+            {"pos": "CM", "flag": "uruguay", "name": "Bentancur"},
+            {"pos": "CM", "flag": "amerika", "name": "McKennie"},
+            {"pos": "AM", "flag": "arjantin", "name": "Dybala"},
+            {"pos": "ST", "flag": "portekiz", "name": "Ronaldo"},
+            {"pos": "ST", "flag": "arjantin", "name": "Morata"},
+        ],
+        "options": ["Milan", "Inter Milan", "Juventus", "Napoli"],
+        "answer": 2
+    },
+    {
+        "name": "Barcelona", "year": "2024", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Ter Stegen"},
+            {"pos": "RB", "flag": "ispanya", "name": "Kounde"},
+            {"pos": "CB", "flag": "ispanya", "name": "Cubarsi"},
+            {"pos": "CB", "flag": "uruguay", "name": "Araujo"},
+            {"pos": "LB", "flag": "ispanya", "name": "Balde"},
+            {"pos": "CM", "flag": "ispanya", "name": "Pedri"},
+            {"pos": "CM", "flag": "ispanya", "name": "Gundogan"},
+            {"pos": "CM", "flag": "hollanda", "name": "De Jong"},
+            {"pos": "RW", "flag": "ispanya", "name": "Yamal"},
+            {"pos": "ST", "flag": "polonya", "name": "Lewandowski"},
+            {"pos": "LW", "flag": "brezilya", "name": "Raphinha"},
+        ],
+        "options": ["Real Madrid", "Atletico", "Barcelona", "Sevilla"],
+        "answer": 2
+    },
+    {
+        "name": "Real Madrid", "year": "2016", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "kostarika", "name": "Navas"},
+            {"pos": "RB", "flag": "ispanya", "name": "Carvajal"},
+            {"pos": "CB", "flag": "ispanya", "name": "Ramos"},
+            {"pos": "CB", "flag": "fransa", "name": "Varane"},
+            {"pos": "LB", "flag": "brezilya", "name": "Marcelo"},
+            {"pos": "CM", "flag": "brezilya", "name": "Casemiro"},
+            {"pos": "CM", "flag": "almanya", "name": "Kroos"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Modric"},
+            {"pos": "RW", "flag": "ispanya", "name": "Isco"},
+            {"pos": "ST", "flag": "fransa", "name": "Benzema"},
+            {"pos": "LW", "flag": "portekiz", "name": "Ronaldo"},
+        ],
+        "options": ["Bayern Munih", "Barcelona", "Real Madrid", "Atletico Madrid"],
+        "answer": 2
+    },
+    {
+        "name": "Manchester United", "year": "2011", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "hollanda", "name": "Van der Sar"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Rafael"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Ferdinand"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Vidic"},
+            {"pos": "LB", "flag": "fransa", "name": "Evra"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Carrick"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Fletcher"},
+            {"pos": "RW", "flag": "portekiz", "name": "Nani"},
+            {"pos": "AM", "flag": "ingiltere", "name": "Rooney"},
+            {"pos": "LW", "flag": "galler", "name": "Giggs"},
+            {"pos": "ST", "flag": "meksika", "name": "Hernandez"},
+        ],
+        "options": ["Chelsea", "Manchester United", "Liverpool", "Arsenal"],
+        "answer": 1
+    },
+    {
+        "name": "Fenerbahce", "year": "2011", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Volkan Demirel"},
+            {"pos": "RB", "flag": "turkiye", "name": "Gokhan Gonul"},
+            {"pos": "CB", "flag": "brezilya", "name": "Bilica"},
+            {"pos": "CB", "flag": "uruguay", "name": "Lugano"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ziegler"},
+            {"pos": "CM", "flag": "brezilya", "name": "Cristian"},
+            {"pos": "CM", "flag": "turkiye", "name": "Emre Belozoglu"},
+            {"pos": "AM", "flag": "brezilya", "name": "Alex"},
+            {"pos": "RW", "flag": "turkiye", "name": "Selcuk Sahin"},
+            {"pos": "ST", "flag": "brezilya", "name": "Guiza"},
+            {"pos": "ST", "flag": "turkiye", "name": "Semih Senturk"},
+        ],
+        "options": ["Trabzonspor", "Fenerbahce", "Galatasaray", "Besiktas"],
+        "answer": 1
+    },
+    {
+        "name": "Galatasaray", "year": "2015", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "uruguay", "name": "Muslera"},
+            {"pos": "RB", "flag": "turkiye", "name": "Sabri Sarioglu"},
+            {"pos": "CB", "flag": "brezilya", "name": "Chedjou"},
+            {"pos": "CB", "flag": "turkiye", "name": "Semih Kaya"},
+            {"pos": "LB", "flag": "turkiye", "name": "Hakan Balta"},
+            {"pos": "CM", "flag": "brezilya", "name": "Melo"},
+            {"pos": "CM", "flag": "turkiye", "name": "Selcuk Inan"},
+            {"pos": "CM", "flag": "portekiz", "name": "Sneijder"},
+            {"pos": "RW", "flag": "turkiye", "name": "Chedjou"},
+            {"pos": "ST", "flag": "turkiye", "name": "Burak Yilmaz"},
+            {"pos": "LW", "flag": "turkiye", "name": "Bruma"},
+        ],
+        "options": ["Besiktas", "Trabzonspor", "Fenerbahce", "Galatasaray"],
+        "answer": 3
+    },
+    {
+        "name": "Portekiz Milli", "year": "2004", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "portekiz", "name": "Ricardo"},
+            {"pos": "RB", "flag": "portekiz", "name": "Miguel"},
+            {"pos": "CB", "flag": "portekiz", "name": "Ricardo Carvalho"},
+            {"pos": "CB", "flag": "portekiz", "name": "Andrade"},
+            {"pos": "LB", "flag": "portekiz", "name": "Nuno Valente"},
+            {"pos": "CM", "flag": "portekiz", "name": "Costinha"},
+            {"pos": "CM", "flag": "portekiz", "name": "Maniche"},
+            {"pos": "AM", "flag": "portekiz", "name": "Deco"},
+            {"pos": "RW", "flag": "portekiz", "name": "Figo"},
+            {"pos": "ST", "flag": "portekiz", "name": "Pauleta"},
+            {"pos": "LW", "flag": "portekiz", "name": "Ronaldo"},
+        ],
+        "options": ["Portekiz 2004", "Yunanistan 2004", "Cek 2004", "Hollanda 2004"],
+        "answer": 0
+    },
+    {
+        "name": "Ispanya Milli", "year": "2008", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
+            {"pos": "RB", "flag": "ispanya", "name": "Ramos"},
+            {"pos": "CB", "flag": "ispanya", "name": "Puyol"},
+            {"pos": "CB", "flag": "ispanya", "name": "Marchena"},
+            {"pos": "LB", "flag": "ispanya", "name": "Capdevila"},
+            {"pos": "CM", "flag": "ispanya", "name": "Xavi"},
+            {"pos": "CM", "flag": "ispanya", "name": "Senna"},
+            {"pos": "CM", "flag": "ispanya", "name": "Iniesta"},
+            {"pos": "AM", "flag": "ispanya", "name": "Silva"},
+            {"pos": "ST", "flag": "ispanya", "name": "Villa"},
+            {"pos": "ST", "flag": "ispanya", "name": "Torres"},
+        ],
+        "options": ["Ispanya 2008", "Almanya 2008", "Italya 2008", "Fransa 2008"],
+        "answer": 0
+    },
+    {
+        "name": "Brezilya Milli", "year": "2014", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Julio Cesar"},
+            {"pos": "RB", "flag": "brezilya", "name": "Dani Alves"},
+            {"pos": "CB", "flag": "brezilya", "name": "Thiago Silva"},
+            {"pos": "CB", "flag": "brezilya", "name": "David Luiz"},
+            {"pos": "LB", "flag": "brezilya", "name": "Marcelo"},
+            {"pos": "CM", "flag": "brezilya", "name": "Fernandinho"},
+            {"pos": "CM", "flag": "brezilya", "name": "Paulinho"},
+            {"pos": "CM", "flag": "brezilya", "name": "Oscar"},
+            {"pos": "RW", "flag": "brezilya", "name": "Hulk"},
+            {"pos": "ST", "flag": "brezilya", "name": "Fred"},
+            {"pos": "LW", "flag": "brezilya", "name": "Neymar"},
+        ],
+        "options": ["Brezilya 2014", "Almanya 2014", "Arjantin 2014", "Hollanda 2014"],
+        "answer": 0
+    },
+    {
+        "name": "Almanya Milli", "year": "2018", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Neuer"},
+            {"pos": "RB", "flag": "almanya", "name": "Kimmich"},
+            {"pos": "CB", "flag": "almanya", "name": "Hummels"},
+            {"pos": "CB", "flag": "almanya", "name": "Boateng"},
+            {"pos": "LB", "flag": "almanya", "name": "Plattenhardt"},
+            {"pos": "CM", "flag": "almanya", "name": "Kroos"},
+            {"pos": "CM", "flag": "almanya", "name": "Khedira"},
+            {"pos": "AM", "flag": "almanya", "name": "Ozil"},
+            {"pos": "RW", "flag": "almanya", "name": "Muller"},
+            {"pos": "ST", "flag": "almanya", "name": "Werner"},
+            {"pos": "LW", "flag": "almanya", "name": "Draxler"},
+        ],
+        "options": ["Almanya 2018", "Ispanya 2018", "Brezilya 2018", "Fransa 2018"],
+        "answer": 0
+    },
+    {
+        "name": "Portekiz Milli", "year": "2022", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "portekiz", "name": "Diogo Costa"},
+            {"pos": "RB", "flag": "portekiz", "name": "Cancelo"},
+            {"pos": "CB", "flag": "portekiz", "name": "Pepe"},
+            {"pos": "CB", "flag": "portekiz", "name": "Dias"},
+            {"pos": "LB", "flag": "portekiz", "name": "Guerreiro"},
+            {"pos": "CM", "flag": "portekiz", "name": "Vitinha"},
+            {"pos": "CM", "flag": "portekiz", "name": "B.Fernandes"},
+            {"pos": "CM", "flag": "portekiz", "name": "B.Silva"},
+            {"pos": "RW", "flag": "portekiz", "name": "Otavio"},
+            {"pos": "ST", "flag": "portekiz", "name": "Ronaldo"},
+            {"pos": "LW", "flag": "portekiz", "name": "Felix"},
+        ],
+        "options": ["Portekiz 2022", "Ispanya 2022", "Fas 2022", "Brezilya 2022"],
+        "answer": 0
+    },
+
+    # ==================== PART 3: 20 ORTA TAKIM ====================
+
+    {
+        "name": "Atletico Madrid", "year": "2020", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "slovenya", "name": "Oblak"},
+            {"pos": "RB", "flag": "brezilya", "name": "Trippier"},
+            {"pos": "CB", "flag": "uruguay", "name": "Gimenez"},
+            {"pos": "CB", "flag": "montenegro", "name": "Savic"},
+            {"pos": "LB", "flag": "brezilya", "name": "Renan Lodi"},
+            {"pos": "CM", "flag": "brezilya", "name": "Saul"},
+            {"pos": "CM", "flag": "arjantin", "name": "Herrera"},
+            {"pos": "CM", "flag": "ispanya", "name": "Koke"},
+            {"pos": "RW", "flag": "ispanya", "name": "Correa"},
+            {"pos": "ST", "flag": "uruguay", "name": "Suarez"},
+            {"pos": "LW", "flag": "ingiltere", "name": "Joao Felix"},
+        ],
+        "options": ["Atletico Madrid", "Real Madrid", "Sevilla", "Villarreal"],
+        "answer": 0
+    },
+    {
+        "name": "Napoli", "year": "2018", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Ospina"},
+            {"pos": "RB", "flag": "italya", "name": "Hysaj"},
+            {"pos": "CB", "flag": "senegal", "name": "Koulibaly"},
+            {"pos": "CB", "flag": "italya", "name": "Albiol"},
+            {"pos": "LB", "flag": "italya", "name": "Ghoulam"},
+            {"pos": "CM", "flag": "italya", "name": "Jorginho"},
+            {"pos": "CM", "flag": "slovakya", "name": "Hamsik"},
+            {"pos": "CM", "flag": "polonya", "name": "Allan"},
+            {"pos": "AM", "flag": "belcika", "name": "Mertens"},
+            {"pos": "ST", "flag": "polonya", "name": "Milik"},
+            {"pos": "LW", "flag": "italya", "name": "Insigne"},
+        ],
+        "options": ["Roma", "Napoli", "Juventus", "Milan"],
+        "answer": 1
+    },
+    {
+        "name": "Ajax", "year": "2019", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "kamerun", "name": "Onana"},
+            {"pos": "RB", "flag": "hollanda", "name": "Mazraoui"},
+            {"pos": "CB", "flag": "hollanda", "name": "De Ligt"},
+            {"pos": "CB", "flag": "hollanda", "name": "Blind"},
+            {"pos": "LB", "flag": "hollanda", "name": "Tagliafico"},
+            {"pos": "CM", "flag": "hollanda", "name": "De Jong"},
+            {"pos": "CM", "flag": "danimarka", "name": "Schone"},
+            {"pos": "CM", "flag": "hollanda", "name": "Van de Beek"},
+            {"pos": "RW", "flag": "hollanda", "name": "Ziyech"},
+            {"pos": "ST", "flag": "serbistan", "name": "Tadic"},
+            {"pos": "LW", "flag": "brezilya", "name": "Neres"},
+        ],
+        "options": ["PSV", "Feyenoord", "Ajax", "AZ Alkmaar"],
+        "answer": 2
+    },
+    {
+        "name": "Roma", "year": "2003", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Antonioli"},
+            {"pos": "RB", "flag": "italya", "name": "Panucci"},
+            {"pos": "CB", "flag": "brezilya", "name": "Aldair"},
+            {"pos": "CB", "flag": "italya", "name": "Samuel"},
+            {"pos": "LB", "flag": "italya", "name": "Candela"},
+            {"pos": "CM", "flag": "italya", "name": "Emerson"},
+            {"pos": "CM", "flag": "italya", "name": "Cristian"},
+            {"pos": "AM", "flag": "arjantin", "name": "Cafu"},
+            {"pos": "AM", "flag": "italya", "name": "Totti"},
+            {"pos": "ST", "flag": "italya", "name": "Delvecchio"},
+            {"pos": "ST", "flag": "arjantin", "name": "Batistuta"},
+        ],
+        "options": ["Lazio", "Roma", "Milan", "Juventus"],
+        "answer": 1
+    },
+    {
+        "name": "Lyon", "year": "2005", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "fransa", "name": "Coupet"},
+            {"pos": "RB", "flag": "brezilya", "name": "Caçapa"},
+            {"pos": "CB", "flag": "fransa", "name": "Cris"},
+            {"pos": "CB", "flag": "fransa", "name": "Diarra"},
+            {"pos": "LB", "flag": "fransa", "name": "Berthod"},
+            {"pos": "CM", "flag": "fransa", "name": "Diarra"},
+            {"pos": "CM", "flag": "brezilya", "name": "Juninho"},
+            {"pos": "CM", "flag": "portekiz", "name": "Tiago"},
+            {"pos": "AM", "flag": "fransa", "name": "Malouda"},
+            {"pos": "ST", "flag": "brezilya", "name": "Fred"},
+            {"pos": "ST", "flag": "fransa", "name": "Wiltord"},
+        ],
+        "options": ["PSG", "Lyon", "Marseille", "Monaco"],
+        "answer": 1
+    },
+    {
+        "name": "Villarreal", "year": "2021", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "arjantin", "name": "Rulli"},
+            {"pos": "RB", "flag": "ispanya", "name": "Foyth"},
+            {"pos": "CB", "flag": "ispanya", "name": "Albiol"},
+            {"pos": "CB", "flag": "ispanya", "name": "Torres"},
+            {"pos": "LB", "flag": "ispanya", "name": "Estupinan"},
+            {"pos": "CM", "flag": "ispanya", "name": "Parejo"},
+            {"pos": "CM", "flag": "ispanya", "name": "Capoue"},
+            {"pos": "AM", "flag": "ispanya", "name": "Trigueros"},
+            {"pos": "RW", "flag": "ispanya", "name": "Chukwueze"},
+            {"pos": "ST", "flag": "ispanya", "name": "Bacca"},
+            {"pos": "LW", "flag": "ispanya", "name": "Moreno"},
+        ],
+        "options": ["Sevilla", "Villarreal", "Real Betis", "Valencia"],
+        "answer": 1
+    },
+    {
+        "name": "Sevilla", "year": "2015", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "portekiz", "name": "Rico"},
+            {"pos": "RB", "flag": "ispanya", "name": "Coke"},
+            {"pos": "CB", "flag": "brezilya", "name": "Fazio"},
+            {"pos": "CB", "flag": "brezilya", "name": "Rami"},
+            {"pos": "LB", "flag": "ispanya", "name": "Trémoulinas"},
+            {"pos": "CM", "flag": "brezilya", "name": "Krychowiak"},
+            {"pos": "CM", "flag": "ispanya", "name": "Banega"},
+            {"pos": "AM", "flag": "arjantin", "name": "Vitolo"},
+            {"pos": "RW", "flag": "brezilya", "name": "Konoplyanka"},
+            {"pos": "ST", "flag": "ispanya", "name": "Bacca"},
+            {"pos": "LW", "flag": "ukrayna", "name": "Reyes"},
+        ],
+        "options": ["Valencia", "Sevilla", "Villarreal", "Deportivo"],
+        "answer": 1
+    },
+    {
+        "name": "Wolfsburg", "year": "2015", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "avusturya", "name": "Benaglio"},
+            {"pos": "RB", "flag": "isvicre", "name": "Vieirinha"},
+            {"pos": "CB", "flag": "portekiz", "name": "Naldo"},
+            {"pos": "CB", "flag": "brezilya", "name": "Dante"},
+            {"pos": "LB", "flag": "brezilya", "name": "Rodriguez"},
+            {"pos": "CM", "flag": "isvicre", "name": "Guilavogui"},
+            {"pos": "CM", "flag": "fransa", "name": "Gustavo"},
+            {"pos": "CM", "flag": "brezilya", "name": "Arnold"},
+            {"pos": "RW", "flag": "almanya", "name": "De Bruyne"},
+            {"pos": "ST", "flag": "belcika", "name": "Dost"},
+            {"pos": "LW", "flag": "hollanda", "name": "Schurrle"},
+        ],
+        "options": ["Wolfsburg", "Leverkusen", "Schalke", "Werder Bremen"],
+        "answer": 0
+    },
+    {
+        "name": "Bayer Leverkusen", "year": "2002", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Butt"},
+            {"pos": "RB", "flag": "almanya", "name": "Placente"},
+            {"pos": "CB", "flag": "brezilya", "name": "Lucio"},
+            {"pos": "CB", "flag": "almanya", "name": "Nowotny"},
+            {"pos": "LB", "flag": "almanya", "name": "Zivkovic"},
+            {"pos": "CM", "flag": "almanya", "name": "Ramelow"},
+            {"pos": "CM", "flag": "almanya", "name": "Ballack"},
+            {"pos": "AM", "flag": "turkiye", "name": "Basturk"},
+            {"pos": "RW", "flag": "almanya", "name": "Schneider"},
+            {"pos": "ST", "flag": "brezilya", "name": "Neuville"},
+            {"pos": "LW", "flag": "almanya", "name": "Ze Roberto"},
+        ],
+        "options": ["Bayer Leverkusen", "Bayern Munih", "Werder Bremen", "Dortmund"],
+        "answer": 0
+    },
+    {
+        "name": "Schalke", "year": "2011", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Neuer"},
+            {"pos": "RB", "flag": "almanya", "name": "Uchida"},
+            {"pos": "CB", "flag": "japonya", "name": "Metzelder"},
+            {"pos": "CB", "flag": "almanya", "name": "Hoowedes"},
+            {"pos": "LB", "flag": "almanya", "name": "Sarpei"},
+            {"pos": "CM", "flag": "gana", "name": "Jurado"},
+            {"pos": "CM", "flag": "ispanya", "name": "Rakitic"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Farfan"},
+            {"pos": "RW", "flag": "peru", "name": "Raul"},
+            {"pos": "ST", "flag": "ispanya", "name": "Huntelaar"},
+            {"pos": "LW", "flag": "hollanda", "name": "Edu"},
+        ],
+        "options": ["Schalke", "Bayern Munih", "Dortmund", "Werder Bremen"],
+        "answer": 0
+    },
+    {
+        "name": "Trabzonspor", "year": "2011", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Onur Kivrak"},
+            {"pos": "RB", "flag": "turkiye", "name": "Serkan Balci"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Zokora"},
+            {"pos": "CB", "flag": "portekiz", "name": "Rigobert Song"},
+            {"pos": "LB", "flag": "turkiye", "name": "Adrian"},
+            {"pos": "CM", "flag": "brezilya", "name": "Colman"},
+            {"pos": "CM", "flag": "turkiye", "name": "Selcuk Inan"},
+            {"pos": "CM", "flag": "turkiye", "name": "Alanzinho"},
+            {"pos": "AM", "flag": "brezilya", "name": "Umut Bulut"},
+            {"pos": "ST", "flag": "turkiye", "name": "Burak Yilmaz"},
+            {"pos": "ST", "flag": "brezilya", "name": "Halil Altintop"},
+        ],
+        "options": ["Fenerbahce", "Galatasaray", "Trabzonspor", "Besiktas"],
+        "answer": 2
+    },
+    {
+        "name": "Basaksehir", "year": "2019", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Volkan Babacan"},
+            {"pos": "RB", "flag": "turkiye", "name": "Mahmut Tekdemir"},
+            {"pos": "CB", "flag": "kolombiya", "name": "Ponck"},
+            {"pos": "CB", "flag": "turkiye", "name": "Attila Szalai"},
+            {"pos": "LB", "flag": "brezilya", "name": "Junior Caiçara"},
+            {"pos": "CM", "flag": "turkiye", "name": "Emre Belozoglu"},
+            {"pos": "CM", "flag": "turkiye", "name": "Irfan Can Kahveci"},
+            {"pos": "AM", "flag": "bosna", "name": "Visca"},
+            {"pos": "RW", "flag": "senegal", "name": "Demba Ba"},
+            {"pos": "ST", "flag": "kongo", "name": "Adebayor"},
+            {"pos": "LW", "flag": "gana", "name": "Kalu"},
+        ],
+        "options": ["Basaksehir", "Trabzonspor", "Fenerbahce", "Antalyaspor"],
+        "answer": 0
+    },
+    {
+        "name": "Italya Milli", "year": "2012", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Buffon"},
+            {"pos": "RB", "flag": "italya", "name": "Abate"},
+            {"pos": "CB", "flag": "italya", "name": "Barzagli"},
+            {"pos": "CB", "flag": "italya", "name": "Bonucci"},
+            {"pos": "LB", "flag": "italya", "name": "Chiellini"},
+            {"pos": "CM", "flag": "italya", "name": "De Rossi"},
+            {"pos": "CM", "flag": "italya", "name": "Pirlo"},
+            {"pos": "CM", "flag": "italya", "name": "Marchisio"},
+            {"pos": "AM", "flag": "italya", "name": "Montolivo"},
+            {"pos": "ST", "flag": "italya", "name": "Balotelli"},
+            {"pos": "ST", "flag": "italya", "name": "Cassano"},
+        ],
+        "options": ["Italya 2012", "Ispanya 2012", "Almanya 2012", "Fransa 2012"],
+        "answer": 0
+    },
+    {
+        "name": "Ingiltere Milli", "year": "2004", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "ingiltere", "name": "James"},
+            {"pos": "RB", "flag": "ingiltere", "name": "G.Neville"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Terry"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Campbell"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Cole"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Lampard"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Beckham"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Gerrard"},
+            {"pos": "AM", "flag": "ingiltere", "name": "Scholes"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Owen"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Rooney"},
+        ],
+        "options": ["Ingiltere 2004", "Ingiltere 2006", "Portekiz 2004", "Fransa 2004"],
+        "answer": 0
+    },
+    {
+        "name": "Cek Milli", "year": "2004", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "cek", "name": "Cech"},
+            {"pos": "RB", "flag": "cek", "name": "Grygera"},
+            {"pos": "CB", "flag": "cek", "name": "Bolf"},
+            {"pos": "CB", "flag": "cek", "name": "Ujfalusi"},
+            {"pos": "LB", "flag": "cek", "name": "Jankulovski"},
+            {"pos": "CM", "flag": "cek", "name": "Poborsky"},
+            {"pos": "CM", "flag": "cek", "name": "Rosicky"},
+            {"pos": "CM", "flag": "cek", "name": "Galasek"},
+            {"pos": "AM", "flag": "cek", "name": "Nedved"},
+            {"pos": "ST", "flag": "cek", "name": "Baros"},
+            {"pos": "ST", "flag": "cek", "name": "Koller"},
+        ],
+        "options": ["Cek 2004", "Hollanda 2004", "Yunanistan 2004", "Portekiz 2004"],
+        "answer": 0
+    },
+    {
+        "name": "Hollanda Milli", "year": "2014", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "hollanda", "name": "Cillessen"},
+            {"pos": "RB", "flag": "hollanda", "name": "De Vrij"},
+            {"pos": "CB", "flag": "hollanda", "name": "Vlaar"},
+            {"pos": "CB", "flag": "hollanda", "name": "Martins Indi"},
+            {"pos": "LB", "flag": "hollanda", "name": "Blind"},
+            {"pos": "CM", "flag": "hollanda", "name": "De Jong"},
+            {"pos": "CM", "flag": "hollanda", "name": "Wijnaldum"},
+            {"pos": "AM", "flag": "hollanda", "name": "Sneijder"},
+            {"pos": "RW", "flag": "hollanda", "name": "Robben"},
+            {"pos": "ST", "flag": "hollanda", "name": "Van Persie"},
+            {"pos": "LW", "flag": "hollanda", "name": "Depay"},
+        ],
+        "options": ["Hollanda 2014", "Almanya 2014", "Belcika 2014", "Fransa 2014"],
+        "answer": 0
+    },
+    {
+        "name": "Brezilya Milli", "year": "2022", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Alisson"},
+            {"pos": "RB", "flag": "brezilya", "name": "Danilo"},
+            {"pos": "CB", "flag": "brezilya", "name": "Thiago Silva"},
+            {"pos": "CB", "flag": "brezilya", "name": "Marquinhos"},
+            {"pos": "LB", "flag": "brezilya", "name": "Alex Sandro"},
+            {"pos": "CM", "flag": "brezilya", "name": "Casemiro"},
+            {"pos": "CM", "flag": "brezilya", "name": "Fred"},
+            {"pos": "CM", "flag": "brezilya", "name": "Paqueta"},
+            {"pos": "RW", "flag": "brezilya", "name": "Raphinha"},
+            {"pos": "ST", "flag": "brezilya", "name": "Richarlison"},
+            {"pos": "LW", "flag": "brezilya", "name": "Vinicius"},
+        ],
+        "options": ["Arjantin 2022", "Brezilya 2022", "Portekiz 2022", "Fas 2022"],
+        "answer": 1
+    },
+    {
+        "name": "Kolombiya Milli", "year": "2014", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "kolombiya", "name": "Ospina"},
+            {"pos": "RB", "flag": "kolombiya", "name": "Zuniga"},
+            {"pos": "CB", "flag": "kolombiya", "name": "Yepes"},
+            {"pos": "CB", "flag": "kolombiya", "name": "Zapata"},
+            {"pos": "LB", "flag": "kolombiya", "name": "Armero"},
+            {"pos": "CM", "flag": "kolombiya", "name": "Sanchez"},
+            {"pos": "CM", "flag": "kolombiya", "name": "Aguilar"},
+            {"pos": "AM", "flag": "kolombiya", "name": "James Rodriguez"},
+            {"pos": "RW", "flag": "kolombiya", "name": "Cuadrado"},
+            {"pos": "ST", "flag": "kolombiya", "name": "Martinez"},
+            {"pos": "LW", "flag": "kolombiya", "name": "Ibarbo"},
+        ],
+        "options": ["Kolombiya 2014", "Uruguay 2014", "Sili 2014", "Meksika 2014"],
+        "answer": 0
+    },
+    {
+        "name": "Meksika Milli", "year": "2018", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "meksika", "name": "Ochoa"},
+            {"pos": "RB", "flag": "meksika", "name": "Alvarez"},
+            {"pos": "CB", "flag": "meksika", "name": "Salcedo"},
+            {"pos": "CB", "flag": "meksika", "name": "Ayala"},
+            {"pos": "LB", "flag": "meksika", "name": "Gallardo"},
+            {"pos": "CM", "flag": "meksika", "name": "Guardado"},
+            {"pos": "CM", "flag": "meksika", "name": "Herrera"},
+            {"pos": "AM", "flag": "meksika", "name": "Layun"},
+            {"pos": "RW", "flag": "meksika", "name": "Vela"},
+            {"pos": "ST", "flag": "meksika", "name": "Hernandez"},
+            {"pos": "LW", "flag": "meksika", "name": "Lozano"},
+        ],
+        "options": ["Meksika 2018", "ABD 2018", "Kolombiya 2018", "Kanada 2018"],
+        "answer": 0
+    },
+    {
+        "name": "Senegal Milli", "year": "2022", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "senegal", "name": "Mendy"},
+            {"pos": "RB", "flag": "senegal", "name": "Ciss"},
+            {"pos": "CB", "flag": "senegal", "name": "Koulibaly"},
+            {"pos": "CB", "flag": "senegal", "name": "Diallo"},
+            {"pos": "LB", "flag": "senegal", "name": "Jakobs"},
+            {"pos": "CM", "flag": "senegal", "name": "Gueye"},
+            {"pos": "CM", "flag": "senegal", "name": "Nampalys Mendy"},
+            {"pos": "AM", "flag": "senegal", "name": "Ismaila Sarr"},
+            {"pos": "RW", "flag": "senegal", "name": "Cheikhou Kouyate"},
+            {"pos": "ST", "flag": "senegal", "name": "Dia"},
+            {"pos": "LW", "flag": "senegal", "name": "Mane"},
+        ],
+        "options": ["Senegal 2022", "Fas 2022", "Nijerya 2022", "Cezayir 2022"],
+        "answer": 0
+    },
+
+    # ==================== PART 4: 20 ZOR TAKIM (Part 1) ====================
+
+    {
+        "name": "Nottingham Forest", "year": "1979", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "ingiltere", "name": "Shilton"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Anderson"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Burns"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Lloyd"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Clark"},
+            {"pos": "CM", "flag": "iskocya", "name": "McGovern"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Bowyer"},
+            {"pos": "CM", "flag": "iskocya", "name": "Gemmill"},
+            {"pos": "AM", "flag": "ingiltere", "name": "Woodcock"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Francis"},
+            {"pos": "LW", "flag": "iskocya", "name": "Robertson"},
+        ],
+        "options": ["Nottingham Forest", "Liverpool", "Aston Villa", "Everton"],
+        "answer": 0
+    },
+    {
+        "name": "Steaua Bukres", "year": "1986", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "romanya", "name": "Duckadam"},
+            {"pos": "RB", "flag": "romanya", "name": "Iovan"},
+            {"pos": "CB", "flag": "romanya", "name": "Belodedici"},
+            {"pos": "CB", "flag": "romanya", "name": "Bumbescu"},
+            {"pos": "LB", "flag": "romanya", "name": "Barbulescu"},
+            {"pos": "CM", "flag": "romanya", "name": "Balint"},
+            {"pos": "CM", "flag": "romanya", "name": "Boloni"},
+            {"pos": "CM", "flag": "romanya", "name": "Majaru"},
+            {"pos": "AM", "flag": "romanya", "name": "Lacatus"},
+            {"pos": "ST", "flag": "romanya", "name": "Piturca"},
+            {"pos": "LW", "flag": "romanya", "name": "Radu II"},
+        ],
+        "options": ["Barcelona 1986", "Steaua Bukres", "Milan 1986", "Real Madrid 1986"],
+        "answer": 1
+    },
+    {
+        "name": "Kızılyıldız", "year": "1991", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "sirbistan", "name": "Stojanovic"},
+            {"pos": "RB", "flag": "sirbistan", "name": "Belodedici"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Sabanadzovic"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Marovic"},
+            {"pos": "LB", "flag": "sirbistan", "name": "Najdoski"},
+            {"pos": "CM", "flag": "sirbistan", "name": "Jugovic"},
+            {"pos": "CM", "flag": "sirbistan", "name": "Mihajlovic"},
+            {"pos": "CM", "flag": "sirbistan", "name": "Prosinecki"},
+            {"pos": "AM", "flag": "sirbistan", "name": "Savicevic"},
+            {"pos": "ST", "flag": "sirbistan", "name": "Pancev"},
+            {"pos": "LW", "flag": "sirbistan", "name": "Binic"},
+        ],
+        "options": ["Milan 1991", "Kızılyıldız", "Marseille 1991", "Barcelona 1991"],
+        "answer": 1
+    },
+    {
+        "name": "Hamburg", "year": "1983", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "almanya", "name": "Stein"},
+            {"pos": "RB", "flag": "almanya", "name": "Kaltz"},
+            {"pos": "CB", "flag": "almanya", "name": "Hieronymus"},
+            {"pos": "CB", "flag": "danimarka", "name": "Jakobs"},
+            {"pos": "LB", "flag": "almanya", "name": "Wehmeyer"},
+            {"pos": "CM", "flag": "almanya", "name": "Groh"},
+            {"pos": "CM", "flag": "almanya", "name": "Rolff"},
+            {"pos": "CM", "flag": "almanya", "name": "Milewski"},
+            {"pos": "AM", "flag": "almanya", "name": "Magath"},
+            {"pos": "ST", "flag": "almanya", "name": "Hrubesch"},
+            {"pos": "LW", "flag": "danimarka", "name": "Bastrup"},
+        ],
+        "options": ["Hamburg", "Bayern Munih", "Werder Bremen", "Borussia Dortmund"],
+        "answer": 0
+    },
+    {
+        "name": "Aston Villa", "year": "1982", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "ingiltere", "name": "Rimmer"},
+            {"pos": "RB", "flag": "ingiltere", "name": "Swain"},
+            {"pos": "CB", "flag": "ingiltere", "name": "McNaught"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Evans"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Williams"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Bremner"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Mortimer"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Cowans"},
+            {"pos": "AM", "flag": "ingiltere", "name": "Morley"},
+            {"pos": "ST", "flag": "ingiltere", "name": "Withe"},
+            {"pos": "LW", "flag": "ingiltere", "name": "Shaw"},
+        ],
+        "options": ["Aston Villa", "Nottingham Forest", "Liverpool", "Everton"],
+        "answer": 0
+    },
+    {
+        "name": "PSV", "year": "1988", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "hollanda", "name": "Van Breukelen"},
+            {"pos": "RB", "flag": "hollanda", "name": "Gerets"},
+            {"pos": "CB", "flag": "belcika", "name": "Koeman"},
+            {"pos": "CB", "flag": "hollanda", "name": "Nielsen"},
+            {"pos": "LB", "flag": "danimarka", "name": "Heintze"},
+            {"pos": "CM", "flag": "danimarka", "name": "Wouters"},
+            {"pos": "CM", "flag": "hollanda", "name": "Vanenburg"},
+            {"pos": "CM", "flag": "hollanda", "name": "Linskens"},
+            {"pos": "AM", "flag": "hollanda", "name": "Lerby"},
+            {"pos": "ST", "flag": "danimarka", "name": "Kieft"},
+            {"pos": "LW", "flag": "hollanda", "name": "Gillhaus"},
+        ],
+        "options": ["Ajax 1988", "PSV", "Feyenoord 1988", "AZ Alkmaar"],
+        "answer": 1
+    },
+    {
+        "name": "Feyenoord", "year": "1970", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "hollanda", "name": "Pieters Graafland"},
+            {"pos": "RB", "flag": "hollanda", "name": "Romeijn"},
+            {"pos": "CB", "flag": "hollanda", "name": "Israel"},
+            {"pos": "CB", "flag": "hollanda", "name": "Laseroms"},
+            {"pos": "LB", "flag": "hollanda", "name": "Van Duivenbode"},
+            {"pos": "CM", "flag": "hollanda", "name": "Hasil"},
+            {"pos": "CM", "flag": "hollanda", "name": "Jansen"},
+            {"pos": "CM", "flag": "hollanda", "name": "Van Hanegem"},
+            {"pos": "AM", "flag": "hollanda", "name": "Wery"},
+            {"pos": "ST", "flag": "isvec", "name": "Kindvall"},
+            {"pos": "LW", "flag": "hollanda", "name": "Moulijn"},
+        ],
+        "options": ["Ajax 1970", "PSV 1970", "Feyenoord", "Rangers 1970"],
+        "answer": 2
+    },
+    {
+        "name": "Celtic", "year": "1967", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "iskocya", "name": "Simpson"},
+            {"pos": "RB", "flag": "iskocya", "name": "Craig"},
+            {"pos": "CB", "flag": "iskocya", "name": "McNeill"},
+            {"pos": "CB", "flag": "iskocya", "name": "Clark"},
+            {"pos": "LB", "flag": "iskocya", "name": "Gemmell"},
+            {"pos": "CM", "flag": "iskocya", "name": "Murdoch"},
+            {"pos": "CM", "flag": "iskocya", "name": "Auld"},
+            {"pos": "AM", "flag": "iskocya", "name": "Johnstone"},
+            {"pos": "AM", "flag": "iskocya", "name": "Wallace"},
+            {"pos": "ST", "flag": "iskocya", "name": "Chalmers"},
+            {"pos": "LW", "flag": "iskocya", "name": "Lennox"},
+        ],
+        "options": ["Rangers 1967", "Manchester United 1967", "Celtic", "Liverpool 1967"],
+        "answer": 2
+    },
+    {
+        "name": "Nijerya Milli", "year": "1994", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "nijerya", "name": "Rufai"},
+            {"pos": "RB", "flag": "nijerya", "name": "Eguavoen"},
+            {"pos": "CB", "flag": "nijerya", "name": "Iroha"},
+            {"pos": "CB", "flag": "nijerya", "name": "Uche Okechukwu"},
+            {"pos": "LB", "flag": "nijerya", "name": "Adepoju"},
+            {"pos": "CM", "flag": "nijerya", "name": "Okocha"},
+            {"pos": "CM", "flag": "nijerya", "name": "Oliseh"},
+            {"pos": "CM", "flag": "nijerya", "name": "Emenalo"},
+            {"pos": "AM", "flag": "nijerya", "name": "Amokachi"},
+            {"pos": "ST", "flag": "nijerya", "name": "Yekini"},
+            {"pos": "LW", "flag": "nijerya", "name": "Amunike"},
+        ],
+        "options": ["Nijerya 1994", "Kamerun 1994", "Gana 1994", "Fildisi 1994"],
+        "answer": 0
+    },
+    {
+        "name": "Kamerun Milli", "year": "1990", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "kamerun", "name": "N'Kono"},
+            {"pos": "RB", "flag": "kamerun", "name": "Ebwelle"},
+            {"pos": "CB", "flag": "kamerun", "name": "Kunde"},
+            {"pos": "CB", "flag": "kamerun", "name": "Massing"},
+            {"pos": "LB", "flag": "kamerun", "name": "Onana"},
+            {"pos": "CM", "flag": "kamerun", "name": "Mbouh"},
+            {"pos": "CM", "flag": "kamerun", "name": "Libiih"},
+            {"pos": "AM", "flag": "kamerun", "name": "Maboang"},
+            {"pos": "AM", "flag": "kamerun", "name": "Makanaky"},
+            {"pos": "ST", "flag": "kamerun", "name": "Milla"},
+            {"pos": "LW", "flag": "kamerun", "name": "Omam-Biyik"},
+        ],
+        "options": ["Kamerun 1990", "Nijerya 1990", "Mısır 1990", "Cezayir 1990"],
+        "answer": 0
+    },
+    {
+        "name": "Danimarka Milli", "year": "1992", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "danimarka", "name": "Schmeichel"},
+            {"pos": "RB", "flag": "danimarka", "name": "Sivebaek"},
+            {"pos": "CB", "flag": "danimarka", "name": "Nielsen"},
+            {"pos": "CB", "flag": "danimarka", "name": "Olsen"},
+            {"pos": "LB", "flag": "danimarka", "name": "Christofte"},
+            {"pos": "CM", "flag": "danimarka", "name": "Piechnik"},
+            {"pos": "CM", "flag": "danimarka", "name": "Vilfort"},
+            {"pos": "CM", "flag": "danimarka", "name": "Jensen"},
+            {"pos": "AM", "flag": "danimarka", "name": "Larsen"},
+            {"pos": "ST", "flag": "danimarka", "name": "Povlsen"},
+            {"pos": "LW", "flag": "danimarka", "name": "Laudrup"},
+        ],
+        "options": ["Danimarka 1992", "Almanya 1992", "Hollanda 1992", "Isvec 1992"],
+        "answer": 0
+    },
+    {
+        "name": "Bulgaristan Milli", "year": "1994", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "bulgaristan", "name": "Mikhailov"},
+            {"pos": "RB", "flag": "bulgaristan", "name": "Kiryakov"},
+            {"pos": "CB", "flag": "bulgaristan", "name": "Ivanov"},
+            {"pos": "CB", "flag": "bulgaristan", "name": "Hubchev"},
+            {"pos": "LB", "flag": "bulgaristan", "name": "Tzvetanov"},
+            {"pos": "CM", "flag": "bulgaristan", "name": "Yankov"},
+            {"pos": "CM", "flag": "bulgaristan", "name": "Sirakov"},
+            {"pos": "CM", "flag": "bulgaristan", "name": "Balakov"},
+            {"pos": "AM", "flag": "bulgaristan", "name": "Lechkov"},
+            {"pos": "ST", "flag": "bulgaristan", "name": "Stoichkov"},
+            {"pos": "LW", "flag": "bulgaristan", "name": "Kostadinov"},
+        ],
+        "options": ["Bulgaristan 1994", "Romanya 1994", "Isvec 1994", "Rusya 1994"],
+        "answer": 0
+    },
+    {
+        "name": "İsveç Milli", "year": "1994", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "isvec", "name": "Ravelli"},
+            {"pos": "RB", "flag": "isvec", "name": "R.Nilsson"},
+            {"pos": "CB", "flag": "isvec", "name": "P.Andersson"},
+            {"pos": "CB", "flag": "isvec", "name": "Bjorklund"},
+            {"pos": "LB", "flag": "isvec", "name": "Kamark"},
+            {"pos": "CM", "flag": "isvec", "name": "Schwarz"},
+            {"pos": "CM", "flag": "isvec", "name": "Thern"},
+            {"pos": "CM", "flag": "isvec", "name": "Ingesson"},
+            {"pos": "AM", "flag": "isvec", "name": "Mild"},
+            {"pos": "ST", "flag": "isvec", "name": "Brolin"},
+            {"pos": "LW", "flag": "isvec", "name": "Dahlin"},
+        ],
+        "options": ["Isvec 1994", "Norvec 1994", "Danimarka 1994", "Finlandiya 1994"],
+        "answer": 0
+    },
+    {
+        "name": "Türkiye Milli", "year": "1996", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Rustu Recber"},
+            {"pos": "RB", "flag": "turkiye", "name": "Recep Cetin"},
+            {"pos": "CB", "flag": "turkiye", "name": "Alpay Ozalan"},
+            {"pos": "CB", "flag": "turkiye", "name": "Bulent Korkmaz"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ogun Temizkanoglu"},
+            {"pos": "CM", "flag": "turkiye", "name": "Oguz Cetin"},
+            {"pos": "CM", "flag": "turkiye", "name": "Sergen Yalcin"},
+            {"pos": "CM", "flag": "turkiye", "name": "Abdullah Ercan"},
+            {"pos": "AM", "flag": "turkiye", "name": "Arif Erdem"},
+            {"pos": "ST", "flag": "turkiye", "name": "Hakan Sukur"},
+            {"pos": "ST", "flag": "turkiye", "name": "Saffet Sancakli"},
+        ],
+        "options": ["Turkiye 1996", "Turkiye 2000", "Turkiye 2002", "Turkiye 2008"],
+        "answer": 0
+    },
+    {
+        "name": "Türkiye Milli", "year": "2000", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Rustu Recber"},
+            {"pos": "RB", "flag": "turkiye", "name": "Fatih Akyel"},
+            {"pos": "CB", "flag": "turkiye", "name": "Bulent Korkmaz"},
+            {"pos": "CB", "flag": "turkiye", "name": "Alpay Ozalan"},
+            {"pos": "LB", "flag": "turkiye", "name": "Umit Ozat"},
+            {"pos": "CM", "flag": "turkiye", "name": "Emre Belozoglu"},
+            {"pos": "CM", "flag": "turkiye", "name": "Okan Buruk"},
+            {"pos": "CM", "flag": "turkiye", "name": "Sergen Yalcin"},
+            {"pos": "AM", "flag": "turkiye", "name": "Tayfun Korkut"},
+            {"pos": "ST", "flag": "turkiye", "name": "Hakan Sukur"},
+            {"pos": "ST", "flag": "turkiye", "name": "Arif Erdem"},
+        ],
+        "options": ["Turkiye 2000", "Turkiye 1996", "Turkiye 2002", "Turkiye 2008"],
+        "answer": 0
+    },
+    {
+        "name": "İskoçya Milli", "year": "1998", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "iskocya", "name": "Leighton"},
+            {"pos": "RB", "flag": "iskocya", "name": "Burley"},
+            {"pos": "CB", "flag": "iskocya", "name": "Boyd"},
+            {"pos": "CB", "flag": "iskocya", "name": "Weir"},
+            {"pos": "LB", "flag": "iskocya", "name": "Hendry"},
+            {"pos": "CM", "flag": "iskocya", "name": "Lambert"},
+            {"pos": "CM", "flag": "iskocya", "name": "Collins"},
+            {"pos": "CM", "flag": "iskocya", "name": "Dailly"},
+            {"pos": "AM", "flag": "iskocya", "name": "Jackson"},
+            {"pos": "ST", "flag": "iskocya", "name": "Gallacher"},
+            {"pos": "LW", "flag": "iskocya", "name": "Durie"},
+        ],
+        "options": ["Iskocya 1998", "Norvec 1998", "Danimarka 1998", "Fas 1998"],
+        "answer": 0
+    },
+    {
+        "name": "Paraguay Milli", "year": "2010", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "paraguay", "name": "Villar"},
+            {"pos": "RB", "flag": "paraguay", "name": "Veron"},
+            {"pos": "CB", "flag": "paraguay", "name": "Alcaraz"},
+            {"pos": "CB", "flag": "paraguay", "name": "Da Silva"},
+            {"pos": "LB", "flag": "paraguay", "name": "Bonet"},
+            {"pos": "CM", "flag": "paraguay", "name": "Ortigoza"},
+            {"pos": "CM", "flag": "paraguay", "name": "Riveros"},
+            {"pos": "CM", "flag": "paraguay", "name": "Vera"},
+            {"pos": "AM", "flag": "paraguay", "name": "Barrios"},
+            {"pos": "ST", "flag": "paraguay", "name": "Cardozo"},
+            {"pos": "LW", "flag": "paraguay", "name": "Santa Cruz"},
+        ],
+        "options": ["Paraguay 2010", "Uruguay 2010", "Sili 2010", "Bolivya 2010"],
+        "answer": 0
+    },
+    {
+        "name": "Gana Milli", "year": "2010", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "gana", "name": "Kingson"},
+            {"pos": "RB", "flag": "gana", "name": "Pantsil"},
+            {"pos": "CB", "flag": "gana", "name": "Vorsah"},
+            {"pos": "CB", "flag": "gana", "name": "Mensah"},
+            {"pos": "LB", "flag": "gana", "name": "Sarpei"},
+            {"pos": "CM", "flag": "gana", "name": "Annan"},
+            {"pos": "CM", "flag": "gana", "name": "Muntari"},
+            {"pos": "CM", "flag": "gana", "name": "K.P. Boateng"},
+            {"pos": "AM", "flag": "gana", "name": "Ayew"},
+            {"pos": "ST", "flag": "gana", "name": "Gyan"},
+            {"pos": "LW", "flag": "gana", "name": "Tagoe"},
+        ],
+        "options": ["Gana 2010", "Nijerya 2010", "Fildisi 2010", "Cezayir 2010"],
+        "answer": 0
+    },
+    {
+        "name": "Cezayir Milli", "year": "2014", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "cezayir", "name": "M'Bolhi"},
+            {"pos": "RB", "flag": "cezayir", "name": "Mesbah"},
+            {"pos": "CB", "flag": "cezayir", "name": "Halliche"},
+            {"pos": "CB", "flag": "cezayir", "name": "Bougherra"},
+            {"pos": "LB", "flag": "cezayir", "name": "Ghoulam"},
+            {"pos": "CM", "flag": "cezayir", "name": "Medjani"},
+            {"pos": "CM", "flag": "cezayir", "name": "Bentaleb"},
+            {"pos": "CM", "flag": "cezayir", "name": "Taider"},
+            {"pos": "AM", "flag": "cezayir", "name": "Feghouli"},
+            {"pos": "ST", "flag": "cezayir", "name": "Slimani"},
+            {"pos": "LW", "flag": "cezayir", "name": "Brahimi"},
+        ],
+        "options": ["Cezayir 2014", "Fas 2014", "Tunus 2014", "Misir 2014"],
+        "answer": 0
+    },
+    {
+        "name": "Kosta Rika Milli", "year": "2014", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "kostarika", "name": "Navas"},
+            {"pos": "RB", "flag": "kostarika", "name": "Gamboa"},
+            {"pos": "CB", "flag": "kostarika", "name": "Umana"},
+            {"pos": "CB", "flag": "kostarika", "name": "Gonzalez"},
+            {"pos": "LB", "flag": "kostarika", "name": "Duarte"},
+            {"pos": "CM", "flag": "kostarika", "name": "Borges"},
+            {"pos": "CM", "flag": "kostarika", "name": "Tejeda"},
+            {"pos": "AM", "flag": "kostarika", "name": "Bolanos"},
+            {"pos": "RW", "flag": "kostarika", "name": "Ruiz"},
+            {"pos": "ST", "flag": "kostarika", "name": "Campbell"},
+            {"pos": "LW", "flag": "kostarika", "name": "Diaz"},
+        ],
+        "options": ["Kosta Rika 2014", "Meksika 2014", "Honduras 2014", "ABD 2014"],
+        "answer": 0
+    },
+
+    # ==================== PART 5: 20 ZOR TAKIM (Part 2) ====================
+
+    {
+        "name": "Bursaspor", "year": "2010", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Dimitar Ivankov"},
+            {"pos": "RB", "flag": "turkiye", "name": "Ergic"},
+            {"pos": "CB", "flag": "turkiye", "name": "Ali Tandogan"},
+            {"pos": "CB", "flag": "bosna", "name": "Ibrahim Ozturk"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ozer Hurmaci"},
+            {"pos": "CM", "flag": "turkiye", "name": "Ozer"},
+            {"pos": "CM", "flag": "bulgaristan", "name": "Ivan Ergic"},
+            {"pos": "CM", "flag": "hirvatistan", "name": "Volkan Sen"},
+            {"pos": "AM", "flag": "turkiye", "name": "Sercan Yildirim"},
+            {"pos": "ST", "flag": "turkiye", "name": "Turgay Bahadir"},
+            {"pos": "ST", "flag": "senegal", "name": "Ibrahima Yattara"},
+        ],
+        "options": ["Bursaspor", "Trabzonspor", "Konyaspor", "Antalyaspor"],
+        "answer": 0
+    },
+    {
+        "name": "Fiorentina", "year": "1998", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Toldo"},
+            {"pos": "RB", "flag": "italya", "name": "Serena"},
+            {"pos": "CB", "flag": "italya", "name": "Torricelli"},
+            {"pos": "CB", "flag": "hirvatistan", "name": "Padalino"},
+            {"pos": "LB", "flag": "italya", "name": "Amoroso"},
+            {"pos": "CM", "flag": "portekiz", "name": "Rui Costa"},
+            {"pos": "CM", "flag": "italya", "name": "Robbiati"},
+            {"pos": "CM", "flag": "arjantin", "name": "Cois"},
+            {"pos": "AM", "flag": "italya", "name": "Oliveira"},
+            {"pos": "ST", "flag": "arjantin", "name": "Batistuta"},
+            {"pos": "ST", "flag": "brezilya", "name": "Edmundo"},
+        ],
+        "options": ["Roma 1998", "Fiorentina", "Lazio 1998", "Parma 1998"],
+        "answer": 1
+    },
+    {
+        "name": "Parma", "year": "1999", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Buffon"},
+            {"pos": "RB", "flag": "portekiz", "name": "Sensini"},
+            {"pos": "CB", "flag": "arjantin", "name": "Cannavaro"},
+            {"pos": "CB", "flag": "italya", "name": "Thuram"},
+            {"pos": "LB", "flag": "fransa", "name": "Fuser"},
+            {"pos": "CM", "flag": "italya", "name": "Dino Baggio"},
+            {"pos": "CM", "flag": "italya", "name": "Boghossian"},
+            {"pos": "CM", "flag": "fransa", "name": "Veron"},
+            {"pos": "AM", "flag": "arjantin", "name": "Chiesa"},
+            {"pos": "ST", "flag": "italya", "name": "Crespo"},
+            {"pos": "ST", "flag": "arjantin", "name": "Ortega"},
+        ],
+        "options": ["Parma", "Fiorentina 1999", "Roma 1999", "Lazio 1999"],
+        "answer": 0
+    },
+    {
+        "name": "Deportivo La Coruna", "year": "2000", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "ispanya", "name": "Songo'o"},
+            {"pos": "RB", "flag": "kamerun", "name": "Manuel Pablo"},
+            {"pos": "CB", "flag": "ispanya", "name": "Naybet"},
+            {"pos": "CB", "flag": "fas", "name": "Cesar"},
+            {"pos": "LB", "flag": "ispanya", "name": "Romero"},
+            {"pos": "CM", "flag": "arjantin", "name": "Mauro Silva"},
+            {"pos": "CM", "flag": "brezilya", "name": "Fran"},
+            {"pos": "CM", "flag": "ispanya", "name": "Djalminha"},
+            {"pos": "AM", "flag": "brezilya", "name": "Valeron"},
+            {"pos": "ST", "flag": "ispanya", "name": "Makaay"},
+            {"pos": "ST", "flag": "hollanda", "name": "Tristan"},
+        ],
+        "options": ["Valencia 2000", "Deportivo La Coruna", "Sevilla 2000", "Barcelona 2000"],
+        "answer": 1
+    },
+    {
+        "name": "Galatasaray", "year": "1996", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Nezih Aliskan"},
+            {"pos": "RB", "flag": "turkiye", "name": "Ismail Demiriz"},
+            {"pos": "CB", "flag": "turkiye", "name": "Bulent Korkmaz"},
+            {"pos": "CB", "flag": "turkiye", "name": "Mert Korkmaz"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ergun Penbe"},
+            {"pos": "CM", "flag": "romanya", "name": "Hagi"},
+            {"pos": "CM", "flag": "turkiye", "name": "Tugay Kerimoglu"},
+            {"pos": "CM", "flag": "romanya", "name": "Popescu"},
+            {"pos": "AM", "flag": "turkiye", "name": "Arif Erdem"},
+            {"pos": "ST", "flag": "turkiye", "name": "Hakan Sukur"},
+            {"pos": "ST", "flag": "romanya", "name": "Adrian Ilie"},
+        ],
+        "options": ["Galatasaray", "Fenerbahce", "Besiktas", "Trabzonspor"],
+        "answer": 0
+    },
+    {
+        "name": "Fenerbahce", "year": "2001", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Rustu Recber"},
+            {"pos": "RB", "flag": "turkiye", "name": "Fatih Akyel"},
+            {"pos": "CB", "flag": "turkiye", "name": "Bulent Korkmaz"},
+            {"pos": "CB", "flag": "brezilya", "name": "Serkan Kirintili"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ogun Temizkanoglu"},
+            {"pos": "CM", "flag": "brezilya", "name": "Rodrigo Tello"},
+            {"pos": "CM", "flag": "turkiye", "name": "Aziz Bugra"},
+            {"pos": "AM", "flag": "turkiye", "name": "Nouma"},
+            {"pos": "RW", "flag": "fransa", "name": "Kennet Andersson"},
+            {"pos": "ST", "flag": "isvec", "name": "Elvir Bolic"},
+            {"pos": "ST", "flag": "turkiye", "name": "Serhat Akin"},
+        ],
+        "options": ["Fenerbahce", "Galatasaray", "Trabzonspor", "Besiktas"],
+        "answer": 0
+    },
+    {
+        "name": "Besiktas", "year": "2009", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Rustu Recber"},
+            {"pos": "RB", "flag": "turkiye", "name": "Ibrahim Toraman"},
+            {"pos": "CB", "flag": "portekiz", "name": "Ricardo"},
+            {"pos": "CB", "flag": "turkiye", "name": "Sivok"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ibrahim Uzulmez"},
+            {"pos": "CM", "flag": "portekiz", "name": "Ekrem Dag"},
+            {"pos": "CM", "flag": "turkiye", "name": "Serdar Ozkan"},
+            {"pos": "AM", "flag": "portekiz", "name": "Nihat Kahveci"},
+            {"pos": "RW", "flag": "brezilya", "name": "Delgado"},
+            {"pos": "ST", "flag": "turkiye", "name": "Bobo"},
+            {"pos": "ST", "flag": "brezilya", "name": "Yusuf Simsek"},
+        ],
+        "options": ["Besiktas", "Galatasaray", "Fenerbahce", "Trabzonspor"],
+        "answer": 0
+    },
+    {
+        "name": "Trabzonspor", "year": "1976", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "turkiye", "name": "Senol Gunes"},
+            {"pos": "RB", "flag": "turkiye", "name": "Turgay Semercioglu"},
+            {"pos": "CB", "flag": "turkiye", "name": "Cemil Usta"},
+            {"pos": "CB", "flag": "turkiye", "name": "Kadir Ozcan"},
+            {"pos": "LB", "flag": "turkiye", "name": "Ali Kemal Denizci"},
+            {"pos": "CM", "flag": "turkiye", "name": "Ahmet Akcan"},
+            {"pos": "CM", "flag": "turkiye", "name": "Hasan Ozer"},
+            {"pos": "CM", "flag": "turkiye", "name": "Mehmet Turgut"},
+            {"pos": "AM", "flag": "turkiye", "name": "Necati Ozcaglayan"},
+            {"pos": "ST", "flag": "turkiye", "name": "Cemil Turan"},
+            {"pos": "ST", "flag": "turkiye", "name": "Necmi Perekli"},
+        ],
+        "options": ["Trabzonspor", "Fenerbahce", "Galatasaray", "Besiktas"],
+        "answer": 0
+    },
+    {
+        "name": "İtalya Milli", "year": "1994", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "italya", "name": "Pagliuca"},
+            {"pos": "RB", "flag": "italya", "name": "Mussi"},
+            {"pos": "CB", "flag": "italya", "name": "Baresi"},
+            {"pos": "CB", "flag": "italya", "name": "Maldini"},
+            {"pos": "LB", "flag": "italya", "name": "Benarrivo"},
+            {"pos": "CM", "flag": "italya", "name": "Berti"},
+            {"pos": "CM", "flag": "italya", "name": "Albertini"},
+            {"pos": "CM", "flag": "italya", "name": "Donadoni"},
+            {"pos": "AM", "flag": "italya", "name": "Roberto Baggio"},
+            {"pos": "ST", "flag": "italya", "name": "Massaro"},
+            {"pos": "ST", "flag": "italya", "name": "Signori"},
+        ],
+        "options": ["Italya 1994", "Brezilya 1994", "Almanya 1994", "Isvec 1994"],
+        "answer": 0
+    },
+    {
+        "name": "Norveç Milli", "year": "1998", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "norvec", "name": "Grodas"},
+            {"pos": "RB", "flag": "norvec", "name": "Bergdolmo"},
+            {"pos": "CB", "flag": "norvec", "name": "Berg"},
+            {"pos": "CB", "flag": "norvec", "name": "Johnsen"},
+            {"pos": "LB", "flag": "norvec", "name": "Bjornebye"},
+            {"pos": "CM", "flag": "norvec", "name": "Rekdal"},
+            {"pos": "CM", "flag": "norvec", "name": "Leonhardsen"},
+            {"pos": "CM", "flag": "norvec", "name": "Mykland"},
+            {"pos": "AM", "flag": "norvec", "name": "Riseth"},
+            {"pos": "ST", "flag": "norvec", "name": "Solskjaer"},
+            {"pos": "ST", "flag": "norvec", "name": "Flo"},
+        ],
+        "options": ["Norvec 1998", "Isvec 1998", "Danimarka 1998", "Finlandiya 1998"],
+        "answer": 0
+    },
+    {
+        "name": "Yunanistan Milli", "year": "1994", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "yunanistan", "name": "Karkamanis"},
+            {"pos": "RB", "flag": "yunanistan", "name": "Apostolakis"},
+            {"pos": "CB", "flag": "yunanistan", "name": "Kalitzakis"},
+            {"pos": "CB", "flag": "yunanistan", "name": "Karataidis"},
+            {"pos": "LB", "flag": "yunanistan", "name": "Mavridis"},
+            {"pos": "CM", "flag": "yunanistan", "name": "Manolas"},
+            {"pos": "CM", "flag": "yunanistan", "name": "Tsalouchidis"},
+            {"pos": "CM", "flag": "yunanistan", "name": "Nioplias"},
+            {"pos": "AM", "flag": "yunanistan", "name": "Tsiantakis"},
+            {"pos": "ST", "flag": "yunanistan", "name": "Machlas"},
+            {"pos": "ST", "flag": "yunanistan", "name": "Saravakos"},
+        ],
+        "options": ["Yunanistan 1994", "Bulgaristan 1994", "Romanya 1994", "Yunanistan 2004"],
+        "answer": 0
+    },
+    {
+        "name": "Belçika Milli", "year": "1986", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "belcika", "name": "Pfaff"},
+            {"pos": "RB", "flag": "belcika", "name": "Grun"},
+            {"pos": "CB", "flag": "belcika", "name": "Renquin"},
+            {"pos": "CB", "flag": "belcika", "name": "De Wolf"},
+            {"pos": "LB", "flag": "belcika", "name": "Gerets"},
+            {"pos": "CM", "flag": "belcika", "name": "Vercauteren"},
+            {"pos": "CM", "flag": "belcika", "name": "Scifo"},
+            {"pos": "CM", "flag": "belcika", "name": "Vandereycken"},
+            {"pos": "AM", "flag": "belcika", "name": "Ceulemans"},
+            {"pos": "ST", "flag": "belcika", "name": "Claesen"},
+            {"pos": "ST", "flag": "belcika", "name": "Broos"},
+        ],
+        "options": ["Belcika 1986", "Hollanda 1986", "Fransa 1986", "Almanya 1986"],
+        "answer": 0
+    },
+    {
+        "name": "Sırbistan-Karadağ Milli", "year": "2006", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "sirbistan", "name": "Jevric"},
+            {"pos": "RB", "flag": "sirbistan", "name": "Krstajic"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Vidic"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Gavrancic"},
+            {"pos": "LB", "flag": "sirbistan", "name": "Dragutinovic"},
+            {"pos": "CM", "flag": "sirbistan", "name": "Nadj"},
+            {"pos": "CM", "flag": "sirbistan", "name": "Stankovic"},
+            {"pos": "CM", "flag": "sirbistan", "name": "Ilic"},
+            {"pos": "AM", "flag": "sirbistan", "name": "Ljuboja"},
+            {"pos": "ST", "flag": "sirbistan", "name": "Kezman"},
+            {"pos": "ST", "flag": "sirbistan", "name": "Zigic"},
+        ],
+        "options": ["Sirbistan-Karadag 2006", "Hirvatistan 2006", "Bosna 2006", "Cek 2006"],
+        "answer": 0
+    },
+    {
+        "name": "Slovakya Milli", "year": "2010", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "slovakya", "name": "Mucha"},
+            {"pos": "RB", "flag": "slovakya", "name": "Pekarik"},
+            {"pos": "CB", "flag": "slovakya", "name": "Skrtel"},
+            {"pos": "CB", "flag": "slovakya", "name": "Durica"},
+            {"pos": "LB", "flag": "slovakya", "name": "Zabavnik"},
+            {"pos": "CM", "flag": "slovakya", "name": "Kucka"},
+            {"pos": "CM", "flag": "slovakya", "name": "Hamsik"},
+            {"pos": "CM", "flag": "slovakya", "name": "Weiss"},
+            {"pos": "AM", "flag": "slovakya", "name": "Stoch"},
+            {"pos": "ST", "flag": "slovakya", "name": "Vittek"},
+            {"pos": "ST", "flag": "slovakya", "name": "Jendrisek"},
+        ],
+        "options": ["Slovakya 2010", "Slovenya 2010", "Cek 2010", "Sirbistan 2010"],
+        "answer": 0
+    },
+    {
+        "name": "İzlanda Milli", "year": "2016", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "izlanda", "name": "Halldorsson"},
+            {"pos": "RB", "flag": "izlanda", "name": "Saevarsson"},
+            {"pos": "CB", "flag": "izlanda", "name": "R. Sigurdsson"},
+            {"pos": "CB", "flag": "izlanda", "name": "Arnason"},
+            {"pos": "LB", "flag": "izlanda", "name": "Skulason"},
+            {"pos": "CM", "flag": "izlanda", "name": "Gunnarsson"},
+            {"pos": "CM", "flag": "izlanda", "name": "Bjarnason"},
+            {"pos": "AM", "flag": "izlanda", "name": "G. Sigurdsson"},
+            {"pos": "RW", "flag": "izlanda", "name": "Traustason"},
+            {"pos": "ST", "flag": "izlanda", "name": "Sigthorsson"},
+            {"pos": "LW", "flag": "izlanda", "name": "Bodvarsson"},
+        ],
+        "options": ["Izlanda 2016", "Norvec 2016", "Danimarka 2016", "Isvec 2016"],
+        "answer": 0
+    },
+    {
+        "name": "Galler Milli", "year": "2016", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "galler", "name": "Hennessey"},
+            {"pos": "RB", "flag": "galler", "name": "Gunter"},
+            {"pos": "CB", "flag": "galler", "name": "Chester"},
+            {"pos": "CB", "flag": "galler", "name": "A. Williams"},
+            {"pos": "LB", "flag": "galler", "name": "Davies"},
+            {"pos": "CM", "flag": "galler", "name": "Ledley"},
+            {"pos": "CM", "flag": "galler", "name": "Allen"},
+            {"pos": "AM", "flag": "galler", "name": "Ramsey"},
+            {"pos": "RW", "flag": "galler", "name": "Robson-Kanu"},
+            {"pos": "ST", "flag": "galler", "name": "Bale"},
+            {"pos": "LW", "flag": "galler", "name": "Vokes"},
+        ],
+        "options": ["Galler 2016", "Iskocya 2016", "Kuzey irlanda 2016", "Irlanda 2016"],
+        "answer": 0
+    },
+    {
+        "name": "Ekvador Milli", "year": "2014", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "ekvador", "name": "Dominguez"},
+            {"pos": "RB", "flag": "ekvador", "name": "Paredes"},
+            {"pos": "CB", "flag": "ekvador", "name": "Guagua"},
+            {"pos": "CB", "flag": "ekvador", "name": "Erazo"},
+            {"pos": "LB", "flag": "ekvador", "name": "Achilier"},
+            {"pos": "CM", "flag": "ekvador", "name": "Noboa"},
+            {"pos": "CM", "flag": "ekvador", "name": "Antonio Valencia"},
+            {"pos": "CM", "flag": "ekvador", "name": "Minda"},
+            {"pos": "AM", "flag": "ekvador", "name": "E. Valencia"},
+            {"pos": "ST", "flag": "ekvador", "name": "Caicedo"},
+            {"pos": "LW", "flag": "ekvador", "name": "Arroyo"},
+        ],
+        "options": ["Ekvador 2014", "Kolombiya 2014", "Peru 2014", "Sili 2014"],
+        "answer": 0
+    },
+    {
+        "name": "Peru Milli", "year": "2018", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "peru", "name": "Gallese"},
+            {"pos": "RB", "flag": "peru", "name": "Advincula"},
+            {"pos": "CB", "flag": "peru", "name": "Ramos"},
+            {"pos": "CB", "flag": "peru", "name": "Rodriguez"},
+            {"pos": "LB", "flag": "peru", "name": "Trauco"},
+            {"pos": "CM", "flag": "peru", "name": "Yotun"},
+            {"pos": "CM", "flag": "peru", "name": "Tapia"},
+            {"pos": "CM", "flag": "peru", "name": "Aquino"},
+            {"pos": "AM", "flag": "peru", "name": "Cueva"},
+            {"pos": "ST", "flag": "peru", "name": "Guerrero"},
+            {"pos": "LW", "flag": "peru", "name": "Farfan"},
+        ],
+        "options": ["Peru 2018", "Uruguay 2018", "Kolombiya 2018", "Ekvador 2018"],
+        "answer": 0
+    },
+    {
+        "name": "İran Milli", "year": "2014", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "iran", "name": "Haghighi"},
+            {"pos": "RB", "flag": "iran", "name": "Montazeri"},
+            {"pos": "CB", "flag": "iran", "name": "Sadeghi"},
+            {"pos": "CB", "flag": "iran", "name": "Hosseini"},
+            {"pos": "LB", "flag": "iran", "name": "Pooladi"},
+            {"pos": "CM", "flag": "iran", "name": "Nekounam"},
+            {"pos": "CM", "flag": "iran", "name": "Teymourian"},
+            {"pos": "AM", "flag": "iran", "name": "Shojaei"},
+            {"pos": "RW", "flag": "iran", "name": "Dejagah"},
+            {"pos": "ST", "flag": "iran", "name": "Ghoochannejhad"},
+            {"pos": "LW", "flag": "iran", "name": "Jahanbakhsh"},
+        ],
+        "options": ["Iran 2014", "Suudi 2014", "Kore 2014", "Japonya 2014"],
+        "answer": 0
+    },
+    {
+        "name": "Japonya Milli", "year": "2018", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "japonya", "name": "Kawashima"},
+            {"pos": "RB", "flag": "japonya", "name": "Sakai"},
+            {"pos": "CB", "flag": "japonya", "name": "Yoshida"},
+            {"pos": "CB", "flag": "japonya", "name": "Shoji"},
+            {"pos": "LB", "flag": "japonya", "name": "Nagatomo"},
+            {"pos": "CM", "flag": "japonya", "name": "Hasebe"},
+            {"pos": "CM", "flag": "japonya", "name": "Shibasaki"},
+            {"pos": "AM", "flag": "japonya", "name": "Kagawa"},
+            {"pos": "RW", "flag": "japonya", "name": "Honda"},
+            {"pos": "ST", "flag": "japonya", "name": "Osako"},
+            {"pos": "LW", "flag": "japonya", "name": "Inui"},
+        ],
+        "options": ["Japonya 2018", "Kore 2018", "Suudi 2018", "Iran 2018"],
+        "answer": 0
+    },
 ]
+   

@@ -390,3 +390,125 @@ def get_valid_footballer_indices(all_footballers):
         if get_country_key(nat):
             valid.append(i)
     return valid
+
+
+# ==========================================
+# ZORLUK SİSTEMİ
+# ==========================================
+
+# Zor olarak sayılacak uluslar (az bilinen)
+ZOR_ULUSLAR = {
+    "Gine", "Fildisi", "Fildişi", "Kongo", "Gabon", "Togo", "Benin", "Kamerun",
+    "Mali", "Liberya", "Senegal", "Nijerya", "Fas", "Cezayir", "Tunus", "Misir", "Mısır",
+    "Gana", "Kongo DC", "Ekvator Ginesi", "Burkina Faso", "Sierra Leone",
+    "Slovakya", "Slovenya", "Kuzey Makedonya", "Karadag", "Karadağ", "Bosna",
+    "Kosova", "Arnavutluk", "Bulgaristan", "Belarus", "Moldova", "Litvanya", "Letonya", "Estonya",
+    "Sili", "Şili", "Peru", "Paraguay", "Ekvador", "Bolivya", "Venezuela",
+    "Gurcistan", "Gürcistan", "Ermenistan", "Azerbaycan",
+    "Kanada", "Meksika", "ABD", "Jamaika", "Kosta Rika",
+    "Kuzey irlanda", "Kuzey İrlanda", "Iskocya", "İskoçya", "Galler",
+    "Isvicre", "İsviçre", "Avusturya", "Danimarka", "Finlandiya",
+    "Japonya", "G.Kore", "Guney Kore", "Güney Kore", "Cin", "Çin", "Iran", "İran",
+    "Ekvador", "Kongo", "Gabon", "Tunus", "Cezayir",
+    "Kuzey Makedonya", "Bosna Hersek", "Sırbistan", "Sirbistan",
+}
+
+# Kolay olarak sayılacak uluslar (çok bilinen)
+KOLAY_ULUSLAR = {
+    "Brezilya", "Arjantin", "Fransa", "Almanya", "Ispanya", "İspanya",
+    "Italya", "İtalya", "Portekiz", "Ingiltere", "İngiltere", "Hollanda",
+    "Turkiye", "Türkiye", "Belcika", "Belçika", "Uruguay",
+}
+
+# Kolay ligler (büyük ligler)
+KOLAY_LIGLER = {"LaLiga", "Premier", "SerieA", "Bundesliga"}
+
+
+def get_difficulty(footballer):
+    """Bir futbolcunun zorluk seviyesini otomatik belirle"""
+    ballondor = footballer.get('ballondor', False)
+    nationality = footballer.get('nationality', '')
+    league = footballer.get('league', '')
+    goals100 = footballer.get('goals100', False)
+    ucl = footballer.get('ucl', False)
+    worldcup = footballer.get('worldcup', False)
+
+    # KOLAY: Ballon d'Or sahibi, süperstar
+    if ballondor:
+        return 'kolay'
+    
+    # KOLAY: Türk oyuncular (bize tanıdık)
+    if nationality in ['Turkiye', 'Türkiye']:
+        return 'kolay'
+    
+    # KOLAY: Çok bilinen ülke + büyük lig + goal veya UCL
+    if nationality in KOLAY_ULUSLAR and league in KOLAY_LIGLER and (goals100 or ucl):
+        return 'kolay'
+    
+    # KOLAY: Süperstar özellikler birlikte
+    if goals100 and worldcup:
+        return 'kolay'
+    
+    # ZOR: Az bilinen uluslar
+    if nationality in ZOR_ULUSLAR:
+        return 'zor'
+    
+    # ZOR: Süper Lig yabancıları (Türk değilse)
+    if league == 'SuperLig' and nationality not in ['Turkiye', 'Türkiye']:
+        return 'zor'
+    
+    # ZOR: Emekli az bilinen ülke
+    if league == 'Emekli' and nationality not in KOLAY_ULUSLAR:
+        return 'zor'
+    
+    # ORTA: Geri kalan hepsi
+    return 'orta'
+
+
+def get_footballers_by_difficulty(all_footballers, difficulty):
+    """Belirli zorluktaki futbolcuların index listesi"""
+    valid = []
+    for i, f in enumerate(all_footballers):
+        nat = f.get("nationality", "")
+        if not get_country_key(nat):
+            continue  # Ülkesi tanınmayanları atla
+        
+        f_diff = get_difficulty(f)
+        
+        if difficulty == 'karisik':
+            # Karışıkta hepsi geçerli, order oluştururken karar verilecek
+            valid.append(i)
+        elif f_diff == difficulty:
+            valid.append(i)
+    
+    return valid
+
+
+def make_progressive_order(all_footballers, total_rounds=10):
+    """Karışık mod için progresif order oluştur (kolay → orta → zor)"""
+    kolay = get_footballers_by_difficulty(all_footballers, 'kolay')
+    orta = get_footballers_by_difficulty(all_footballers, 'orta')
+    zor = get_footballers_by_difficulty(all_footballers, 'zor')
+    
+    import random as _rnd
+    _rnd.shuffle(kolay)
+    _rnd.shuffle(orta)
+    _rnd.shuffle(zor)
+    
+    order = []
+    # İlk 3: Kolay
+    order.extend(kolay[:min(3, len(kolay))])
+    # 4-6: Orta
+    order.extend(orta[:min(3, len(orta))])
+    # 7-10: Zor
+    order.extend(zor[:min(4, len(zor))])
+    
+    # Eksik varsa doldur
+    while len(order) < total_rounds:
+        all_valid = get_valid_footballer_indices(all_footballers)
+        remaining = [i for i in all_valid if i not in order]
+        if not remaining:
+            break
+        order.append(_rnd.choice(remaining))
+    
+    return order[:total_rounds]

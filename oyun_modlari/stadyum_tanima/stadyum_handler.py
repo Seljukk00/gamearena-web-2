@@ -376,6 +376,27 @@ async def handle_stadyum_message(
     if room.get("mode") != "stadyum_tanima":
         return _handled(current_room_code, current_player_id)
 
+    # UPDATE ROOM SETTINGS
+    if msg_type == "stad_update_settings":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            return _handled(current_room_code, current_player_id)
+
+        try:
+            new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 20)))
+            if new_turn_sec not in [15, 20, 30, 45]:
+                new_turn_sec = 20
+        except:
+            new_turn_sec = 20
+
+        room["turn_seconds"] = new_turn_sec
+
+        await send_stad_lobby_update(room, broadcast)
+        return _handled(current_room_code, current_player_id)
+
     # START
     if msg_type == "stad_start_game":
         if current_player_id != 1:

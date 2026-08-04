@@ -52,6 +52,13 @@ body {
     z-index: 1;
 }
 
+/* Mod Seç ekranı için tam geniş container */
+#modSelectScreen {
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 h1, h2, h3 {
     text-align: center;
 }
@@ -703,59 +710,62 @@ button:disabled {
     color: #868e96;
 }
 
-/* PLAYER LIST */
-#playersList {
+/* PLAYER LIST - Tüm modlar için ortak */
+#playersList,
+#takimPlayersList,
+#mlPlayersList,
+#haritaPlayersList,
+#gizemPlayersList,
+#ilk11PlayersList,
+#stadPlayersList {
     list-style: none;
     padding: 0;
     text-align: center;
     margin: 15px 0;
 }
 
-#playersList li {
+#playersList li,
+#takimPlayersList li,
+#mlPlayersList li,
+#haritaPlayersList li,
+#gizemPlayersList li,
+#ilk11PlayersList li,
+#stadPlayersList li {
     margin: 8px auto;
-    padding: 10px;
+    padding: 10px 15px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     font-size: 17px;
     font-weight: 600;
-    display: grid;
-    grid-template-columns: 45px 20px 12px 1fr;
-    align-items: center;
-    justify-content: center;
-    column-gap: 2px;
     height: 48px;
     min-height: 48px;
     max-height: 48px;
-    max-width: 320px;
+    max-width: 340px;
     overflow: hidden;
-}
-
-#playersList li .kickCell {
-    text-align: center;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
-#playersList li .numCell {
-    text-align: right;
-}
-
-#playersList li .dashCell {
-    text-align: center;
-    opacity: 0.6;
-}
-
-#playersList li .nameCell {
-    text-align: left;
-}
-
-#playersList li.playerMine {
+/* Ortak renkler - tüm modlar için */
+#playersList li.playerMine,
+#takimPlayersList li.playerMine,
+#mlPlayersList li.playerMine,
+#haritaPlayersList li.playerMine,
+#gizemPlayersList li.playerMine,
+#ilk11PlayersList li.playerMine,
+#stadPlayersList li.playerMine {
     color: #51cf66;
     border: 1px solid rgba(81, 207, 102, 0.4);
 }
 
-#playersList li.playerOpp {
+#playersList li.playerOpp,
+#takimPlayersList li.playerOpp,
+#mlPlayersList li.playerOpp,
+#haritaPlayersList li.playerOpp,
+#gizemPlayersList li.playerOpp,
+#ilk11PlayersList li.playerOpp,
+#stadPlayersList li.playerOpp {
     color: #ff6b6b;
     border: 1px solid rgba(255, 107, 107, 0.4);
 }
@@ -956,10 +966,24 @@ button:disabled {
 
 .mod-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
-    max-width: 1000px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    max-width: 1400px;
     margin: 20px auto 30px;
+}
+
+/* Tablet - 2 sütun */
+@media (max-width: 900px) {
+    .mod-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Mobil - 1 sütun */
+@media (max-width: 500px) {
+    .mod-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .mod-card {
@@ -2080,43 +2104,31 @@ body > .container {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Kick Butonu (span olarak) */
+/* Kick Butonu (eski × stili - gizle) */
 .kickBtn {
-    color: #ff6b6b;
-    cursor: pointer;
-    font-size: 28px;
+    display: none !important;
+}
+
+/* Kick Butonu (yeni "Oyuncuyu At" stili) */
+.kickBtnNew {
+    background: #c92a2a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: bold;
-    line-height: 1;
-    opacity: 0.95;
-    transition: color 0.3s ease, text-shadow 0.3s ease;
-    display: inline-block;
-    user-select: none;
-    text-shadow: none;
-    margin-top: -2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    margin-left: 8px;
+    flex-shrink: 0;
 }
 
-.kickBtn:hover {
-    color: #ff1744 !important;
-    opacity: 1;
-    text-shadow:
-        0 0 10px rgba(255, 23, 68, 0.9),
-        0 0 20px rgba(255, 23, 68, 0.7),
-        0 0 30px rgba(255, 23, 68, 0.5);
-    animation: kickPulse 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes kickPulse {
-    from {
-        text-shadow:
-            0 0 10px rgba(255, 23, 68, 0.9),
-            0 0 20px rgba(255, 23, 68, 0.7);
-    }
-    to {
-        text-shadow:
-            0 0 15px rgba(255, 23, 68, 1),
-            0 0 30px rgba(255, 23, 68, 0.9),
-            0 0 45px rgba(255, 23, 68, 0.6);
-    }
+.kickBtnNew:hover {
+    background: #e03131;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(255, 59, 59, 0.4);
 }
 
 /* ==========================================
@@ -2293,4 +2305,26 @@ body > .container {
 .showSecretToggle {
     top: 15px;
     left: 130px;
+}
+
+/* ✨ Davet linki gizliyken renk soluklaşmasın */
+.inviteLink.hiddenLink {
+    opacity: 1 !important;
+    color: #74c0fc !important;
+    letter-spacing: 1px;
+}
+
+/* ✨ Oda kodu gizliyken canlı yeşil */
+.roomCode.hiddenCode {
+    opacity: 1 !important;
+    color: #51cf66 !important;
+    font-weight: bold;
+    letter-spacing: 4px;
+}
+
+/* ✨ Mod seçim ekranı için geniş panel */
+#modSelectScreen.panel {
+    max-width: 95% !important;
+    width: 95% !important;
+    padding: 30px 40px !important;
 }

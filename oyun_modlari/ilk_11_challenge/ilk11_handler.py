@@ -227,33 +227,23 @@ async def ilk11_timer(room, broadcast, safe_send):
         if room.get("phase") != "playing":
             return
 
-        print("[ILK11 TIMER] Süre doldu, eksik takımlar tamamlanıyor")
+        print("[ILK11 TIMER] Süre doldu, mevcut kadrolarla puanlanacak")
 
+        # Otomatik doldurma YOK - herkesin mevcut kadrosu ile devam
         for pid in [1, 2]:
             if room["ilk11_finished"].get(pid):
                 continue
-
-            team = room["ilk11_teams"].get(pid, {})
-            used = room["ilk11_used"].get(pid, set())
-
-            for pos_id in POSITIONS:
-                if pos_id in team:
-                    continue
-
-                pos_type = POSITIONS[pos_id]['type']
-                options = get_options_for_position(pos_type, used, 1)
-                if options:
-                    chosen_idx = options[0]["index"]
-                    team[pos_id] = chosen_idx
-                    used.add(chosen_idx)
-
-            room["ilk11_teams"][pid] = team
-            room["ilk11_used"][pid] = used
+            
             room["ilk11_finished"][pid] = True
-
+            
+            # Sadece süresi biten oyuncuya bildir
+            team = room["ilk11_teams"].get(pid, {})
+            missing_count = 11 - len(team)
+            
             await safe_send(room["players"][pid]["ws"], {
-                "type": "ilk11_auto_completed",
-                "team": team
+                "type": "ilk11_time_up",
+                "message": f"⏰ Süre bitti! {missing_count} pozisyon boş kaldı.",
+                "filled_count": len(team)
             })
 
         await asyncio.sleep(1)
@@ -318,6 +308,7 @@ async def start_ilk11_game(room, safe_send, broadcast):
     room["ilk11_teams"] = {1: {}, 2: {}}
     room["ilk11_used"] = {1: set(), 2: set()}
     room["ilk11_finished"] = {1: False, 2: False}
+    room["ilk11_options_cache"] = {1: {}, 2: {}}
 
     players = [
         {"id": pid, "name": pdata["name"]}
@@ -465,6 +456,27 @@ async def handle_ilk11_message(
     if room.get("mode") != "ilk_11_challenge":
         return _handled(current_room_code, current_player_id)
 
+    # ---------- UPDATE ROOM SETTINGS ----------
+    if msg_type == "ilk11_update_settings":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            return _handled(current_room_code, current_player_id)
+
+        try:
+            new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", ILK11_SURE)))
+            if new_turn_sec not in [60, 90, 120, 180, 240]:
+                new_turn_sec = 120
+        except:
+            new_turn_sec = 120
+
+        room["turn_seconds"] = new_turn_sec
+
+        await send_ilk11_lobby_update(room, broadcast)
+        return _handled(current_room_code, current_player_id)
+
     # ---------- START ----------
     if msg_type == "ilk11_start_game":
         if current_player_id != 1:
@@ -490,9 +502,32 @@ async def handle_ilk11_message(
             await safe_send(websocket, {"type": "error", "message": "Bu pozisyon zaten dolu."})
             return _handled(current_room_code, current_player_id)
 
+        # Önbellekten kontrol (aynı mevkiye aynı seçenekler)
+        if "ilk11_options_cache" not in room:
+            room["ilk11_options_cache"] = {1: {}, 2: {}}
+        
+        cache = room["ilk11_options_cache"][current_player_id]
+        
+        # Önbellekte varsa ve seçenekler hala geçerliyse (used'da değilse) kullan
         used = room["ilk11_used"].get(current_player_id, set())
+        
+        if pos_id in cache:
+            cached_options = cache[pos_id]
+            # Cache'deki bir futbolcu artık başka pozisyonda seçilmişse geçersiz
+            still_valid = all(opt["index"] not in used for opt in cached_options)
+            if still_valid:
+                await safe_send(websocket, {
+                    "type": "ilk11_options",
+                    "pos_id": pos_id,
+                    "pos_name": POSITIONS[pos_id]['name'],
+                    "options": cached_options
+                })
+                return _handled(current_room_code, current_player_id)
+        
+        # Cache yok veya geçersiz → yeni üret
         pos_type = POSITIONS[pos_id]['type']
         options = get_options_for_position(pos_type, used, 5)
+        cache[pos_id] = options
 
         await safe_send(websocket, {
             "type": "ilk11_options",
@@ -530,6 +565,12 @@ async def handle_ilk11_message(
         used.add(f_index)
         room["ilk11_teams"][current_player_id] = team
         room["ilk11_used"][current_player_id] = used
+        
+        # Cache'den bu pozisyonu temizle (artık dolu)
+        if "ilk11_options_cache" in room:
+            cache = room["ilk11_options_cache"].get(current_player_id, {})
+            if pos_id in cache:
+                del cache[pos_id]
 
         f = ALL_FOOTBALLERS[f_index]
         count = len(team)

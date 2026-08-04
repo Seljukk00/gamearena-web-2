@@ -85,10 +85,34 @@ document.getElementById("gizemStartBtn").onclick = () => {
 };
 
 document.getElementById("gizemLobbyLeaveBtn").onclick = () => {
-    if (confirm("Odadan ayrılmak istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
+};
+
+// Oda Ayarları butonu
+document.getElementById("gizemRoomSettingsBtn").onclick = () => {
+    window.openRoomSettingsGeneric({
+        title: "Gizemli Kariyer - Oda Ayarları",
+        fields: [
+            {
+                id: "turnSec",
+                label: "⏱️ Tur Süresi",
+                current: gizemData.turnSeconds || 60,
+                options: [
+                    {value: 30, label: "30 saniye"},
+                    {value: 45, label: "45 saniye"},
+                    {value: 60, label: "60 saniye"},
+                    {value: 90, label: "90 saniye"},
+                    {value: 120, label: "120 saniye"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "gizem_update_settings",
+                turn_seconds: parseInt(values.turnSec) || 60
+            });
+        }
+    });
 };
 
 const gizemRoomHelper = window.setupRoomCodeAndLink({
@@ -98,15 +122,13 @@ const gizemRoomHelper = window.setupRoomCodeAndLink({
     linkTextId: "gizemInviteLinkText",
     linkEyeBtnId: "gizemInviteLinkEyeBtn",
     linkHintId: "gizemInviteLinkHint",
-    getRoomCode: () => gizemData.roomCode
+    getRoomCode: () => gizemData.roomCode,
+    getPlayerId: () => gizemData.playerId
 });
 
 // Oyun butonları
 document.getElementById("gizemBackBtn").onclick = () => {
-    if (confirm("Ana menüye dönmek istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
 };
 
 document.getElementById("gizemBackToMenuBtn").onclick = () => {
@@ -192,10 +214,24 @@ function updateGizemLobby() {
     list.innerHTML = "";
     gizemData.players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${p.id}. ${p.name}`;
+        
+        const nameCell = document.createElement("span");
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === gizemData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        li.appendChild(nameCell);
+        
+        if (p.id !== gizemData.playerId && gizemData.playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
+        
         if (p.id === gizemData.playerId) {
             li.classList.add("playerMine");
-            li.textContent += " (Sen)";
         } else {
             li.classList.add("playerOpp");
         }
@@ -217,6 +253,12 @@ function updateGizemLobby() {
         startBtn.classList.add("hidden");
         msg.textContent = "Host bekleniyor...";
         msg.style.color = "#51cf66";
+    }
+    
+    const settingsBtn = document.getElementById("gizemRoomSettingsBtn");
+    if (settingsBtn) {
+        if (gizemData.playerId === 1) settingsBtn.classList.remove("hidden");
+        else settingsBtn.classList.add("hidden");
     }
 }
 
@@ -496,31 +538,7 @@ handleMessage = function(msg) {
     _prevHandleMessageGizem(msg);
 };
 
-// room_mode_result için gizem desteği
-const _origHandleForModeGizem = handleMessage;
-handleMessage = function(msg) {
-    if (msg.type === "room_mode_result") {
-        if (!msg.found) {
-            setMsg(joinMsg, "Oda bulunamadı.", "#ff6b6b");
-            return;
-        }
-        const name = joinNameInput.value.trim();
-        const code = msg.room_code;
-        if (msg.mode === "takim_bilmece") {
-            send({ type: "takim_join_room", name: name, room_code: code });
-        } else if (msg.mode === "kim_milyoner") {
-            send({ type: "ml_join_room", name: name, room_code: code });
-        } else if (msg.mode === "haritadan_bul") {
-            send({ type: "harita_join_room", name: name, room_code: code });
-        } else if (msg.mode === "gizemli_kariyer") {
-            send({ type: "gizem_join_room", name: name, room_code: code });
-        } else {
-            send({ type: "join_room", name: name, room_code: code });
-        }
-        return;
-    }
-    _origHandleForModeGizem(msg);
-};
+// (Bu blok silindi - app.js zaten room_mode_result işliyor)
 
 // Başlangıçta popup'ları kapat
 document.getElementById("gizemGameOverBox").classList.add("hidden");

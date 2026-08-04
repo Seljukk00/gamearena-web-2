@@ -78,10 +78,34 @@ document.getElementById("ilk11StartBtn").onclick = () => {
 };
 
 document.getElementById("ilk11LobbyLeaveBtn").onclick = () => {
-    if (confirm("Odadan ayrılmak istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
+};
+
+// Oda Ayarları butonu
+document.getElementById("ilk11RoomSettingsBtn").onclick = () => {
+    window.openRoomSettingsGeneric({
+        title: "İlk 11 - Oda Ayarları",
+        fields: [
+            {
+                id: "turnSec",
+                label: "⏱️ Kadro Süresi",
+                current: ilk11Data.turnSeconds || 120,
+                options: [
+                    {value: 60, label: "60 saniye"},
+                    {value: 90, label: "90 saniye"},
+                    {value: 120, label: "120 saniye"},
+                    {value: 180, label: "180 saniye"},
+                    {value: 240, label: "240 saniye"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "ilk11_update_settings",
+                turn_seconds: parseInt(values.turnSec) || 120
+            });
+        }
+    });
 };
 
 const ilk11RoomHelper = window.setupRoomCodeAndLink({
@@ -91,14 +115,12 @@ const ilk11RoomHelper = window.setupRoomCodeAndLink({
     linkTextId: "ilk11InviteLinkText",
     linkEyeBtnId: "ilk11InviteLinkEyeBtn",
     linkHintId: "ilk11InviteLinkHint",
-    getRoomCode: () => ilk11Data.roomCode
+    getRoomCode: () => ilk11Data.roomCode,
+    getPlayerId: () => ilk11Data.playerId
 });
 
 document.getElementById("ilk11BackBtn").onclick = () => {
-    if (confirm("Ana menüye dönmek istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
 };
 
 document.getElementById("ilk11BackToMenuBtn").onclick = () => {
@@ -127,10 +149,24 @@ function updateIlk11Lobby() {
     list.innerHTML = "";
     ilk11Data.players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${p.id}. ${p.name}`;
+        
+        const nameCell = document.createElement("span");
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === ilk11Data.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        li.appendChild(nameCell);
+        
+        if (p.id !== ilk11Data.playerId && ilk11Data.playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
+        
         if (p.id === ilk11Data.playerId) {
             li.classList.add("playerMine");
-            li.textContent += " (Sen)";
         } else {
             li.classList.add("playerOpp");
         }
@@ -152,6 +188,12 @@ function updateIlk11Lobby() {
         startBtn.classList.add("hidden");
         msg.textContent = "Host bekleniyor...";
         msg.style.color = "#51cf66";
+    }
+    
+    const settingsBtn = document.getElementById("ilk11RoomSettingsBtn");
+    if (settingsBtn) {
+        if (ilk11Data.playerId === 1) settingsBtn.classList.remove("hidden");
+        else settingsBtn.classList.add("hidden");
     }
 }
 
@@ -404,10 +446,10 @@ function renderIlk11MiniField(containerId, teamData, borderColor) {
     if (!container) return;
     container.innerHTML = "";
 
-    const fw = container.offsetWidth || 380;
-    const fh = container.offsetHeight || 350;
-    const slotW = 62;
-    const slotH = 75;
+    const fw = container.offsetWidth || 400;
+    const fh = container.offsetHeight || 540;
+    const slotW = 75;
+    const slotH = 92;
 
     teamData.forEach(player => {
         const posData = ILK11_POSITIONS[player.pos_id];
@@ -415,16 +457,12 @@ function renderIlk11MiniField(containerId, teamData, borderColor) {
 
         const slot = document.createElement("div");
         slot.className = "ilk11MiniSlot";
+        slot.style.borderColor = borderColor;
 
         const px = posData.x * fw - slotW / 2;
         const py = posData.y * fh - slotH / 2;
         slot.style.left = px + "px";
         slot.style.top = py + "px";
-        slot.style.border = `2px solid ${borderColor}`;
-        slot.style.background = "rgba(0,0,0,0.5)";
-        slot.style.borderRadius = "6px";
-        slot.style.position = "absolute";
-        slot.style.textAlign = "center";
 
         if (player.index >= 0) {
             const ratingDiv = document.createElement("div");
@@ -440,14 +478,16 @@ function renderIlk11MiniField(containerId, teamData, borderColor) {
 
             const nameDiv = document.createElement("div");
             nameDiv.className = "ilk11MiniName";
-            nameDiv.textContent = (player.name || "").substring(0, 8);
+            nameDiv.textContent = (player.name || "").substring(0, 10);
             slot.appendChild(nameDiv);
         } else {
-            slot.style.opacity = "0.3";
+            slot.style.opacity = "0.35";
             const posName = document.createElement("div");
             posName.style.color = "white";
-            posName.style.fontSize = "11px";
-            posName.style.marginTop = "25px";
+            posName.style.fontSize = "10px";
+            posName.style.marginTop = "auto";
+            posName.style.marginBottom = "auto";
+            posName.style.padding = "8px 2px";
             posName.textContent = player.pos_name || player.pos_id;
             slot.appendChild(posName);
         }
@@ -566,10 +606,17 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "ilk11_auto_completed") {
-        addIlk11Log("⏰ Süre doldu! Eksik pozisyonlar otomatik dolduruldu.");
+        addIlk11Log("⏰ Süre doldu!");
         document.getElementById("ilk11StatusMsg").textContent =
-            "⏰ Süre bitti! Kadron otomatik tamamlandı.";
+            "⏰ Süre bitti!";
         document.getElementById("ilk11StatusMsg").style.color = "#ffa94d";
+        return;
+    }
+    
+    if (msg.type === "ilk11_time_up") {
+        addIlk11Log(msg.message || "⏰ Süre doldu!");
+        document.getElementById("ilk11StatusMsg").textContent = msg.message || "⏰ Süre bitti!";
+        document.getElementById("ilk11StatusMsg").style.color = "#ff6b6b";
         return;
     }
 

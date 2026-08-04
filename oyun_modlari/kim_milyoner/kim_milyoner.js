@@ -186,20 +186,20 @@ function showAudienceAnimated(finalResult) {
 
 // Telefon jokeri - Popup göster
 const PHONE_CONTACTS = [
-    { name: "🧠 Bilge Amca", desc: "Emekli tarih öğretmeni", reliable: true },
-    { name: "⚽ Futbolcu Kuzen", desc: "Amatör lig oyuncusu", reliable: true },
-    { name: "📚 Kitap Kurdu Ayşe", desc: "Kütüphaneci", reliable: true },
-    { name: "🎓 Profesör Cemal", desc: "Üniversite hocası", reliable: true },
-    { name: "🎯 Zeki Kardeş", desc: "IQ testleri şampiyonu", reliable: true },
-    { name: "📺 Yarışma Bağımlısı Anne", desc: "Bilgi yarışmalarını izler", reliable: true },
-    { name: "🎪 Palyaço Mesut", desc: "Sirkte çalışıyor", reliable: false },
-    { name: "🍺 Meyhaneci Hasan", desc: "Genelde sarhoş", reliable: false },
-    { name: "🎣 Balıkçı Rıza", desc: "Denizden başka bir şey bilmez", reliable: false },
-    { name: "😴 Uykucu Fatma Teyze", desc: "Her zaman yorgun", reliable: false },
-    { name: "🃏 Kumarbaz Selim", desc: "Hep tahmin eder", reliable: false },
-    { name: "🔮 Falcı Neriman", desc: "Kahve fincanına bakar", reliable: false },
-    { name: "🎮 Oyuncu Kerem", desc: "Sadece oyun oynar", reliable: false },
-    { name: "💇 Kuaför Şükran", desc: "Herkesin dedikodusunu bilir", reliable: false }
+    { name: "🧠 Bilge Amca", desc: "Emekli tarih öğretmeni" },
+    { name: "⚽ Futbolcu Kuzen", desc: "20 Senedir Bal ligi oyuncusu" },
+    { name: "📚 Kütüphaneci Ayşe", desc: "5 senedir Mezun" },
+    { name: "🎓 Profesör Cemal", desc: "Üniversite hocası" },
+    { name: "🎯 Zeki Dayım", desc: "Annemin Dolandırıcısı" },
+    { name: "📺 Annem", desc: "Bilgi yarışmalarını kaçırmaz" },
+    { name: "🎪 Caky TV", desc: "Demokratik Kongolu Bir Yayıncı" },
+    { name: "🍺 Minnak Başkan", desc: "Bilgi Yarışmalarının Mumla Aranan Adamı" },
+    { name: "🎣 Balıkçı Rıza", desc: "Denizden başka bir şey bilmez" },
+    { name: "😴 Neriman Halam", desc: "Annemin Baş Düşmanı" },
+    { name: "🃏 Kumarbaz Selim", desc: "Kumarbazın Teki" },
+    { name: "🔮 Falcı Neriman", desc: "Mahalle Dolandırıcısı" },
+    { name: "🎮 GAYmer Kerem", desc: "Sabah Akşam LoL oynar" },
+    { name: "💇 Kuaför Fatma Teyze", desc: "Herkesin dedikodusunu Yapar" }
 ];
 
 function showPhoneBox() {
@@ -207,13 +207,17 @@ function showPhoneBox() {
     const list = document.getElementById("mlPhoneList");
     const answerBox = document.getElementById("mlPhoneAnswer");
     
-    // 5 rastgele kişi seç (en az 1 güvenilir olsun)
-    const reliable = PHONE_CONTACTS.filter(c => c.reliable);
-    const unreliable = PHONE_CONTACTS.filter(c => !c.reliable);
-    const shuffled = [
-        ...reliable.sort(() => Math.random() - 0.5).slice(0, 3),
-        ...unreliable.sort(() => Math.random() - 0.5).slice(0, 2)
-    ].sort(() => Math.random() - 0.5);
+    // 5 rastgele karakter seç (isim önemsiz)
+    const shuffled = PHONE_CONTACTS.slice()
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 5);
+    
+    // 5 kişiden 1 tanesi "kötü" (%20 doğru), 4'ü "iyi" (%80 doğru)
+    // Kötü olan index rastgele seçilir
+    const badIndex = Math.floor(Math.random() * 5);
+    shuffled.forEach((c, i) => {
+        c._isBad = (i === badIndex);
+    });
     
     // Liste doldur
     list.innerHTML = "";
@@ -244,8 +248,8 @@ function callPhoneContact(contact, allContacts) {
         el.classList.add("disabled");
     });
     
-    // Backend'e söyle joker kullanıldı
-    send({ type: "ml_joker", joker: "phone", reliable: contact.reliable });
+    // Backend'e söyle: isBad true ise kötü karakter (%20 doğru), false ise iyi (%80 doğru)
+    send({ type: "ml_joker", joker: "phone", is_bad: contact._isBad });
     
     // Loading göster
     const answerBox = document.getElementById("mlPhoneAnswer");
@@ -360,7 +364,34 @@ document.getElementById("createMlBtn").onclick = () => {
 
 document.getElementById("createMlBackBtn").onclick = () => showScreen("modselect");
 document.getElementById("mlStartBtn").onclick = () => send({ type: "ml_start_game" });
-document.getElementById("mlLobbyLeaveBtn").onclick = () => { if (confirm("Ayrılmak istediğine emin misin?")) { stopAllMlSounds(); location.reload(); } };
+document.getElementById("mlLobbyLeaveBtn").onclick = () => { showEscPopup(); };
+
+// Oda Ayarları butonu
+document.getElementById("mlRoomSettingsBtn").onclick = () => {
+    window.openRoomSettingsGeneric({
+        title: "Kim Milyoner - Oda Ayarları",
+        fields: [
+            {
+                id: "turnSec",
+                label: "⏱️ Tur Süresi",
+                current: mlData.turnSeconds || 60,
+                options: [
+                    {value: 15, label: "15 saniye"},
+                    {value: 30, label: "30 saniye"},
+                    {value: 45, label: "45 saniye"},
+                    {value: 60, label: "60 saniye"},
+                    {value: 120, label: "120 saniye"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "ml_update_settings",
+                turn_seconds: parseInt(values.turnSec) || 60
+            });
+        }
+    });
+};
 // Ortak setup
 const mlRoomHelper = window.setupRoomCodeAndLink({
     codeTextId: "mlRoomCodeText",
@@ -369,9 +400,10 @@ const mlRoomHelper = window.setupRoomCodeAndLink({
     linkTextId: "mlInviteLinkText",
     linkEyeBtnId: "mlInviteLinkEyeBtn",
     linkHintId: "mlInviteLinkHint",
-    getRoomCode: () => mlData.roomCode
+    getRoomCode: () => mlData.roomCode,
+    getPlayerId: () => mlData.playerId
 });
-document.getElementById("mlBackBtn").onclick = () => { if (confirm("Menüye dönülsün mü?")) location.reload(); };
+document.getElementById("mlBackBtn").onclick = () => { showEscPopup(); };
 document.getElementById("mlBackToMenuBtn").onclick = () => location.reload();
 document.getElementById("mlRematchBtn").onclick = () => { document.getElementById("mlGameOverBox").classList.add("hidden"); send({ type: "ml_rematch" }); };
 
@@ -425,12 +457,44 @@ function updateMlLobby() {
         aiStatusEl.style.color = mlData.aiReady ? "#51cf66" : "#ffa94d";
     }
     const list = document.getElementById("mlPlayersList");
-    list.innerHTML = mlData.players.map(p => `<li class="${p.id === mlData.playerId ? 'playerMine':'playerOpp'}">${p.id}. ${p.name}${p.id===mlData.playerId?' (Sen)':''}</li>`).join("");
+    list.innerHTML = "";
+    mlData.players.forEach(p => {
+        const li = document.createElement("li");
+        
+        const nameCell = document.createElement("span");
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === mlData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        li.appendChild(nameCell);
+        
+        if (p.id !== mlData.playerId && mlData.playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
+        
+        if (p.id === mlData.playerId) {
+            li.classList.add("playerMine");
+        } else {
+            li.classList.add("playerOpp");
+        }
+        list.appendChild(li);
+    });
     const startBtn = document.getElementById("mlStartBtn");
     if (mlData.playerId === 1) {
         startBtn.classList.remove("hidden");
         startBtn.disabled = !mlData.aiReady || mlData.players.length < 2;
         startBtn.style.opacity = startBtn.disabled ? "0.5" : "1";
+    }
+    
+    // Oda Ayarları butonu - sadece host
+    const settingsBtn = document.getElementById("mlRoomSettingsBtn");
+    if (settingsBtn) {
+        if (mlData.playerId === 1) settingsBtn.classList.remove("hidden");
+        else settingsBtn.classList.add("hidden");
     }
 }
 

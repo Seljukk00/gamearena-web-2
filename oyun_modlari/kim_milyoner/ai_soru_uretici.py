@@ -6,8 +6,11 @@ Google Gemini API ile Türkçe soru üretir (yeni google-genai paketi)
 import os
 import json
 import asyncio
+import random
+import time
 from dotenv import load_dotenv
 from google import genai
+from google.genai import types
 
 # .env dosyasından key yükle
 load_dotenv()
@@ -45,12 +48,52 @@ DIFFICULTY_PROFILES = {
 def build_prompt(category, difficulty="karisik"):
     """Gemini için prompt oluştur"""
 
+    # Rastgele futbol alt konuları (her seferinde farklı odak)
+    futbol_odaklar = [
+        "Türkiye Süper Ligi tarihi ve güncel takımlar",
+        "Şampiyonlar Ligi finalleri ve efsane maçlar",
+        "Dünya Kupası tarihi ve unutulmaz anlar",
+        "Avrupa büyük ligleri (Premier, LaLiga, Serie A, Bundesliga)",
+        "Efsane futbolcular ve teknik direktörler",
+        "Milli takımlar ve EURO tarihi",
+        "Transfer rekorları ve Ballon d'Or tarihi",
+        "Türk futbolcuların Avrupa serüvenleri",
+        "Fenerbahçe, Galatasaray, Beşiktaş tarihi",
+        "Copa America ve Güney Amerika futbolu",
+        "Modern futbol yıldızları (2020 sonrası)",
+        "Emekli futbol efsaneleri (1990-2010 arası)"
+    ]
+    
+    genel_odaklar = [
+        "Türkiye tarihi ve coğrafyası",
+        "Bilim ve teknoloji",
+        "Edebiyat ve şiir",
+        "Sinema ve dizi",
+        "Müzik ve sanat",
+        "Dünya tarihi",
+        "Astronomi ve uzay",
+        "Türkçe edebiyatı ve yazarlar",
+        "İcatlar ve buluşlar",
+        "Coğrafya ve ülkeler",
+        "Sanat tarihi",
+        "Popüler kültür"
+    ]
+
     if category == "futbol":
-        topic = "futbol (Türkiye Süper Ligi, Avrupa futbolu, Dünya Kupası, Şampiyonlar Ligi, meşhur futbolcular, teknik direktörler)"
+        # Rastgele 4 alt odak seç
+        secilen = random.sample(futbol_odaklar, 4)
+        topic = f"futbol. Bu sorularda özellikle şu konulara odaklan: {', '.join(secilen)}"
     elif category == "genel_kultur":
-        topic = "genel kültür (Türkiye tarihi, coğrafya, bilim, edebiyat, sanat, müzik, sinema)"
+        secilen = random.sample(genel_odaklar, 4)
+        topic = f"genel kültür. Bu sorularda özellikle şu konulara odaklan: {', '.join(secilen)}"
     else:
-        topic = "6 tanesi futbol, 6 tanesi genel kültür karışık"
+        secilen_f = random.sample(futbol_odaklar, 2)
+        secilen_g = random.sample(genel_odaklar, 2)
+        topic = f"6 tanesi futbol ({', '.join(secilen_f)}), 6 tanesi genel kültür ({', '.join(secilen_g)}) karışık"
+
+    # Rastgele seed (her seferinde farklı sorular için)
+    random_seed = random.randint(10000, 999999)
+    timestamp = int(time.time())
 
     # Zorluk dağılımını al
     dist = DIFFICULTY_PROFILES.get(difficulty, DIFFICULTY_PROFILES["karisik"])
@@ -69,6 +112,8 @@ def build_prompt(category, difficulty="karisik"):
 
     prompt = f"""Sen bir "Kim Milyoner Olmak İster?" oyununun soru hazırlayıcısısın.
 
+[Session ID: {random_seed}-{timestamp}]
+
 12 tane TÜRKÇE soru üret. Konu: {topic}
 
 ZORLUK PROFİLİ: {difficulty.upper()}
@@ -80,14 +125,27 @@ ZORLUK DAĞILIMI:
 - {dist['zor']} ZOR (uzmanlık gerektirir)
 - {dist['cok_zor']} ÇOK ZOR (nadir bilinir)
 
-KURALLAR:
+⚠️ ÇOK ÖNEMLİ — YARATICILIK KURALLARI:
+- YAPMAK ZORUNDA olduğun: HER SEFERİNDE FARKLI sorular üret. Aynı soruları tekrar etme!
+- KAÇINACAKLARIN (klişe sorular — kesinlikle sorma):
+  * "Türkiye'nin başkenti neresidir?"
+  * "Bir futbol takımı sahada kaç oyuncu ile oynar?"
+  * "İstanbul'un fethi hangi yıldadır?"
+  * "Süper Lig'de kaç takım var?"
+  * "Türkiye'nin en yüksek dağı hangisidir?"
+  * "En son Dünya Kupası'nı kim kazandı?"
+  * "Fenerbahçe/Galatasaray/Beşiktaş kaç yılında kuruldu?"
+- Az bilinen, ilginç, düşündürücü sorular sor
+- Rastgele ve orijinal ol — 12 farklı konuya değin
+- Aynı takım/kişi/yıl 3'ten fazla soruda geçmesin
+
+DİĞER KURALLAR:
 1. Her soru 4 şıklı olsun (A, B, C, D)
 2. Sadece 1 doğru cevap
-3. Şıklar mantıklı olsun (rastgele olmasın)
+3. Şıklar mantıklı ve karıştırıcı olsun
 4. Türkiye ile ilgili sorular ağırlıklı olsun
-5. Güncel bilgiler (son 5 yıl) kullan
-6. Klişe sorulardan kaçın
-7. Sorular birbirini tekrar etmesin
+5. Farklı zamanları kapsa (eski + yeni karışık)
+6. Sorular birbirini tekrar etmesin, çeşitlendir!
 
 CEVAP FORMATI - Sadece geçerli JSON dön, başka hiçbir şey yazma:
 
@@ -108,6 +166,8 @@ CEVAP FORMATI - Sadece geçerli JSON dön, başka hiçbir şey yazma:
 - Şıkların başında "A) ", "B) ", "C) ", "D) " olsun
 - "cevap" alanı sadece harf olsun
 - "zorluk" alanı: "kolay", "orta", "zor", "cok_zor" değerlerinden biri
+
+Session ID {random_seed} için ÖZGÜN sorular üret. Önceki oturumlardan farklı olsun.
 """
     return prompt
 
@@ -170,9 +230,16 @@ def generate_questions_sync(category="futbol", difficulty="karisik"):
         print(f"[AI] Soru üretiliyor... Kategori: {category} | Zorluk: {difficulty}")
         prompt = build_prompt(category, difficulty)
 
+        # Yaratıcılık için yüksek temperature + rastgele seed
         response = _client.models.generate_content(
             model=MODEL_NAME,
-            contents=prompt
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=1.2,        # Yüksek yaratıcılık (0.0-2.0 arası)
+                top_p=0.95,             # Daha çeşitli cevaplar
+                top_k=40,               # Cevap havuzu büyük
+                max_output_tokens=4096  # Yeterli uzunluk
+            )
         )
 
         if not response or not response.text:

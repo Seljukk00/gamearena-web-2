@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.css">
     <link rel="stylesheet" href="/oyun_modlari/ilk_11_challenge/ilk_11.css">
     <link rel="stylesheet" href="/oyun_modlari/stadyum_tanima/stadyum_tanima.css">
+    <link rel="stylesheet" href="/oyun_modlari/meme_arena/meme_arena.css">
+    <link rel="stylesheet" href="/oyun_modlari/mini_futbol/mini_futbol.css">
     <script src="/static/app.js" defer></script>
     <script src="/oyun_modlari/kim_milyoner/kim_milyoner.js" defer></script>
     <script src="/oyun_modlari/takim_bilmece/takim_bilmece.js" defer></script>
@@ -18,6 +20,9 @@
     <script src="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.js" defer></script>
     <script src="/oyun_modlari/ilk_11_challenge/ilk_11.js" defer></script>
     <script src="/oyun_modlari/stadyum_tanima/stadyum_tanima.js" defer></script>
+    <script src="/oyun_modlari/meme_arena/meme_arena.js" defer></script>
+    <script src="/oyun_modlari/mini_futbol/mini_futbol_host_physics.js" defer></script>
+    <script src="/oyun_modlari/mini_futbol/mini_futbol.js" defer></script>
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1324481943948742" crossorigin="anonymous"></script>
     <!-- Cloudflare Turnstile -->
@@ -56,7 +61,7 @@
     </div>
 
     <div class="container">
-        <h1 class="mainTitle">🎮 Oyun Modları</h1>
+        <h1 class="mainTitle">🎮 Game Arena</h1>
 
         <!-- ANA MENÜ -->
         <section id="homeScreen" class="panel">
@@ -146,7 +151,23 @@
                     <img src="/mod_resimleri/stadyum_tanima.png" alt="Stadyum Tanıma">
                     <div class="mod-info">
                         <h3>Stadyum Tanıma</h3>
-                        <p>Stadyumu gör, adını yaz</p>
+                        <p>Stadyumu gör, 4 şık Arasından Bul</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="meme_arena">
+                    <img src="/mod_resimleri/meme_arena.png" alt="Meme Arena" onerror="this.style.display='none'">
+                    <div class="mod-info">
+                        <h3>🎭 Meme Arena</h3>
+                        <p>Duruma en uygun memi seç, oy topla!</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="mini_futbol">
+                    <img src="/mod_resimleri/mini_futbol.png" alt="Mini Futbol" onerror="this.style.display='none'">
+                    <div class="mod-info">
+                        <h3>⚽ Mini Futbol</h3>
+                        <p>1v1'den 5v5'e gerçek zamanlı futbol!</p>
                     </div>
                 </div>
 
@@ -221,7 +242,7 @@
 		
 		<!-- KİM MİLYONER ODA OLUŞTUR -->
         <section id="createMlScreen" class="panel hidden">
-            <h2 class="mainTitle">Kim Milyoner - Oda Oluştur</h2>
+            <h2 class="mainTitle">Kim Milyoner</h2>
             
             <div class="centerBox">
                 <input id="createMlNameInput" type="text" placeholder="Adını yaz" maxlength="15">
@@ -295,10 +316,22 @@
 
         <!-- HARITADAN BUL - ODA OLUŞTUR -->
         <section id="createHaritaScreen" class="panel hidden">
-            <h2 class="mainTitle">Haritadan Bul - Oda Oluştur</h2>
+            <h2 class="mainTitle">Haritadan Bul</h2>
             
             <div class="centerBox">
                 <input id="createHaritaNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Zorluk:
+                    <select id="haritaDifficultySelect">
+                        <option value="kolay">🟢 Kolay</option>
+                        <option value="orta">🟡 Orta</option>
+                        <option value="zor">🔴 Zor</option>
+                        <option value="karisik" selected>🎯 Karışık (Progresif)</option>
+                    </select>
+                </label>
             </div>
 
             <div class="centerBox">
@@ -337,7 +370,7 @@
             <h2 class="mainTitle">Haritadan Bul - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="haritaRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="haritaRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
                 <button class="eyeToggleBtn" id="haritaRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="haritaCopyHint" class="copyHint"></span>
             </div>
@@ -349,11 +382,13 @@
             </div>
             <ul id="haritaPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Toplam Tur: 10</span>
+                <span>Zorluk: <span id="haritaLobbyDifficulty">🎯 Karışık</span></span>
+                <span style="margin-left: 20px;">Toplam Tur: 10</span>
                 <span style="margin-left: 20px;">Süre: <span id="haritaLobbyTurnSeconds">30</span> sn</span>
             </div>
             <div class="centerBox">
                 <button id="haritaStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="haritaRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="haritaLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="haritaLobbyMsg" class="msg"></p>
@@ -459,7 +494,7 @@
 
         <!-- GİZEMLİ KARİYER - ODA OLUŞTUR -->
         <section id="createGizemScreen" class="panel hidden">
-            <h2 class="mainTitle">Gizemli Kariyer - Oda Oluştur</h2>
+            <h2 class="mainTitle">Gizemli Kariyer</h2>
 
             <div class="centerBox">
                 <input id="createGizemNameInput" type="text" placeholder="Adını yaz" maxlength="15">
@@ -518,6 +553,7 @@
             </div>
             <div class="centerBox">
                 <button id="gizemStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="gizemRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="gizemLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="gizemLobbyMsg" class="msg"></p>
@@ -638,9 +674,10 @@
                 <label class="timerLabel">
                     Zorluk Seviyesi:
                     <select id="takimDifficultySelect">
-                        <option value="kolay" selected>🟢 Kolay</option>
+                        <option value="kolay">🟢 Kolay</option>
                         <option value="orta">🟡 Orta</option>
                         <option value="zor">🔴 Zor</option>
+                        <option value="klasik" selected>🎯 Klasik (Karışık)</option>
                     </select>
                 </label>
             </div>
@@ -718,6 +755,7 @@
             </div>
             <div class="centerBox">
                 <button id="startBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="roomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="lobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="lobbyMsg" class="msg"></p>
@@ -750,6 +788,7 @@
             </div>
             <div class="centerBox">
                 <button id="mlStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="mlRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="mlLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="mlLobbyMsg" class="msg"></p>
@@ -778,6 +817,7 @@
             </div>
             <div class="centerBox">
                 <button id="takimStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="takimRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="takimLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="takimLobbyMsg" class="msg"></p>
@@ -988,7 +1028,7 @@
 
         <!-- İLK 11 CHALLENGE - ODA OLUŞTUR -->
         <section id="createIlk11Screen" class="panel hidden">
-            <h2 class="mainTitle">İlk 11 Challenge - Oda Oluştur</h2>
+            <h2 class="mainTitle">İlk 11 Challenge</h2>
 
             <div class="centerBox">
                 <input id="createIlk11NameInput" type="text" placeholder="Adını yaz" maxlength="15">
@@ -1046,6 +1086,7 @@
             </div>
             <div class="centerBox">
                 <button id="ilk11StartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="ilk11RoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="ilk11LobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="ilk11LobbyMsg" class="msg"></p>
@@ -1159,7 +1200,7 @@
 
         <!-- STADYUM TANIMA - ODA OLUŞTUR -->
         <section id="createStadScreen" class="panel hidden">
-            <h2 class="mainTitle">Stadyum Tanıma - Oda Oluştur</h2>
+            <h2 class="mainTitle">Stadyum Tanıma</h2>
 
             <div class="centerBox">
                 <input id="createStadNameInput" type="text" placeholder="Adını yaz" maxlength="15">
@@ -1218,6 +1259,7 @@
             </div>
             <div class="centerBox">
                 <button id="stadStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="stadRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="stadLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="stadLobbyMsg" class="msg"></p>
@@ -1300,6 +1342,680 @@
                 <div class="confirmButtons">
                     <button id="stadRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
                     <button id="stadBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEME ARENA - ODA OLUŞTUR -->
+        <section id="createMemeScreen" class="panel hidden">
+            <h2 class="mainTitle">🎭 Meme Arena</h2>
+
+            <div class="centerBox">
+                <input id="createMemeNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Oyuncu Sayısı:
+                    <select id="memeMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Tur Sayısı:
+                    <select id="memeRoundsSelect">
+                        <option value="3">3 Tur</option>
+                        <option value="5" selected>5 Tur</option>
+                        <option value="7">7 Tur</option>
+                        <option value="10">10 Tur</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Kart Seçim Süresi:
+                    <select id="memeTurnSecondsSelect">
+                        <option value="30">30 saniye</option>
+                        <option value="45" selected>45 saniye</option>
+                        <option value="60">60 saniye</option>
+                        <option value="90">90 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    Oy Verme Süresi:
+                    <select id="memeVoteSecondsSelect">
+                        <option value="10">10 saniye</option>
+                        <option value="15" selected>15 saniye</option>
+                        <option value="20">20 saniye</option>
+                        <option value="30">30 saniye</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="memeInfoBox">
+                <h3>🎭 Nasıl Oynanır?</h3>
+                <p>Her turda bir <b style="color:#ffd43b">durum kartı</b> gösterilir</p>
+                <p>Elindeki <b style="color:#51cf66">5 mem kartından</b> duruma en uygun olanı seç</p>
+                <p>Diğerleri kartlara oy verir: <b style="color:#51cf66">🔥 +2</b> / <b style="color:#4dabf7">👌 +1</b> / <b style="color:#ff6b6b">🥀 -1</b></p>
+                <p>Kendi kartına oy veremezsin</p>
+                <p>En çok puan toplayan <b style="color:#ffd43b">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createMemeBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createMemeBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createMemeMsg" class="msg"></p>
+        </section>
+
+        <!-- MEME ARENA - LOBBY -->
+        <section id="memeLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Meme Arena - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="memeRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
+                <button class="eyeToggleBtn" id="memeRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="memeCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="memeInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="memeInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="memeInviteLinkHint" class="copyHint"></span>
+            </div>
+            <ul id="memePlayersList" style="list-style:none; padding:0;"></ul>
+            <div class="lobbyInfo">
+                <span>Oyuncu Sayısı: <span id="memeLobbyMaxPlayers">2</span></span>
+                <span style="margin-left: 20px;">Tur: <span id="memeLobbyRounds">5</span></span>
+                <span style="margin-left: 20px;">Seçim: <span id="memeLobbyTurnSeconds">45</span> sn</span>
+                <span style="margin-left: 20px;">Oylama: <span id="memeLobbyVoteSeconds">15</span> sn</span>
+            </div>
+            <div class="centerBox">
+                <button id="memeStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="memeRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="memeLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="memeLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- MEME ARENA - OYUN EKRANI -->
+        <section id="memeGameScreen" class="hidden">
+            <div class="memeGameTop">
+                <div class="memeRoundInfo" id="memeRoundInfo">Tur 1/5</div>
+                <div class="memeTimerBig" id="memeTimer">45s</div>
+            </div>
+
+            <div class="memeDurumBox">
+                <div class="memeDurumLabel">DURUM</div>
+                <div class="memeDurumText" id="memeDurumText">---</div>
+                <div class="memeDurumButtons">
+                    <button id="memeDurumEditBtn" class="memeDurumActionBtn" title="Kendi durumunu yaz">
+                        ✏️
+                    </button>
+                    <button id="memeDurumShuffleBtn" class="memeDurumActionBtn" title="Başka bir durum çek">
+                        🔄
+                    </button>
+                </div>
+            </div>
+
+            <div class="memeCardsBox" id="memeCardsBox"></div>
+
+            <div class="memeControls">
+                <button class="memeShuffleBtn" id="memeShuffleBtn">🎲 Kart Değiştir (3)</button>
+                <button class="memeCancelBtn hidden" id="memeCancelBtn">❌ Seçimi İptal Et</button>
+            </div>
+
+            <p class="memeStatusMsg" id="memeStatusMsg">Kart seç!</p>
+
+            <!-- OY VERME EKRANI -->
+            <div id="memeVotingBox" class="memeVotingBox hidden">
+                <h2 style="color:#ffd43b; text-align:center;">
+                    <span id="memeVotingOwnerName">---</span>'in Kartı
+                    <span style="font-size:14px; color:#adb5bd;">(<span id="memeVotingIndex">1/2</span>)</span>
+                </h2>
+                <div class="memeVotingCardWrap">
+                    <img id="memeVotingImg" src="" alt="Mem">
+                </div>
+                <div id="memeVoteButtons" class="memeVoteButtons">
+                    <button class="memeVoteBtn voteBad" data-vote="-1">🥀 Dihh<br><span>-1</span></button>
+                    <button class="memeVoteBtn voteOk" data-vote="1">👌 Fena değil<br><span>+1</span></button>
+                    <button class="memeVoteBtn voteGood" data-vote="2">🔥 EFSANE<br><span>+2</span></button>
+                </div>
+                <p id="memeVoteOwnerNote" class="memeVoteOwnerNote hidden"></p>
+                <p id="memeVotingStatus" class="memeStatusMsg"></p>
+            </div>
+
+            <!-- SKOR TABLOSU (Tur sonu) -->
+            <div id="memeScoreboardBox" class="memeScoreboardBox hidden">
+                <h2 id="memeScoreboardTitle" style="color:#51cf66; text-align:center;">Tur Bitti!</h2>
+                <ol id="memeScoreboardList" class="memeScoreboardList"></ol>
+                <p style="text-align:center; color:#adb5bd; font-size:16px; margin-top:15px;">
+                    Yeni tur <span id="memeScoreboardCountdown" class="scoreboardCountdown">5</span> saniye içinde başlıyor...
+                </p>
+            </div>
+
+            <div class="centerBox">
+                <button id="memeBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- MEME ARENA - OYUN SONU -->
+        <div id="memeGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="memeGameOverTitle">🏆 KAZANDIN!</h1>
+                <ol id="memeGameOverList" class="memeScoreboardList" style="margin:20px 0;"></ol>
+                <div class="confirmButtons">
+                    <button id="memeGameOverRematchBtn" class="bigBtn greenBtn">Tekrar Oyna</button>
+                    <button id="memeGameOverMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEME ARENA - KART SEÇİM ONAY POPUP -->
+        <div id="memeConfirmBox" class="overlay hidden">
+            <div class="overlayCard memeConfirmCard">
+                <h2 style="color:#ffd43b;">Bu Kartı Seçmek İstediğine Emin misin?</h2>
+                <img id="memeConfirmImg" src="" alt="Mem">
+                <div class="confirmButtons">
+                    <button id="memeConfirmYesBtn" class="bigBtn greenBtn">EVET, SEÇ</button>
+                    <button id="memeConfirmNoBtn" class="bigBtn redBtn">İPTAL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MİNİ FUTBOL - ODA OLUŞTUR -->
+        <section id="createMiniScreen" class="panel hidden">
+            <h2 class="mainTitle">⚽ Mini Futbol</h2>
+
+            <div class="centerBox">
+                <input id="createMiniNameInput" type="text" placeholder="Adını yaz" maxlength="15" style="max-width:400px;">
+            </div>
+
+            <!-- ✨ 2 SÜTUN: Sol=Ayarlar, Sağ=Nasıl Oynanır -->
+            <div class="miniCreateGrid">
+                <!-- SOL: Ayarlar -->
+                <div class="miniCreateLeft">
+                    <h3 style="color:#ffd43b; margin:0 0 15px 0; text-align:center;">⚙️ Oyun Ayarları</h3>
+                    
+                    <div class="miniCreateField">
+                        <label>👥 Oyuncu Sayısı:</label>
+                        <select id="miniPlayerCountSelect">
+                            <option value="2" selected>1v1</option>
+                            <option value="4">2v2</option>
+                            <option value="6">3v3</option>
+                            <option value="8">4v4</option>
+                            <option value="10">5v5</option>
+                        </select>
+                    </div>
+                    
+                    <div class="miniCreateField">
+                        <label>⚽ Kazanma Skoru:</label>
+                        <select id="miniGoalTargetSelect">
+                            <option value="1">1 Gol (Hızlı)</option>
+                            <option value="3" selected>3 Gol (Klasik)</option>
+                            <option value="5">5 Gol</option>
+                            <option value="7">7 Gol</option>
+                            <option value="10">10 Gol (Uzun)</option>
+                            <option value="15">15 Gol</option>
+                            <option value="20">20 Gol</option>
+                            <option value="30">30 Gol (Maraton)</option>
+                            <option value="999">♾️ Sınırsız (Sadece Süreye Bağlı)</option>
+                        </select>
+                    </div>
+
+                    <div class="miniCreateField">
+                        <label>⏱️ Maç Süresi:</label>
+                        <select id="miniDurationSelect">
+                            <option value="60">1 Dakika</option>
+                            <option value="120">2 Dakika</option>
+                            <option value="180" selected>3 Dakika (Klasik)</option>
+                            <option value="300">5 Dakika</option>
+                            <option value="600">10 Dakika</option>
+                            <option value="900">15 Dakika</option>
+                            <option value="1200">20 Dakika</option>
+                            <option value="1500">25 Dakika</option>
+                            <option value="1800">30 Dakika</option>
+                            <option value="2700">45 Dakika</option>
+                            <option value="4200">70 Dakika</option>
+                            <option value="5400">90 Dakika</option>
+                            <option value="7200">120 Dakika</option>
+                            <option value="99999">♾️ Sınırsız (Sadece Gol Sayısı)</option>
+                        </select>
+                    </div>
+
+                    <div class="miniCreateField">
+                        <label>⚡ Oyun Hızı:</label>
+                        <select id="miniSpeedSelect">
+                            <option value="yavas">🐢 Yavaş</option>
+                            <option value="normal" selected>🚶 Normal (Varsayılan)</option>
+                            <option value="hizli">🏃 Hızlı</option>
+                        </select>
+                    </div>
+                    
+                    <div class="miniCreateField">
+                        <label>🎮 Split-Screen'e İzin Ver:</label>
+                        <select id="miniSplitScreenSelect">
+                            <option value="off" selected>❌ Reddet (Sadece Klavye)</option>
+                            <option value="on">✅ İzin Ver (Aynı PC'den 2+ Kişi)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="miniCreateField">
+                        <label>🌀 Falso'ya İzin Ver (Plase):</label>
+                        <select id="miniAllowPlaseSelect">
+                            <option value="on" selected>✅ Açık (Plase Kavis Atar)</option>
+                            <option value="off">❌ Kapalı (Sadece Düz Şut)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="miniCreateField">
+                        <label>🧲 Top Kontrolü (Sürüş):</label>
+                        <select id="miniBallStickSelect">
+                            <option value="on" selected>✅ Açık (Top Sürüklenir)</option>
+                            <option value="off">❌ Kapalı (Bilardo Tarzı)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="miniCreateField">
+                        <label>⚡ Sprint Etkinleştir:</label>
+                        <select id="miniSprintEnabledSelect">
+                            <option value="on" selected>✅ Açık (Shift ile Hızlan)</option>
+                            <option value="off">❌ Kapalı (Sprint Yok)</option>
+                        </select>
+                    </div>
+                    
+                    
+                </div>
+
+                <!-- SAĞ: Gelişmiş Ayarlar -->
+                <div class="miniCreateRight">
+                    <h3 style="color:#c084fc; margin:0 0 15px 0; text-align:center;">🔧 Gelişmiş Ayarlar</h3>
+                    
+                    <label style="display:flex; align-items:center; cursor:pointer; user-select:none;
+                                  padding:10px 14px; background:rgba(103,65,217,0.15);
+                                  border:1px solid #6741d9; border-radius:10px; margin-bottom:15px;
+                                  transition: all 0.2s;">
+                        <input type="checkbox" id="createMiniAdvancedToggle" autocomplete="off"
+                               style="margin-right:12px; width:18px; height:18px; cursor:pointer;">
+                        <span style="color:#c084fc; font-weight:bold; font-size:14px;">
+                            Gelişmiş Modu Aç
+                        </span>
+                    </label>
+                    
+                    <div id="createMiniAdvancedContent" style="max-height:0; overflow:hidden;
+                                                                transition: max-height 0.4s ease-out;">
+                        <div style="padding:15px 12px 5px 12px; background:rgba(103,65,217,0.05);
+                                    border-radius:10px;
+                                    border-left:3px solid #6741d9;">
+                            <p style="color:#adb5bd; font-size:12px; margin:0 0 15px 0; font-style:italic;">
+                                ⚠️ Bu ayarlar oyun fiziğini etkiler.
+                            </p>
+                            
+                            <!-- Kazanma Skoru + Maç Süresi (özgür değer) -->
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                                <div>
+                                    <label style="display:block; color:#c084fc; font-weight:bold; 
+                                                  font-size:13px; margin-bottom:6px;">
+                                        ⚽ Kazanma Skoru
+                                    </label>
+                                    <input type="number" id="createAdvGoalTarget"
+                                           min="1" max="9999" step="1" value="3"
+                                           style="width:100%; padding:8px 10px; font-size:14px;
+                                                  background:#1a1e2e; color:#fff; 
+                                                  border:1px solid #6741d9; border-radius:6px;
+                                                  font-family:monospace;">
+                                    <p style="color:#6c757d; font-size:11px; margin:4px 0 0 0;">
+                                        0 = sınırsız
+                                    </p>
+                                </div>
+                                <div>
+                                    <label style="display:block; color:#c084fc; font-weight:bold; 
+                                                  font-size:13px; margin-bottom:6px;">
+                                        ⏱️ Maç Süresi (dk)
+                                    </label>
+                                    <input type="number" id="createAdvMatchDuration"
+                                           min="0" max="9999" step="1" value="3"
+                                           style="width:100%; padding:8px 10px; font-size:14px;
+                                                  background:#1a1e2e; color:#fff; 
+                                                  border:1px solid #6741d9; border-radius:6px;
+                                                  font-family:monospace;">
+                                    <p style="color:#6c757d; font-size:11px; margin:4px 0 0 0;">
+                                        0 = sınırsız
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div id="createMiniAdvancedFields"></div>
+                            
+                            <div style="display:flex; gap:8px; margin-top:15px; padding-top:12px;
+                                        border-top:1px solid #3b4c63;">
+                                <button type="button" id="createMiniAdvExportBtn" 
+                                        style="flex:1; background:#20c997; color:#fff; border:none;
+                                               padding:8px; border-radius:6px; cursor:pointer;
+                                               font-size:12px; font-weight:bold;">
+                                    💾 Dışa Aktar
+                                </button>
+                                <button type="button" id="createMiniAdvImportBtn"
+                                        style="flex:1; background:#495057; color:#fff; border:none;
+                                               padding:8px; border-radius:6px; cursor:pointer;
+                                               font-size:12px; font-weight:bold;">
+                                    📁 Yükle
+                                </button>
+                            </div>
+                            
+                            <button type="button" id="createMiniAdvResetBtn"
+                                    style="width:100%; background:#e67e22; color:#fff; border:none;
+                                           padding:7px; border-radius:6px; cursor:pointer;
+                                           font-size:11px; font-weight:bold; margin-top:8px;">
+                                🔄 Varsayılana Sıfırla
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:20px;">
+                <button id="createMiniBtn" class="bigBtn greenBtn">🎮 Oda Oluştur</button>
+                <button id="createMiniBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createMiniMsg" class="msg"></p>
+        </section>
+
+        <!-- MİNİ FUTBOL - LOBBY (Haxball tarzı 3 sütun) -->
+        <section id="miniLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">Mini Futbol - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="miniRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
+                <button class="eyeToggleBtn" id="miniRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="miniCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="miniInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="miniInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="miniInviteLinkHint" class="copyHint"></span>
+            </div>
+            
+            <!-- ✨ 3 SÜTUN: Kırmızı | İzleyici | Mavi -->
+            <div class="miniTeamsGrid">
+                <!-- KIRMIZI TAKIM -->
+                <div class="miniTeamColumn miniTeamRed">
+                    <div class="miniTeamHeader">
+                        <div class="miniTeamTitleRow">
+                            <h3 id="miniRedTeamName">Kırmızı Takım</h3>
+                            <button id="miniEditRedBtn" class="miniEditNameBtn" title="Takım ismini değiştir">✏️</button>
+                        </div>
+                        <span id="miniRedCount" class="miniTeamCount">(0/5)</span>
+                    </div>
+                    <div id="miniRedColumn" class="miniTeamPlayers"></div>
+                </div>
+                
+                <!-- İZLEYİCİLER -->
+                <div class="miniTeamColumn miniTeamSpec">
+                    <div class="miniTeamHeader">
+                        <h3>👁️ İzleyiciler</h3>
+                        <span id="miniSpecCount" class="miniTeamCount">(0)</span>
+                    </div>
+                    <div id="miniSpecColumn" class="miniTeamPlayers"></div>
+                </div>
+                
+                <!-- MAVİ TAKIM -->
+                <div class="miniTeamColumn miniTeamBlue">
+                    <div class="miniTeamHeader">
+                        <div class="miniTeamTitleRow">
+                            <h3 id="miniBlueTeamName">Mavi Takım</h3>
+                            <button id="miniEditBlueBtn" class="miniEditNameBtn" title="Takım ismini değiştir">✏️</button>
+                        </div>
+                        <span id="miniBlueCount" class="miniTeamCount">(0/5)</span>
+                    </div>
+                    <div id="miniBlueColumn" class="miniTeamPlayers"></div>
+                </div>
+            </div>
+            
+            <div class="lobbyInfo" style="margin-top:15px;">
+                <span>Skor: <span id="miniLobbyGoalTarget">3</span> gol</span>
+                <span style="margin-left: 15px;">Süre: <span id="miniLobbyDuration">3 dk</span></span>
+                <span style="margin-left: 15px;">Hız: <span id="miniLobbySpeed">🚶 Normal</span></span>
+                <span style="margin-left: 15px;">Mod: 1v1</span>
+            </div>
+            
+            <div class="centerBox" style="flex-wrap: wrap;">
+                <button id="miniStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="miniRejoinGameBtn" class="bigBtn greenBtn hidden" style="background:#0ca678;">🎮 Oyuna Katıl</button>
+                <button id="miniRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="miniControlSettingsBtn" class="bigBtn" style="background:#0ca678;">⚙️ Ayarlar</button>
+                <button id="miniResetNamesBtn" class="bigBtn" style="background:#495057; display:none;">🔄 Takım İsimlerini Sıfırla</button>
+                <button id="miniLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="miniLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- MİNİ FUTBOL - OYUN EKRANI -->
+        <section id="miniGameScreen" class="hidden">
+            <div class="miniHUD">
+                <div id="miniSprintDisplay" class="miniSprintDisplay">⚡ Sprint: HAZIR (Shift)</div>
+                <div id="miniScoreDisplay" class="miniScoreDisplay">0 - 0</div>
+                <div id="miniTimeDisplay" class="miniTimeDisplay">3:00</div>
+            </div>
+
+            <div class="miniCanvasWrapper">
+                <canvas id="miniCanvas" width="800" height="400"></canvas>
+            </div>
+
+            <div class="miniControlsInfo" id="miniControlsInfo">
+                <b>Hareket:</b> WASD / Ok Tuşları &nbsp;|&nbsp; <b>Şut:</b> Space / Num 0 &nbsp;|&nbsp; <b>Sprint:</b> Shift ⚡
+            </div>
+
+            <div class="centerBox">
+                <button id="miniBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- MİNİ FUTBOL - OYUN SONU -->
+        <div id="miniGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="miniGameOverTitle">🏆 KAZANDIN!</h1>
+                <div id="miniGameOverText"></div>
+                <div class="confirmButtons">
+                    <button id="miniRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="miniGameOverMenuBtn" class="bigBtn">🚪 Lobiye Dön</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✨ MİNİ FUTBOL - PAUSE LOBBY (Oyun İçi ESC) -->
+        <div id="miniPauseLobbyBox" class="overlay hidden">
+            <div class="overlayCard miniPauseCard">
+                <h1 class="miniPauseTitle">⏸️ OYUN DURAKLATILDI</h1>
+                
+                <!-- ✨ Oda Kodu + Davet Linki -->
+                <div class="roomCodeBox" style="margin-bottom:8px;">
+                    <span class="roomCodeLabel">Oda Kodu:</span>
+                    <span id="miniPauseRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
+                    <button class="eyeToggleBtn" id="miniPauseRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
+                    <span id="miniPauseCopyHint" class="copyHint"></span>
+                </div>
+                <div class="inviteLinkBox" style="margin-bottom:15px;">
+                    <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                    <span id="miniPauseInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                    <button class="eyeToggleBtn" id="miniPauseInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                    <span id="miniPauseInviteLinkHint" class="copyHint"></span>
+                </div>
+                
+                <!-- 3 Sütun Lobby -->
+                <div class="miniTeamsGrid" style="margin: 20px 0;">
+                    <!-- KIRMIZI TAKIM -->
+                    <div class="miniTeamColumn miniTeamRed">
+                        <div class="miniTeamHeader">
+                            <div class="miniTeamTitleRow">
+                                <h3 id="miniPauseRedName">Kırmızı Takım</h3>
+                                <button id="miniPauseEditRedBtn" class="miniEditNameBtn" title="Takım ismi">✏️</button>
+                            </div>
+                            <span id="miniPauseRedCount" class="miniTeamCount">(0/5)</span>
+                        </div>
+                        <div id="miniPauseRedCol" class="miniTeamPlayers"></div>
+                    </div>
+                    
+                    <!-- İZLEYİCİLER -->
+                    <div class="miniTeamColumn miniTeamSpec">
+                        <div class="miniTeamHeader">
+                            <h3>👁️ İzleyiciler</h3>
+                            <span id="miniPauseSpecCount" class="miniTeamCount">(0)</span>
+                        </div>
+                        <div id="miniPauseSpecCol" class="miniTeamPlayers"></div>
+                    </div>
+                    
+                    <!-- MAVİ TAKIM -->
+                    <div class="miniTeamColumn miniTeamBlue">
+                        <div class="miniTeamHeader">
+                            <div class="miniTeamTitleRow">
+                                <h3 id="miniPauseBlueName">Mavi Takım</h3>
+                                <button id="miniPauseEditBlueBtn" class="miniEditNameBtn" title="Takım ismi">✏️</button>
+                            </div>
+                            <span id="miniPauseBlueCount" class="miniTeamCount">(0/5)</span>
+                        </div>
+                        <div id="miniPauseBlueCol" class="miniTeamPlayers"></div>
+                    </div>
+                </div>
+                
+                <p id="miniPauseWaitMsg" class="msg hidden" style="color:#ffd43b;">
+                    ⏳ Host oyunu devam ettirmesini bekleyin...
+                </p>
+                
+                <!-- ✨ KONTROLCÜ SEÇİM BÖLÜMÜ -->
+                <div id="miniGamepadSection" class="hidden" style="margin:15px 0; padding:15px; 
+                     background:rgba(103,65,217,0.12); border:1px solid #6741d9; border-radius:10px;">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px;">
+                        <span style="font-size:24px;">🎮</span>
+                        <span style="color:#c084fc; font-weight:bold; font-size:15px;">
+                            <span id="miniGamepadName">Kontrolcü</span> algılandı
+                        </span>
+                    </div>
+                    <div id="miniGamepadOptions" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                        <button class="miniGpBtn" data-slot="off" style="padding:8px 14px; border-radius:8px;
+                                background:#495057; color:#fff; border:2px solid transparent; cursor:pointer;
+                                font-size:13px; font-weight:bold;">
+                            ❌ Devre Dışı
+                        </button>
+                        <button class="miniGpBtn" data-slot="p1" style="padding:8px 14px; border-radius:8px;
+                                background:rgba(255,107,107,0.2); color:#ff6b6b; border:2px solid #ff6b6b; cursor:pointer;
+                                font-size:13px; font-weight:bold;">
+                            🎮 1. Oyuncu (Klavye Yerine)
+                        </button>
+                        <button class="miniGpBtn" data-slot="p2" style="padding:8px 14px; border-radius:8px;
+                                background:rgba(77,171,247,0.2); color:#4dabf7; border:2px solid #4dabf7; cursor:pointer;
+                                font-size:13px; font-weight:bold;">
+                            🎮 2. Oyuncu (Split-Screen)
+                        </button>
+                    </div>
+                    <p id="miniGamepadMsg" style="text-align:center; color:#adb5bd; font-size:12px; margin:8px 0 0 0;"></p>
+                </div>
+                
+                <!-- ✨ KISAYOL TUŞLARI BÖLÜMÜ -->
+                <div id="miniKeyBindings" style="margin:15px 0; padding:12px 15px; 
+                     background:rgba(0,0,0,0.25); border-radius:10px; border:1px solid #3b4c63;">
+                    <div style="text-align:center; color:#ffd43b; font-weight:bold; font-size:13px; margin-bottom:10px;">
+                        📖 KISAYOL TUŞLARI
+                    </div>
+                    
+                    <!-- P1 -->
+                    <div id="miniKeyP1" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+                         padding:8px; background:rgba(255,107,107,0.08); border-radius:6px; margin-bottom:6px;">
+                        <span style="color:#ff6b6b; font-weight:bold; font-size:12px;">P1:</span>
+                        <span style="color:#dee2e6; font-size:12px;" id="miniKeyP1Text">
+                            WASD hareket | Space şut | Sol Shift sprint
+                        </span>
+                    </div>
+                    
+                    <!-- P2 (split-screen aktifse görünür) -->
+                    <div id="miniKeyP2" class="hidden" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+                         padding:8px; background:rgba(77,171,247,0.08); border-radius:6px;">
+                        <span style="color:#4dabf7; font-weight:bold; font-size:12px;">P2:</span>
+                        <span style="color:#dee2e6; font-size:12px;" id="miniKeyP2Text">
+                            Ok Tuşları hareket | Num 0 / Sağ Ctrl şut | Sağ Shift / Num 1 sprint
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="confirmButtons">
+                    <button id="miniPauseResumeBtn" class="bigBtn greenBtn hidden">▶️ DEVAM ET</button>
+                    <button id="miniPauseRestartBtn" class="bigBtn" style="background:#ffd43b; color:#1a1e2e;">🔄 Yeniden Başlat</button>
+                    <button id="miniPauseSettingsBtn" class="bigBtn" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                    <button id="miniPauseControlBtn" class="bigBtn" style="background:#0ca678;">⚙️ Ayarlar</button>
+                    <button id="miniPauseLeaveBtn" class="bigBtn" style="background:#e67e22;">🚪 Lobiye Dön</button>
+                    <button id="miniPauseGuestLeaveBtn" class="bigBtn redBtn hidden">🚪 Odadan Ayrıl</button>
+                </div>
+                
+                
+            </div>
+        </div>
+
+        <!-- ✨ MİNİ FUTBOL - KULLANICI ESC MENÜSÜ -->
+        <div id="miniGuestEscBox" class="overlay hidden">
+            <div class="overlayCard" style="max-width:400px; border:2px solid #ffd43b; box-shadow: 0 0 40px rgba(255,212,59,0.3);">
+                <div style="font-size:60px; margin:10px 0;">⏸️</div>
+                <h2 style="color:#ffd43b; margin:10px 0 20px 0;">Menü</h2>
+                <div style="display:flex; flex-direction:column; gap:12px; padding:0 20px;">
+                    <button id="miniGuestEscResumeBtn" class="bigBtn greenBtn" style="width:100%;">
+                        ▶️ Devam Et
+                    </button>
+                    <button id="miniGuestEscRoomSettingsBtn" class="bigBtn" style="background:#6741d9; width:100%;">
+                        ⚙️ Oda Ayarları
+                    </button>
+                    <button id="miniGuestEscSettingsBtn" class="bigBtn" style="background:#0ca678; width:100%;">
+                        ⚙️ Ayarlar
+                    </button>
+                    <button id="miniGuestEscLobbyBtn" class="bigBtn" style="background:#e67e22; width:100%;">
+                        🚪 Lobiye Dön
+                    </button>
+                    <button id="miniGuestEscHomeBtn" class="bigBtn redBtn" style="width:100%;">
+                        🏠 Ana Menü
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ✨ MİNİ FUTBOL - HOST PAUSE ETTİĞİNDE KULLANICI EKRANI -->
+        <div id="miniGuestPausedBox" class="overlay hidden">
+            <div class="overlayCard" style="max-width:450px; border:2px solid #ffd43b; box-shadow: 0 0 40px rgba(255,212,59,0.3);">
+                <div style="font-size:80px; margin:10px 0;">⏸️</div>
+                <h1 style="color:#ffd43b; font-size:36px; margin:5px 0;">OYUN DURAKLATILDI</h1>
+                <p style="color:#adb5bd; font-size:16px; margin:15px 0;">
+                    Host oyunu duraklatı.<br>
+                    Devam ettirmesini bekleyin...
+                </p>
+            </div>
+        </div>
+        
+        <!-- MEME ARENA - KENDİ DURUM YAZMA POPUP -->
+        <div id="memeCustomDurumBox" class="overlay hidden">
+            <div class="overlayCard" style="max-width:500px;">
+                <h2 style="color:#ffd43b;">✏️ Kendi Durumunu Yaz</h2>
+                <p style="color:#adb5bd; margin:10px 0;">Ne düşünüyorsan yaz, ona göre kart seç!</p>
+                <textarea id="memeCustomDurumInput" 
+                          placeholder="Örn: Pazar sabahı halin..." 
+                          maxlength="150"
+                          style="width:100%; min-height:100px; padding:12px; font-size:16px; 
+                                 border-radius:10px; border:2px solid #ffd43b; background:#1a1e2e; 
+                                 color:#fff; resize:vertical; font-family:inherit;"></textarea>
+                <p style="color:#adb5bd; font-size:12px; text-align:right; margin:5px 0;">
+                    <span id="memeCustomDurumCount">0</span>/150 karakter
+                </p>
+                <div class="confirmButtons">
+                    <button id="memeCustomDurumSaveBtn" class="bigBtn greenBtn">✅ KAYDET</button>
+                    <button id="memeCustomDurumCancelBtn" class="bigBtn redBtn">❌ İPTAL</button>
                 </div>
             </div>
         </div>
@@ -1456,13 +2172,62 @@
         </div>
     </div>
 
+    <!-- ODA AYARLARI POPUP -->
+    <div id="roomSettingsBox" class="overlay hidden">
+        <div class="overlayCard escConfirmCard" style="max-width:520px;">
+            <div style="font-size:60px; margin:10px 0;">⚙️</div>
+            <h2 style="color:#ffd43b; margin:10px 0 20px 0;">Oda Ayarları</h2>
+            <p style="color:#adb5bd; font-size:14px; margin-bottom:20px;">
+                Değişiklikler anında kaydedilir.
+            </p>
+
+            <div id="roomSettingsContent" style="text-align:left; padding:0 20px;">
+                <!-- İçerik JS ile dinamik doldurulur -->
+            </div>
+
+            <div class="confirmButtons" style="margin-top:25px;">
+                <button id="roomSettingsSaveBtn" class="bigBtn greenBtn">💾 Kaydet</button>
+                <button id="roomSettingsCancelBtn" class="bigBtn redBtn">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ODA DOLU POPUP -->
+    <div id="roomFullBox" class="overlay hidden">
+        <div class="overlayCard escConfirmCard" style="max-width:450px; border-color:#ffa94d !important;">
+            <div style="font-size:70px; margin:10px 0;">🚪</div>
+            <h2 style="color:#ffa94d; margin:10px 0 15px 0;">Oda Dolu!</h2>
+            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
+                Bu odada zaten 2 oyuncu var.<br>Başka bir odaya katılmayı dene.
+            </p>
+            <div class="confirmButtons">
+                <button id="roomFullOkBtn" class="bigBtn greenBtn">Tamam</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KICK ENGEL POPUP -->
+    <div id="kickBlockedBox" class="overlay hidden">
+        <div class="overlayCard escConfirmCard" style="max-width:450px; border-color:#ff6b6b !important;">
+            <div style="font-size:70px; margin:10px 0;">🚫</div>
+            <h2 style="color:#ff6b6b; margin:10px 0 15px 0; text-shadow: 0 0 20px rgba(255,107,107,0.4);">Bu Odadan Atıldınız!</h2>
+            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
+                Host tarafından bu odadan çıkarıldınız.<br>Bu odaya tekrar katılamazsınız.
+            </p>
+            <div class="confirmButtons">
+                <button id="kickBlockedOkBtn" class="bigBtn greenBtn">Tamam</button>
+            </div>
+        </div>
+    </div>
+
     <!-- RAKİP AYRILDI -->
     <div id="opponentLeftBox" class="overlay hidden">
         <div class="overlayCard">
             <h1 style="color:#ff6b6b;">😢 Rakip Ayrıldı</h1>
             <p id="opponentLeftText" style="font-size:18px; margin:20px 0;"></p>
             <div class="confirmButtons">
-                <button id="opponentLeftOkBtn" class="bigBtn greenBtn">Ana Menüye Dön</button>
+                <button id="opponentLeftBackBtn" class="bigBtn greenBtn">← Geri</button>
+                <button id="opponentLeftOkBtn" class="bigBtn">Ana Menüye Dön</button>
             </div>
         </div>
     </div>
@@ -1539,7 +2304,7 @@
             <h2 style="color:#51cf66;">ℹ️ Hakkımızda</h2>
             <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6;">
                 <p><b>🎮 GameArena Nedir?</b></p>
-                <p>GameArena, futbol severler için 7 farklı oyun modu sunan online multiplayer bir eğlence platformudur.</p>
+                <p>GameArena, futbol severler için 9 farklı oyun modu sunan online multiplayer bir eğlence platformudur.</p>
                 
                 <p style="margin-top:15px;"><b>⚽ Modlarımız:</b></p>
                 <ul style="padding-left:20px;">
@@ -1550,6 +2315,8 @@
                     <li>Gizemli Kariyer - Kariyerden futbolcuyu bul</li>
                     <li>İlk 11 Challenge - En iyi kadroyu kur</li>
                     <li>Stadyum Tanıma - Stadyumu tanı</li>
+                    <li>Meme Arena - Duruma en uygun memi seç</li>
+                    <li>Mini Futbol - 1v1'den 5v5'e gerçek zamanlı futbol</li>
                 </ul>
                 
                 <p style="margin-top:15px;"><b>💡 Amacımız:</b></p>

@@ -5,7 +5,9 @@ from oyun_modlari.bil_bakalim.footballers import ALL_FOOTBALLERS
 from oyun_modlari.haritadan_bul.harita_data import (
     COUNTRIES as HARITA_COUNTRIES,
     get_country_key,
-    get_valid_footballer_indices
+    get_valid_footballer_indices,
+    get_footballers_by_difficulty,
+    make_progressive_order
 )
 
 HARITA_TOPLAM_TUR = 10
@@ -117,9 +119,24 @@ async def harita_next_round(room, broadcast):
 
 
 async def start_harita_game(room, safe_send, broadcast):
-    valid = harita_get_valid_indices()
-    random.shuffle(valid)
-    order = valid[:min(HARITA_TOPLAM_TUR, len(valid))]
+    difficulty = room.get("difficulty", "karisik")
+    
+    if difficulty == "karisik":
+        # Karışık mod: progresif (kolay → orta → zor)
+        order = make_progressive_order(ALL_FOOTBALLERS, HARITA_TOPLAM_TUR)
+    else:
+        # Belirli zorluk seviyesi
+        valid = get_footballers_by_difficulty(ALL_FOOTBALLERS, difficulty)
+        random.shuffle(valid)
+        order = valid[:min(HARITA_TOPLAM_TUR, len(valid))]
+    
+    if not order:
+        # Fallback: eğer o zorlukta futbolcu yoksa tümünü kullan
+        valid = harita_get_valid_indices()
+        random.shuffle(valid)
+        order = valid[:HARITA_TOPLAM_TUR]
+    
+    print(f"[HARITA] Oyun başladı — Zorluk: {difficulty}, Futbolcu sayısı: {len(order)}")
 
     room["phase"] = "playing"
     room["scores"] = {1: 0, 2: 0}
@@ -177,7 +194,8 @@ async def send_harita_lobby_update(room, broadcast):
         "room_code": room["code"],
         "players": players,
         "can_start": len(room["players"]) == 2,
-        "turn_seconds": room.get("turn_seconds", 30)
+        "turn_seconds": room.get("turn_seconds", 30),
+        "difficulty": room.get("difficulty", "karisik")
     })
 
 
@@ -203,6 +221,7 @@ async def handle_harita_message(
     if msg_type == "harita_create_room":
         name = (data.get("name") or "").strip()
         turn_seconds_raw = data.get("turn_seconds", 30)
+        difficulty = (data.get("difficulty") or "karisik").strip().lower()
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -215,6 +234,9 @@ async def handle_harita_message(
         except:
             harita_turn_seconds = 30
 
+        if difficulty not in ["kolay", "orta", "zor", "karisik"]:
+            difficulty = "karisik"
+
         current_room_code = make_room_code()
         current_player_id = 1
 
@@ -224,6 +246,7 @@ async def handle_harita_message(
             "players": {1: {"ws": websocket, "name": name}},
             "phase": "lobby",
             "turn_seconds": harita_turn_seconds,
+            "difficulty": difficulty,
             "scores": {1: 0, 2: 0},
             "harita_order": [],
             "harita_round": 0,
@@ -235,7 +258,8 @@ async def handle_harita_message(
         await safe_send(websocket, {
             "type": "harita_room_created",
             "room_code": current_room_code,
-            "player_id": 1
+            "player_id": 1,
+            "difficulty": difficulty
         })
         await send_harita_lobby_update(rooms[current_room_code], broadcast)
         return _handled(current_room_code, current_player_id)
@@ -268,7 +292,8 @@ async def handle_harita_message(
         await safe_send(websocket, {
             "type": "harita_room_joined",
             "room_code": current_room_code,
-            "player_id": 2
+            "player_id": 2,
+            "difficulty": room.get("difficulty", "karisik")
         })
         await send_harita_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -279,6 +304,32 @@ async def handle_harita_message(
 
     room = rooms[current_room_code]
     if room.get("mode") != "haritadan_bul":
+        return _handled(current_room_code, current_player_id)
+
+    # ---------- UPDATE ROOM SETTINGS ----------
+    if msg_type == "harita_update_settings":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            return _handled(current_room_code, current_player_id)
+
+        try:
+            new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 30)))
+            if new_turn_sec not in [15, 20, 30, 45, 60]:
+                new_turn_sec = 30
+        except:
+            new_turn_sec = 30
+
+        new_difficulty = (data.get("difficulty") or room.get("difficulty", "karisik")).strip().lower()
+        if new_difficulty not in ["kolay", "orta", "zor", "karisik"]:
+            new_difficulty = "karisik"
+
+        room["turn_seconds"] = new_turn_sec
+        room["difficulty"] = new_difficulty
+
+        await send_harita_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
 
     # ---------- START ----------

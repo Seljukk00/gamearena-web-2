@@ -30,6 +30,8 @@ GAME_MODE_LABELS = {
     "gizemli_kariyer": "Gizemli Kariyer",
     "ilk_11_challenge": "İlk 11 Challenge",
     "stadyum_tanima": "Stadyum Tanıma",
+    "meme_arena": "🎭 Meme Arena",
+    "mini_futbol": "⚽ Mini Futbol",
 }
 
 
@@ -418,6 +420,14 @@ async def handle_bil_bakalim_message(
             return result
 
         room = rooms[join_code]
+        
+        # Atılmış kişi kontrolü
+        kicked_names = room.get("kicked_names", [])
+        if name.lower().strip() in kicked_names:
+            await safe_send(websocket, {"type": "error", "message": "Bu odadan atıldınız!"})
+            result["handled"] = True
+            return result
+
         if len(room["players"]) >= 2:
             await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
             result["handled"] = True
@@ -455,6 +465,45 @@ async def handle_bil_bakalim_message(
     if room.get("mode") != "bil_bakalim":
         return result
 
+    # --- UPDATE ROOM SETTINGS (sadece host, sadece lobbyde) ---
+    if msg_type == "update_room_settings":
+        if player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            result["handled"] = True
+            return result
+
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            result["handled"] = True
+            return result
+
+        # Tur Süresi
+        turn_seconds_raw = data.get("turn_seconds", room.get("turn_seconds", 45))
+        try:
+            turn_seconds = int(turn_seconds_raw)
+            if turn_seconds < 20 or turn_seconds > 120:
+                turn_seconds = 45
+        except:
+            turn_seconds = 45
+
+        # Tahmin Hakkı
+        guess_limit_raw = data.get("guess_limit", room.get("guess_limit", 0))
+        try:
+            guess_limit = int(guess_limit_raw)
+            if guess_limit < 0 or guess_limit > 15:
+                guess_limit = 0
+        except:
+            guess_limit = 0
+
+        room["turn_seconds"] = turn_seconds
+        room["guess_limit"] = guess_limit
+        room["guesses_left"] = {1: guess_limit, 2: guess_limit}
+
+        await send_lobby_update(room, broadcast)
+
+        result["handled"] = True
+        return result
+
     # --- KICK PLAYER (sadece host, sadece lobbyde) ---
     if msg_type == "kick_player":
         if player_id != 1:
@@ -478,6 +527,11 @@ async def handle_bil_bakalim_message(
 
         target_name = room["players"][target_id]["name"]
         target_ws = room["players"][target_id]["ws"]
+
+        # Atılan oyuncunun ismini kaydet (tekrar giremesin)
+        if "kicked_names" not in room:
+            room["kicked_names"] = []
+        room["kicked_names"].append(target_name.lower().strip())
 
         # Atılan oyuncuya bildir
         await safe_send(target_ws, {

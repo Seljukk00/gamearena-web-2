@@ -1,0 +1,1276 @@
+// ========================================
+// MİNİ FUTBOL - HOST FİZİK MOTORU
+// Backend'deki fiziğin JavaScript kopyası
+// Sadece HOST tarayıcısında çalışır
+// ========================================
+
+const HP = {  // Host Physics namespace
+    // === SABİTLER ===
+    FIELD_WIDTH: 1000,
+    FIELD_HEIGHT: 500,
+    PLAYER_RADIUS: 20,
+    BALL_RADIUS: 12,
+    GOAL_WIDTH: 180,
+    get GOAL_Y_TOP() { return (this.FIELD_HEIGHT - this.GOAL_WIDTH) / 2; },
+    get GOAL_Y_BOTTOM() { return this.GOAL_Y_TOP + this.GOAL_WIDTH; },
+    KICK_COOLDOWN: 1.0,
+    STRONG_KICK_THRESHOLD: 12,
+    HARD_BALL_THRESHOLD: 6.0,
+    BALL_MAX_SPEED: 18.0,
+    PLASE_POWER_MULT: 0.75,
+    PLASE_SPIN_FORCE: 0.35,
+    PLASE_SPIN_DECAY: 0.94,
+    PLASE_SPRINT_BONUS: 1.35,
+    PLASE_AFTERTOUCH_TIME: 0.2,
+    CENTER_CIRCLE_RADIUS: 60,
+    GOAL_POST_RADIUS: 6,
+    get CENTER_LINE_X() { return this.FIELD_WIDTH / 2; },
+    KICKOFF_TIMEOUT: 10.0,
+    KICKOFF_WARNING_TIME: 3.0,
+    AUTO_PASS_SPEED: 4.5,
+    PLAYER_FRICTION: 0.90,
+    BALL_FRICTION: 0.985,
+    COLLISION_FORCE: 0.3,
+    BALL_STICK_FACTOR: 0.85,
+    FPS: 60,
+    FRAME_TIME: 1.0 / 60,
+    SPEED_PRESETS: {
+        "yavas":  { player_speed: 2.0, player_accel: 0.4,  kick_power: 10,  plase_spin: 0.18 },
+        "normal": { player_speed: 2.8, player_accel: 0.55, kick_power: 12, plase_spin: 0.25 },
+        "hizli":  { player_speed: 3.5, player_accel: 0.8,  kick_power: 15, plase_spin: 0.35 }
+    },
+    SPRINT_MULTIPLIER: 1.5,
+    SPRINT_MAX_ENERGY: 100.0,
+    SPRINT_DRAIN_PER_SEC: 33.3,
+    SPRINT_REFILL_PER_SEC: 16.7,
+    SPRINT_KICK_MULTIPLIER: 1.3,
+    WALL_BOUNCE: 0.55,
+    MIN_BOUNCE_SPEED: 3.0,
+    PLAYER_OUT_MARGIN: 55,
+    
+    // === HOST FİZİK STATE ===
+    room: null,           // {players, ball, scores, ...}
+    settings: null,       // {goalTarget, matchDuration, gameSpeed, allowPlase, advanced, ...}
+    running: false,
+    frameTimer: null,
+    onStateUpdate: null,  // Callback: (state) => { network'e gönder }
+    onGoal: null,         // Callback: (goalData) => { network'e gönder }
+    onGameOver: null,     // Callback: (winData) => {}
+    
+    // ==========================================
+    // BAŞLAT / DURDUR
+    // ==========================================
+    
+    startGame(settings, playerList) {
+        console.log("[HOST-PHYSICS] Oyun başlatılıyor", settings);
+        this.settings = settings;
+        this.initGameState(playerList);
+        this.running = true;
+        
+        // ✨ Web Worker ile tick (arka planda da çalışır)
+        try {
+            this.worker = new Worker("/oyun_modlari/mini_futbol/mini_futbol_ticker.js");
+            this.worker.onmessage = () => {
+                if (this.running) this.tick();
+            };
+            this.worker.postMessage("start");
+            console.log("[HOST-PHYSICS] Web Worker ticker başlatıldı ✓");
+        } catch(e) {
+            console.warn("[HOST-PHYSICS] Web Worker başarısız, setInterval'a düşülüyor:", e);
+            // Fallback: normal setInterval
+            this.frameTimer = setInterval(() => this.tick(), 1000 / 60);
+        }
+    },
+    
+    stopGame() {
+        console.log("[HOST-PHYSICS] Oyun durduruluyor");
+        this.running = false;
+        if (this.frameTimer) {
+            clearInterval(this.frameTimer);
+            this.frameTimer = null;
+        }
+        // Web Worker kapat
+        if (this.worker) {
+            try {
+                this.worker.postMessage("stop");
+                this.worker.terminate();
+            } catch(e) {}
+            this.worker = null;
+        }
+        this.room = null;
+    },
+    
+    pauseGame() {
+        if (this.room && this.room.gameState) {
+            this.room.gameState.state_before_pause = this.room.gameState.state;
+            this.room.gameState.state = "paused";
+            this.room.gameState.pause_time = performance.now() / 1000;
+            // Tuşları sıfırla
+            for (const pid in this.room.gameState.players) {
+                const p = this.room.gameState.players[pid];
+                for (const k in p.keys) p.keys[k] = false;
+                p.vx = 0;
+                p.vy = 0;
+            }
+        }
+    },
+    
+    resumeGame() {
+        if (this.room && this.room.gameState) {
+            const now = performance.now() / 1000;
+            this.room.gameState.state = "countdown";
+            this.room.gameState.countdown_start = now;
+            this.room.gameState.countdown_end = now + 3.5;
+        }
+    },
+    
+    restartMatch() {
+        if (!this.room || !this.room.gameState) return;
+        const gs = this.room.gameState;
+        gs.scores = { 1: 0, 2: 0 };
+        // Stats sıfırla
+        for (const pid in this.room.players) {
+            this.room.players[pid].goals = 0;
+            this.room.players[pid].assists = 0;
+            this.room.players[pid].passes = 0;
+        }
+        gs.kickoff_active = false;
+        gs.kickoff_restricted_team = null;
+        gs.kickoff_receiving_team = null;
+        gs.kickoff_restricted_team_override = null;
+        gs.kickoff_receiving_team_override = null;
+        gs.last_ball_toucher = null;
+        gs.second_last_toucher = null;
+        gs.last_goal_scorer = null;
+        gs.last_goal_own = false;
+        gs.last_goal_assist = null;
+        this.resetPositions();
+        const now = performance.now() / 1000;
+        gs.time_left = this.settings.matchDuration;
+        gs.match_start = now + 3.5;
+        gs.state = "countdown";
+        gs.countdown_start = now;
+        gs.countdown_end = now + 3.5;
+        gs.pause_time = now;
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            for (const k in p.keys) p.keys[k] = false;
+            p.vx = 0;
+            p.vy = 0;
+            p.sprint_energy = this.SPRINT_MAX_ENERGY;
+        }
+    },
+    
+    // ==========================================
+    // OYUNCU YÖNETİMİ (dışarıdan çağrılır)
+    // ==========================================
+    
+    setKey(playerId, key, pressed) {
+        if (!this.room || !this.room.gameState) return;
+        const p = this.room.gameState.players[playerId];
+        if (p && p.keys.hasOwnProperty(key)) {
+            p.keys[key] = pressed;
+        }
+    },
+    
+    updatePlayerList(playerList) {
+        // Takım değişikliği vs. için (pause sırasında)
+        // playerList: [{id, name, team, is_split_slave}]
+        for (const pl of playerList) {
+            if (!this.room.players[pl.id]) {
+                this.room.players[pl.id] = {
+                    name: pl.name,
+                    team: pl.team,
+                    goals: 0, assists: 0, passes: 0
+                };
+            } else {
+                this.room.players[pl.id].name = pl.name;
+                this.room.players[pl.id].team = pl.team;
+            }
+        }
+        // Silinmişler
+        const activeIds = new Set(playerList.map(p => p.id));
+        for (const pid in this.room.players) {
+            if (!activeIds.has(parseInt(pid))) {
+                delete this.room.players[pid];
+            }
+        }
+    },
+    
+    // ==========================================
+    // INIT
+    // ==========================================
+    
+    initGameState(playerList) {
+        const now = performance.now() / 1000;
+        
+        // Room struct
+        this.room = {
+            players: {},
+            gameState: null
+        };
+        
+        for (const pl of playerList) {
+            this.room.players[pl.id] = {
+                name: pl.name,
+                team: pl.team,
+                goals: 0, assists: 0, passes: 0
+            };
+        }
+        
+        // Aktif kırmızı ve mavi oyuncu
+        const redPlayers = playerList.filter(p => p.team === "red");
+        const bluePlayers = playerList.filter(p => p.team === "blue");
+        const redPid = redPlayers.length ? redPlayers[0].id : null;
+        const bluePid = bluePlayers.length ? bluePlayers[0].id : null;
+        
+        this.room.active_red_player = redPid;
+        this.room.active_blue_player = bluePid;
+        
+        const gsPlayers = {};
+        if (redPid) {
+            gsPlayers[redPid] = {
+                x: 200, y: this.FIELD_HEIGHT / 2,
+                vx: 0, vy: 0,
+                keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                last_kick_time: 0,
+                sprint_energy: this.SPRINT_MAX_ENERGY,
+                last_frame_time: 0,
+                team: "red"
+            };
+        }
+        if (bluePid) {
+            gsPlayers[bluePid] = {
+                x: this.FIELD_WIDTH - 200, y: this.FIELD_HEIGHT / 2,
+                vx: 0, vy: 0,
+                keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                last_kick_time: 0,
+                sprint_energy: this.SPRINT_MAX_ENERGY,
+                last_frame_time: 0,
+                team: "blue"
+            };
+        }
+        
+        this.room.gameState = {
+            players: gsPlayers,
+            ball: { x: this.FIELD_WIDTH / 2, y: this.FIELD_HEIGHT / 2, vx: 0, vy: 0, spin: 0 },
+            scores: { 1: 0, 2: 0 },
+            time_left: this.settings.matchDuration,
+            match_start: now + 3.5,  // 3-2-1 sonrası başlar, süre buradan işler
+            goal_wait_until: 0,
+            last_goal_scorer: null,
+            countdown_end: now + 3.5,
+            countdown_start: now,
+            state: "countdown",
+            kickoff_active: false,
+            kickoff_receiving_team: null,
+            kickoff_restricted_team: null,
+            kickoff_start_time: 0,
+            kickoff_timeout: 0,
+            last_ball_toucher: null,
+            second_last_toucher: null,
+            last_goal_own: false,
+            last_goal_assist: null,
+            kick_effects: []
+        };
+    },
+    
+    resetPositions() {
+        const gs = this.room.gameState;
+        const receiving = gs.kickoff_receiving_team;
+        const cx = this.FIELD_WIDTH / 2;
+        const cy = this.FIELD_HEIGHT / 2;
+        const redPid = this.room.active_red_player;
+        const bluePid = this.room.active_blue_player;
+        
+        if (redPid && gs.players[redPid]) {
+            const p = gs.players[redPid];
+            if (receiving === 1) p.x = cx - 50;
+            else if (receiving === 2) p.x = 150;
+            else p.x = 200;
+            p.y = cy;
+            p.vx = 0; p.vy = 0;
+            p.sprint_energy = this.SPRINT_MAX_ENERGY;
+        }
+        if (bluePid && gs.players[bluePid]) {
+            const p = gs.players[bluePid];
+            if (receiving === 2) p.x = cx + 50;
+            else if (receiving === 1) p.x = this.FIELD_WIDTH - 150;
+            else p.x = this.FIELD_WIDTH - 200;
+            p.y = cy;
+            p.vx = 0; p.vy = 0;
+            p.sprint_energy = this.SPRINT_MAX_ENERGY;
+        }
+        gs.ball.x = cx;
+        gs.ball.y = cy;
+        gs.ball.vx = 0;
+        gs.ball.vy = 0;
+    },
+    
+    startKickoffCountdown() {
+        const now = performance.now() / 1000;
+        const gs = this.room.gameState;
+        gs.state = "countdown";
+        gs.countdown_start = now;
+        gs.countdown_end = now + 3.5;
+        gs.pause_time = now;
+        
+        const redPid = this.room.active_red_player;
+        const bluePid = this.room.active_blue_player;
+        const soloMode = !redPid || !bluePid;
+        
+        if (gs.kickoff_restricted_team !== null && !soloMode) {
+            gs.kickoff_active = true;
+        } else {
+            gs.kickoff_active = false;
+        }
+    },
+    
+    // ==========================================
+    // ANA TICK (60 FPS)
+    // ==========================================
+    
+    tick() {
+        if (!this.running || !this.room) return;
+        
+        const goalEvent = this.updatePhysics();
+        const gs = this.room.gameState;
+        const now = performance.now() / 1000;
+        
+        // Süre güncelle
+        if (gs.state === "playing") {
+            const elapsed = now - gs.match_start;
+            if (elapsed < 0) {
+                gs.time_left = this.settings.matchDuration;
+            } else {
+                gs.time_left = Math.max(0, this.settings.matchDuration - elapsed);
+            }
+        } else if (gs.state === "countdown") {
+            // ✨ Countdown sırasında:
+            //   - İlk başlangıç (pause_time yok) → tam süre göster (5:00)
+            //   - Pause'dan devam (pause_time var) → kaldığı süreyi göster
+            if (gs.pause_time) {
+                // Pause'dan devam ediyor - time_left'i olduğu gibi bırak (mevcut değeri korur)
+                // Hiçbir şey yapma
+            } else {
+                // İlk başlangıç
+                gs.time_left = this.settings.matchDuration;
+            }
+        }
+        
+        // Kick effects temizle
+        gs.kick_effects = (gs.kick_effects || []).filter(k => now - k.time < 0.5);
+        
+        // Countdown value
+        let countdownValue = null;
+        if (gs.state === "countdown") {
+            const remaining = gs.countdown_end - now;
+            if (remaining > 0.5) {
+                countdownValue = Math.floor(remaining) + 1;
+                if (countdownValue > 3) countdownValue = 3;
+            } else {
+                countdownValue = 0;
+            }
+        }
+        
+        // Goal celebration
+        let goalCelebration = null;
+        if (gs.state === "goal_wait") {
+            goalCelebration = {
+                scorer_id: gs.last_goal_scorer,
+                own_goal: gs.last_goal_own || false,
+                assist_id: gs.last_goal_assist,
+                wait_remaining: Math.max(0, gs.goal_wait_until - now)
+            };
+        }
+        
+        // Kickoff info
+        let kickoffInfo = null;
+        let ballWarning = false;
+        let ballWarningTeam = null;
+        if (gs.kickoff_active && gs.state === "playing") {
+            const remaining = gs.kickoff_timeout - now;
+            if (remaining > 0) {
+                kickoffInfo = {
+                    active: true,
+                    restricted_team: gs.kickoff_restricted_team,
+                    receiving_team: gs.kickoff_receiving_team,
+                    time_remaining: Math.round(remaining * 10) / 10
+                };
+                if (remaining <= this.KICKOFF_WARNING_TIME) {
+                    ballWarning = true;
+                    ballWarningTeam = gs.kickoff_restricted_team;
+                }
+            }
+        }
+        
+        // Sprint info
+        const sprintInfo = {};
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            // ✨ typeof kontrolü (0 || 100 = 100 JS bugu)
+            const energy = (typeof p.sprint_energy === "number") ? p.sprint_energy : this.SPRINT_MAX_ENERGY;
+            const isActive = p.keys.sprint && energy > 0;
+            sprintInfo[String(pid)] = {
+                energy: Math.round(energy * 10) / 10,
+                max_energy: this.SPRINT_MAX_ENERGY,
+                active: isActive
+            };
+        }
+        
+        // Stats
+        const statsInfo = {};
+        for (const pid in this.room.players) {
+            const p = this.room.players[pid];
+            statsInfo[String(pid)] = {
+                goals: p.goals || 0,
+                assists: p.assists || 0,
+                passes: p.passes || 0
+            };
+        }
+        
+        // Ball speed / on fire
+        const ballSpeed = Math.sqrt(gs.ball.vx * gs.ball.vx + gs.ball.vy * gs.ball.vy);
+        const ballOnFire = ballSpeed > this.STRONG_KICK_THRESHOLD;
+        
+        // State message
+        const stateMsg = {
+            type: "mini_state",
+            sprint: sprintInfo,
+            stats: statsInfo,
+            players: {},
+            ball: {
+                x: Math.round(gs.ball.x * 10) / 10,
+                y: Math.round(gs.ball.y * 10) / 10,
+                on_fire: ballOnFire,
+                warning: ballWarning,
+                warning_team: ballWarningTeam,
+                last_toucher: gs.last_ball_toucher
+            },
+            scores: { "1": gs.scores[1], "2": gs.scores[2] },
+            time_left: Math.round(gs.time_left * 10) / 10,
+            kick_effects: gs.kick_effects,
+            game_state: gs.state,
+            countdown: countdownValue,
+            goal_celebration: goalCelebration,
+            kickoff: kickoffInfo
+        };
+        for (const pid in gs.players) {
+            stateMsg.players[String(pid)] = {
+                x: Math.round(gs.players[pid].x * 10) / 10,
+                y: Math.round(gs.players[pid].y * 10) / 10
+            };
+        }
+        
+        if (goalEvent) stateMsg.goal = goalEvent;
+        
+        // Callback ile dışarıya bildir (network gönderimi)
+        if (this.onStateUpdate) this.onStateUpdate(stateMsg);
+        
+        // Kazanma kontrolü
+        const goalTarget = this.settings.goalTarget || 3;
+        let winnerId = null;
+        if (gs.scores[1] >= goalTarget) winnerId = 1;
+        else if (gs.scores[2] >= goalTarget) winnerId = 2;
+        else if (gs.time_left <= 0) {
+            if (gs.scores[1] > gs.scores[2]) winnerId = 1;
+            else if (gs.scores[2] > gs.scores[1]) winnerId = 2;
+            else winnerId = 0;
+        }
+        
+        if (winnerId !== null) {
+            this.stopGame();
+            if (this.onGameOver) {
+                this.onGameOver({
+                    type: "mini_game_over",
+                    winner_id: winnerId,
+                    scores: { "1": gs.scores[1], "2": gs.scores[2] },
+                    reason: (winnerId > 0 && (gs.scores[1] >= goalTarget || gs.scores[2] >= goalTarget)) ? "goal_target" : "time_up"
+                });
+            }
+        }
+    },
+    
+    // ==========================================
+    // FİZİK GÜNCELLEMESİ (backend'in tam kopyası)
+    // ==========================================
+    
+    updatePhysics() {
+        const gs = this.room.gameState;
+        const now = performance.now() / 1000;
+        
+        // Speed preset
+        const preset = this.SPEED_PRESETS[this.settings.gameSpeed] || this.SPEED_PRESETS.normal;
+        let PLAYER_SPEED = preset.player_speed;
+        let PLAYER_ACCEL = preset.player_accel;
+        let KICK_POWER = preset.kick_power;
+        
+        // Advanced settings
+        const adv = this.settings.advancedEnabled ? this.settings.advanced : null;
+        let ADV_SPRINT_KICK_BONUS = this.SPRINT_KICK_MULTIPLIER;
+        let ADV_PLASE_POWER_MULT = this.PLASE_POWER_MULT;
+        // ✨ Plase spin preset'ten al (hıza göre otomatik ayarlansın)
+        let ADV_PLASE_SPIN_FORCE = preset.plase_spin || this.PLASE_SPIN_FORCE;
+        let ADV_AFTERTOUCH_TIME = this.PLASE_AFTERTOUCH_TIME;
+        let ADV_BALL_MAX_SPEED = this.BALL_MAX_SPEED;
+        let ADV_SPRINT_MULT = this.SPRINT_MULTIPLIER;
+        let ADV_SPRINT_DRAIN = this.SPRINT_DRAIN_PER_SEC;
+        
+        if (adv) {
+            KICK_POWER = adv.kickPower || KICK_POWER;
+            ADV_SPRINT_KICK_BONUS = 1.0 + ((adv.sprintKickBonus || 30) / 100.0);
+            ADV_PLASE_POWER_MULT = (adv.plasePower || 75) / 100.0;
+            ADV_PLASE_SPIN_FORCE = (adv.plaseSpin || 35) / 100.0;
+            ADV_AFTERTOUCH_TIME = (adv.afterTouchTime || 200) / 1000.0;
+            ADV_BALL_MAX_SPEED = adv.ballMaxSpeed || 18;
+            ADV_SPRINT_MULT = (adv.sprintMultiplier || 150) / 100.0;
+            const sd = adv.sprintDuration || 3;
+            ADV_SPRINT_DRAIN = 100.0 / sd;
+        }
+        
+        // Pause / quick_paused
+        if (gs.state === "paused" || gs.state === "quick_paused") return null;
+        
+        // Countdown
+        if (gs.state === "countdown") {
+            if (now >= gs.countdown_end) {
+                gs.state = "playing";
+                
+                if (gs.pause_time) {
+                    // ✨ Pause'dan devam ediyor → eski süreyi koru, sadece pause süresi kadar kaydır
+                    const pauseDuration = now - gs.pause_time;
+                    gs.match_start += pauseDuration;
+                    delete gs.pause_time;
+                } else {
+                    // ✨ İlk başlangıç → süreyi tam şimdi başlat
+                    gs.match_start = now;
+                }
+                
+                if (gs.kickoff_active) {
+                    gs.kickoff_start_time = now;
+                    gs.kickoff_timeout = now + this.KICKOFF_TIMEOUT;
+                }
+            }
+            return null;
+        }
+        
+        // Goal wait
+        if (gs.state === "goal_wait") {
+            if (now >= gs.goal_wait_until) {
+                const ovr_restricted = gs.kickoff_restricted_team_override;
+                const ovr_receiving = gs.kickoff_receiving_team_override;
+                if (ovr_restricted !== null && ovr_restricted !== undefined) {
+                    gs.kickoff_restricted_team = ovr_restricted;
+                    gs.kickoff_receiving_team = ovr_receiving;
+                } else {
+                    const scorer = gs.last_goal_scorer;
+                    if (scorer) {
+                        gs.kickoff_restricted_team = scorer;
+                        gs.kickoff_receiving_team = scorer === 2 ? 1 : 2;
+                    }
+                }
+                gs.kickoff_restricted_team_override = null;
+                gs.kickoff_receiving_team_override = null;
+                this.resetPositions();
+                this.startKickoffCountdown();
+                return null;
+            }
+        }
+        
+        // === OYUNCU HAREKETİ ===
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            const keys = p.keys;
+            
+            // Delta hesap
+            let delta = this.FRAME_TIME;
+            if (p.last_frame_time > 0) {
+                delta = now - p.last_frame_time;
+                if (delta > 0.1) delta = this.FRAME_TIME;
+            }
+            p.last_frame_time = now;
+            
+            // Sprint
+            let isSprinting = false;
+            let currentEnergy = (typeof p.sprint_energy === "number") ? p.sprint_energy : this.SPRINT_MAX_ENERGY;
+            
+            // ✨ Sprint etkin mi? (kapalıysa hiç sprint yok)
+            const sprintEnabled = this.settings.sprintEnabled !== false;
+            
+            if (sprintEnabled && keys.sprint && currentEnergy > 0) {
+                // Shift basılı VE enerji var → tüket
+                isSprinting = true;
+                currentEnergy -= ADV_SPRINT_DRAIN * delta;
+                if (currentEnergy < 0) currentEnergy = 0;
+            } else if (!keys.sprint || !sprintEnabled) {
+                // Shift BIRAKILDI VEYA sprint kapalı → dolmaya başla
+                currentEnergy += this.SPRINT_REFILL_PER_SEC * delta;
+                if (currentEnergy > this.SPRINT_MAX_ENERGY) currentEnergy = this.SPRINT_MAX_ENERGY;
+            }
+            // Shift basılı ama enerji 0 → hiçbir şey yapma (0'da kalsın, normal hızla koşsun)
+            p.sprint_energy = currentEnergy;
+            
+            // İvme (sprint bölgesinde biraz düşer)
+            const cs = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            let accel = PLAYER_ACCEL;
+            if (isSprinting && cs > PLAYER_SPEED * 0.95) {
+                accel = PLAYER_ACCEL * 0.75;
+            }
+            
+            if (keys.up) p.vy -= accel;
+            if (keys.down) p.vy += accel;
+            if (keys.left) p.vx -= accel;
+            if (keys.right) p.vx += accel;
+            
+            // Max hız
+            const maxSpeed = PLAYER_SPEED * (isSprinting ? ADV_SPRINT_MULT : 1.0);
+            const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            if (speed > maxSpeed) {
+                p.vx = (p.vx / speed) * maxSpeed;
+                p.vy = (p.vy / speed) * maxSpeed;
+            }
+            
+            // Sürtünme
+            p.vx *= this.PLAYER_FRICTION;
+            p.vy *= this.PLAYER_FRICTION;
+            if (Math.abs(p.vx) < 0.1) p.vx = 0;
+            if (Math.abs(p.vy) < 0.1) p.vy = 0;
+            
+            // Pozisyon
+            p.x += p.vx;
+            p.y += p.vy;
+            
+            // Duvar
+            const M = this.PLAYER_OUT_MARGIN;
+            const R = this.PLAYER_RADIUS;
+            if (p.x - R < -M) { p.x = -M + R; p.vx = 0; }
+            if (p.x + R > this.FIELD_WIDTH + M) { p.x = this.FIELD_WIDTH + M - R; p.vx = 0; }
+            if (p.y - R < -M) { p.y = -M + R; p.vy = 0; }
+            if (p.y + R > this.FIELD_HEIGHT + M) { p.y = this.FIELD_HEIGHT + M - R; p.vy = 0; }
+            
+            // Santra kuralı
+            if (gs.kickoff_active) {
+                const restricted = gs.kickoff_restricted_team;
+                const receiving = gs.kickoff_receiving_team;
+                const pidInt = parseInt(pid);
+                if (pidInt === restricted) {
+                    if (pidInt === 1) {
+                        const bx = this.CENTER_LINE_X - this.CENTER_CIRCLE_RADIUS;
+                        if (p.x + R > bx) { p.x = bx - R; if (p.vx > 0) p.vx = 0; }
+                    } else if (pidInt === 2) {
+                        const bx = this.CENTER_LINE_X + this.CENTER_CIRCLE_RADIUS;
+                        if (p.x - R < bx) { p.x = bx + R; if (p.vx < 0) p.vx = 0; }
+                    }
+                } else if (pidInt === receiving) {
+                    if (pidInt === 1) {
+                        const bx = this.CENTER_LINE_X + this.CENTER_CIRCLE_RADIUS;
+                        if (p.x + R > bx) { p.x = bx - R; if (p.vx > 0) p.vx = 0; }
+                    } else if (pidInt === 2) {
+                        const bx = this.CENTER_LINE_X - this.CENTER_CIRCLE_RADIUS;
+                        if (p.x - R < bx) { p.x = bx + R; if (p.vx < 0) p.vx = 0; }
+                    }
+                }
+            }
+        }
+        
+        // === TOP HAREKETİ (CCD substep) ===
+        const ball = gs.ball;
+        const ballSpeedNow = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        const maxStep = this.PLAYER_RADIUS * 0.5;
+        let substeps = 1;
+        if (ballSpeedNow > maxStep) {
+            substeps = Math.floor(ballSpeedNow / maxStep) + 1;
+            if (substeps > 8) substeps = 8;
+        }
+        let stepVx = ball.vx / substeps;
+        let stepVy = ball.vy / substeps;
+        
+        for (let si = 0; si < substeps; si++) {
+            ball.x += stepVx;
+            ball.y += stepVy;
+            
+            let hit = false;
+            for (const pid in gs.players) {
+                const p = gs.players[pid];
+                const dx = ball.x - p.x;
+                const dy = ball.y - p.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
+                if (dist < minDist) {
+                    let nx, ny;
+                    if (dist < 0.1) {
+                        const sp = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                        if (sp > 0.1) { nx = -ball.vx / sp; ny = -ball.vy / sp; }
+                        else { nx = 1; ny = 0; }
+                        dist = 0.1;
+                    } else {
+                        nx = dx / dist;
+                        ny = dy / dist;
+                    }
+                    ball.x = p.x + nx * minDist;
+                    ball.y = p.y + ny * minDist;
+                    stepVx = 0;
+                    stepVy = 0;
+                    hit = true;
+                    break;
+                }
+            }
+            if (hit) break;
+        }
+        
+        ball.vx *= this.BALL_FRICTION;
+        ball.vy *= this.BALL_FRICTION;
+        
+        // After-touch
+        if (ball.last_kick_type === "plase") {
+            const kickerId = ball.kicker_id;
+            const kickTime = ball.kick_time || 0;
+            if (now - kickTime < ADV_AFTERTOUCH_TIME && gs.players[kickerId]) {
+                const kicker = gs.players[kickerId];
+                const bs = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                if (bs > 1.0) {
+                    const nx = ball.vx / bs;
+                    const ny = ball.vy / bs;
+                    const perp_x = -ny;
+                    const perp_y = nx;
+                    let in_x = 0, in_y = 0;
+                    if (kicker.keys.right) in_x += 1;
+                    if (kicker.keys.left) in_x -= 1;
+                    if (kicker.keys.down) in_y += 1;
+                    if (kicker.keys.up) in_y -= 1;
+                    const cross = in_x * perp_x + in_y * perp_y;
+                    if (Math.abs(cross) > 0.1) {
+                        const spin_dir = cross > 0 ? 1 : -1;
+                        const sb = (kicker.keys.sprint && kicker.sprint_energy > 0) ? 1.4 : 1.0;
+                        ball.spin = ADV_PLASE_SPIN_FORCE * spin_dir * sb;
+                    }
+                }
+            } else {
+                ball.last_kick_type = null;
+            }
+        }
+        
+        // Spin
+        const spin = ball.spin || 0;
+        if (Math.abs(spin) > 0.001) {
+            const bs = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            if (bs > 0.5) {
+                const perp_x = -ball.vy / bs;
+                const perp_y = ball.vx / bs;
+                ball.vx += perp_x * spin;
+                ball.vy += perp_y * spin;
+            }
+            ball.spin = spin * this.PLASE_SPIN_DECAY;
+            if (Math.abs(ball.spin) < 0.005) ball.spin = 0;
+        }
+        if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
+        if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
+        
+        // Oyuncu-oyuncu çarpışma (iteleme yok)
+        const playerList = Object.entries(gs.players);
+        for (let i = 0; i < playerList.length; i++) {
+            for (let j = i + 1; j < playerList.length; j++) {
+                const [pid1, p1] = playerList[i];
+                const [pid2, p2] = playerList[j];
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = this.PLAYER_RADIUS * 2;
+                if (dist < minDist && dist > 0) {
+                    const overlap = minDist - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    p1.x -= nx * overlap / 2;
+                    p1.y -= ny * overlap / 2;
+                    p2.x += nx * overlap / 2;
+                    p2.y += ny * overlap / 2;
+                    const v1_toward = p1.vx * nx + p1.vy * ny;
+                    if (v1_toward > 0) {
+                        p1.vx -= v1_toward * nx;
+                        p1.vy -= v1_toward * ny;
+                    }
+                    const v2_toward = p2.vx * (-nx) + p2.vy * (-ny);
+                    if (v2_toward > 0) {
+                        p2.vx -= v2_toward * (-nx);
+                        p2.vy -= v2_toward * (-ny);
+                    }
+                }
+            }
+        }
+        
+        // === ŞUT KONTROLÜ ===
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            if (p.keys.kick && !p.kick_was_pressed) {
+                p.kick_was_pressed = true;
+                const timeSinceLast = now - (p.last_kick_time || 0);
+                if (timeSinceLast >= this.KICK_COOLDOWN) {
+                    p.last_kick_time = now;
+                    
+                    // Efekt - enerji oranı (0'da bugu için typeof check)
+                    const currentEnergyRaw = (typeof p.sprint_energy === "number") ? p.sprint_energy : this.SPRINT_MAX_ENERGY;
+                    const currentEnergyPercent = currentEnergyRaw / this.SPRINT_MAX_ENERGY;
+                    gs.kick_effects.push({
+                        player_id: parseInt(pid),
+                        x: p.x, y: p.y, time: now,
+                        energy_at_kick: currentEnergyPercent
+                    });
+                    
+                    const dx = ball.x - p.x;
+                    const dy = ball.y - p.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS + 15;
+                    
+                    if (dist < minDist && dist > 0) {
+                        if (gs.kickoff_active) {
+                            if (parseInt(pid) !== gs.kickoff_receiving_team) continue;
+                            gs.kickoff_active = false;
+                        }
+                        
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        
+                        // Köşe kontrolü
+                        const ball_at_left = ball.x < this.BALL_RADIUS + 8;
+                        const ball_at_right = ball.x > this.FIELD_WIDTH - this.BALL_RADIUS - 8;
+                        const ball_at_top = ball.y < this.BALL_RADIUS + 8;
+                        const ball_at_bottom = ball.y > this.FIELD_HEIGHT - this.BALL_RADIUS - 8;
+                        const isStuck = ball_at_left || ball_at_right || ball_at_top || ball_at_bottom;
+                        
+                        if (isStuck) {
+                            let kick_nx = nx, kick_ny = ny;
+                            if (ball_at_left) kick_nx = Math.abs(kick_nx);
+                            else if (ball_at_right) kick_nx = -Math.abs(kick_nx);
+                            if (ball_at_top) kick_ny = Math.abs(kick_ny);
+                            else if (ball_at_bottom) kick_ny = -Math.abs(kick_ny);
+                            const vlen = Math.sqrt(kick_nx * kick_nx + kick_ny * kick_ny);
+                            if (vlen > 0) { kick_nx /= vlen; kick_ny /= vlen; }
+                            else { kick_nx = 1; kick_ny = 0; }
+                            
+                            ball.x += kick_nx * 5;
+                            ball.y += kick_ny * 5;
+                            if (ball.x < this.BALL_RADIUS) ball.x = this.BALL_RADIUS;
+                            if (ball.x > this.FIELD_WIDTH - this.BALL_RADIUS) ball.x = this.FIELD_WIDTH - this.BALL_RADIUS;
+                            if (ball.y < this.BALL_RADIUS) ball.y = this.BALL_RADIUS;
+                            if (ball.y > this.FIELD_HEIGHT - this.BALL_RADIUS) ball.y = this.FIELD_HEIGHT - this.BALL_RADIUS;
+                            
+                            let corner_mult = 1.0;
+                            if (p.keys.sprint && p.sprint_energy > 0) corner_mult = this.SPRINT_KICK_MULTIPLIER;
+                            ball.vx = kick_nx * KICK_POWER * corner_mult;
+                            ball.vy = kick_ny * KICK_POWER * corner_mult;
+                        } else {
+                            // Plase algıla
+                            const perp_x = -ny, perp_y = nx;
+                            let input_x = 0, input_y = 0;
+                            if (p.keys.right) input_x += 1;
+                            if (p.keys.left) input_x -= 1;
+                            if (p.keys.down) input_y += 1;
+                            if (p.keys.up) input_y -= 1;
+                            const cross = input_x * perp_x + input_y * perp_y;
+                            const isPlase = Math.abs(cross) > 0.3;
+                            const sprintActive = p.keys.sprint && p.sprint_energy > 0;
+                            const plaseAllowed = this.settings.allowPlase !== false || adv;
+                            
+                            if (isPlase && plaseAllowed) {
+                                let mult = ADV_PLASE_POWER_MULT;
+                                if (sprintActive) mult *= this.PLASE_SPRINT_BONUS;
+                                ball.vx = nx * KICK_POWER * mult;
+                                ball.vy = ny * KICK_POWER * mult;
+                                ball.spin = 0;
+                                ball.last_kick_type = "plase";
+                                ball.kick_time = now;
+                                ball.kicker_id = parseInt(pid);
+                            } else {
+                                let mult = 1.0;
+                                if (sprintActive) mult = ADV_SPRINT_KICK_BONUS;
+                                ball.vx = nx * KICK_POWER * mult;
+                                ball.vy = ny * KICK_POWER * mult;
+                                ball.spin = 0;
+                            }
+                        }
+                        
+                        if (gs.last_ball_toucher !== parseInt(pid)) {
+                            gs.second_last_toucher = gs.last_ball_toucher;
+                            gs.last_ball_toucher = parseInt(pid);
+                        }
+                    }
+                }
+            }
+        }
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            if (!p.keys.kick) p.kick_was_pressed = false;
+        }
+        
+        // === TOP-OYUNCU DOKUNMA ===
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            const dx = ball.x - p.x;
+            const dy = ball.y - p.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
+            
+            if (dist < minDist) {
+                let nx, ny;
+                if (dist < 0.1) { nx = 1; ny = 0; dist = 0.1; }
+                else { nx = dx / dist; ny = dy / dist; }
+                const overlap = minDist - dist;
+                
+                if (gs.kickoff_active) {
+                    if (parseInt(pid) === gs.kickoff_restricted_team) {
+                        p.x -= nx * overlap;
+                        p.y -= ny * overlap;
+                        if (p.vx * nx + p.vy * ny > 0) { p.vx = 0; p.vy = 0; }
+                        continue;
+                    } else if (parseInt(pid) === gs.kickoff_receiving_team) {
+                        gs.kickoff_active = false;
+                    }
+                }
+                
+                if (gs.last_ball_toucher !== parseInt(pid)) {
+                    const prev = gs.last_ball_toucher;
+                    gs.second_last_toucher = prev;
+                    gs.last_ball_toucher = parseInt(pid);
+                    if (prev && prev !== parseInt(pid) && this.room.players[prev]) {
+                        const prevTeam = this.room.players[prev].team;
+                        const currTeam = this.room.players[pid].team;
+                        if (prevTeam === currTeam && ["red", "blue"].includes(prevTeam)) {
+                            this.room.players[prev].passes = (this.room.players[prev].passes || 0) + 1;
+                        }
+                    }
+                }
+                
+                const nearWallX = ball.x < this.BALL_RADIUS + 5 || ball.x > this.FIELD_WIDTH - this.BALL_RADIUS - 5;
+                const nearWallY = ball.y < this.BALL_RADIUS + 5 || ball.y > this.FIELD_HEIGHT - this.BALL_RADIUS - 5;
+                
+                if (nearWallX || nearWallY) {
+                    p.x -= nx * overlap;
+                    p.y -= ny * overlap;
+                    const R = this.PLAYER_RADIUS;
+                    if (p.x - R < 0) p.x = R;
+                    if (p.x + R > this.FIELD_WIDTH) p.x = this.FIELD_WIDTH - R;
+                    if (p.y - R < 0) p.y = R;
+                    if (p.y + R > this.FIELD_HEIGHT) p.y = this.FIELD_HEIGHT - R;
+                } else {
+                    ball.x += nx * overlap;
+                    ball.y += ny * overlap;
+                }
+                
+                const bs = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                // ✨ Yapışma gücü (0-100 arası veya true/false)
+                let stickPower;
+                if (typeof this.settings.ballStick === "number") {
+                    stickPower = this.settings.ballStick / 100;  // 0-100 → 0.0-1.0
+                } else {
+                    stickPower = (this.settings.ballStick !== false) ? this.BALL_STICK_FACTOR : 0;
+                }
+                
+                if (bs > this.HARD_BALL_THRESHOLD) {
+                    // Hızlı top - her zaman yansır
+                    const dot = ball.vx * nx + ball.vy * ny;
+                    if (dot < 0) {
+                        ball.vx = (ball.vx - 2 * dot * nx) * 0.75;
+                        ball.vy = (ball.vy - 2 * dot * ny) * 0.75;
+                        ball.vx += p.vx * 0.2;
+                        ball.vy += p.vy * 0.2;
+                    }
+                    ball.spin = (ball.spin || 0) * 0.3;
+                } else if (stickPower > 0.01) {
+                    // Yavaş top - yapışma (güç oranında)
+                    ball.vx = ball.vx * (1 - stickPower) + p.vx * stickPower;
+                    ball.vy = ball.vy * (1 - stickPower) + p.vy * stickPower;
+                    ball.spin = 0;
+                } else {
+                    // Yapışma KAPALI (0) - top oyuncuya değince hafif iter, yapışmaz
+                    const dot = ball.vx * nx + ball.vy * ny;
+                    if (dot < 0) {
+                        ball.vx = (ball.vx - 2 * dot * nx) * 0.6;
+                        ball.vy = (ball.vy - 2 * dot * ny) * 0.6;
+                    }
+                    ball.vx += p.vx * 0.15;
+                    ball.vy += p.vy * 0.15;
+                    ball.spin = 0;
+                }
+                
+                const bs2 = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                if (bs2 > ADV_BALL_MAX_SPEED) {
+                    ball.vx = (ball.vx / bs2) * ADV_BALL_MAX_SPEED;
+                    ball.vy = (ball.vy / bs2) * ADV_BALL_MAX_SPEED;
+                }
+            }
+        }
+        
+        // Kickoff timeout
+        if (gs.kickoff_active) {
+            if (now >= gs.kickoff_timeout) {
+                gs.kickoff_active = false;
+                const restr = gs.kickoff_restricted_team;
+                if (restr === 1) ball.vx = -this.AUTO_PASS_SPEED;
+                else ball.vx = this.AUTO_PASS_SPEED;
+                ball.vy = (Math.random() - 0.5) * 2;
+            }
+        }
+        
+        // === DUVAR + GOL ===
+        const goalLock = gs.state === "goal_wait";
+        
+        // Sol kale
+        if (ball.x + this.BALL_RADIUS <= 0) {
+            if (this.GOAL_Y_TOP < ball.y && ball.y < this.GOAL_Y_BOTTOM && !goalLock) {
+                gs.scores[2] += 1;
+                const last = gs.last_ball_toucher;
+                const second = gs.second_last_toucher;
+                let own = false, assist = null;
+                if (last === 1) {
+                    own = true;
+                    gs.last_goal_scorer = 1;
+                    gs.kickoff_restricted_team_override = 2;
+                    gs.kickoff_receiving_team_override = 1;
+                } else {
+                    gs.last_goal_scorer = 2;
+                    gs.kickoff_restricted_team_override = null;
+                    gs.kickoff_receiving_team_override = null;
+                    if (last && this.room.players[last]) {
+                        this.room.players[last].goals = (this.room.players[last].goals || 0) + 1;
+                    }
+                    if (second && second !== last && this.room.players[second]) {
+                        const st = this.room.players[last].team;
+                        const at = this.room.players[second].team;
+                        if (st === at && ["red", "blue"].includes(st)) {
+                            assist = second;
+                            this.room.players[second].assists = (this.room.players[second].assists || 0) + 1;
+                        }
+                    }
+                }
+                gs.last_goal_own = own;
+                gs.last_goal_assist = assist;
+                gs.state = "goal_wait";
+                gs.goal_wait_until = now + 4.0;
+                gs.pause_time = now;
+                return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
+            } else {
+                ball.x = this.BALL_RADIUS;
+                ball.vx = -ball.vx * this.WALL_BOUNCE;
+                if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = this.MIN_BOUNCE_SPEED;
+                ball.vy *= 0.9;
+                ball.spin = (ball.spin || 0) * 0.5;
+            }
+        }
+        
+        // Sağ kale
+        if (ball.x - this.BALL_RADIUS >= this.FIELD_WIDTH) {
+            if (this.GOAL_Y_TOP < ball.y && ball.y < this.GOAL_Y_BOTTOM && !goalLock) {
+                gs.scores[1] += 1;
+                const last = gs.last_ball_toucher;
+                const second = gs.second_last_toucher;
+                let own = false, assist = null;
+                if (last === 2) {
+                    own = true;
+                    gs.last_goal_scorer = 2;
+                    gs.kickoff_restricted_team_override = 1;
+                    gs.kickoff_receiving_team_override = 2;
+                } else {
+                    gs.last_goal_scorer = 1;
+                    gs.kickoff_restricted_team_override = null;
+                    gs.kickoff_receiving_team_override = null;
+                    if (last && this.room.players[last]) {
+                        this.room.players[last].goals = (this.room.players[last].goals || 0) + 1;
+                    }
+                    if (second && second !== last && this.room.players[second]) {
+                        const st = this.room.players[last].team;
+                        const at = this.room.players[second].team;
+                        if (st === at && ["red", "blue"].includes(st)) {
+                            assist = second;
+                            this.room.players[second].assists = (this.room.players[second].assists || 0) + 1;
+                        }
+                    }
+                }
+                gs.last_goal_own = own;
+                gs.last_goal_assist = assist;
+                gs.state = "goal_wait";
+                gs.goal_wait_until = now + 4.0;
+                gs.pause_time = now;
+                return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
+            } else {
+                ball.x = this.FIELD_WIDTH - this.BALL_RADIUS;
+                ball.vx = -ball.vx * this.WALL_BOUNCE;
+                if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = -this.MIN_BOUNCE_SPEED;
+                ball.vy *= 0.9;
+                ball.spin = (ball.spin || 0) * 0.5;
+            }
+        }
+        
+        // Üst/alt duvar
+        if (ball.y - this.BALL_RADIUS <= 0) {
+            ball.y = this.BALL_RADIUS;
+            ball.vy = -ball.vy * this.WALL_BOUNCE;
+            if (Math.abs(ball.vy) < this.MIN_BOUNCE_SPEED) ball.vy = this.MIN_BOUNCE_SPEED;
+            ball.vx *= 0.9;
+            ball.spin = (ball.spin || 0) * 0.5;
+        }
+        if (ball.y + this.BALL_RADIUS >= this.FIELD_HEIGHT) {
+            ball.y = this.FIELD_HEIGHT - this.BALL_RADIUS;
+            ball.vy = -ball.vy * this.WALL_BOUNCE;
+            if (Math.abs(ball.vy) < this.MIN_BOUNCE_SPEED) ball.vy = -this.MIN_BOUNCE_SPEED;
+            ball.vx *= 0.9;
+            ball.spin = (ball.spin || 0) * 0.5;
+        }
+        
+        // Direk çarpışma (top)
+        const posts = [
+            [0, this.GOAL_Y_TOP], [0, this.GOAL_Y_BOTTOM],
+            [this.FIELD_WIDTH, this.GOAL_Y_TOP], [this.FIELD_WIDTH, this.GOAL_Y_BOTTOM]
+        ];
+        for (const [px, py] of posts) {
+            const dx = ball.x - px;
+            const dy = ball.y - py;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = this.BALL_RADIUS + this.GOAL_POST_RADIUS;
+            if (dist < minDist && dist > 0) {
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const overlap = minDist - dist;
+                ball.x += nx * overlap;
+                ball.y += ny * overlap;
+                const dot = ball.vx * nx + ball.vy * ny;
+                if (dot < 0) {
+                    ball.vx = (ball.vx - 2 * dot * nx) * 0.75;
+                    ball.vy = (ball.vy - 2 * dot * ny) * 0.75;
+                }
+                ball.spin = (ball.spin || 0) * 0.3;
+            }
+        }
+        
+        // Direk çarpışma (oyuncu)
+        for (const pid in gs.players) {
+            const p = gs.players[pid];
+            for (const [px, py] of posts) {
+                const dx = p.x - px;
+                const dy = p.y - py;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = this.PLAYER_RADIUS + this.GOAL_POST_RADIUS;
+                if (dist < minDist && dist > 0) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const overlap = minDist - dist;
+                    p.x += nx * overlap;
+                    p.y += ny * overlap;
+                    const dot_p = p.vx * nx + p.vy * ny;
+                    if (dot_p < 0) {
+                        p.vx -= dot_p * nx;
+                        p.vy -= dot_p * ny;
+                    }
+                }
+            }
+        }
+        
+        // Son güvenlik - top oyuncu içine gömülmesin (güçlü versiyon)
+        const ballInGoalZone = (
+            (ball.x < this.BALL_RADIUS + 2 && this.GOAL_Y_TOP < ball.y && ball.y < this.GOAL_Y_BOTTOM) ||
+            (ball.x > this.FIELD_WIDTH - this.BALL_RADIUS - 2 && this.GOAL_Y_TOP < ball.y && ball.y < this.GOAL_Y_BOTTOM)
+        );
+        if (!ballInGoalZone) {
+            for (let iter = 0; iter < 8; iter++) {  // ✨ 4 → 8 iterasyon
+                let any = false;
+                
+                // ✨ İki oyuncu topa çok yakınsa "sıkışma modu" - topu ekstra kaçır
+                const playersNearBall = [];
+                for (const pid in gs.players) {
+                    const p = gs.players[pid];
+                    const dx = ball.x - p.x;
+                    const dy = ball.y - p.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < this.PLAYER_RADIUS + this.BALL_RADIUS + 5) {
+                        playersNearBall.push({ pid, p, dx, dy, dist });
+                    }
+                }
+                
+                // ✨ SIKIŞMA: 2+ oyuncu top'a çok yakın → topu iki oyuncunun ORTASINDAN ZIT yöne fırlat
+                if (playersNearBall.length >= 2) {
+                    // İki oyuncunun ortası
+                    const midX = playersNearBall.reduce((s, x) => s + x.p.x, 0) / playersNearBall.length;
+                    const midY = playersNearBall.reduce((s, x) => s + x.p.y, 0) / playersNearBall.length;
+                    
+                    // Oyuncuların ortalama yönü (mesela ikisi de yatay yan yanaysa dikey kaç)
+                    // İki oyuncu arasındaki vektör
+                    let escapeX = 0, escapeY = 0;
+                    if (playersNearBall.length === 2) {
+                        const p1 = playersNearBall[0].p;
+                        const p2 = playersNearBall[1].p;
+                        // İki oyuncu arasındaki eksen
+                        const axisX = p2.x - p1.x;
+                        const axisY = p2.y - p1.y;
+                        const axisLen = Math.sqrt(axisX * axisX + axisY * axisY);
+                        if (axisLen > 0.1) {
+                            // Perpendicular (dik) yön → kaçış yönü
+                            escapeX = -axisY / axisLen;
+                            escapeY = axisX / axisLen;
+                            
+                            // Topun mevcut pozisyonuna göre hangi yöne (yukarı mı aşağı mı) kaçsın
+                            const midDX = ball.x - midX;
+                            const midDY = ball.y - midY;
+                            const dotWithEscape = midDX * escapeX + midDY * escapeY;
+                            if (dotWithEscape < 0) {
+                                escapeX = -escapeX;
+                                escapeY = -escapeY;
+                            }
+                            
+                            // Topu dik yönde biraz uzaklaştır
+                            ball.x += escapeX * 3;
+                            ball.y += escapeY * 3;
+                            // Ekstra teğet hız da ver
+                            ball.vx += escapeX * 2;
+                            ball.vy += escapeY * 2;
+                            any = true;
+                        }
+                    }
+                }
+                
+                // Normal itme (her oyuncu için)
+                for (const nearInfo of playersNearBall) {
+                    const p = nearInfo.p;
+                    const dx = ball.x - p.x;
+                    const dy = ball.y - p.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
+                    if (dist < minDist) {
+                        any = true;
+                        let nx, ny;
+                        if (dist < 0.1) {
+                            const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                            if (sp > 0.1) { nx = -p.vx / sp; ny = -p.vy / sp; }
+                            else { nx = 1; ny = 0; }
+                        } else {
+                            nx = dx / dist; ny = dy / dist;
+                        }
+                        const overlap = minDist - dist;
+                        ball.x += nx * overlap;
+                        ball.y += ny * overlap;
+                        
+                        const dot_b = ball.vx * (-nx) + ball.vy * (-ny);
+                        if (dot_b > 0) {
+                            ball.vx -= (-nx) * dot_b;
+                            ball.vy -= (-ny) * dot_b;
+                            
+                            const tx1 = -ny, ty1 = nx;
+                            const tx2 = ny, ty2 = -nx;
+                            const dot_t1 = ball.vx * tx1 + ball.vy * ty1;
+                            const dot_t2 = ball.vx * tx2 + ball.vy * ty2;
+                            const tx = (dot_t1 >= dot_t2) ? tx1 : tx2;
+                            const ty = (dot_t1 >= dot_t2) ? ty1 : ty2;
+                            
+                            const push = dot_b * 0.7;
+                            ball.vx += tx * push;
+                            ball.vy += ty * push;
+                        }
+                    }
+                }
+                if (!any) break;
+            }
+        }
+        
+        return null;
+    }
+};
+
+console.log("Mini Futbol Host Physics yüklendi ✓");

@@ -91,10 +91,33 @@ document.getElementById("stadStartBtn").onclick = () => {
 };
 
 document.getElementById("stadLobbyLeaveBtn").onclick = () => {
-    if (confirm("Odadan ayrılmak istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
+};
+
+// Oda Ayarları butonu
+document.getElementById("stadRoomSettingsBtn").onclick = () => {
+    window.openRoomSettingsGeneric({
+        title: "Stadyum Tanıma - Oda Ayarları",
+        fields: [
+            {
+                id: "turnSec",
+                label: "⏱️ Tur Süresi",
+                current: stadData.turnSeconds || 20,
+                options: [
+                    {value: 15, label: "15 saniye"},
+                    {value: 20, label: "20 saniye"},
+                    {value: 30, label: "30 saniye"},
+                    {value: 45, label: "45 saniye"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "stad_update_settings",
+                turn_seconds: parseInt(values.turnSec) || 20
+            });
+        }
+    });
 };
 
 const stadRoomHelper = window.setupRoomCodeAndLink({
@@ -104,15 +127,13 @@ const stadRoomHelper = window.setupRoomCodeAndLink({
     linkTextId: "stadInviteLinkText",
     linkEyeBtnId: "stadInviteLinkEyeBtn",
     linkHintId: "stadInviteLinkHint",
-    getRoomCode: () => stadData.roomCode
+    getRoomCode: () => stadData.roomCode,
+    getPlayerId: () => stadData.playerId
 });
 
 // Oyun butonları
 document.getElementById("stadBackBtn").onclick = () => {
-    if (confirm("Ana menüye dönmek istediğine emin misin?")) {
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
 };
 
 document.getElementById("stadBackToMenuBtn").onclick = () => {
@@ -196,10 +217,24 @@ function updateStadLobby() {
     list.innerHTML = "";
     stadData.players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${p.id}. ${p.name}`;
+        
+        const nameCell = document.createElement("span");
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === stadData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        li.appendChild(nameCell);
+        
+        if (p.id !== stadData.playerId && stadData.playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
+        
         if (p.id === stadData.playerId) {
             li.classList.add("playerMine");
-            li.textContent += " (Sen)";
         } else {
             li.classList.add("playerOpp");
         }
@@ -221,6 +256,12 @@ function updateStadLobby() {
         startBtn.classList.add("hidden");
         msg.textContent = "Host bekleniyor...";
         msg.style.color = "#51cf66";
+    }
+    
+    const settingsBtn = document.getElementById("stadRoomSettingsBtn");
+    if (settingsBtn) {
+        if (stadData.playerId === 1) settingsBtn.classList.remove("hidden");
+        else settingsBtn.classList.add("hidden");
     }
 }
 

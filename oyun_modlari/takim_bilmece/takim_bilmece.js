@@ -6,7 +6,7 @@ let takimData = {
     inGame: false,
     playerId: null,
     roomCode: "",
-    difficulty: "kolay",
+    difficulty: "klasik",
     players: [],
     totalQuestions: 12,
     turnSeconds: 60,
@@ -62,12 +62,46 @@ document.getElementById("takimStartBtn").onclick = () => {
 };
 
 document.getElementById("takimLobbyLeaveBtn").onclick = () => {
-    if (confirm("Odadan ayrılmak istediğine emin misin?")) {
-        takimData.inGame = false;
-        inRoom = false;
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
+};
+
+// Oda Ayarları butonu
+document.getElementById("takimRoomSettingsBtn").onclick = () => {
+    window.openRoomSettingsGeneric({
+        title: "Takım Bilmece - Oda Ayarları",
+        fields: [
+            {
+                id: "difficulty",
+                label: "🎯 Zorluk",
+                current: takimData.difficulty || "klasik",
+                options: [
+                    {value: "kolay", label: "🟢 Kolay"},
+                    {value: "orta", label: "🟡 Orta"},
+                    {value: "zor", label: "🔴 Zor"},
+                    {value: "klasik", label: "🎯 Klasik (Karışık)"}
+                ]
+            },
+            {
+                id: "turnSec",
+                label: "⏱️ Tur Süresi",
+                current: takimData.turnSeconds || 60,
+                options: [
+                    {value: 15, label: "15 saniye"},
+                    {value: 30, label: "30 saniye"},
+                    {value: 45, label: "45 saniye"},
+                    {value: 60, label: "60 saniye"},
+                    {value: 120, label: "120 saniye"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "takim_update_settings",
+                difficulty: values.difficulty,
+                turn_seconds: parseInt(values.turnSec) || 60
+            });
+        }
+    });
 };
 
 const takimRoomHelper = window.setupRoomCodeAndLink({
@@ -77,16 +111,12 @@ const takimRoomHelper = window.setupRoomCodeAndLink({
     linkTextId: "takimInviteLinkText",
     linkEyeBtnId: "takimInviteLinkEyeBtn",
     linkHintId: "takimInviteLinkHint",
-    getRoomCode: () => takimData.roomCode
+    getRoomCode: () => takimData.roomCode,
+    getPlayerId: () => takimData.playerId
 });
 
 document.getElementById("takimBackBtn").onclick = () => {
-    if (confirm("Ana menüye dönmek istediğine emin misin? Oyundan çıkacaksın.")) {
-        takimData.inGame = false;
-        inRoom = false;
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
 };
 
 document.getElementById("takimBackToMenuBtn").onclick = () => {
@@ -163,7 +193,12 @@ function updateTakimStatus(text, color) {
 
 function updateTakimLobby() {
     if (takimRoomHelper) { takimRoomHelper.renderCode(); takimRoomHelper.renderLink(); }
-    const diffNames = { kolay: "🟢 Kolay", orta: "🟡 Orta", zor: "🔴 Zor" };
+    const diffNames = { 
+        kolay: "🟢 Kolay", 
+        orta: "🟡 Orta", 
+        zor: "🔴 Zor",
+        klasik: "🎯 Klasik (Karışık)"
+    };
     document.getElementById("takimLobbyDifficulty").textContent = diffNames[takimData.difficulty] || takimData.difficulty;
     document.getElementById("takimLobbyTurnSeconds").textContent = takimData.turnSeconds || 60;
     
@@ -171,10 +206,24 @@ function updateTakimLobby() {
     list.innerHTML = "";
     takimData.players.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = `${p.id}. ${p.name}`;
+        
+        const nameCell = document.createElement("span");
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === takimData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        li.appendChild(nameCell);
+        
+        if (p.id !== takimData.playerId && takimData.playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
+        
         if (p.id === takimData.playerId) {
             li.classList.add("playerMine");
-            li.textContent += " (Sen)";
         } else {
             li.classList.add("playerOpp");
         }
@@ -196,6 +245,12 @@ function updateTakimLobby() {
         startBtn.classList.add("hidden");
         msg.textContent = "Host bekleniyor...";
         msg.style.color = "#51cf66";
+    }
+    
+    const settingsBtn = document.getElementById("takimRoomSettingsBtn");
+    if (settingsBtn) {
+        if (takimData.playerId === 1) settingsBtn.classList.remove("hidden");
+        else settingsBtn.classList.add("hidden");
     }
 }
 
@@ -341,7 +396,12 @@ function renderTakimJokers() {
     const opp = takimData.jokersLeft[getTakimOtherPlayerId()] || {};
     const panel = document.getElementById("takimJokerPanel");
     
-    const diffNames = { kolay: "KOLAY", orta: "ORTA", zor: "ZOR" };
+    const diffNames = { 
+        kolay: "KOLAY", 
+        orta: "ORTA", 
+        zor: "ZOR",
+        klasik: "KLASİK"
+    };
     document.getElementById("takimDifficultyLabel").textContent = "Zorluk: " + (diffNames[takimData.difficulty] || takimData.difficulty);
     
     if (isMyTurn) {
@@ -382,7 +442,16 @@ function renderTakimScoreboard() {
     document.getElementById("takimP1Score").textContent = takimData.scores[1];
     document.getElementById("takimP2Score").textContent = takimData.scores[2];
     document.getElementById("takimScore").textContent = `${takimData.scores[1]} - ${takimData.scores[2]}`;
-    document.getElementById("takimQuestionNo").textContent = `Soru ${takimData.questionNo + 1}/${takimData.totalQuestions}`;
+    
+    // Soru numarası + zorluk (Klasik modda görünür)
+    const questionText = `Soru ${takimData.questionNo + 1}/${takimData.totalQuestions}`;
+    const questionDiff = takimData.teamData?.difficulty || "";
+    const diffEmoji = { kolay: "🟢", orta: "🟡", zor: "🔴" };
+    const showDiff = takimData.difficulty === "klasik" && questionDiff;
+    
+    document.getElementById("takimQuestionNo").innerHTML = showDiff 
+        ? `${questionText} ${diffEmoji[questionDiff] || ""} <span style="opacity:0.7">${questionDiff.toUpperCase()}</span>`
+        : questionText;
     
     const turnName = getTakimPlayerName(takimData.currentTurn);
     const turnColor = takimData.currentTurn === takimData.playerId ? "#51cf66" : "#ffa94d";
@@ -436,7 +505,7 @@ handleMessage = function(msg) {
     if (msg.type === "takim_room_created" || msg.type === "takim_room_joined") {
         takimData.playerId = msg.player_id;
         takimData.roomCode = msg.room_code;
-        takimData.difficulty = msg.difficulty || "kolay";
+        takimData.difficulty = msg.difficulty || "klasik";
         takimData.inGame = true;
         inRoom = true;
         showScreen("takimLobby");
@@ -447,7 +516,7 @@ handleMessage = function(msg) {
     if (msg.type === "takim_lobby_update") {
         takimData.roomCode = msg.room_code;
         takimData.players = msg.players;
-        takimData.difficulty = msg.difficulty || "kolay";
+        takimData.difficulty = msg.difficulty || "klasik";
         takimData.turnSeconds = msg.turn_seconds || 60;
         updateTakimLobby();
         return;

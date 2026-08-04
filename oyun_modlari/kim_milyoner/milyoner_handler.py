@@ -328,9 +328,9 @@ async def _background_generate_ai_questions(room, broadcast):
     try:
         # Global AI rate limit kontrolü
         if not _check_global_ai_rate_limit():
-            print(f"[ML BG] ⚠️ Global AI rate limit aşıldı, manuel sorular kullanılacak")
+            print(f"[ML BG] ⚠️ Global AI rate limit aşıldı → Manuel havuz devreye girdi (547 soru)")
             room["ml_ai_questions"] = {}
-            room["ml_ai_ready"] = True  # Ready olarak işaretle (manuel devreye girsin)
+            room["ml_ai_ready"] = True
             if room.get("phase") == "lobby":
                 await send_ml_lobby_update(room, broadcast)
             return
@@ -357,8 +357,9 @@ async def _background_generate_ai_questions(room, broadcast):
     except asyncio.CancelledError:
         print("[ML BG] Arka plan üretim iptal edildi")
     except Exception as e:
-        print(f"[ML BG] Hata: {e}")
-        room["ml_ai_ready"] = False
+        print(f"[ML BG] Hata: {e} - Manuel sorulara geçildi")
+        room["ml_ai_questions"] = {}
+        room["ml_ai_ready"] = True  # Manuel havuz hazır, bekletme
 
 
 async def handle_milyoner_message(
@@ -509,6 +510,27 @@ async def handle_milyoner_message(
     if room.get("mode") != "kim_milyoner":
         return _handled(current_room_code, current_player_id)
 
+    # ---------- UPDATE ROOM SETTINGS ----------
+    if msg_type == "ml_update_settings":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            return _handled(current_room_code, current_player_id)
+
+        try:
+            new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 60)))
+            if new_turn_sec not in [15, 30, 45, 60, 120]:
+                new_turn_sec = 60
+        except:
+            new_turn_sec = 60
+
+        room["turn_seconds"] = new_turn_sec
+
+        await send_ml_lobby_update(room, broadcast)
+        return _handled(current_room_code, current_player_id)
+
     # ---------- START ----------
     if msg_type == "ml_start_game":
         if current_player_id != 1:
@@ -645,7 +667,14 @@ async def handle_milyoner_message(
         # Phone
         if joker == "phone":
             correct_letter = q["cevap"]
-            pick = correct_letter if random.random() <= 0.9 else random.choice(
+            
+            # Frontend'den gelen is_bad bilgisi
+            # is_bad=True → %20 doğru (kötü karakter)
+            # is_bad=False → %80 doğru (iyi karakter)
+            is_bad = data.get("is_bad", False)
+            success_rate = 0.20 if is_bad else 0.80
+            
+            pick = correct_letter if random.random() <= success_rate else random.choice(
                 [l for l in ["A", "B", "C", "D"] if l != correct_letter]
             )
 

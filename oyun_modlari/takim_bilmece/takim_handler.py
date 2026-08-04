@@ -7,9 +7,10 @@ TAKIM_TOPLAM_SORU = 12
 TAKIM_TUR_SURESI = 60
 
 TAKIM_JOKER_AYARLARI = {
-    "kolay": {"name": 3, "year": 3, "elim": 3, "pass": 3},
-    "orta":  {"name": 2, "year": 2, "elim": 2, "pass": 1},
-    "zor":   {"name": 1, "year": 0, "elim": 1, "pass": 0}
+    "kolay":  {"name": 3, "year": 3, "elim": 3, "pass": 3},
+    "orta":   {"name": 2, "year": 2, "elim": 2, "pass": 1},
+    "zor":    {"name": 1, "year": 0, "elim": 1, "pass": 0},
+    "klasik": {"name": 3, "year": 3, "elim": 3, "pass": 3}
 }
 
 
@@ -25,8 +26,62 @@ def get_other_player_id(pid):
     return 2 if pid == 1 else 1
 
 
-def make_takim_questions():
-    return random.sample(range(len(ALL_TEAMS)), TAKIM_TOPLAM_SORU)
+def get_teams_by_difficulty(difficulty):
+    """Belirli zorluktaki takım index'lerini döndür"""
+    indices = []
+    for i, t in enumerate(ALL_TEAMS):
+        if t.get("difficulty", "orta") == difficulty:
+            indices.append(i)
+    return indices
+
+
+def make_takim_questions(difficulty="klasik"):
+    """Zorluğa göre 12 takım seç"""
+    
+    if difficulty == "klasik":
+        # Progresif: 4 kolay + 4 orta + 4 zor
+        kolay = get_teams_by_difficulty("kolay")
+        orta = get_teams_by_difficulty("orta")
+        zor = get_teams_by_difficulty("zor")
+        
+        random.shuffle(kolay)
+        random.shuffle(orta)
+        random.shuffle(zor)
+        
+        selected = []
+        selected.extend(kolay[:min(4, len(kolay))])
+        selected.extend(orta[:min(4, len(orta))])
+        selected.extend(zor[:min(4, len(zor))])
+        
+        # Eksik varsa doldur (herhangi bir zorluktan)
+        while len(selected) < TAKIM_TOPLAM_SORU:
+            all_valid = list(range(len(ALL_TEAMS)))
+            remaining = [i for i in all_valid if i not in selected]
+            if not remaining:
+                break
+            selected.append(random.choice(remaining))
+        
+        return selected[:TAKIM_TOPLAM_SORU]
+    
+    else:
+        # Kolay/Orta/Zor: sadece o zorluktan
+        valid = get_teams_by_difficulty(difficulty)
+        
+        if len(valid) >= TAKIM_TOPLAM_SORU:
+            return random.sample(valid, TAKIM_TOPLAM_SORU)
+        else:
+            # Yetmiyorsa: mevcut hepsini kullan + eksik kalan yerlere rastgele ekle
+            selected = list(valid)
+            random.shuffle(selected)
+            
+            all_valid = list(range(len(ALL_TEAMS)))
+            remaining = [i for i in all_valid if i not in selected]
+            random.shuffle(remaining)
+            
+            while len(selected) < TAKIM_TOPLAM_SORU and remaining:
+                selected.append(remaining.pop())
+            
+            return selected[:TAKIM_TOPLAM_SORU]
 
 
 def get_takim_team_data(room, question_no):
@@ -35,7 +90,8 @@ def get_takim_team_data(room, question_no):
     return {
         "year": team["year"],
         "players": team["players"],
-        "options": team["options"]
+        "options": team["options"],
+        "difficulty": team.get("difficulty", "orta")
     }
 
 
@@ -130,13 +186,15 @@ async def send_takim_lobby_update(room, broadcast):
         "room_code": room["code"],
         "players": players,
         "can_start": len(room["players"]) == 2,
-        "difficulty": room.get("difficulty", "kolay"),
+        "difficulty": room.get("difficulty", "klasik"),
         "turn_seconds": room.get("turn_seconds", 60)
     })
 
 
 async def start_takim_game(room, safe_send, broadcast):
-    room["questions"] = make_takim_questions()
+    difficulty = room.get("difficulty", "klasik")
+    room["questions"] = make_takim_questions(difficulty)
+    print(f"[TAKIM] Oyun başladı — Zorluk: {difficulty}, Soru sayısı: {len(room['questions'])}")
     room["current_question"] = 0
     room["scores"] = {1: 0, 2: 0}
     room["turn"] = 1
@@ -199,7 +257,7 @@ async def handle_takim_message(
     # ---------- CREATE ----------
     if msg_type == "takim_create_room":
         name = (data.get("name") or "").strip()
-        difficulty = data.get("difficulty", "kolay")
+        difficulty = data.get("difficulty", "klasik")
         turn_seconds_raw = data.get("turn_seconds", 60)
 
         if not name:
@@ -207,7 +265,7 @@ async def handle_takim_message(
             return _handled(current_room_code, current_player_id)
 
         if difficulty not in TAKIM_JOKER_AYARLARI:
-            difficulty = "kolay"
+            difficulty = "klasik"
 
         try:
             takim_turn_seconds = int(turn_seconds_raw)
@@ -278,7 +336,7 @@ async def handle_takim_message(
             "type": "takim_room_joined",
             "room_code": current_room_code,
             "player_id": 2,
-            "difficulty": room.get("difficulty", "kolay")
+            "difficulty": room.get("difficulty", "klasik")
         })
         await send_takim_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -289,6 +347,35 @@ async def handle_takim_message(
 
     room = rooms[current_room_code]
     if room.get("mode") != "takim_bilmece":
+        return _handled(current_room_code, current_player_id)
+
+    # ---------- UPDATE ROOM SETTINGS ----------
+    if msg_type == "takim_update_settings":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            return _handled(current_room_code, current_player_id)
+
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            return _handled(current_room_code, current_player_id)
+
+        # Zorluk
+        difficulty = data.get("difficulty", room.get("difficulty", "klasik"))
+        if difficulty not in TAKIM_JOKER_AYARLARI:
+            difficulty = "klasik"
+
+        # Tur Süresi
+        try:
+            new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 60)))
+            if new_turn_sec not in [15, 30, 45, 60, 120]:
+                new_turn_sec = 60
+        except:
+            new_turn_sec = 60
+
+        room["difficulty"] = difficulty
+        room["turn_seconds"] = new_turn_sec
+
+        await send_takim_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
 
     # ---------- START ----------

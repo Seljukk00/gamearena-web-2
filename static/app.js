@@ -116,7 +116,24 @@ const toastMsg = document.getElementById("toastMsg");
 let toastTimeout = null;
 
 // ============ SAYFA KAPATMA UYARISI ============
-// beforeunload kaldırıldı - ESC popup zaten var
+// Oyun/lobby ekranlarındayken tarayıcı yenile/kapat yapınca uyarı göster
+window.addEventListener("beforeunload", (e) => {
+    const current = getCurrentScreen();
+    const gameScreens = ["game", "select", "lobby",
+                          "mlGame", "mlLobby",
+                          "takimGame", "takimLobby",
+                          "haritaGame", "haritaLobby",
+                          "gizemGame", "gizemLobby",
+                          "ilk11Game", "ilk11Lobby",
+                          "stadGame", "stadLobby",
+                          "memeGame", "memeLobby",
+                          "miniGame", "miniLobby"];
+    
+    if (gameScreens.includes(current)) {
+        e.preventDefault();
+        e.returnValue = "";
+    }
+});
 
 // ============ BAĞLANTI ============
 function connectWS() {
@@ -133,7 +150,7 @@ function connectWS() {
 
 function send(data) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-        alert("Sunucu bağlantısı yok. Sayfayı yenile.");
+        console.warn("WS kapalı, mesaj gönderilemedi:", data.type);
         return;
     }
     ws.send(JSON.stringify(data));
@@ -233,13 +250,25 @@ function updateTimerDisplay() {
 
 // ============ LOBBY ============
 function updateLobby() {
-    // Oda kodu gizliyse ••••••, değilse kod göster
-    if (roomCodeText.classList.contains("hiddenCode")) {
-        roomCodeText.textContent = "••••••";
+    // Misafir (player 2) oda kodu ve linki hiç görmesin
+    const codeBox = roomCodeText.closest(".roomCodeBox");
+    const linkBox = document.getElementById("inviteLinkBox");
+    if (playerId === 1) {
+        if (codeBox) codeBox.style.display = "";
+        if (linkBox) linkBox.style.display = "";
+        
+        // Oda kodu gizliyse ••••••, değilse kod göster
+        if (roomCodeText.classList.contains("hiddenCode")) {
+            roomCodeText.textContent = "••••••";
+        } else {
+            roomCodeText.textContent = roomCode;
+        }
+        updateInviteLink();
     } else {
-        roomCodeText.textContent = roomCode;
+        if (codeBox) codeBox.style.display = "none";
+        if (linkBox) linkBox.style.display = "none";
     }
-    updateInviteLink();
+    
     lobbyTurnSeconds.textContent = turnSeconds;
     lobbyGuessLimit.textContent = guessLimit === 0 ? "Sınırsız" : guessLimit;
     playersList.innerHTML = "";
@@ -248,36 +277,23 @@ function updateLobby() {
         const li = document.createElement("li");
         li.classList.add("playerRow");
 
-        // 1. Sütun: Kick butonu (× veya boş)
-        const kickCell = document.createElement("span");
-        kickCell.className = "kickCell";
-        if (p.id !== playerId && playerId === 1) {
-            const kickBtn = document.createElement("span");
-            kickBtn.className = "kickBtn";
-            kickBtn.textContent = "×";
-            kickBtn.title = "Oyuncuyu at";
-            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
-            kickCell.appendChild(kickBtn);
-        }
-        li.appendChild(kickCell);
-
-        // 2. Sütun: Sayı
-        const numCell = document.createElement("span");
-        numCell.className = "numCell";
-        numCell.textContent = p.id;
-        li.appendChild(numCell);
-
-        // 3. Sütun: Ayraç
-        const dashCell = document.createElement("span");
-        dashCell.className = "dashCell";
-        dashCell.textContent = "-";
-        li.appendChild(dashCell);
-
-        // 4. Sütun: İsim
+        // İsim (sola yaslı)
         const nameCell = document.createElement("span");
         nameCell.className = "nameCell";
-        nameCell.textContent = p.id === playerId ? `${p.name} (Sen)` : p.name;
+        nameCell.style.flex = "1";
+        nameCell.style.textAlign = "left";
+        nameCell.style.paddingLeft = "10px";
+        nameCell.textContent = p.id === playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
         li.appendChild(nameCell);
+
+        // Kick butonu (sağda, sadece host + rakip için)
+        if (p.id !== playerId && playerId === 1) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "kickBtnNew";
+            kickBtn.textContent = "Oyuncuyu At";
+            kickBtn.onclick = () => openKickConfirm(p.id, p.name);
+            li.appendChild(kickBtn);
+        }
 
         // Renk sınıfı
         if (p.id === playerId) {
@@ -298,6 +314,16 @@ function updateLobby() {
     } else {
         startBtn.classList.add("hidden");
         setMsg(lobbyMsg, "Host Bekleniliyor...", "#51cf66");
+    }
+    
+    // Oda Ayarları butonu - sadece host görsün
+    const roomSettingsBtn = document.getElementById("roomSettingsBtn");
+    if (roomSettingsBtn) {
+        if (playerId === 1) {
+            roomSettingsBtn.classList.remove("hidden");
+        } else {
+            roomSettingsBtn.classList.add("hidden");
+        }
     }
 }
 
@@ -889,7 +915,28 @@ function openKickConfirm(targetId, targetName) {
 
 // ============ MESAJ İŞLEME ============
 function handleMessage(msg) {
-    if (msg.type === "error") { alert(msg.message); return; }
+    if (msg.type === "error") {
+        // Kick mesajı özel popup
+        if (msg.message && msg.message.toLowerCase().includes("atıl")) {
+            const kickBox = document.getElementById("kickBlockedBox");
+            if (kickBox) {
+                kickBox.classList.remove("hidden");
+            } else {
+                showToast("🚫 Giriş Engellendi!", msg.message, null);
+            }
+        // Oda dolu mesajı özel popup
+        } else if (msg.message && msg.message.toLowerCase().includes("dolu")) {
+            const fullBox = document.getElementById("roomFullBox");
+            if (fullBox) {
+                fullBox.classList.remove("hidden");
+            } else {
+                showToast("🚪 Oda Dolu!", msg.message, null);
+            }
+        } else {
+            showToast("⚠️ Hata!", msg.message || "Bir hata oluştu.", null);
+        }
+        return;
+    }
 
     // Otomatik mod kontrolü (sadece info göster, odaya girme)
     if (msg.type === "room_mode_check_result") {
@@ -937,6 +984,10 @@ function handleMessage(msg) {
             send({ type: "ilk11_join_room", name: name, room_code: code });
         } else if (msg.mode === "stadyum_tanima") {
             send({ type: "stad_join_room", name: name, room_code: code });
+        } else if (msg.mode === "meme_arena") {
+            send({ type: "meme_join_room", name: name, room_code: code });
+        } else if (msg.mode === "mini_futbol") {
+            send({ type: "mini_join_room", name: name, room_code: code });
         } else {
             send({ type: "join_room", name: name, room_code: code });
         }
@@ -1139,6 +1190,41 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "opponent_left") {
+        // ✨ Mini Futbol'da opponent_left = HOST ayrıldı (oda kapandı)
+        // Normal oyuncular için mini_player_left_game mesajı kullanılıyor
+        const current = getCurrentScreen();
+        if (current === "miniGame" || current === "miniLobby") {
+            const leftName = msg.player_name || "Host";
+            
+            showToast("🚪 Oda Kapatıldı", "Host ayrıldı, oda kapatıldı.", null, "warning");
+            
+            // Temizle
+            if (typeof HP !== 'undefined' && HP.running) HP.stopGame();
+            if (typeof stopMiniGame === "function") stopMiniGame();
+            if (typeof stopMiniPing === "function") stopMiniPing();
+            
+            inRoom = false;
+            if (typeof miniData !== "undefined") {
+                miniData.roomCode = "";
+                miniData.playerId = null;
+                miniData.players = [];
+                miniData.gameState = null;
+            }
+            playerId = null;
+            roomCode = "";
+            
+            // Tüm popup'ları kapat
+            document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
+            
+            // WS yenile + katıl ekranına
+            if (ws) { try { ws.close(); } catch(e) {} }
+            setTimeout(() => {
+                connectWS();
+                showScreen("join");
+            }, 500);
+            return;
+        }
+        
         inRoom = false;
         stopTimer();
         hideAnswerPanel();
@@ -1154,10 +1240,13 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "you_were_kicked") {
-        // Sen atıldın
+        // Sen atıldın — anında katıl ekranına git + toast göster
         inRoom = false;
-        alert("⚠️ Odadan atıldın!");
-        location.reload();
+        document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
+        if (ws) { try { ws.close(); } catch(e) {} }
+        connectWS();
+        showScreen("join");
+        showToast("⚠️ Odadan Atıldınız!", msg.message || "Host tarafından odadan çıkarıldınız.", null);
         return;
     }
 
@@ -1189,14 +1278,16 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
             showScreen("createTakim");
             document.getElementById("createTakimNameInput").focus();
         }
+        // Diğer modlar kendi JS dosyalarında handle ediyor (wrap sistemi)
     });
 });
 
 const takimDifficultySelect = document.getElementById("takimDifficultySelect");
 const jokerData = {
-    kolay: { name: 3, year: 3, elim: 3, pass: 3, title: "🟢 KOLAY - Jokerler" },
-    orta:  { name: 2, year: 2, elim: 2, pass: 1, title: "🟡 ORTA - Jokerler" },
-    zor:   { name: 1, year: 0, elim: 1, pass: 0, title: "🔴 ZOR - Jokerler" }
+    kolay:  { name: 3, year: 3, elim: 3, pass: 3, title: "🟢 KOLAY - Jokerler" },
+    orta:   { name: 2, year: 2, elim: 2, pass: 1, title: "🟡 ORTA - Jokerler" },
+    zor:    { name: 1, year: 0, elim: 1, pass: 0, title: "🔴 ZOR - Jokerler" },
+    klasik: { name: 3, year: 3, elim: 3, pass: 3, title: "🎯 KLASİK - Jokerler" }
 };
 
 function updateJokerInfo() {
@@ -1229,18 +1320,13 @@ joinBtn.onclick = () => {
     if (!myName) { setMsg(joinMsg, "İsim gir.", "#ff6b6b"); return; }
     if (!code) { setMsg(joinMsg, "Oda kodu gir.", "#ff6b6b"); return; }
     localStorage.setItem("playerName", myName);
-    setMsg(joinMsg, "Odaya bağlanıyor...", "#ffd43b");
     send({ type: "query_room_mode", room_code: code });
 };
 
 startBtn.onclick = () => { send({ type: "start_game" }); };
 
 lobbyLeaveBtn.onclick = () => {
-    if (confirm("Odadan ayrılmak istediğine emin misin?")) {
-        inRoom = false;
-        if (ws) ws.close();
-        location.reload();
-    }
+    showEscPopup();
 };
 
 guessModeBtn.onclick = () => {
@@ -1256,14 +1342,30 @@ guessModeBtn.onclick = () => {
 newRoundBtn.onclick = () => { send({ type: "start_game" }); };
 
 backToMenuBtn.onclick = () => {
-    if (confirm("Ana menüye dönmek istediğine emin misin? Oda kapanacak.")) {
-        inRoom = false;
-        if (ws) ws.close();
-        location.reload();
-    }
+    inRoom = false;
+    gameOverBox.classList.add("hidden");
+    if (ws) { try { ws.close(); } catch(e) {} }
+    connectWS();
+    showScreen("home");
 };
 
-opponentLeftOkBtn.onclick = () => { location.reload(); };
+// Rakip ayrıldı — "← Geri" butonu (katıl ekranına)
+document.getElementById("opponentLeftBackBtn").onclick = () => {
+    inRoom = false;
+    opponentLeftBox.classList.add("hidden");
+    if (ws) { try { ws.close(); } catch(e) {} }
+    connectWS();
+    showScreen("join");
+};
+
+// Rakip ayrıldı — "Ana Menüye Dön" butonu
+opponentLeftOkBtn.onclick = () => {
+    inRoom = false;
+    opponentLeftBox.classList.add("hidden");
+    if (ws) { try { ws.close(); } catch(e) {} }
+    connectWS();
+    showScreen("home");
+};
 
 roomCodeText.onclick = () => {
     // Gizliyken bile kopyalasın (gerçek kodu)
@@ -1536,7 +1638,13 @@ function getCurrentScreen() {
         "ilk11Lobby": "ilk11LobbyScreen",
         "ilk11Game": "ilk11GameScreen",
         "stadLobby": "stadLobbyScreen",
-        "stadGame": "stadGameScreen"
+        "stadGame": "stadGameScreen",
+        "createMeme": "createMemeScreen",
+        "memeLobby": "memeLobbyScreen",
+        "memeGame": "memeGameScreen",
+        "createMini": "createMiniScreen",
+        "miniLobby": "miniLobbyScreen",
+        "miniGame": "miniGameScreen"
     };
     
     for (const [key, id] of Object.entries(screens)) {
@@ -1557,13 +1665,16 @@ function getPreviousScreen() {
                           "haritaGame", "haritaLobby",
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby"];
+                          "stadGame", "stadLobby",
+                          "memeGame", "memeLobby",
+                          "miniGame", "miniLobby"];
     if (gameScreens.includes(current)) return null;
     
     // Oda oluştur ekranlarından modselect'e
     const createScreens = ["create", "createTakim", "createMl",
                            "createHarita", "createGizem",
-                           "createIlk11", "createStad"];
+                           "createIlk11", "createStad", "createMeme",
+                           "createMini"];
     if (createScreens.includes(current)) return "modselect";
     
     if (current === "join") return "home";
@@ -1586,21 +1697,56 @@ function closeEscPopup() {
 }
 
 document.getElementById("escYesBtn").onclick = () => {
-    // Odayı kapat ve mod seçime dön
+    // playerId'yi HEMEN kaydet (sonra sıfırlanabilir)
+    const wasHost = (playerId === 1);
+    const goHome = _escFromF5;
+    
     inRoom = false;
+    _escFromF5 = false;
+    
     if (ws) {
         try { ws.close(); } catch(e) {}
     }
     closeEscPopup();
     setTimeout(() => {
         connectWS();
-        showScreen("modselect");
+        if (goHome) {
+            showScreen("home");
+        } else if (wasHost) {
+            showScreen("modselect");
+        } else {
+            showScreen("join");
+        }
     }, 300);
 };
 
 document.getElementById("escNoBtn").onclick = () => {
+    _escFromF5 = false;
     closeEscPopup();
 };
+
+// F5 tuşu - oda içindeyken ESC popup göster
+let _escFromF5 = false;
+document.addEventListener("keydown", (e) => {
+    if (e.key === "F5" || (e.ctrlKey && (e.key === "r" || e.key === "R"))) {
+        const current = getCurrentScreen();
+        const gameScreens = ["game", "select", "lobby",
+                              "mlGame", "mlLobby",
+                              "takimGame", "takimLobby",
+                              "haritaGame", "haritaLobby",
+                              "gizemGame", "gizemLobby",
+                              "ilk11Game", "ilk11Lobby",
+                              "stadGame", "stadLobby",
+                              "memeGame", "memeLobby",
+                              "miniGame", "miniLobby"];
+        if (gameScreens.includes(current)) {
+            e.preventDefault();
+            _escFromF5 = true;
+            showEscPopup();
+            return;
+        }
+    }
+});
 
 // ESC tuşu
 document.addEventListener("keydown", (e) => {
@@ -1630,7 +1776,9 @@ document.addEventListener("keydown", (e) => {
                           "haritaGame", "haritaLobby",
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby"];
+                          "stadGame", "stadLobby",
+                          "memeGame", "memeLobby",
+                          "miniGame", "miniLobby"];
     
     if (gameScreens.includes(current)) {
         showEscPopup();
@@ -1676,26 +1824,63 @@ window.setupRoomCodeAndLink = function(config) {
     
     function getCode() { return config.getRoomCode(); }
     function getLink() { return `${location.origin}/?join=${getCode()}`; }
+    function isHost() {
+        // Config'ten getPlayerId varsa onu kullan, yoksa global playerId
+        if (config.getPlayerId) {
+            return config.getPlayerId() === 1;
+        }
+        return (typeof playerId !== "undefined" && playerId === 1);
+    }
+    
+    // Kutuları gizle/göster (misafir hepsini gizler)
+    function updateVisibility() {
+        const codeBox = codeText.closest(".roomCodeBox");
+        const linkBox = linkText ? linkText.closest(".inviteLinkBox") : null;
+        if (isHost()) {
+            if (codeBox) codeBox.style.display = "";
+            if (linkBox) linkBox.style.display = "";
+        } else {
+            if (codeBox) codeBox.style.display = "none";
+            if (linkBox) linkBox.style.display = "none";
+        }
+    }
     
     // Oda kodu render
     function renderCode() {
+        updateVisibility();
+        if (!isHost()) return;
         if (codeText.classList.contains("hiddenCode")) {
             codeText.textContent = "######";
+            // ✨ Gizliyken de canlı yeşil renk (soluk değil)
+            codeText.style.color = "#51cf66";
+            codeText.style.opacity = "1";
+            codeText.style.letterSpacing = "4px";
         } else {
             codeText.textContent = getCode();
+            codeText.style.color = "";
+            codeText.style.opacity = "";
+            codeText.style.letterSpacing = "";
         }
     }
     
     // Link render
     function renderLink() {
+        updateVisibility();
+        if (!isHost()) return;
         if (!linkText) return;
         const isHidden = localStorage.getItem("hideInviteLink") === "true";
         if (isHidden) {
             linkText.classList.add("hiddenLink");
-            linkText.textContent = "########################";
+            // ✨ Kodu ****** ile maskele (link formatı korunsun)
+            const code = getCode() || "";
+            const maskedCode = "*".repeat(Math.max(6, code.length));
+            linkText.textContent = `${location.origin}/?join=${maskedCode}`;
+            // Renk normal kalsın (link mavi/yeşil ne ise)
+            linkText.style.opacity = "1";
         } else {
             linkText.classList.remove("hiddenLink");
             linkText.textContent = getLink();
+            linkText.style.opacity = "";
         }
     }
     
@@ -1751,19 +1936,40 @@ setTimeout(() => {
 
 console.log("GameArena - app.js yüklendi ✓");
 
-// ESC Popup - EVET butonu (mod seçime dönsün)
+// Kick engel popup kapatma
+document.getElementById("kickBlockedOkBtn").onclick = () => {
+    document.getElementById("kickBlockedBox").classList.add("hidden");
+};
+
+// Oda dolu popup kapatma
+document.getElementById("roomFullOkBtn").onclick = () => {
+    document.getElementById("roomFullBox").classList.add("hidden");
+};
+
+// ESC Popup - EVET butonu (host: mod seçim, misafir: katıl, F5: ana menü)
 setTimeout(() => {
     const escYes = document.getElementById("escYesBtn");
     if (escYes) {
         escYes.onclick = () => {
+            const wasHost = (playerId === 1);
+            const goHome = _escFromF5;
+            
             inRoom = false;
+            _escFromF5 = false;
+            
             if (ws) {
                 try { ws.close(); } catch(e) {}
             }
             closeEscPopup();
             setTimeout(() => {
                 connectWS();
-                showScreen("modselect");
+                if (goHome) {
+                    showScreen("home");
+                } else if (wasHost) {
+                    showScreen("modselect");
+                } else {
+                    showScreen("join");
+                }
             }, 300);
         };
     }
@@ -1807,7 +2013,9 @@ window.addEventListener("popstate", (e) => {
                           "haritaGame", "haritaLobby",
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby"];
+                          "stadGame", "stadLobby",
+                          "memeGame", "memeLobby",
+                          "miniGame", "miniLobby"];
 
     if (gameScreens.includes(current)) {
         // Geri gitmeyi engelle - history'e yeniden ekle
@@ -1820,7 +2028,8 @@ window.addEventListener("popstate", (e) => {
     // Oda oluştur ekranlarındaysa → mod seçime dön
     const createScreens = ["create", "createTakim", "createMl",
                            "createHarita", "createGizem",
-                           "createIlk11", "createStad"];
+                           "createIlk11", "createStad", "createMeme",
+                           "createMini"];
     if (createScreens.includes(current)) {
         showScreen("modselect");
         return;
@@ -1857,19 +2066,527 @@ function closeBackConfirmPopup() {
 
 // Popup butonları
 document.getElementById("backYesBtn").onclick = () => {
-    // Kullanıcı çıkmak istedi - odayı kapat ve mod seçime dön
+    const wasHost = (playerId === 1);
+    
     inRoom = false;
     if (ws) {
         try { ws.close(); } catch(e) {}
     }
     closeBackConfirmPopup();
-    // Yeni WebSocket bağlantısı kur (eski oda kapansın diye)
     setTimeout(() => {
         connectWS();
-        showScreen("modselect");
+        showScreen(wasHost ? "modselect" : "join");
     }, 300);
 };
 
 document.getElementById("backNoBtn").onclick = () => {
     closeBackConfirmPopup();
+};
+
+// ==========================================
+// ODA AYARLARI POPUP - Ortak Sistem
+// ==========================================
+
+// Aktif ayar konfigürasyonu (hangi mod için açıldı)
+let _activeSettingsConfig = null;
+
+/**
+ * Genel oda ayarları popup açıcı
+ * config = {
+ *   title: "Oda Ayarları - Kim Milyoner",
+ *   fields: [
+ *     { id: "turnSec", label: "⏱️ Tur Süresi", type: "select",
+ *       options: [{value:30,label:"30 saniye"}, ...], current: 60 },
+ *     ...
+ *   ],
+ *   onSave: (values) => { send({...}) }
+ * }
+ */
+window.openRoomSettingsGeneric = function(config) {
+    _activeSettingsConfig = config;
+    const content = document.getElementById("roomSettingsContent");
+    
+    let html = "";
+    
+    // Normal ayarlar (select)
+    config.fields.forEach((field, i) => {
+        // ✨ Gelişmiş modda devre dışı bırakılacaklar (data-disable-on-advanced)
+        const disableOnAdv = field.disableOnAdvanced ? ` data-disable-on-adv="1"` : "";
+        html += `<div style="margin-bottom:20px;" id="settingsGroup_${field.id}"${disableOnAdv}>
+            <label style="display:block; color:#ffd43b; font-weight:bold; margin-bottom:8px;">
+                ${field.label}:
+            </label>
+            <select id="settingsField_${field.id}" style="width:100%; padding:12px; font-size:16px;">`;
+        
+        field.options.forEach(opt => {
+            const selected = String(opt.value) == String(field.current) ? "selected" : "";
+            html += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+        });
+        
+        html += `</select></div>`;
+    });
+    
+    // ✨ GELİŞMİŞ AYARLAR bölümü (varsa)
+    if (config.advancedFields && config.advancedFields.length > 0) {
+        // localStorage'dan kaydedilmiş değerleri yükle
+        let savedAdv = {};
+        let savedEnabled = false;
+        try {
+            const raw = localStorage.getItem("miniAdvancedSettings");
+            if (raw) savedAdv = JSON.parse(raw);
+            savedEnabled = localStorage.getItem("miniAdvancedEnabled") === "true";
+        } catch(e) {}
+        
+        // Kayıtlı değerleri field'lara uygula
+        config.advancedFields.forEach(field => {
+            if (savedAdv[field.id] !== undefined) {
+                field.current = savedAdv[field.id];
+            }
+        });
+        
+        const checkedAttr = savedEnabled ? "checked" : "";
+        
+        html += `
+            <div style="margin-top:25px; padding-top:20px; border-top:2px dashed #495057;">
+                <label style="display:flex; align-items:center; cursor:pointer; user-select:none; 
+                              padding:12px 16px; background:rgba(103,65,217,0.15); 
+                              border:1px solid #6741d9; border-radius:10px;
+                              transition: all 0.2s;">
+                    <input type="checkbox" id="advancedToggle" ${checkedAttr}
+                           style="margin-right:12px; width:20px; height:20px; cursor:pointer;">
+                    <span style="color:#c084fc; font-weight:bold; font-size:16px;">
+                        🔧 Gelişmiş Ayarları Aç
+                    </span>
+                </label>
+                
+                <div id="advancedContent" style="max-height:0; overflow:hidden; 
+                                                  transition: max-height 0.4s ease-out;
+                                                  margin-top:0;">
+                    <div style="padding:20px 15px 5px 15px; background:rgba(103,65,217,0.05); 
+                                border-radius:10px; margin-top:12px;
+                                border-left:3px solid #6741d9;">
+                        <p style="color:#adb5bd; font-size:13px; margin:0 0 20px 0; font-style:italic;">
+                            ⚠️ Bu ayarlar oyun fiziğini doğrudan etkiler. Dikkatli değiştir.
+                        </p>
+        `;
+        
+        // ✨ Gelişmiş: Maç Süresi + Kazanma Skoru (özgür değer) - config'te varsa göster
+        if (config.showAdvancedGoalDuration) {
+            const curGoal = config.currentGoalTarget || 3;
+            const curDur = config.currentMatchDuration || 180;
+            html += `
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
+                    <div>
+                        <label style="display:block; color:#c084fc; font-weight:bold; 
+                                      font-size:13px; margin-bottom:6px;">
+                            ⚽ Kazanma Skoru
+                        </label>
+                        <input type="number" id="advGoalTarget"
+                               min="1" max="9999" step="1" value="${curGoal}"
+                               style="width:100%; padding:8px 10px; font-size:14px;
+                                      background:#1a1e2e; color:#fff; 
+                                      border:1px solid #6741d9; border-radius:6px;
+                                      font-family:monospace;">
+                        <p style="color:#6c757d; font-size:11px; margin:4px 0 0 0;">0 = sınırsız</p>
+                    </div>
+                    <div>
+                        <label style="display:block; color:#c084fc; font-weight:bold; 
+                                      font-size:13px; margin-bottom:6px;">
+                            ⏱️ Maç Süresi (dk)
+                        </label>
+                        <input type="number" id="advMatchDuration"
+                               min="0" max="9999" step="1" value="${Math.round(curDur / 60)}"
+                               style="width:100%; padding:8px 10px; font-size:14px;
+                                      background:#1a1e2e; color:#fff; 
+                                      border:1px solid #6741d9; border-radius:6px;
+                                      font-family:monospace;">
+                        <p style="color:#6c757d; font-size:11px; margin:4px 0 0 0;">0 = sınırsız</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        config.advancedFields.forEach(field => {
+            html += `<div style="margin-bottom:18px;">
+                <label style="display:flex; justify-content:space-between; align-items:center; 
+                              color:#c084fc; font-weight:bold; margin-bottom:8px; font-size:14px;">
+                    <span>${field.label}</span>
+                    <span id="advVal_${field.id}" style="color:#ffd43b; font-family:monospace; 
+                                                          background:rgba(0,0,0,0.3); 
+                                                          padding:3px 10px; border-radius:6px;">
+                        ${field.current}${field.unit || ""}
+                    </span>
+                </label>
+                <input type="range" id="advField_${field.id}" 
+                       min="${field.min}" max="${field.max}" step="${field.step || 1}"
+                       value="${field.current}"
+                       style="width:100%; height:6px; cursor:pointer; accent-color:#c084fc;">
+                <div style="display:flex; justify-content:space-between; color:#6c757d; 
+                            font-size:11px; margin-top:2px;">
+                    <span>${field.min}${field.unit || ""}</span>
+                    <span>${field.max}${field.unit || ""}</span>
+                </div>
+                ${field.desc ? `<p style="color:#868e96; font-size:12px; margin:6px 0 0 0; font-style:italic;">${field.desc}</p>` : ""}
+            </div>`;
+        });
+        
+        html += `
+                        <!-- Dışa Aktar / İçe Aktar butonları (Adım 4'te fonksiyonel olacak) -->
+                        <div style="display:flex; gap:10px; margin-top:20px; padding-top:15px; 
+                                    border-top:1px solid #3b4c63;">
+                            <button id="advExportBtn" class="bigBtn" 
+                                    style="flex:1; background:#20c997; font-size:14px; padding:10px;">
+                                💾 Ayarları Dışa Aktar
+                            </button>
+                            <button id="advImportBtn" class="bigBtn" 
+                                    style="flex:1; background:#495057; font-size:14px; padding:10px;">
+                                📁 Ayarları Yükle
+                            </button>
+                        </div>
+                        
+                        <button id="advResetBtn" class="bigBtn" 
+                                style="width:100%; background:#e67e22; font-size:13px; 
+                                       padding:8px; margin-top:10px;">
+                            🔄 Varsayılana Sıfırla
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    content.innerHTML = html;
+    
+    // ✨ Readonly mod - tüm select'leri devre dışı bırak
+    if (config.readonly) {
+        setTimeout(() => {
+            const selects = document.querySelectorAll("#roomSettingsContent select");
+            selects.forEach(sel => {
+                sel.disabled = true;
+                sel.style.opacity = "0.7";
+                sel.style.cursor = "not-allowed";
+            });
+            // Slider'ları da disable
+            const sliders = document.querySelectorAll("#roomSettingsContent input[type=range]");
+            sliders.forEach(s => {
+                s.disabled = true;
+                s.style.opacity = "0.5";
+            });
+            // Checkbox'ları da
+            const checkboxes = document.querySelectorAll("#roomSettingsContent input[type=checkbox]");
+            checkboxes.forEach(c => {
+                c.disabled = true;
+                c.style.opacity = "0.5";
+                if (c.parentElement) c.parentElement.style.cursor = "not-allowed";
+            });
+            // Butonları gizle (export, import, reset gibi)
+            const advBtns = document.querySelectorAll("#advExportBtn, #advImportBtn, #advResetBtn");
+            advBtns.forEach(b => { if (b) b.style.display = "none"; });
+            
+            // Kaydet butonu gizle, sadece "Kapat" göster
+            const saveBtn = document.getElementById("roomSettingsSaveBtn");
+            const cancelBtn = document.getElementById("roomSettingsCancelBtn");
+            if (saveBtn) saveBtn.style.display = "none";
+            if (cancelBtn) cancelBtn.textContent = "Kapat";
+        }, 50);
+    }
+    
+    // ✨ Card'ı flex yap, içeriği scroll'a alarak butonları sabitle
+    const settingsCard = document.querySelector("#roomSettingsBox .overlayCard");
+    if (settingsCard) {
+        settingsCard.style.setProperty("max-height", "85vh", "important");
+        settingsCard.style.setProperty("height", "auto", "important");
+        settingsCard.style.setProperty("display", "flex", "important");
+        settingsCard.style.setProperty("flex-direction", "column", "important");
+        settingsCard.style.setProperty("overflow", "hidden", "important");
+        settingsCard.style.setProperty("padding", "20px", "important");
+        settingsCard.style.setProperty("box-sizing", "border-box", "important");
+        settingsCard.style.setProperty("margin", "auto", "important");
+    }
+    
+    // Content scroll'lu olsun
+    const contentEl = document.getElementById("roomSettingsContent");
+    if (contentEl) {
+        contentEl.style.setProperty("overflow-y", "auto", "important");
+        contentEl.style.setProperty("overflow-x", "hidden", "important");
+        contentEl.style.setProperty("flex", "1 1 auto", "important");
+        contentEl.style.setProperty("min-height", "0", "important");
+        contentEl.style.setProperty("padding-right", "10px", "important");
+    }
+    
+    // Butonlar hiç scroll'a girmesin (sabit alt)
+    const btnContainer = document.querySelector("#roomSettingsBox .confirmButtons");
+    if (btnContainer) {
+        btnContainer.style.setProperty("flex-shrink", "0", "important");
+        btnContainer.style.setProperty("border-top", "1px solid rgba(255,255,255,0.1)", "important");
+        btnContainer.style.setProperty("padding-top", "15px", "important");
+        btnContainer.style.setProperty("margin-top", "15px", "important");
+        btnContainer.style.setProperty("background", "inherit", "important");
+    }
+    
+    // Overlay z-index footer'ın üstünde olsun
+    const overlay = document.getElementById("roomSettingsBox");
+    if (overlay) {
+        overlay.style.setProperty("z-index", "99999", "important");
+        overlay.style.setProperty("align-items", "center", "important");
+    }
+    
+    // Footer'ı geçici gizle (popup açıkken görünmesin)
+    const footer = document.querySelector(".siteFooter");
+    if (footer) footer.style.setProperty("display", "none", "important");
+    
+    document.getElementById("roomSettingsBox").classList.remove("hidden");
+    
+    // ✨ Gelişmiş ayarlar toggle animasyonu
+    const toggle = document.getElementById("advancedToggle");
+    const advContent = document.getElementById("advancedContent");
+    if (toggle && advContent) {
+        // ✨ Toggle fonksiyonu
+        function applyAdvancedState(isChecked, animate) {
+            const disableGroups = document.querySelectorAll('[data-disable-on-adv="1"]');
+            
+            if (isChecked) {
+                if (animate) {
+                    advContent.style.maxHeight = advContent.scrollHeight + "px";
+                    setTimeout(() => {
+                        if (toggle.checked) advContent.style.maxHeight = "5000px";
+                    }, 400);
+                } else {
+                    advContent.style.maxHeight = "5000px";
+                }
+                
+                disableGroups.forEach(g => {
+                    g.style.opacity = "0.4";
+                    g.style.pointerEvents = "none";
+                    const sel = g.querySelector("select");
+                    if (sel) sel.disabled = true;
+                    let badge = g.querySelector(".advDisabledBadge");
+                    if (!badge) {
+                        badge = document.createElement("span");
+                        badge.className = "advDisabledBadge";
+                        badge.textContent = " (gelişmiş modda devre dışı)";
+                        badge.style.cssText = "color:#e67e22; font-size:12px; font-weight:normal; margin-left:8px;";
+                        const label = g.querySelector("label");
+                        if (label) label.appendChild(badge);
+                    }
+                });
+            } else {
+                if (animate) {
+                    advContent.style.maxHeight = advContent.scrollHeight + "px";
+                    setTimeout(() => {
+                        advContent.style.maxHeight = "0";
+                    }, 10);
+                } else {
+                    advContent.style.maxHeight = "0";
+                }
+                
+                disableGroups.forEach(g => {
+                    g.style.opacity = "1";
+                    g.style.pointerEvents = "auto";
+                    const sel = g.querySelector("select");
+                    if (sel) sel.disabled = false;
+                    const badge = g.querySelector(".advDisabledBadge");
+                    if (badge) badge.remove();
+                });
+            }
+        }
+        
+        toggle.addEventListener("change", () => {
+            applyAdvancedState(toggle.checked, true);
+        });
+        
+        // ✨ Sayfa yüklenirken toggle'ın durumunu uygula (localStorage'dan geldiyse)
+        if (toggle.checked) {
+            setTimeout(() => applyAdvancedState(true, false), 50);
+        }
+    }
+    
+    // ✨ Slider değerleri anlık göster
+    if (config.advancedFields) {
+        config.advancedFields.forEach(field => {
+            const slider = document.getElementById("advField_" + field.id);
+            const valSpan = document.getElementById("advVal_" + field.id);
+            if (slider && valSpan) {
+                slider.addEventListener("input", () => {
+                    valSpan.textContent = slider.value + (field.unit || "");
+                });
+            }
+        });
+    }
+    
+    // ✨ Dışa Aktar / İçe Aktar butonları (Adım 4'te dolduracağız)
+    const exportBtn = document.getElementById("advExportBtn");
+    const importBtn = document.getElementById("advImportBtn");
+    const resetBtn = document.getElementById("advResetBtn");
+    if (exportBtn) exportBtn.onclick = () => alert("Dışa aktar - Adım 4'te eklenecek");
+    if (importBtn) importBtn.onclick = () => alert("Yükle - Adım 4'te eklenecek");
+    
+    // ✨ Varsayılana Sıfırla - localStorage'ı sil + slider'ları default'a çek
+    if (resetBtn) {
+        resetBtn.onclick = () => {
+            if (!confirm("Gelişmiş ayarları varsayılan değerlere sıfırlamak istediğine emin misin?")) return;
+            
+            // Her slider'ı config'teki varsayılan değere çek
+            if (config.advancedFields) {
+                config.advancedFields.forEach(field => {
+                    const slider = document.getElementById("advField_" + field.id);
+                    const valSpan = document.getElementById("advVal_" + field.id);
+                    
+                    // Field.current localStorage'dan gelmiş olabilir, orijinal default'u bul
+                    // MINI_ADVANCED_FIELDS'ten al (mini_futbol.js'de tanımlı)
+                    let defaultVal = field.current;
+                    if (typeof MINI_ADVANCED_FIELDS !== "undefined") {
+                        const orig = MINI_ADVANCED_FIELDS.find(f => f.id === field.id);
+                        if (orig) defaultVal = orig.current;
+                    }
+                    
+                    if (slider) slider.value = defaultVal;
+                    if (valSpan) valSpan.textContent = defaultVal + (field.unit || "");
+                });
+            }
+            
+            // localStorage'dan sil
+            try {
+                localStorage.removeItem("miniAdvancedSettings");
+            } catch(e) {}
+            
+            console.log("[SETTINGS] Gelişmiş ayarlar varsayılana sıfırlandı");
+        };
+    }
+};
+
+function closeRoomSettings() {
+    document.getElementById("roomSettingsBox").classList.add("hidden");
+    _activeSettingsConfig = null;
+    // Footer geri aç
+    const footer = document.querySelector(".siteFooter");
+    if (footer) footer.style.display = "";
+}
+
+// İptal butonu
+document.getElementById("roomSettingsCancelBtn").onclick = () => {
+    closeRoomSettings();
+};
+
+// Kaydet butonu
+document.getElementById("roomSettingsSaveBtn").onclick = () => {
+    if (!_activeSettingsConfig) return;
+    
+    const values = {};
+    _activeSettingsConfig.fields.forEach(field => {
+        const el = document.getElementById("settingsField_" + field.id);
+        if (el) values[field.id] = el.value;
+    });
+    
+    // ✨ Gelişmiş ayarları da topla
+    let advancedValues = null;
+    if (_activeSettingsConfig.advancedFields) {
+        advancedValues = {};
+        _activeSettingsConfig.advancedFields.forEach(field => {
+            const slider = document.getElementById("advField_" + field.id);
+            if (slider) {
+                advancedValues[field.id] = parseFloat(slider.value);
+            }
+        });
+    }
+    
+    // ✨ Gelişmişteki özgür Kazanma Skoru + Maç Süresi (dk → sn çevir)
+    const advGoalEl = document.getElementById("advGoalTarget");
+    const advDurEl = document.getElementById("advMatchDuration");
+    const advToggle = document.getElementById("advancedToggle");
+    if (advGoalEl && advDurEl && advToggle && advToggle.checked) {
+        let g = parseInt(advGoalEl.value);
+        let dMin = parseInt(advDurEl.value);  // Dakika olarak alındı
+        if (!g || g <= 0) g = 999;
+        if (!dMin || dMin <= 0) dMin = 99999;
+        if (g > 9999) g = 9999;
+        if (dMin > 9999) dMin = 9999;
+        // Dakikayı saniyeye çevir (backend saniye bekliyor)
+        let d = (dMin >= 9999) ? 99999 : dMin * 60;
+        // values'a override et (onSave içinde bunu kullanacak)
+        values.goalTarget = g;
+        values.matchDuration = d;
+        
+        // ✨ localStorage'a da kaydet (oda yeniden kurulduğunda hatırlansın)
+        try {
+            const raw = localStorage.getItem("miniAdvancedSettings");
+            const advDict = raw ? JSON.parse(raw) : {};
+            advDict._advGoalTarget = g;
+            advDict._advMatchDurationMin = dMin;
+            localStorage.setItem("miniAdvancedSettings", JSON.stringify(advDict));
+        } catch(e) {}
+    }
+    
+    // ✨ Gelişmiş toggle durumunu da kaydet (advancedValues null değilse aktif demek)
+    if (advancedValues) {
+        try {
+            const raw = localStorage.getItem("miniAdvancedSettings");
+            const advDict = raw ? JSON.parse(raw) : {};
+            // Slider değerlerini kaydet
+            Object.assign(advDict, advancedValues);
+            localStorage.setItem("miniAdvancedSettings", JSON.stringify(advDict));
+            localStorage.setItem("miniAdvancedEnabled", "true");
+        } catch(e) {}
+    } else if (advToggle) {
+        // Toggle kapalıysa false yap
+        try {
+            localStorage.setItem("miniAdvancedEnabled", advToggle.checked ? "true" : "false");
+        } catch(e) {}
+    }
+    
+    _activeSettingsConfig.onSave(values, advancedValues);
+    closeRoomSettings();
+};
+
+// ==========================================
+// BİL BAKALIM - Oda Ayarları
+// ==========================================
+
+function openRoomSettings() {
+    window.openRoomSettingsGeneric({
+        title: "Bil Bakalım - Oda Ayarları",
+        fields: [
+            {
+                id: "turnSec",
+                label: "⏱️ Tur Süresi",
+                current: turnSeconds || 45,
+                options: [
+                    {value: 30, label: "30 saniye"},
+                    {value: 45, label: "45 saniye"},
+                    {value: 60, label: "60 saniye"},
+                    {value: 90, label: "90 saniye"}
+                ]
+            },
+            {
+                id: "guessLimit",
+                label: "🎯 Tahmin Hakkı",
+                current: guessLimit || 0,
+                options: [
+                    {value: 0, label: "Sınırsız"},
+                    {value: 1, label: "1 (Riskli!)"},
+                    {value: 2, label: "2"},
+                    {value: 3, label: "3"},
+                    {value: 4, label: "4"},
+                    {value: 5, label: "5"},
+                    {value: 6, label: "6"},
+                    {value: 7, label: "7"},
+                    {value: 8, label: "8"},
+                    {value: 9, label: "9"},
+                    {value: 10, label: "10"}
+                ]
+            }
+        ],
+        onSave: (values) => {
+            send({
+                type: "update_room_settings",
+                turn_seconds: parseInt(values.turnSec) || 45,
+                guess_limit: parseInt(values.guessLimit) || 0
+            });
+        }
+    });
+}
+
+// Bil Bakalım buton olayı
+document.getElementById("roomSettingsBtn").onclick = () => {
+    openRoomSettings();
 };

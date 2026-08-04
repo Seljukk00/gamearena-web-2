@@ -337,6 +337,27 @@ async def handle_gizem_message(
     if room.get("mode") != "gizemli_kariyer":
         return _handled(current_room_code, current_player_id)
 
+    # ---------- UPDATE ROOM SETTINGS ----------
+    if msg_type == "gizem_update_settings":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Sadece lobbyde ayarları değiştirebilirsin."})
+            return _handled(current_room_code, current_player_id)
+
+        try:
+            new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 60)))
+            if new_turn_sec not in [30, 45, 60, 90, 120]:
+                new_turn_sec = 60
+        except:
+            new_turn_sec = 60
+
+        room["turn_seconds"] = new_turn_sec
+
+        await send_gizem_lobby_update(room, broadcast)
+        return _handled(current_room_code, current_player_id)
+
     if msg_type == "gizem_start_game":
         if current_player_id != 1:
             await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
