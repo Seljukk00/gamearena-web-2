@@ -35,8 +35,23 @@ def get_teams_by_difficulty(difficulty):
     return indices
 
 
-def make_takim_questions(difficulty="klasik"):
-    """Zorluğa göre 12 takım seç"""
+def make_takim_questions(difficulty="klasik", used_indices=None):
+    """Zorluğa göre 12 takım seç. used_indices: önceki oyunlarda kullanılanlar (öncelik olarak dışlanır)"""
+    
+    if used_indices is None:
+        used_indices = set()
+    else:
+        used_indices = set(used_indices)
+    
+    def pick_from(pool, count):
+        """Pool'dan önce kullanılmamışları, sonra kullanılmışları seç"""
+        fresh = [i for i in pool if i not in used_indices]
+        used = [i for i in pool if i in used_indices]
+        random.shuffle(fresh)
+        random.shuffle(used)
+        # Önce fresh, yetmezse used'dan tamamla
+        combined = fresh + used
+        return combined[:count]
     
     if difficulty == "klasik":
         # Progresif: 4 kolay + 4 orta + 4 zor
@@ -44,14 +59,10 @@ def make_takim_questions(difficulty="klasik"):
         orta = get_teams_by_difficulty("orta")
         zor = get_teams_by_difficulty("zor")
         
-        random.shuffle(kolay)
-        random.shuffle(orta)
-        random.shuffle(zor)
-        
         selected = []
-        selected.extend(kolay[:min(4, len(kolay))])
-        selected.extend(orta[:min(4, len(orta))])
-        selected.extend(zor[:min(4, len(zor))])
+        selected.extend(pick_from(kolay, 4))
+        selected.extend(pick_from(orta, 4))
+        selected.extend(pick_from(zor, 4))
         
         # Eksik varsa doldur (herhangi bir zorluktan)
         while len(selected) < TAKIM_TOPLAM_SORU:
@@ -59,29 +70,33 @@ def make_takim_questions(difficulty="klasik"):
             remaining = [i for i in all_valid if i not in selected]
             if not remaining:
                 break
-            selected.append(random.choice(remaining))
+            # Kullanılmamış varsa onu, yoksa herhangi biri
+            fresh = [i for i in remaining if i not in used_indices]
+            if fresh:
+                selected.append(random.choice(fresh))
+            else:
+                selected.append(random.choice(remaining))
         
         return selected[:TAKIM_TOPLAM_SORU]
     
     else:
         # Kolay/Orta/Zor: sadece o zorluktan
         valid = get_teams_by_difficulty(difficulty)
+        selected = pick_from(valid, TAKIM_TOPLAM_SORU)
         
-        if len(valid) >= TAKIM_TOPLAM_SORU:
-            return random.sample(valid, TAKIM_TOPLAM_SORU)
-        else:
-            # Yetmiyorsa: mevcut hepsini kullan + eksik kalan yerlere rastgele ekle
-            selected = list(valid)
-            random.shuffle(selected)
-            
+        # Yetmiyorsa diğer zorluklardan tamamla
+        if len(selected) < TAKIM_TOPLAM_SORU:
             all_valid = list(range(len(ALL_TEAMS)))
             remaining = [i for i in all_valid if i not in selected]
-            random.shuffle(remaining)
-            
-            while len(selected) < TAKIM_TOPLAM_SORU and remaining:
-                selected.append(remaining.pop())
-            
-            return selected[:TAKIM_TOPLAM_SORU]
+            fresh = [i for i in remaining if i not in used_indices]
+            used = [i for i in remaining if i in used_indices]
+            random.shuffle(fresh)
+            random.shuffle(used)
+            combined = fresh + used
+            while len(selected) < TAKIM_TOPLAM_SORU and combined:
+                selected.append(combined.pop(0))
+        
+        return selected[:TAKIM_TOPLAM_SORU]
 
 
 def get_takim_team_data(room, question_no):
@@ -193,8 +208,23 @@ async def send_takim_lobby_update(room, broadcast):
 
 async def start_takim_game(room, safe_send, broadcast):
     difficulty = room.get("difficulty", "klasik")
-    room["questions"] = make_takim_questions(difficulty)
-    print(f"[TAKIM] Oyun başladı — Zorluk: {difficulty}, Soru sayısı: {len(room['questions'])}")
+    
+    # ✨ Önceki oyunlarda kullanılan takımları hatırla, tekrar gelme ihtimalini azalt
+    used_history = room.get("used_teams_history", set())
+    
+    # Havuzun çoğu kullanıldıysa sıfırla (yeniden başla)
+    total_teams = len(ALL_TEAMS)
+    if len(used_history) >= total_teams * 0.75:  # %75 tüketildiyse
+        print(f"[TAKIM] Havuz büyük ölçüde tüketildi ({len(used_history)}/{total_teams}), sıfırlanıyor")
+        used_history = set()
+    
+    room["questions"] = make_takim_questions(difficulty, used_indices=used_history)
+    
+    # Bu oyunda kullanılanları history'e ekle
+    used_history.update(room["questions"])
+    room["used_teams_history"] = used_history
+    
+    print(f"[TAKIM] Oyun başladı — Zorluk: {difficulty}, Soru sayısı: {len(room['questions'])}, Havuz: {len(used_history)}/{total_teams}")
     room["current_question"] = 0
     room["scores"] = {1: 0, 2: 0}
     room["turn"] = 1
@@ -295,7 +325,8 @@ async def handle_takim_message(
             "eliminated_options": {1: [], 2: []},
             "answered": False,
             "jokers_left": {1: {}, 2: {}},
-            "takim_task": None
+            "takim_task": None,
+            "used_teams_history": set()  # ✨ Önceki oyunlarda kullanılanlar
         }
 
         await safe_send(websocket, {
@@ -325,6 +356,15 @@ async def handle_takim_message(
             return _handled(current_room_code, current_player_id)
         if len(room["players"]) >= 2:
             await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+            return _handled(current_room_code, current_player_id)
+        
+        # ✨ Aynı isim var mı? (case-insensitive)
+        existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
+        if name.lower().strip() in existing_names:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": f"Bu isimde ({name}) bir oyuncu zaten odada var. Farklı bir isim seç."
+            })
             return _handled(current_room_code, current_player_id)
 
         current_room_code = join_code

@@ -291,7 +291,8 @@ function updateMemeLobby() {
             nameCell.style.flex = "1";
             nameCell.style.textAlign = "left";
             nameCell.style.paddingLeft = "10px";
-            nameCell.textContent = p.id === memeData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+            const crown = p.id === 1 ? " 👑" : "";
+            nameCell.textContent = p.id === memeData.playerId ? `${p.id}. ${p.name} (Sen)${crown}` : `${p.id}. ${p.name}${crown}`;
             li.appendChild(nameCell);
             
             // Kick butonu
@@ -629,6 +630,8 @@ function showScoreboard(msg) {
 // ========================================
 // OYUN SONU
 // ========================================
+let memeGameOverCountdownInterval = null;
+
 function showMemeGameOver(msg) {
     document.getElementById("memeScoreboardBox").classList.add("hidden");
     document.getElementById("memeVotingBox").classList.add("hidden");
@@ -636,6 +639,30 @@ function showMemeGameOver(msg) {
     const overBox = document.getElementById("memeGameOverBox");
     if (!overBox) return;
     overBox.classList.remove("hidden");
+    
+    // ✨ 30 saniye geri sayım → otomatik lobiye dön
+    if (memeGameOverCountdownInterval) {
+        clearInterval(memeGameOverCountdownInterval);
+    }
+    let remaining = 30;
+    const countdownEl = document.getElementById("memeGameOverCountdown");
+    if (countdownEl) countdownEl.textContent = remaining;
+    
+    memeGameOverCountdownInterval = setInterval(() => {
+        remaining--;
+        if (countdownEl) {
+            countdownEl.textContent = remaining;
+            if (remaining <= 10) countdownEl.style.color = "#ff6b6b";
+            else countdownEl.style.color = "#ffd43b";
+        }
+        if (remaining <= 0) {
+            clearInterval(memeGameOverCountdownInterval);
+            memeGameOverCountdownInterval = null;
+            // Otomatik lobiye dön
+            overBox.classList.add("hidden");
+            showScreen("memeLobby");
+        }
+    }, 1000);
     
     const title = document.getElementById("memeGameOverTitle");
     if (msg.winner_id === memeData.playerId) {
@@ -856,6 +883,10 @@ setTimeout(() => {
     const gameOverMenuBtn = document.getElementById("memeGameOverMenuBtn");
     if (gameOverMenuBtn) {
         gameOverMenuBtn.onclick = () => {
+            if (memeGameOverCountdownInterval) {
+                clearInterval(memeGameOverCountdownInterval);
+                memeGameOverCountdownInterval = null;
+            }
             document.getElementById("memeGameOverBox").classList.add("hidden");
             inRoom = false;
             if (ws) { try { ws.close(); } catch(e) {} }
@@ -864,10 +895,27 @@ setTimeout(() => {
         };
     }
     
+    // ✨ Oyun sonu - Lobiye dön
+    const gameOverLobbyBtn = document.getElementById("memeGameOverLobbyBtn");
+    if (gameOverLobbyBtn) {
+        gameOverLobbyBtn.onclick = () => {
+            if (memeGameOverCountdownInterval) {
+                clearInterval(memeGameOverCountdownInterval);
+                memeGameOverCountdownInterval = null;
+            }
+            document.getElementById("memeGameOverBox").classList.add("hidden");
+            showScreen("memeLobby");
+        };
+    }
+    
     // Oyun sonu - yeni oyun (host)
     const gameOverRematchBtn = document.getElementById("memeGameOverRematchBtn");
     if (gameOverRematchBtn) {
         gameOverRematchBtn.onclick = () => {
+            if (memeGameOverCountdownInterval) {
+                clearInterval(memeGameOverCountdownInterval);
+                memeGameOverCountdownInterval = null;
+            }
             // Skorları sıfırla (backend'de de sıfırlanmalı - şimdilik sadece yeniden başlat)
             document.getElementById("memeGameOverBox").classList.add("hidden");
             send({ type: "meme_start_game" });

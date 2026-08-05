@@ -441,7 +441,20 @@ button:disabled {
 .card .meta {
     font-size: 12px;
     color: #cbd5e1;
+    margin-top: 3px;
 }
+
+/* ✨ Lig renkleri */
+.league-premier { color: #9C27B0 !important; }
+.league-laliga { color: #FF9800 !important; }
+.league-seriea { color: #2196F3 !important; }
+.league-bundesliga { color: #F44336 !important; }
+.league-ligue1 { color: #3F51B5 !important; }
+.league-superlig { color: #E53935 !important; }
+.league-portugal { color: #43A047 !important; }
+.league-eredivisie { color: #FB8C00 !important; }
+.league-saudi { color: #2E7D32 !important; }
+.league-mls { color: #29B6F6 !important; }
 
 .card .overlayX {
     position: absolute;

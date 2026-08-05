@@ -110,7 +110,8 @@ async def send_minifutbol_lobby_update(room, broadcast):
         "allow_plase": room.get("allow_plase", True),
         "ball_stick": room.get("ball_stick", True),
         "sprint_enabled": room.get("sprint_enabled", True),
-        "player_count": room.get("player_count", 2)  # ✨ Oyuncu sayısı
+        "player_count": room.get("player_count", 2),  # ✨ Oyuncu sayısı
+        "kickoff_timeout": room.get("kickoff_timeout", 10)  # ✨ Santra süresi (sn)
     }
     await broadcast(room, msg)
 
@@ -1392,6 +1393,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if player_count_init not in [2, 4, 6, 8, 10]:
             player_count_init = 2
         
+        # ✨ Santra süresi (5-999 sn, 999 = sınırsız)
+        kickoff_timeout_init = int(data.get("kickoff_timeout", 10))
+        if kickoff_timeout_init not in [5, 10, 15, 20, 30, 60, 999]:
+            kickoff_timeout_init = 10
+        
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -1436,6 +1442,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "ball_stick": ball_stick_init,
             "sprint_enabled": sprint_enabled_init,
             "player_count": player_count_init,  # ✨ Toplam takım kişi limiti
+            "kickoff_timeout": kickoff_timeout_init,  # ✨ Santra süresi (sn)
             "kicked_names": []
         }
         
@@ -1465,6 +1472,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 safe_adv["ballMaxSpeed"]    = clamp(adv_vals.get("ballMaxSpeed"), 10, 35, 18)
                 safe_adv["sprintMultiplier"] = clamp(adv_vals.get("sprintMultiplier"), 100, 250, 150)
                 safe_adv["sprintDuration"]   = clamp(adv_vals.get("sprintDuration"), 1, 10, 3)
+                safe_adv["ballStick"]        = clamp(adv_vals.get("ballStick"), 0, 100, 85)  # ✨ Top yapışma
                 
                 rooms[new_code]["advanced_enabled"] = True
                 rooms[new_code]["advanced_settings"] = safe_adv
@@ -1477,7 +1485,8 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "goal_target": goal_target,
             "match_duration": match_duration,
             "game_speed": game_speed,
-            "player_count": player_count_init  # ✨ Client'a bildir
+            "player_count": player_count_init,  # ✨ Client'a bildir
+            "kickoff_timeout": kickoff_timeout_init  # ✨ Santra süresi
         })
         
         await send_minifutbol_lobby_update(rooms[new_code], broadcast)
@@ -1548,6 +1557,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "match_duration": room["match_duration"],
             "game_speed": room.get("game_speed", "normal"),
             "player_count": room.get("player_count", 2),
+            "kickoff_timeout": room.get("kickoff_timeout", 10),  # ✨ Santra süresi
             "mid_game": is_mid_game,
             "is_paused": is_paused,  # ✨ Pause durumu
             "red_team_name": room.get("red_team_name", "Kırmızı Takım"),
@@ -1624,6 +1634,12 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         advanced_enabled = bool(data.get("advanced_enabled", False))
         advanced_values = data.get("advanced", {}) or {}
         
+        # ✨ Santra süresi güncelle
+        new_kickoff_timeout = int(data.get("kickoff_timeout", room.get("kickoff_timeout", 10)))
+        if new_kickoff_timeout not in [5, 10, 15, 20, 30, 60, 999]:
+            new_kickoff_timeout = 10
+        room["kickoff_timeout"] = new_kickoff_timeout
+        
         # ✨ Oyuncu sayısı kontrol
         if new_player_count not in [2, 4, 6, 8, 10]:
             new_player_count = 2
@@ -1699,8 +1715,9 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             safe_adv["plaseSpin"]         = clamp(advanced_values.get("plaseSpin"), 10, 80, 35)
             safe_adv["afterTouchTime"]    = clamp(advanced_values.get("afterTouchTime"), 0, 1000, 200)
             safe_adv["ballMaxSpeed"]      = clamp(advanced_values.get("ballMaxSpeed"), 10, 35, 18)
-            safe_adv["sprintMultiplier"]  = clamp(advanced_values.get("sprintMultiplier"), 100, 250, 170)
+            safe_adv["sprintMultiplier"]  = clamp(advanced_values.get("sprintMultiplier"), 100, 250, 150)
             safe_adv["sprintDuration"]    = clamp(advanced_values.get("sprintDuration"), 1, 10, 3)
+            safe_adv["ballStick"]         = clamp(advanced_values.get("ballStick"), 0, 100, 85)  # ✨ Top yapışma
             
             room["advanced_settings"] = safe_adv
             print(f"[MINI ADVANCED] Gelişmiş ayarlar aktif: {safe_adv}")
@@ -1994,6 +2011,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             gs["state"] = "countdown"
             gs["countdown_start"] = now
             gs["countdown_end"] = now + 3.5
+            gs["_silentWhistle"] = True  # ✨ Quick resume → düdük çalma
             
             print(f"[MINI] HIZLI RESUME (P tuşu, 3-2-1)")
             
@@ -2252,30 +2270,50 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                     del gs["players"][pid]
                     print(f"[MINI PAUSE] Oyuncu {pid} game_state'ten silindi")
                 
-                # Yeni oyuncuları game_state'e ekle (yoksa)
-                if new_red_pid and new_red_pid not in gs["players"]:
-                    gs["players"][new_red_pid] = {
-                        "x": 200, "y": FIELD_HEIGHT / 2,
-                        "vx": 0, "vy": 0,
-                        "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
-                        "last_kick_time": 0,
-                        "sprint_energy": SPRINT_MAX_ENERGY,
-                        "last_frame_time": 0,
-                        "team": "red"
-                    }
-                    print(f"[MINI PAUSE] Yeni kırmızı oyuncu {new_red_pid} eklendi")
+                # Yeni oyuncuları game_state'e ekle (yoksa) VEYA team alanını güncelle (varsa)
+                if new_red_pid:
+                    if new_red_pid not in gs["players"]:
+                        # Yeni oyuncu ekle
+                        gs["players"][new_red_pid] = {
+                            "x": 200, "y": FIELD_HEIGHT / 2,
+                            "vx": 0, "vy": 0,
+                            "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
+                            "last_kick_time": 0,
+                            "sprint_energy": SPRINT_MAX_ENERGY,
+                            "last_frame_time": 0,
+                            "team": "red"
+                        }
+                        print(f"[MINI PAUSE] Yeni kırmızı oyuncu {new_red_pid} eklendi")
+                    else:
+                        # ✨ Zaten var → team alanını güncelle + pozisyonu sıfırla
+                        gs["players"][new_red_pid]["team"] = "red"
+                        gs["players"][new_red_pid]["x"] = 200
+                        gs["players"][new_red_pid]["y"] = FIELD_HEIGHT / 2
+                        gs["players"][new_red_pid]["vx"] = 0
+                        gs["players"][new_red_pid]["vy"] = 0
+                        print(f"[MINI PAUSE] Oyuncu {new_red_pid} team güncellendi → red")
                 
-                if new_blue_pid and new_blue_pid not in gs["players"]:
-                    gs["players"][new_blue_pid] = {
-                        "x": FIELD_WIDTH - 200, "y": FIELD_HEIGHT / 2,
-                        "vx": 0, "vy": 0,
-                        "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
-                        "last_kick_time": 0,
-                        "sprint_energy": SPRINT_MAX_ENERGY,
-                        "last_frame_time": 0,
-                        "team": "blue"
-                    }
-                    print(f"[MINI PAUSE] Yeni mavi oyuncu {new_blue_pid} eklendi")
+                if new_blue_pid:
+                    if new_blue_pid not in gs["players"]:
+                        # Yeni oyuncu ekle
+                        gs["players"][new_blue_pid] = {
+                            "x": FIELD_WIDTH - 200, "y": FIELD_HEIGHT / 2,
+                            "vx": 0, "vy": 0,
+                            "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
+                            "last_kick_time": 0,
+                            "sprint_energy": SPRINT_MAX_ENERGY,
+                            "last_frame_time": 0,
+                            "team": "blue"
+                        }
+                        print(f"[MINI PAUSE] Yeni mavi oyuncu {new_blue_pid} eklendi")
+                    else:
+                        # ✨ Zaten var → team alanını güncelle + pozisyonu sıfırla
+                        gs["players"][new_blue_pid]["team"] = "blue"
+                        gs["players"][new_blue_pid]["x"] = FIELD_WIDTH - 200
+                        gs["players"][new_blue_pid]["y"] = FIELD_HEIGHT / 2
+                        gs["players"][new_blue_pid]["vx"] = 0
+                        gs["players"][new_blue_pid]["vy"] = 0
+                        print(f"[MINI PAUSE] Oyuncu {new_blue_pid} team güncellendi → blue")
                 
                 room["active_red_player"] = new_red_pid
                 room["active_blue_player"] = new_blue_pid

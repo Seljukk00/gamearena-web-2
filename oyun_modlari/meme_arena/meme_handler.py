@@ -177,6 +177,15 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             await safe_send(websocket, {"type": "error", "message": "Oyun başladı, katılamazsın."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
+        # ✨ Aynı isim var mı? (case-insensitive)
+        existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
+        if name.lower().strip() in existing_names:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": f"Bu isimde ({name}) bir oyuncu zaten odada var. Farklı bir isim seç."
+            })
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
         # Yeni player_id ver (1'den başlayarak boş olanı bul)
         new_pid = None
         for i in range(1, max_p + 1):

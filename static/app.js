@@ -250,23 +250,22 @@ function updateTimerDisplay() {
 
 // ============ LOBBY ============
 function updateLobby() {
-    // Misafir (player 2) oda kodu ve linki hiç görmesin
-    const codeBox = roomCodeText.closest(".roomCodeBox");
-    const linkBox = document.getElementById("inviteLinkBox");
-    if (playerId === 1) {
-        if (codeBox) codeBox.style.display = "";
-        if (linkBox) linkBox.style.display = "";
-        
-        // Oda kodu gizliyse ••••••, değilse kod göster
-        if (roomCodeText.classList.contains("hiddenCode")) {
-            roomCodeText.textContent = "••••••";
-        } else {
-            roomCodeText.textContent = roomCode;
-        }
-        updateInviteLink();
-    } else {
-        if (codeBox) codeBox.style.display = "none";
-        if (linkBox) linkBox.style.display = "none";
+    // ✨ Ortak helper kullan (yeşil ###### + link ****** görünümü)
+    if (window.setupRoomCodeAndLink && !window._bilBakalimRoomHelper) {
+        window._bilBakalimRoomHelper = window.setupRoomCodeAndLink({
+            codeTextId: "roomCodeText",
+            codeEyeBtnId: "roomCodeEyeBtn",
+            copyHintId: "copyHint",
+            linkTextId: "inviteLinkText",
+            linkEyeBtnId: "inviteLinkEyeBtn",
+            linkHintId: "inviteLinkHint",
+            getRoomCode: () => roomCode,
+            getPlayerId: () => playerId
+        });
+    }
+    if (window._bilBakalimRoomHelper) {
+        window._bilBakalimRoomHelper.renderCode();
+        window._bilBakalimRoomHelper.renderLink();
     }
     
     lobbyTurnSeconds.textContent = turnSeconds;
@@ -283,7 +282,8 @@ function updateLobby() {
         nameCell.style.flex = "1";
         nameCell.style.textAlign = "left";
         nameCell.style.paddingLeft = "10px";
-        nameCell.textContent = p.id === playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        const crown = p.id === 1 ? " 👑" : "";
+        nameCell.textContent = p.id === playerId ? `${p.id}. ${p.name} (Sen)${crown}` : `${p.id}. ${p.name}${crown}`;
         li.appendChild(nameCell);
 
         // Kick butonu (sağda, sadece host + rakip için)
@@ -379,10 +379,24 @@ function createCard(f, index, mode) {
     const meta1 = document.createElement("div");
     meta1.className = "meta";
     meta1.textContent = f.position;
+    // ✨ Pozisyon rengi
+    const posColors = {"Kaleci":"#ffd43b","Defans":"#4dabf7","OrtaSaha":"#51cf66","Orta Saha":"#51cf66","Forvet":"#ff6b6b"};
+    meta1.style.color = posColors[f.position] || "#adb5bd";
+    meta1.style.fontWeight = "600";
 
     const meta2 = document.createElement("div");
     meta2.className = "meta";
     meta2.textContent = f.league;
+    // ✨ Lig rengi (CSS class ile)
+    const leagueClassMap = {
+        "Premier":"league-premier","LaLiga":"league-laliga","SerieA":"league-seriea",
+        "Bundesliga":"league-bundesliga","Ligue1":"league-ligue1","SuperLig":"league-superlig",
+        "Portugal":"league-portugal","Eredivisie":"league-eredivisie",
+        "Saudi":"league-saudi","MLS":"league-mls"
+    };
+    const leagueClass = leagueClassMap[f.league];
+    if (leagueClass) meta2.classList.add(leagueClass);
+    meta2.style.fontWeight = "600";
 
     card.appendChild(img);
     card.appendChild(name);
@@ -1188,10 +1202,32 @@ function handleMessage(msg) {
         updateTopBar();
         return;
     }
+	
+	// ✨ Rakip oyun içinde ayrıldı → lobiye dön (oda açık)
+    if (msg.type === "opponent_left_to_lobby") {
+        stopTimer();
+        hideAnswerPanel();
+        confirmBox.classList.add("hidden");
+        gameOverBox.classList.add("hidden");
+        
+        showToast("👋 Rakip Ayrıldı", msg.message || "Rakip ayrıldı, lobiye dönüldü.", null, "warning");
+        
+        // Modun lobby ekranına dön
+        const current = getCurrentScreen();
+        if (current.includes("takim")) showScreen("takimLobby");
+        else if (current.includes("ml")) showScreen("mlLobby");
+        else if (current.includes("harita")) showScreen("haritaLobby");
+        else if (current.includes("gizem")) showScreen("gizemLobby");
+        else if (current.includes("ilk11")) showScreen("ilk11Lobby");
+        else if (current.includes("stad")) showScreen("stadLobby");
+        else if (current.includes("meme")) showScreen("memeLobby");
+        else showScreen("lobby");  // Bil Bakalım
+        
+        return;
+    }
 
     if (msg.type === "opponent_left") {
         // ✨ Mini Futbol'da opponent_left = HOST ayrıldı (oda kapandı)
-        // Normal oyuncular için mini_player_left_game mesajı kullanılıyor
         const current = getCurrentScreen();
         if (current === "miniGame" || current === "miniLobby") {
             const leftName = msg.player_name || "Host";
@@ -1213,10 +1249,8 @@ function handleMessage(msg) {
             playerId = null;
             roomCode = "";
             
-            // Tüm popup'ları kapat
             document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
             
-            // WS yenile + katıl ekranına
             if (ws) { try { ws.close(); } catch(e) {} }
             setTimeout(() => {
                 connectWS();
@@ -1225,6 +1259,15 @@ function handleMessage(msg) {
             return;
         }
         
+        // ✨ Lobby'de ayrıldıysa → popup YOK, sadece toast
+        const lobbyScreens = ["lobby", "takimLobby", "mlLobby", "haritaLobby", 
+                              "gizemLobby", "ilk11Lobby", "stadLobby", "memeLobby"];
+        if (lobbyScreens.includes(current)) {
+            showToast("👋 Rakip Ayrıldı", msg.message || "Rakip lobbyden ayrıldı.", null, "warning");
+            return;
+        }
+        
+        // ✨ Oyun içinde ayrıldıysa → popup göster (lobiye dön butonu ile)
         inRoom = false;
         stopTimer();
         hideAnswerPanel();
@@ -1349,7 +1392,7 @@ backToMenuBtn.onclick = () => {
     showScreen("home");
 };
 
-// Rakip ayrıldı — "← Geri" butonu (katıl ekranına)
+// Rakip ayrıldı — "← Geri" butonu → Katıl ekranına
 document.getElementById("opponentLeftBackBtn").onclick = () => {
     inRoom = false;
     opponentLeftBox.classList.add("hidden");
@@ -1358,7 +1401,7 @@ document.getElementById("opponentLeftBackBtn").onclick = () => {
     showScreen("join");
 };
 
-// Rakip ayrıldı — "Ana Menüye Dön" butonu
+// Rakip ayrıldı — "Ana Menüye Dön" butonu → Ana menüye
 opponentLeftOkBtn.onclick = () => {
     inRoom = false;
     opponentLeftBox.classList.add("hidden");
@@ -1697,8 +1740,17 @@ function closeEscPopup() {
 }
 
 document.getElementById("escYesBtn").onclick = () => {
-    // playerId'yi HEMEN kaydet (sonra sıfırlanabilir)
-    const wasHost = (playerId === 1);
+    // ✨ Host mu? Global playerId veya mod-özel playerId'ye bak
+    let wasHost = (playerId === 1);
+    if (!wasHost && typeof takimData !== "undefined" && takimData.playerId === 1) wasHost = true;
+    if (!wasHost && typeof mlData !== "undefined" && mlData.playerId === 1) wasHost = true;
+    if (!wasHost && typeof haritaData !== "undefined" && haritaData.playerId === 1) wasHost = true;
+    if (!wasHost && typeof gizemData !== "undefined" && gizemData.playerId === 1) wasHost = true;
+    if (!wasHost && typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) wasHost = true;
+    if (!wasHost && typeof stadData !== "undefined" && stadData.playerId === 1) wasHost = true;
+    if (!wasHost && typeof memeData !== "undefined" && memeData.playerId === 1) wasHost = true;
+    if (!wasHost && typeof miniData !== "undefined" && miniData.playerId === 1) wasHost = true;
+    
     const goHome = _escFromF5;
     
     inRoom = false;
@@ -1951,7 +2003,17 @@ setTimeout(() => {
     const escYes = document.getElementById("escYesBtn");
     if (escYes) {
         escYes.onclick = () => {
-            const wasHost = (playerId === 1);
+            // ✨ Host mu? Global playerId veya mod-özel playerId'ye bak
+            let wasHost = (playerId === 1);
+            if (!wasHost && typeof takimData !== "undefined" && takimData.playerId === 1) wasHost = true;
+            if (!wasHost && typeof mlData !== "undefined" && mlData.playerId === 1) wasHost = true;
+            if (!wasHost && typeof haritaData !== "undefined" && haritaData.playerId === 1) wasHost = true;
+            if (!wasHost && typeof gizemData !== "undefined" && gizemData.playerId === 1) wasHost = true;
+            if (!wasHost && typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) wasHost = true;
+            if (!wasHost && typeof stadData !== "undefined" && stadData.playerId === 1) wasHost = true;
+            if (!wasHost && typeof memeData !== "undefined" && memeData.playerId === 1) wasHost = true;
+            if (!wasHost && typeof miniData !== "undefined" && miniData.playerId === 1) wasHost = true;
+            
             const goHome = _escFromF5;
             
             inRoom = false;

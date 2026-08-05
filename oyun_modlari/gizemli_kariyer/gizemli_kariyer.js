@@ -8,6 +8,8 @@ let gizemData = {
     roomCode: "",
     players: [],
     turnSeconds: 60,
+    difficulty: "karisik",           // ✨ Oda zorluğu
+    roundDifficulty: "karisik",      // ✨ Bu turun zorluğu (progresif için)
     totalRounds: 10,
     currentTurn: null,
     roundNo: 0,
@@ -68,10 +70,12 @@ document.getElementById("createGizemBtn").onclick = () => {
     myName = name;
 
     const turnSec = parseInt(document.getElementById("gizemTurnSecondsSelect").value) || 60;
+    const difficulty = document.getElementById("gizemDifficultySelect").value || "karisik";  // ✨
     send({
         type: "gizem_create_room",
         name: name,
-        turn_seconds: turnSec
+        turn_seconds: turnSec,
+        difficulty: difficulty  // ✨
     });
 };
 
@@ -94,6 +98,17 @@ document.getElementById("gizemRoomSettingsBtn").onclick = () => {
         title: "Gizemli Kariyer - Oda Ayarları",
         fields: [
             {
+                id: "difficulty",
+                label: "🎯 Zorluk Seviyesi",
+                current: gizemData.difficulty || "karisik",
+                options: [
+                    {value: "kolay", label: "🟢 Kolay"},
+                    {value: "orta", label: "🟡 Orta"},
+                    {value: "zor", label: "🔴 Zor"},
+                    {value: "karisik", label: "🎯 Karışık (Progresif)"}
+                ]
+            },
+            {
                 id: "turnSec",
                 label: "⏱️ Tur Süresi",
                 current: gizemData.turnSeconds || 60,
@@ -109,7 +124,8 @@ document.getElementById("gizemRoomSettingsBtn").onclick = () => {
         onSave: (values) => {
             send({
                 type: "gizem_update_settings",
-                turn_seconds: parseInt(values.turnSec) || 60
+                turn_seconds: parseInt(values.turnSec) || 60,
+                difficulty: values.difficulty || "karisik"  // ✨
             });
         }
     });
@@ -209,6 +225,18 @@ function getGizemPlayerName(id) {
 function updateGizemLobby() {
     if (gizemRoomHelper) { gizemRoomHelper.renderCode(); gizemRoomHelper.renderLink(); }
     document.getElementById("gizemLobbyTurnSeconds").textContent = gizemData.turnSeconds || 60;
+    
+    // ✨ Zorluk göster
+    const diffNames = {
+        "kolay": "🟢 Kolay",
+        "orta": "🟡 Orta",
+        "zor": "🔴 Zor",
+        "karisik": "🎯 Karışık"
+    };
+    const diffEl = document.getElementById("gizemLobbyDifficulty");
+    if (diffEl) {
+        diffEl.textContent = diffNames[gizemData.difficulty] || "🎯 Karışık";
+    }
 
     const list = document.getElementById("gizemPlayersList");
     list.innerHTML = "";
@@ -219,7 +247,8 @@ function updateGizemLobby() {
         nameCell.style.flex = "1";
         nameCell.style.textAlign = "left";
         nameCell.style.paddingLeft = "10px";
-        nameCell.textContent = p.id === gizemData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        const crown = p.id === 1 ? " 👑" : "";
+        nameCell.textContent = p.id === gizemData.playerId ? `${p.id}. ${p.name} (Sen)${crown}` : `${p.id}. ${p.name}${crown}`;
         li.appendChild(nameCell);
         
         if (p.id !== gizemData.playerId && gizemData.playerId === 1) {
@@ -263,8 +292,14 @@ function updateGizemLobby() {
 }
 
 function updateGizemTopBar() {
-    document.getElementById("gizemRoundInfo").textContent =
-        `Tur ${gizemData.roundNo + 1}/${gizemData.totalRounds}`;
+    // ✨ Tur bilgisine zorluk emojisi ekle
+    const diffEmoji = { kolay: "🟢", orta: "🟡", zor: "🔴" };
+    const rDiff = gizemData.roundDifficulty || "orta";
+    const emoji = diffEmoji[rDiff] || "";
+    const diffLabel = rDiff.toUpperCase();
+    
+    document.getElementById("gizemRoundInfo").innerHTML =
+        `Tur ${gizemData.roundNo + 1}/${gizemData.totalRounds} ${emoji} <span style="opacity:0.7; font-size:14px;">${diffLabel}</span>`;
 
     const turnName = getGizemPlayerName(gizemData.currentTurn);
     const turnColor = gizemData.currentTurn === gizemData.playerId ? "#51cf66" : "#ffa94d";
@@ -381,6 +416,7 @@ handleMessage = function(msg) {
         gizemData.playerId = msg.player_id;
         gizemData.roomCode = msg.room_code;
         gizemData.turnSeconds = msg.turn_seconds || 60;
+        gizemData.difficulty = msg.difficulty || "karisik";  // ✨
         gizemData.inGame = true;
         inRoom = true;
         showScreen("gizemLobby");
@@ -392,6 +428,7 @@ handleMessage = function(msg) {
         gizemData.roomCode = msg.room_code;
         gizemData.players = msg.players;
         gizemData.turnSeconds = msg.turn_seconds || 60;
+        gizemData.difficulty = msg.difficulty || gizemData.difficulty || "karisik";  // ✨
         updateGizemLobby();
         return;
     }
@@ -409,6 +446,12 @@ handleMessage = function(msg) {
         gizemData.jokersLeft = msg.jokers_left;
         gizemData.hiddenIndices = [];
         gizemData.answered = false;
+        gizemData.difficulty = msg.difficulty || gizemData.difficulty || "karisik";
+        gizemData.roundDifficulty = msg.round_difficulty || "orta";
+        
+        // ✨ Rematch fix: Eski oyun sonu popup'ını kapat (misafir de yeni oyunu görsün)
+        const overBox = document.getElementById("gizemGameOverBox");
+        if (overBox) overBox.classList.add("hidden");
 
         showScreen("gizemGame");
         renderGizemAll();
@@ -433,6 +476,7 @@ handleMessage = function(msg) {
         gizemData.jokersLeft = msg.jokers_left;
         gizemData.hiddenIndices = [];
         gizemData.answered = false;
+        gizemData.roundDifficulty = msg.round_difficulty || "orta";  // ✨
 
         renderGizemAll();
         setGizemStatus("");

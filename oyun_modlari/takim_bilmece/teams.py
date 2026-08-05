@@ -778,8 +778,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "kosova", "name": "Eljif Elmas"},
             {"pos": "ST", "flag": "turkiye", "name": "Adebayor"},
         ],
-        "options": ["Trabzonspor", "Basaksehir", "Konyaspor", "Antalyaspor"],
-        "answer": 1
+        "options": ["Trabzonspor", "Antalyaspor", "Konyaspor", "Basaksehir"],
+        "answer": 3
     },
 
     # ==================== MILLI TAKIMLAR ====================
@@ -798,8 +798,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "fransa", "name": "Guivarch"},
             {"pos": "ST", "flag": "fransa", "name": "Henry"},
         ],
-        "options": ["Brezilya 1998", "Fransa 1998", "Italya 1998", "Hollanda 1998"],
-        "answer": 1
+        "options": ["Brezilya 1998", "Italya 1998", "Fransa 1998", "Hollanda 1998"],
+        "answer": 2
     },
     {
         "name": "Brezilya Milli", "year": "2002", "difficulty": "kolay",
@@ -996,8 +996,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "brezilya", "name": "Ronaldo"},
             {"pos": "ST", "flag": "brezilya", "name": "Bebeto"},
         ],
-        "options": ["Brezilya 2002", "Brezilya 1998", "Fransa 1998", "Italya 1998"],
-        "answer": 1
+        "options": ["Brezilya 2002", "Brezilya 1990", "Brezilya 1998", "Italya 1998"],
+        "answer": 2
     },
     {
         "name": "Almanya Milli", "year": "1990", "difficulty": "zor",
@@ -1032,8 +1032,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "turkiye", "name": "Hakan Sukur"},
             {"pos": "ST", "flag": "turkiye", "name": "Hasan Sas"},
         ],
-        "options": ["Turkiye 2008", "Turkiye 2002", "Turkiye 2000", "G.Kore 2002"],
-        "answer": 1
+        "options": ["Turkiye 2008", "G.Kore 2002", "Turkiye 2000", "Turkiye 2002"],
+        "answer": 3
     },
     {
         "name": "Turkiye Milli", "year": "2008", "difficulty": "orta",
@@ -1104,7 +1104,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "uruguay", "name": "Suarez"},
             {"pos": "LW", "flag": "uruguay", "name": "Alvaro Pereira"},
         ],
-        "options": ["Uruguay 2010", "Arjantin 2010", "Brezilya 2010", "Sili 2010"],
+        "options": ["Uruguay 2010", "Arjantin 2010", "Uruguay 2013", "Sili 2010"],
         "answer": 0
     },
     {
@@ -1122,8 +1122,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "almanya", "name": "Klinsmann"},
             {"pos": "ST", "flag": "almanya", "name": "Bierhoff"},
         ],
-        "options": ["Almanya 1996", "Almanya 1990", "Cek 1996", "Italya 1996"],
-        "answer": 0
+        "options": ["Almanya 1990", "Almanya 1996", "Cek 1996", "Italya 1996"],
+        "answer": 1
     },
     {
         "name": "Italya Milli", "year": "2020", "difficulty": "orta",
@@ -1158,7 +1158,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "yunanistan", "name": "Charisteas"},
             {"pos": "ST", "flag": "yunanistan", "name": "Vryzas"},
         ],
-        "options": ["Portekiz 2004", "Yunanistan 2004", "Cek 2004", "Hollanda 2004"],
+        "options": ["Yunanistan 2010", "Yunanistan 2004", "Cek 2004", "Hollanda 2004"],
         "answer": 1
     },
     {
@@ -1194,8 +1194,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "hollanda", "name": "Van Basten"},
             {"pos": "ST", "flag": "hollanda", "name": "Gullit"},
         ],
-        "options": ["Hollanda 1988", "Almanya 1988", "Italya 1988", "Sovyetler 1988"],
-        "answer": 0
+        "options": ["Hollanda 2000", "Hollanda 1998", "Italya 1988", "Sovyetler 1988"],
+        "answer": 1
     },
     {
         "name": "Arjantin Milli", "year": "1986", "difficulty": "zor",
@@ -1212,8 +1212,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "arjantin", "name": "Valdano"},
             {"pos": "ST", "flag": "arjantin", "name": "Enrique"},
         ],
-        "options": ["Arjantin 1986", "Brezilya 1986", "Almanya 1986", "Ingiltere 1986"],
-        "answer": 0
+        "options": ["Arjantin 1996", "Arjantin 1986", "Almanya 1986", "Ingiltere 1986"],
+        "answer": 1
     },
     {
         "name": "Ingiltere Milli", "year": "1966", "difficulty": "zor",
@@ -1230,7 +1230,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "ingiltere", "name": "Hurst"},
             {"pos": "LW", "flag": "ingiltere", "name": "Hunt"},
         ],
-        "options": ["Ingiltere 1966", "Almanya 1966", "Brezilya 1966", "Italya 1966"],
+        "options": ["Ingiltere 1966", "Ingiltere 1986", "Brezilya 1966", "Italya 1966"],
         "answer": 0
     },
     {
@@ -1248,8 +1248,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "brezilya", "name": "Romario"},
             {"pos": "ST", "flag": "brezilya", "name": "Bebeto"},
         ],
-        "options": ["Brezilya 1994", "Italya 1994", "Almanya 1994", "Arjantin 1994"],
-        "answer": 0
+        "options": ["Brezilya 1984", "Almanya 1994", "Brezilya 1994", "Arjantin 1994"],
+        "answer": 2
     },
     {
         "name": "Fransa Milli", "year": "2022", "difficulty": "orta",
@@ -1266,8 +1266,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "fransa", "name": "Giroud"},
             {"pos": "LW", "flag": "fransa", "name": "Mbappe"},
         ],
-        "options": ["Fransa 2022", "Arjantin 2022", "Hirvatistan 2022", "Fas 2022"],
-        "answer": 0
+        "options": ["Fransa 2020", "Arjantin 2022", "Fransa 2022", "Fas 2022"],
+        "answer": 2
     },
     {
         "name": "Fas Milli", "year": "2022", "difficulty": "zor",
@@ -1284,8 +1284,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "fas", "name": "En-Nesyri"},
             {"pos": "LW", "flag": "fas", "name": "Boufal"},
         ],
-        "options": ["Fas 2022", "Tunus 2022", "Senegal 2022", "Cezayir 2022"],
-        "answer": 0
+        "options": ["Cezayir 2022", "Fas 2020", "Senegal 2022", "Fas 2022"],
+        "answer": 3
     },
 
     # ==================== PART 1: 20 KOLAY TAKIM ====================
@@ -2466,8 +2466,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "ingiltere", "name": "Withe"},
             {"pos": "LW", "flag": "ingiltere", "name": "Shaw"},
         ],
-        "options": ["Aston Villa", "Nottingham Forest", "Liverpool", "Everton"],
-        "answer": 0
+        "options": ["Nottingham Forest", "Aston Villa", "Liverpool", "Everton"],
+        "answer": 1
     },
     {
         "name": "PSV", "year": "1988", "difficulty": "zor",
@@ -2538,7 +2538,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "nijerya", "name": "Yekini"},
             {"pos": "LW", "flag": "nijerya", "name": "Amunike"},
         ],
-        "options": ["Nijerya 1994", "Kamerun 1994", "Gana 1994", "Fildisi 1994"],
+        "options": ["Nijerya 1994", "Nijerya 2000", "Gana 1994", "Fildisi 1994"],
         "answer": 0
     },
     {
@@ -2556,8 +2556,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "kamerun", "name": "Milla"},
             {"pos": "LW", "flag": "kamerun", "name": "Omam-Biyik"},
         ],
-        "options": ["Kamerun 1990", "Nijerya 1990", "Mısır 1990", "Cezayir 1990"],
-        "answer": 0
+        "options": ["Kamerun 1980", "Nijerya 1990", "Kamerun 1999", "Cezayir 1990"],
+        "answer": 1
     },
     {
         "name": "Danimarka Milli", "year": "1992", "difficulty": "zor",
@@ -2574,8 +2574,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "danimarka", "name": "Povlsen"},
             {"pos": "LW", "flag": "danimarka", "name": "Laudrup"},
         ],
-        "options": ["Danimarka 1992", "Almanya 1992", "Hollanda 1992", "Isvec 1992"],
-        "answer": 0
+        "options": ["Danimarka 2003", "Danimarka 2000", "Danimarka 2003", "Danimarka 1992"],
+        "answer": 3
     },
     {
         "name": "Bulgaristan Milli", "year": "1994", "difficulty": "zor",
@@ -2592,7 +2592,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "bulgaristan", "name": "Stoichkov"},
             {"pos": "LW", "flag": "bulgaristan", "name": "Kostadinov"},
         ],
-        "options": ["Bulgaristan 1994", "Romanya 1994", "Isvec 1994", "Rusya 1994"],
+        "options": ["Bulgaristan 1994", "Bulgaristan 1954", "Isvec 1994", "Rusya 1994"],
         "answer": 0
     },
     {
@@ -2610,8 +2610,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "isvec", "name": "Brolin"},
             {"pos": "LW", "flag": "isvec", "name": "Dahlin"},
         ],
-        "options": ["Isvec 1994", "Norvec 1994", "Danimarka 1994", "Finlandiya 1994"],
-        "answer": 0
+        "options": ["Isvec 1964", "Isvec 1994", "Danimarka 1994", "Finlandiya 1994"],
+        "answer": 1
     },
     {
         "name": "Türkiye Milli", "year": "1996", "difficulty": "zor",
@@ -2628,8 +2628,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "turkiye", "name": "Hakan Sukur"},
             {"pos": "ST", "flag": "turkiye", "name": "Saffet Sancakli"},
         ],
-        "options": ["Turkiye 1996", "Turkiye 2000", "Turkiye 2002", "Turkiye 2008"],
-        "answer": 0
+        "options": ["Turkiye 2000", "Turkiye 1996", "Turkiye 2002", "Turkiye 2008"],
+        "answer": 1
     },
     {
         "name": "Türkiye Milli", "year": "2000", "difficulty": "zor",
@@ -2664,7 +2664,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "iskocya", "name": "Gallacher"},
             {"pos": "LW", "flag": "iskocya", "name": "Durie"},
         ],
-        "options": ["Iskocya 1998", "Norvec 1998", "Danimarka 1998", "Fas 1998"],
+        "options": ["Iskocya 1998", "Iskocya 1999", "Danimarka 1998", "Fas 1998"],
         "answer": 0
     },
     {
@@ -2682,8 +2682,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "paraguay", "name": "Cardozo"},
             {"pos": "LW", "flag": "paraguay", "name": "Santa Cruz"},
         ],
-        "options": ["Paraguay 2010", "Uruguay 2010", "Sili 2010", "Bolivya 2010"],
-        "answer": 0
+        "options": ["Paraguay 2012", "Paraguay 2010", "Sili 2010", "Bolivya 2010"],
+        "answer": 1
     },
     {
         "name": "Gana Milli", "year": "2010", "difficulty": "zor",
@@ -2700,8 +2700,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "gana", "name": "Gyan"},
             {"pos": "LW", "flag": "gana", "name": "Tagoe"},
         ],
-        "options": ["Gana 2010", "Nijerya 2010", "Fildisi 2010", "Cezayir 2010"],
-        "answer": 0
+        "options": ["Gana 2018", "Gana 2014", "Gana 2010", "Gana 2015"],
+        "answer": 3
     },
     {
         "name": "Cezayir Milli", "year": "2014", "difficulty": "zor",
@@ -2718,8 +2718,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "cezayir", "name": "Slimani"},
             {"pos": "LW", "flag": "cezayir", "name": "Brahimi"},
         ],
-        "options": ["Cezayir 2014", "Fas 2014", "Tunus 2014", "Misir 2014"],
-        "answer": 0
+        "options": ["Cezayir 2010", "Cezayir 2014", "Tunus 2014", "Misir 2014"],
+        "answer": 1
     },
     {
         "name": "Kosta Rika Milli", "year": "2014", "difficulty": "zor",
@@ -2736,8 +2736,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "kostarika", "name": "Campbell"},
             {"pos": "LW", "flag": "kostarika", "name": "Diaz"},
         ],
-        "options": ["Kosta Rika 2014", "Meksika 2014", "Honduras 2014", "ABD 2014"],
-        "answer": 0
+        "options": ["Kosta Rika 2011", "Meksika 2014", "Honduras 2014", "Kosta Rika 2014"],
+        "answer": 3
     },
 
     # ==================== PART 5: 20 ZOR TAKIM (Part 2) ====================
@@ -2901,7 +2901,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "italya", "name": "Massaro"},
             {"pos": "ST", "flag": "italya", "name": "Signori"},
         ],
-        "options": ["Italya 1994", "Brezilya 1994", "Almanya 1994", "Isvec 1994"],
+        "options": ["Italya 1994", "Italya 1974", "Almanya 1994", "Isvec 1994"],
         "answer": 0
     },
     {
@@ -2919,7 +2919,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "norvec", "name": "Solskjaer"},
             {"pos": "ST", "flag": "norvec", "name": "Flo"},
         ],
-        "options": ["Norvec 1998", "Isvec 1998", "Danimarka 1998", "Finlandiya 1998"],
+        "options": ["Norvec 1998", "Norvec 1988", "Danimarka 1998", "Finlandiya 1998"],
         "answer": 0
     },
     {
@@ -2937,8 +2937,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "yunanistan", "name": "Machlas"},
             {"pos": "ST", "flag": "yunanistan", "name": "Saravakos"},
         ],
-        "options": ["Yunanistan 1994", "Bulgaristan 1994", "Romanya 1994", "Yunanistan 2004"],
-        "answer": 0
+        "options": ["Yunanistan 2004", "Yunanistan 1994", "Romanya 1994", "Yunanistan 2004"],
+        "answer": 1
     },
     {
         "name": "Belçika Milli", "year": "1986", "difficulty": "zor",
@@ -2955,8 +2955,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "belcika", "name": "Claesen"},
             {"pos": "ST", "flag": "belcika", "name": "Broos"},
         ],
-        "options": ["Belcika 1986", "Hollanda 1986", "Fransa 1986", "Almanya 1986"],
-        "answer": 0
+        "options": ["Belcika 1996", "Hollanda 1986", "Belcika 1986", "Almanya 1986"],
+        "answer": 2
     },
     {
         "name": "Sırbistan-Karadağ Milli", "year": "2006", "difficulty": "zor",
@@ -2973,8 +2973,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "sirbistan", "name": "Kezman"},
             {"pos": "ST", "flag": "sirbistan", "name": "Zigic"},
         ],
-        "options": ["Sirbistan-Karadag 2006", "Hirvatistan 2006", "Bosna 2006", "Cek 2006"],
-        "answer": 0
+        "options": ["Sirbistan-Karadag 2004", "Sirbistan-Karadag 2006", "Bosna 2006", "Cek 2006"],
+        "answer": 1
     },
     {
         "name": "Slovakya Milli", "year": "2010", "difficulty": "zor",
@@ -3009,8 +3009,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "izlanda", "name": "Sigthorsson"},
             {"pos": "LW", "flag": "izlanda", "name": "Bodvarsson"},
         ],
-        "options": ["Izlanda 2016", "Norvec 2016", "Danimarka 2016", "Isvec 2016"],
-        "answer": 0
+        "options": ["Izlanda 2015", "Norvec 2016", "Danimarka 2016", "Izlanda 2016"],
+        "answer": 3
     },
     {
         "name": "Galler Milli", "year": "2016", "difficulty": "zor",
@@ -3027,8 +3027,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "galler", "name": "Bale"},
             {"pos": "LW", "flag": "galler", "name": "Vokes"},
         ],
-        "options": ["Galler 2016", "Iskocya 2016", "Kuzey irlanda 2016", "Irlanda 2016"],
-        "answer": 0
+        "options": ["Galler 2015", "Galler 2016", "Kuzey irlanda 2016", "Irlanda 2016"],
+        "answer": 1
     },
     {
         "name": "Ekvador Milli", "year": "2014", "difficulty": "zor",
@@ -3045,7 +3045,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "ekvador", "name": "Caicedo"},
             {"pos": "LW", "flag": "ekvador", "name": "Arroyo"},
         ],
-        "options": ["Ekvador 2014", "Kolombiya 2014", "Peru 2014", "Sili 2014"],
+        "options": ["Ekvador 2014", "Ekvador 2012", "Peru 2014", "Sili 2014"],
         "answer": 0
     },
     {
@@ -3063,8 +3063,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "peru", "name": "Guerrero"},
             {"pos": "LW", "flag": "peru", "name": "Farfan"},
         ],
-        "options": ["Peru 2018", "Uruguay 2018", "Kolombiya 2018", "Ekvador 2018"],
-        "answer": 0
+        "options": ["Peru 2010", "Peru 2011", "Peru 2018", "Ekvador 2018"],
+        "answer": 2
     },
     {
         "name": "İran Milli", "year": "2014", "difficulty": "zor",
@@ -3081,7 +3081,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "iran", "name": "Ghoochannejhad"},
             {"pos": "LW", "flag": "iran", "name": "Jahanbakhsh"},
         ],
-        "options": ["Iran 2014", "Suudi 2014", "Kore 2014", "Japonya 2014"],
+        "options": ["Iran 2014", "Iran 2010", "Kore 2014", "Japonya 2014"],
         "answer": 0
     },
     {
@@ -3099,8 +3099,8 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "japonya", "name": "Osako"},
             {"pos": "LW", "flag": "japonya", "name": "Inui"},
         ],
-        "options": ["Japonya 2018", "Kore 2018", "Suudi 2018", "Iran 2018"],
-        "answer": 0
+        "options": ["Japonya 2010", "Japonya 2011", "Japonya 2018", "Iran 2018"],
+        "answer": 2
     },
 ]
    

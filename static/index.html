@@ -502,6 +502,18 @@
 
             <div class="centerBox">
                 <label class="timerLabel">
+                    Zorluk Seviyesi:
+                    <select id="gizemDifficultySelect">
+                        <option value="kolay">🟢 Kolay (Herkes Bilir)</option>
+                        <option value="orta">🟡 Orta (Futbol Sevenler)</option>
+                        <option value="zor">🔴 Zor (Uzmanlar)</option>
+                        <option value="karisik" selected>🎯 Karışık (Progresif)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
                     Tur Süresi:
                     <select id="gizemTurnSecondsSelect">
                         <option value="30">30 saniye</option>
@@ -536,7 +548,7 @@
             <h2 class="mainTitle">Gizemli Kariyer - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="gizemRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="gizemRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
                 <button class="eyeToggleBtn" id="gizemRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="gizemCopyHint" class="copyHint"></span>
             </div>
@@ -548,7 +560,8 @@
             </div>
             <ul id="gizemPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Toplam Tur: 10</span>
+                <span>Zorluk: <span id="gizemLobbyDifficulty">🎯 Karışık</span></span>
+                <span style="margin-left: 20px;">Toplam Tur: 10</span>
                 <span style="margin-left: 20px;">Süre: <span id="gizemLobbyTurnSeconds">60</span> sn</span>
             </div>
             <div class="centerBox">
@@ -766,7 +779,7 @@
             <h2 class="mainTitle">Kim Milyoner - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="mlRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="mlRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
                 <button class="eyeToggleBtn" id="mlRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="mlCopyHint" class="copyHint"></span>
             </div>
@@ -799,7 +812,7 @@
             <h2 class="mainTitle">Takım Bilmece - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="takimRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="takimRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
                 <button class="eyeToggleBtn" id="takimRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="takimCopyHint" class="copyHint"></span>
             </div>
@@ -1070,7 +1083,7 @@
             <h2 class="mainTitle">İlk 11 Challenge - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="ilk11RoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="ilk11RoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
                 <button class="eyeToggleBtn" id="ilk11RoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="ilk11CopyHint" class="copyHint"></span>
             </div>
@@ -1242,7 +1255,7 @@
             <h2 class="mainTitle">Stadyum Tanıma - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="stadRoomCodeText" class="roomCode" title="Kopyalamak için tıkla"></span>
+                <span id="stadRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
                 <button class="eyeToggleBtn" id="stadRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
                 <span id="stadCopyHint" class="copyHint"></span>
             </div>
@@ -1516,8 +1529,12 @@
                 <ol id="memeGameOverList" class="memeScoreboardList" style="margin:20px 0;"></ol>
                 <div class="confirmButtons">
                     <button id="memeGameOverRematchBtn" class="bigBtn greenBtn">Tekrar Oyna</button>
+                    <button id="memeGameOverLobbyBtn" class="bigBtn" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="memeGameOverMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
+                <p style="margin-top:15px; color:#adb5bd; font-size:14px;">
+                    ⏳ <span id="memeGameOverCountdown" style="color:#ffd43b; font-weight:bold;">30</span> saniye sonra otomatik lobiye dönülecek
+                </p>
             </div>
         </div>
 
@@ -1634,6 +1651,18 @@
                         </select>
                     </div>
                     
+                    <div class="miniCreateField">
+                        <label>⏱️ Santra Süresi:</label>
+                        <select id="miniKickoffTimeoutSelect">
+                            <option value="5">5 Saniye (Hızlı)</option>
+                            <option value="10" selected>10 Saniye (Klasik)</option>
+                            <option value="15">15 Saniye</option>
+                            <option value="20">20 Saniye</option>
+                            <option value="30">30 Saniye</option>
+                            <option value="60">60 Saniye</option>
+                            <option value="999">♾️ Sınırsız (Kural Devre Dışı)</option>
+                        </select>
+                    </div>
                     
                 </div>
 
@@ -1765,7 +1794,7 @@
                 <!-- İZLEYİCİLER -->
                 <div class="miniTeamColumn miniTeamSpec">
                     <div class="miniTeamHeader">
-                        <h3>👁️ İzleyiciler</h3>
+                        <h3>İzleyiciler</h3>
                         <span id="miniSpecCount" class="miniTeamCount">(0)</span>
                     </div>
                     <div id="miniSpecColumn" class="miniTeamPlayers"></div>
@@ -1823,13 +1852,31 @@
             </div>
         </section>
 
-        <!-- MİNİ FUTBOL - OYUN SONU -->
+        <!-- MİNİ FUTBOL - OYUN SONU (Scoreboard tarzı) -->
         <div id="miniGameOverBox" class="overlay hidden">
-            <div class="overlayCard">
-                <h1 id="miniGameOverTitle">🏆 KAZANDIN!</h1>
-                <div id="miniGameOverText"></div>
-                <div class="confirmButtons">
-                    <button id="miniRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+            <div class="overlayCard miniGameOverCard">
+                <h1 id="miniGameOverTitle" class="miniGameOverTitle">🏆 KAZANDIN!</h1>
+                <div id="miniGameOverScoreLine" class="miniGameOverScoreLine"></div>
+                
+                <div class="miniGameOverBoard">
+                    <div class="miniGameOverCol" id="miniGameOverRedCol">
+                        <div class="miniGameOverColTitle" id="miniGameOverRedTitle">🔴 Kırmızı Takım</div>
+                        <div class="miniGameOverColList" id="miniGameOverRedList"></div>
+                    </div>
+                    
+                    <div class="miniGameOverCol miniGameOverSpecCol">
+                        <div class="miniGameOverColTitle" style="color:#b0b0b0;">İzleyiciler</div>
+                        <div class="miniGameOverColList" id="miniGameOverSpecList"></div>
+                    </div>
+                    
+                    <div class="miniGameOverCol" id="miniGameOverBlueCol">
+                        <div class="miniGameOverColTitle" id="miniGameOverBlueTitle">🔵 Mavi Takım</div>
+                        <div class="miniGameOverColList" id="miniGameOverBlueList"></div>
+                    </div>
+                </div>
+                
+                <div class="confirmButtons" style="margin-top:20px;">
+                    <button id="miniRematchBtn" class="bigBtn greenBtn hidden">🔄 Tekrar Oyna</button>
                     <button id="miniGameOverMenuBtn" class="bigBtn">🚪 Lobiye Dön</button>
                 </div>
             </div>
@@ -1871,7 +1918,7 @@
                     <!-- İZLEYİCİLER -->
                     <div class="miniTeamColumn miniTeamSpec">
                         <div class="miniTeamHeader">
-                            <h3>👁️ İzleyiciler</h3>
+                            <h3>İzleyiciler</h3>
                             <span id="miniPauseSpecCount" class="miniTeamCount">(0)</span>
                         </div>
                         <div id="miniPauseSpecCol" class="miniTeamPlayers"></div>

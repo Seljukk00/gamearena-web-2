@@ -10,6 +10,23 @@ GIZEM_TUR_SURESI = 60
 GIZEM_PUAN_DOGRU = 10
 GIZEM_PUAN_ERKEN_BONUS = 5
 
+# ✨ Zorluk seviyeleri
+GIZEM_ZORLUKLAR = ["kolay", "orta", "zor", "karisik"]
+
+# ✨ Karışık modda progresif zorluk dağılımı (10 tur):
+# Tur 1-3: kolay, Tur 4-7: orta, Tur 8-10: zor
+GIZEM_KARISIK_DAGILIM = ["kolay", "kolay", "kolay", "orta", "orta", "orta", "orta", "zor", "zor", "zor"]
+
+
+def get_gizem_players_by_difficulty(difficulty):
+    """Zorluk seviyesine gore futbolcu listesi (index, player) tuple'lari"""
+    result = []
+    for i, p in enumerate(GIZEM_PLAYERS):
+        pdiff = p.get("difficulty", "orta")  # default orta
+        if pdiff == difficulty and len(p.get("career", [])) >= 2:
+            result.append((i, p))
+    return result
+
 
 def _handled(room_code, player_id):
     return {
@@ -27,22 +44,63 @@ def _not_handled(room_code, player_id):
     }
 
 
-def gizem_pick_question(exclude_indices=None):
+def gizem_pick_question(exclude_indices=None, difficulty="karisik", round_no=0, history_indices=None):
+    """
+    difficulty: kolay/orta/zor → sadece o zorluk
+                karisik → round_no'ya göre progresif (GIZEM_KARISIK_DAGILIM)
+    exclude_indices: bu oyunda kullanılanlar (kesin dışlanır)
+    history_indices: önceki oyunlarda kullanılanlar (öncelik olarak dışlanır)
+    """
     if exclude_indices is None:
         exclude_indices = []
+    if history_indices is None:
+        history_indices = set()
+    else:
+        history_indices = set(history_indices)
+    
+    # ✨ Zorluk belirle
+    target_difficulty = difficulty
+    if difficulty == "karisik":
+        # Progresif: round'a göre kolay/orta/zor
+        if 0 <= round_no < len(GIZEM_KARISIK_DAGILIM):
+            target_difficulty = GIZEM_KARISIK_DAGILIM[round_no]
+        else:
+            target_difficulty = "orta"  # fallback
 
-    eligible = [
+    # ✨ Adım 1: Fresh (bu oyunda VE önceki oyunlarda kullanılmamış)
+    fresh = [
         (i, p) for i, p in enumerate(GIZEM_PLAYERS)
-        if len(p.get("career", [])) >= 2 and i not in exclude_indices
+        if p.get("difficulty", "orta") == target_difficulty
+        and len(p.get("career", [])) >= 2
+        and i not in exclude_indices
+        and i not in history_indices
     ]
-
-    if not eligible:
-        eligible = [
+    
+    # ✨ Adım 2: Fresh yoksa → history'de var ama bu oyunda yok
+    if not fresh:
+        fresh = [
+            (i, p) for i, p in enumerate(GIZEM_PLAYERS)
+            if p.get("difficulty", "orta") == target_difficulty
+            and len(p.get("career", [])) >= 2
+            and i not in exclude_indices
+        ]
+    
+    # ✨ Adım 3: O da yoksa → sadece zorluğa göre (exclude'u yoksay)
+    if not fresh:
+        fresh = [
+            (i, p) for i, p in enumerate(GIZEM_PLAYERS)
+            if p.get("difficulty", "orta") == target_difficulty
+            and len(p.get("career", [])) >= 2
+        ]
+    
+    # ✨ Adım 4: Yine yoksa (hiç yok), herhangi birini al (güvenlik)
+    if not fresh:
+        fresh = [
             (i, p) for i, p in enumerate(GIZEM_PLAYERS)
             if len(p.get("career", [])) >= 2
         ]
 
-    idx, player = random.choice(eligible)
+    idx, player = random.choice(fresh)
 
     all_other_names = [p["name"] for p in GIZEM_PLAYERS if p["name"] != player["name"]]
     wrong = random.sample(all_other_names, min(5, len(all_other_names)))
@@ -139,11 +197,21 @@ async def gizem_next_round(room, broadcast):
     room["gizem_hidden_indices"] = []
 
     exclude = room.get("gizem_used_indices", [])
-    q = gizem_pick_question(exclude)
+    difficulty = room.get("difficulty", "karisik")
+    history = room.get("gizem_history_indices", set())
+    q = gizem_pick_question(exclude, difficulty=difficulty, round_no=room["gizem_round"], history_indices=history)
     room["gizem_used_indices"] = exclude + [q["player_idx"]]
+    # ✨ History'ye de ekle (rematch için)
+    history.add(q["player_idx"])
+    room["gizem_history_indices"] = history
     room["gizem_current_q"] = q
     room["gizem_question_start"] = asyncio.get_running_loop().time()
 
+    # ✨ Bu turun zorluğu (progresif için client bilsin)
+    turn_diff = room.get("difficulty", "karisik")
+    if turn_diff == "karisik" and 0 <= room["gizem_round"] < len(GIZEM_KARISIK_DAGILIM):
+        turn_diff = GIZEM_KARISIK_DAGILIM[room["gizem_round"]]
+    
     await broadcast(room, {
         "type": "gizem_new_round",
         "round_no": room["gizem_round"],
@@ -152,7 +220,8 @@ async def gizem_next_round(room, broadcast):
         "career": q["career"],
         "options": q["options"],
         "scores": room["scores"],
-        "jokers_left": room["gizem_jokers"]
+        "jokers_left": room["gizem_jokers"],
+        "round_difficulty": turn_diff  # ✨ Bu tur zorluğu
     })
 
     old_task = room.get("gizem_task")
@@ -180,16 +249,36 @@ async def start_gizem_game(room, safe_send, broadcast):
         2: {"hint": True, "pass": True}
     }
     room["turn"] = 1
+    
+    # ✨ HISTORY — Önceki oyunlarda kullanılan futbolcuları hatırla
+    history = room.get("gizem_history_indices", set())
+    total_players = len(GIZEM_PLAYERS)
+    
+    # Havuzun %75'i tüketildiyse sıfırla
+    if len(history) >= total_players * 0.75:
+        print(f"[GIZEM] Havuz büyük ölçüde tüketildi ({len(history)}/{total_players}), sıfırlanıyor")
+        history = set()
+    room["gizem_history_indices"] = history
 
     players = [
         {"id": pid, "name": pdata["name"]}
         for pid, pdata in sorted(room["players"].items())
     ]
 
-    q = gizem_pick_question([])
+    difficulty = room.get("difficulty", "karisik")
+    history = room.get("gizem_history_indices", set())
+    q = gizem_pick_question([], difficulty=difficulty, round_no=0, history_indices=history)
     room["gizem_used_indices"] = [q["player_idx"]]
+    # ✨ History'ye ekle
+    history.add(q["player_idx"])
+    room["gizem_history_indices"] = history
     room["gizem_current_q"] = q
     room["gizem_question_start"] = asyncio.get_running_loop().time()
+    
+    # ✨ İlk turun zorluğu (progresif için)
+    first_round_diff = difficulty
+    if difficulty == "karisik":
+        first_round_diff = GIZEM_KARISIK_DAGILIM[0]
 
     for pid, pdata in room["players"].items():
         await safe_send(pdata["ws"], {
@@ -203,7 +292,9 @@ async def start_gizem_game(room, safe_send, broadcast):
             "career": q["career"],
             "options": q["options"],
             "scores": room["scores"],
-            "jokers_left": room["gizem_jokers"]
+            "jokers_left": room["gizem_jokers"],
+            "difficulty": difficulty,           # ✨ Oda zorluğu
+            "round_difficulty": first_round_diff  # ✨ Bu tur zorluğu
         })
 
     room["gizem_task"] = asyncio.create_task(
@@ -222,7 +313,8 @@ async def send_gizem_lobby_update(room, broadcast):
         "room_code": room["code"],
         "players": players,
         "can_start": len(room["players"]) == 2,
-        "turn_seconds": room.get("turn_seconds", GIZEM_TUR_SURESI)
+        "turn_seconds": room.get("turn_seconds", GIZEM_TUR_SURESI),
+        "difficulty": room.get("difficulty", "karisik")  # ✨ Zorluk bilgisi
     })
 
 
@@ -247,6 +339,7 @@ async def handle_gizem_message(
     if msg_type == "gizem_create_room":
         name = (data.get("name") or "").strip()
         turn_seconds_raw = data.get("turn_seconds", GIZEM_TUR_SURESI)
+        difficulty = (data.get("difficulty") or "karisik").strip().lower()  # ✨
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -258,6 +351,10 @@ async def handle_gizem_message(
                 gizem_turn_seconds = 60
         except:
             gizem_turn_seconds = 60
+        
+        # ✨ Zorluk kontrol
+        if difficulty not in GIZEM_ZORLUKLAR:
+            difficulty = "karisik"
 
         current_room_code = make_room_code()
         current_player_id = 1
@@ -270,6 +367,7 @@ async def handle_gizem_message(
             },
             "phase": "lobby",
             "turn_seconds": gizem_turn_seconds,
+            "difficulty": difficulty,  # ✨ Zorluk
             "scores": {1: 0, 2: 0},
             "gizem_round": 0,
             "gizem_answered": False,
@@ -281,14 +379,16 @@ async def handle_gizem_message(
                 2: {"hint": True, "pass": True}
             },
             "turn": 1,
-            "gizem_task": None
+            "gizem_task": None,
+            "gizem_history_indices": set()  # ✨ Önceki oyunlarda kullanılan futbolcular
         }
 
         await safe_send(websocket, {
             "type": "gizem_room_created",
             "room_code": current_room_code,
             "player_id": 1,
-            "turn_seconds": gizem_turn_seconds
+            "turn_seconds": gizem_turn_seconds,
+            "difficulty": difficulty  # ✨
         })
         await send_gizem_lobby_update(rooms[current_room_code], broadcast)
         return _handled(current_room_code, current_player_id)
@@ -314,6 +414,15 @@ async def handle_gizem_message(
         if len(room["players"]) >= 2:
             await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
             return _handled(current_room_code, current_player_id)
+        
+        # ✨ Aynı isim var mı? (case-insensitive)
+        existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
+        if name.lower().strip() in existing_names:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": f"Bu isimde ({name}) bir oyuncu zaten odada var. Farklı bir isim seç."
+            })
+            return _handled(current_room_code, current_player_id)
 
         current_room_code = join_code
         current_player_id = 2
@@ -324,7 +433,8 @@ async def handle_gizem_message(
             "type": "gizem_room_joined",
             "room_code": current_room_code,
             "player_id": 2,
-            "turn_seconds": room.get("turn_seconds", GIZEM_TUR_SURESI)
+            "turn_seconds": room.get("turn_seconds", GIZEM_TUR_SURESI),
+            "difficulty": room.get("difficulty", "karisik")  # ✨
         })
         await send_gizem_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -352,8 +462,14 @@ async def handle_gizem_message(
                 new_turn_sec = 60
         except:
             new_turn_sec = 60
+        
+        # ✨ Zorluk güncelle
+        new_diff = (data.get("difficulty") or room.get("difficulty", "karisik")).strip().lower()
+        if new_diff not in GIZEM_ZORLUKLAR:
+            new_diff = room.get("difficulty", "karisik")
 
         room["turn_seconds"] = new_turn_sec
+        room["difficulty"] = new_diff  # ✨
 
         await send_gizem_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)

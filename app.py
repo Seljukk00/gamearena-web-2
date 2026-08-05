@@ -461,29 +461,74 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 return
             
-            # Oyun içindeyse (lobby değilse) → oda kapansın (diğer modlar)
+            # Oyun içindeyse (lobby değilse)
             if room.get("phase") not in ("lobby", None):
-                # Host ayrıldıysa farklı mesaj
+                # Host ayrıldıysa → oda kapansın (misafir oynayamaz)
                 if player_id == 1:
-                    leave_msg = "Host odayı kapattı."
-                else:
-                    leave_msg = f"{left_name} oyundan ayrıldı. Oda kapandı."
+                    for pid, pdata in room["players"].items():
+                        await safe_send(pdata["ws"], {
+                            "type": "opponent_left",
+                            "message": "Host odayı kapattı.",
+                            "player_name": left_name
+                        })
+                    for task_key in ["turn_task", "selection_task", "answer_task",
+                                     "takim_task", "ml_task", "ml_ai_generation_task",
+                                     "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                     "meme_task", "mini_task"]:
+                        task = room.get(task_key)
+                        if task and not task.done():
+                            task.cancel()
+                    rooms.pop(room_code, None)
+                    return
                 
-                for pid, pdata in room["players"].items():
-                    await safe_send(pdata["ws"], {
-                        "type": "opponent_left",
-                        "message": leave_msg,
-                        "player_name": left_name
-                    })
-                for task_key in ["turn_task", "selection_task", "answer_task",
-                                 "takim_task", "ml_task", "ml_ai_generation_task",
-                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "mini_task"]:
-                    task = room.get(task_key)
-                    if task and not task.done():
-                        task.cancel()
-                rooms.pop(room_code, None)
-                return
+                # ✨ Misafir ayrıldıysa → oda AÇIK kalır, lobiye dön
+                else:
+                    # Task'ları iptal et
+                    for task_key in ["turn_task", "selection_task", "answer_task",
+                                     "takim_task", "ml_task",
+                                     "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                     "meme_task"]:
+                        task = room.get(task_key)
+                        if task and not task.done():
+                            task.cancel()
+                    
+                    # Oda lobiye geri dönsün
+                    room["phase"] = "lobby"
+                    
+                    # Host'a bildir → lobiye dön
+                    for pid, pdata in room["players"].items():
+                        await safe_send(pdata["ws"], {
+                            "type": "opponent_left_to_lobby",
+                            "message": f"{left_name} oyundan ayrıldı. Lobiye dönüldü.",
+                            "player_name": left_name
+                        })
+                    
+                    # Lobby güncelle
+                    try:
+                        room_mode = room.get("mode", "bil_bakalim")
+                        if room_mode == "bil_bakalim":
+                            from oyun_modlari.bil_bakalim.bil_bakalim_handler import send_lobby_update as slu
+                        elif room_mode == "takim_bilmece":
+                            from oyun_modlari.takim_bilmece.takim_handler import send_takim_lobby_update as slu
+                        elif room_mode == "kim_milyoner":
+                            from oyun_modlari.kim_milyoner.milyoner_handler import send_ml_lobby_update as slu
+                        elif room_mode == "haritadan_bul":
+                            from oyun_modlari.haritadan_bul.harita_handler import send_harita_lobby_update as slu
+                        elif room_mode == "gizemli_kariyer":
+                            from oyun_modlari.gizemli_kariyer.gizem_handler import send_gizem_lobby_update as slu
+                        elif room_mode == "ilk_11_challenge":
+                            from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
+                        elif room_mode == "stadyum_tanima":
+                            from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
+                        elif room_mode == "meme_arena":
+                            from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
+                        else:
+                            slu = None
+                        if slu:
+                            await slu(room, broadcast)
+                    except Exception as e:
+                        print(f"[LOBBY UPDATE HATA] {e}")
+                    return
 
             # Lobbydeyse → host ayrıldıysa odayı kapat
             if player_id == 1 and len(room["players"]) > 0:

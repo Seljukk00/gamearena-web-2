@@ -211,7 +211,8 @@ function updateTakimLobby() {
         nameCell.style.flex = "1";
         nameCell.style.textAlign = "left";
         nameCell.style.paddingLeft = "10px";
-        nameCell.textContent = p.id === takimData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        const crown = p.id === 1 ? " 👑" : "";
+        nameCell.textContent = p.id === takimData.playerId ? `${p.id}. ${p.name} (Sen)${crown}` : `${p.id}. ${p.name}${crown}`;
         li.appendChild(nameCell);
         
         if (p.id !== takimData.playerId && takimData.playerId === 1) {
@@ -383,7 +384,10 @@ function renderTakimOptions() {
         if (!isMyTurn || takimData.answered) btn.disabled = true;
         if (takimPickPlayerMode) btn.disabled = true;
         
-        if (takimData.eliminatedOptions[takimData.playerId].includes(i)) {
+        // Aktif oyuncunun (sıradaki) eliminasyonlarını göster
+        const activePlayer = takimData.currentTurn;
+        if (takimData.eliminatedOptions[activePlayer] && 
+            takimData.eliminatedOptions[activePlayer].includes(i)) {
             btn.classList.add("eliminated");
             btn.disabled = true;
         }
@@ -396,39 +400,93 @@ function renderTakimJokers() {
     const opp = takimData.jokersLeft[getTakimOtherPlayerId()] || {};
     const panel = document.getElementById("takimJokerPanel");
     
-    const diffNames = { 
-        kolay: "KOLAY", 
-        orta: "ORTA", 
-        zor: "ZOR",
-        klasik: "KLASİK"
-    };
-    document.getElementById("takimDifficultyLabel").textContent = "Zorluk: " + (diffNames[takimData.difficulty] || takimData.difficulty);
+    // Alttaki zorluk etiketini gizle (üstte zaten gösteriliyor)
+    const diffLabel = document.getElementById("takimDifficultyLabel");
+    if (diffLabel) diffLabel.style.display = "none";
     
     if (isMyTurn) {
         panel.classList.remove("opponent-view");
         document.getElementById("takimJokerTitle").textContent = "JOKERLER";
         document.getElementById("takimJokerTitle").style.color = "gold";
-        document.getElementById("takimJokerNameCount").textContent = my.name ?? 0;
-        document.getElementById("takimJokerYearCount").textContent = my.year ?? 0;
-        document.getElementById("takimJokerElimCount").textContent = my.elim ?? 0;
-        document.getElementById("takimJokerPassCount").textContent = my.pass ?? 0;
+        
+        // Kendi görünümüm: HER ZAMAN parantez göster (0 olsa bile)
+        function setMyBtnLabel(btnId, label, count) {
+            const btn = document.getElementById(btnId);
+            btn.innerHTML = `${label} (<span>${count}</span>)`;
+        }
+        setMyBtnLabel("takimJokerNameBtn", "İSİM GÖSTER", my.name ?? 0);
+        setMyBtnLabel("takimJokerYearBtn", "YIL GÖSTER", my.year ?? 0);
+        setMyBtnLabel("takimJokerElimBtn", "ŞIK ELE", my.elim ?? 0);
+        setMyBtnLabel("takimJokerPassBtn", "PAS GEÇ", my.pass ?? 0);
         const canUse = !takimData.answered;
         document.getElementById("takimJokerNameBtn").disabled = !canUse || (my.name ?? 0) <= 0;
         document.getElementById("takimJokerYearBtn").disabled = !canUse || (my.year ?? 0) <= 0 || takimData.yearRevealed[takimData.playerId];
         document.getElementById("takimJokerElimBtn").disabled = !canUse || (my.elim ?? 0) <= 0;
         document.getElementById("takimJokerPassBtn").disabled = !canUse || (my.pass ?? 0) <= 0;
+        // ✨ Opacity + filter + visibility + text-decoration'ı geri normal yap
+        ["takimJokerNameBtn", "takimJokerYearBtn", "takimJokerElimBtn", "takimJokerPassBtn"].forEach(id => {
+            const btn = document.getElementById(id);
+            btn.style.opacity = "";
+            btn.style.filter = "";
+            btn.style.pointerEvents = "";
+            btn.style.visibility = "";
+            btn.style.textDecoration = "";
+            btn.style.textDecorationThickness = "";
+        });
     } else {
         panel.classList.add("opponent-view");
         document.getElementById("takimJokerTitle").textContent = "RAKİP JOKERLER";
         document.getElementById("takimJokerTitle").style.color = "#ffa94d";
-        document.getElementById("takimJokerNameCount").textContent = opp.name ?? 0;
-        document.getElementById("takimJokerYearCount").textContent = opp.year ?? 0;
-        document.getElementById("takimJokerElimCount").textContent = opp.elim ?? 0;
-        document.getElementById("takimJokerPassCount").textContent = opp.pass ?? 0;
+        
+        // Rakip görünümü: 0 ise butonun tüm metnini yeniden yaz (parantez tamamen silinir)
+        function setOppBtnLabel(btnId, label, count) {
+            const btn = document.getElementById(btnId);
+            if (count > 0) {
+                btn.innerHTML = `${label} (<span>${count}</span>)`;
+            } else {
+                btn.innerHTML = label;
+            }
+        }
+        setOppBtnLabel("takimJokerNameBtn", "İSİM GÖSTER", opp.name ?? 0);
+        setOppBtnLabel("takimJokerYearBtn", "YIL GÖSTER", opp.year ?? 0);
+        setOppBtnLabel("takimJokerElimBtn", "ŞIK ELE", opp.elim ?? 0);
+        setOppBtnLabel("takimJokerPassBtn", "PAS GEÇ", opp.pass ?? 0);
         document.getElementById("takimJokerNameBtn").disabled = true;
         document.getElementById("takimJokerYearBtn").disabled = true;
         document.getElementById("takimJokerElimBtn").disabled = true;
         document.getElementById("takimJokerPassBtn").disabled = true;
+        
+        // ✨ 0 olan VEYA zaten kullanılmış jokerleri soluk göster (rakip görünümünde)
+        const nameBtn = document.getElementById("takimJokerNameBtn");
+        const yearBtn = document.getElementById("takimJokerYearBtn");
+        const elimBtn = document.getElementById("takimJokerElimBtn");
+        const passBtn = document.getElementById("takimJokerPassBtn");
+        
+        const oppId = getTakimOtherPlayerId();
+        const oppYearUsed = takimData.yearRevealed[oppId];
+        const oppElimUsed = (takimData.eliminatedOptions[oppId] || []).length > 0;
+        
+        // Küçük helper: butonu "kullanılmış/soluk gri" göster
+        function setUsed(btn, isUsed) {
+            if (isUsed) {
+                // Kullanıldı → üstü çizik yazı
+                btn.style.textDecoration = "line-through";
+                btn.style.textDecorationThickness = "2px";
+                btn.style.pointerEvents = "none";
+                btn.style.opacity = "0.7";
+            } else {
+                btn.style.textDecoration = "";
+                btn.style.textDecorationThickness = "";
+                btn.style.opacity = "1";
+                btn.style.pointerEvents = "";
+            }
+        }
+        
+        // Sadece 0 olan jokerlerin üstünü çiz (kullanım sayısına bakma)
+        setUsed(nameBtn, (opp.name ?? 0) <= 0);
+        setUsed(yearBtn, (opp.year ?? 0) <= 0);
+        setUsed(elimBtn, (opp.elim ?? 0) <= 0);
+        setUsed(passBtn, (opp.pass ?? 0) <= 0);
     }
 }
 
@@ -443,13 +501,12 @@ function renderTakimScoreboard() {
     document.getElementById("takimP2Score").textContent = takimData.scores[2];
     document.getElementById("takimScore").textContent = `${takimData.scores[1]} - ${takimData.scores[2]}`;
     
-    // Soru numarası + zorluk (Klasik modda görünür)
+    // Soru numarası + zorluk (her modda görünür)
     const questionText = `Soru ${takimData.questionNo + 1}/${takimData.totalQuestions}`;
-    const questionDiff = takimData.teamData?.difficulty || "";
+    const questionDiff = takimData.teamData?.difficulty || takimData.difficulty || "";
     const diffEmoji = { kolay: "🟢", orta: "🟡", zor: "🔴" };
-    const showDiff = takimData.difficulty === "klasik" && questionDiff;
     
-    document.getElementById("takimQuestionNo").innerHTML = showDiff 
+    document.getElementById("takimQuestionNo").innerHTML = questionDiff
         ? `${questionText} ${diffEmoji[questionDiff] || ""} <span style="opacity:0.7">${questionDiff.toUpperCase()}</span>`
         : questionText;
     
@@ -458,7 +515,9 @@ function renderTakimScoreboard() {
     document.getElementById("takimTurnInfo").innerHTML = `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
     
     const yearEl = document.getElementById("takimYearDisplay");
-    if (takimData.yearRevealed[takimData.playerId]) {
+    // Aktif oyuncunun (sıradaki) yıl jokerini göster
+    const activePlayerForYear = takimData.currentTurn;
+    if (takimData.yearRevealed[activePlayerForYear]) {
         yearEl.textContent = `Yıl: ${takimData.teamData.year}`;
         yearEl.classList.add("revealed");
     } else {

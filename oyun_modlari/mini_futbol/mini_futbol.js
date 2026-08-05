@@ -166,10 +166,6 @@ function updateGamepadUI() {
             p.id !== miniData.playerId && !p.is_split_slave
         );
         
-        // ✨ Split zaten aktifse ve fake P2 varsa: hâlâ P2 seçilebilir
-        // (kullanıcı kendi seçimini görsün)
-        const splitAlreadyActive = miniData.splitScreen === true;
-        
         let canUseP2 = false;
         let disabledReason = "";
         
@@ -328,14 +324,21 @@ function pollGamepad() {
 function sendGamepadKey(key, pressed) {
     // Slot'a göre hangi oyuncuya gidecek
     const msg = { type: "mini_key", key: key, pressed: pressed };
+    let targetPid = miniData.playerId;
     
     if (miniGamepad.slot === "p2") {
         // P2 = split-screen slave
         if (miniData.splitSlaveId) {
             msg.for_player_id = miniData.splitSlaveId;
+            targetPid = miniData.splitSlaveId;
         }
     }
     // P1 ise doğrudan gider (kendi player_id)
+    
+    // ✨ HOST ise kendi fizik motoruna da bildir (0 latency)
+    if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
+        HP.setKey(targetPid, key, pressed);
+    }
     
     send(msg);
 }
@@ -805,50 +808,73 @@ function handleMiniMessage(msg) {
                         delete gs.players[pid];
                     }
                     
-                    // Yeni kırmızı oyuncu ekle
-                    if (newRedPid && !gs.players[newRedPid]) {
-                        gs.players[newRedPid] = {
-                            x: 200, y: HP.FIELD_HEIGHT / 2,
-                            vx: 0, vy: 0,
-                            keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
-                            last_kick_time: 0,
-                            sprint_energy: HP.SPRINT_MAX_ENERGY,
-                            last_frame_time: 0,
-                            team: "red"
-                        };
-                        // room.players'a da ekle (stats için)
+                    // Yeni kırmızı oyuncu ekle VEYA mevcut oyuncuyu kırmızıya taşı
+                    if (newRedPid) {
+                        if (!gs.players[newRedPid]) {
+                            // Yeni oyuncu ekle
+                            gs.players[newRedPid] = {
+                                x: 200, y: HP.FIELD_HEIGHT / 2,
+                                vx: 0, vy: 0,
+                                keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                                last_kick_time: 0,
+                                sprint_energy: HP.SPRINT_MAX_ENERGY,
+                                last_frame_time: 0,
+                                team: "red"
+                            };
+                        } else {
+                            // ✨ Zaten var olan oyuncuyu kırmızı takım pozisyonuna ışınla
+                            gs.players[newRedPid].x = 200;
+                            gs.players[newRedPid].y = HP.FIELD_HEIGHT / 2;
+                            gs.players[newRedPid].vx = 0;
+                            gs.players[newRedPid].vy = 0;
+                            gs.players[newRedPid].team = "red";
+                        }
+                        // room.players'a da ekle/güncelle (stats için)
                         if (!HP.room.players[newRedPid]) {
                             HP.room.players[newRedPid] = {
                                 name: msg.players[String(newRedPid)] || "P" + newRedPid,
                                 team: "red",
                                 goals: 0, assists: 0, passes: 0
                             };
+                        } else {
+                            HP.room.players[newRedPid].team = "red";
                         }
                     }
                     
-                    // Yeni mavi oyuncu ekle
-                    if (newBluePid && !gs.players[newBluePid]) {
-                        gs.players[newBluePid] = {
-                            x: HP.FIELD_WIDTH - 200, y: HP.FIELD_HEIGHT / 2,
-                            vx: 0, vy: 0,
-                            keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
-                            last_kick_time: 0,
-                            sprint_energy: HP.SPRINT_MAX_ENERGY,
-                            last_frame_time: 0,
-                            team: "blue"
-                        };
+                    // Yeni mavi oyuncu ekle VEYA mevcut oyuncuyu maviye taşı
+                    if (newBluePid) {
+                        if (!gs.players[newBluePid]) {
+                            gs.players[newBluePid] = {
+                                x: HP.FIELD_WIDTH - 200, y: HP.FIELD_HEIGHT / 2,
+                                vx: 0, vy: 0,
+                                keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                                last_kick_time: 0,
+                                sprint_energy: HP.SPRINT_MAX_ENERGY,
+                                last_frame_time: 0,
+                                team: "blue"
+                            };
+                        } else {
+                            // ✨ Zaten var olan oyuncuyu mavi takım pozisyonuna ışınla
+                            gs.players[newBluePid].x = HP.FIELD_WIDTH - 200;
+                            gs.players[newBluePid].y = HP.FIELD_HEIGHT / 2;
+                            gs.players[newBluePid].vx = 0;
+                            gs.players[newBluePid].vy = 0;
+                            gs.players[newBluePid].team = "blue";
+                        }
                         if (!HP.room.players[newBluePid]) {
                             HP.room.players[newBluePid] = {
                                 name: msg.players[String(newBluePid)] || "P" + newBluePid,
                                 team: "blue",
                                 goals: 0, assists: 0, passes: 0
                             };
+                        } else {
+                            HP.room.players[newBluePid].team = "blue";
                         }
                     }
                     
                     HP.room.active_red_player = newRedPid;
                     HP.room.active_blue_player = newBluePid;
-                    console.log("[HOST-PHYSICS] Aktif oyuncular HP'de güncellendi ✓");
+                    console.log("[HOST-PHYSICS] Aktif oyuncular HP'de güncellendi + pozisyonlar sıfırlandı ✓");
                 }
             }
         }
@@ -896,6 +922,7 @@ function handleMiniMessage(msg) {
         miniData.matchDuration = msg.match_duration;
         miniData.gameSpeed = msg.game_speed || "normal";
         if (msg.player_count !== undefined) miniData.playerCount = msg.player_count;
+        if (msg.kickoff_timeout !== undefined) miniData.kickoffTimeout = msg.kickoff_timeout;
         inRoom = true;
         playerId = msg.player_id;
         
@@ -977,6 +1004,8 @@ function handleMiniMessage(msg) {
         miniData.sprintEnabled = msg.sprint_enabled !== false;
         // ✨ player_count her zaman güncelle (default 2)
         miniData.playerCount = msg.player_count || 2;
+        // ✨ Santra süresi
+        miniData.kickoffTimeout = msg.kickoff_timeout || 10;
         if (msg.split_owner !== undefined) miniData.splitOwner = msg.split_owner;
         if (msg.split_slave_id !== undefined) miniData.splitSlaveId = msg.split_slave_id;
         console.log("[MINI DEBUG] lobby_update: playerCount =", miniData.playerCount, "msg:", msg.player_count);
@@ -1015,6 +1044,7 @@ function handleMiniMessage(msg) {
             HP.settings.allowPlase = msg.allow_plase !== false;
             HP.settings.ballStick = msg.ball_stick !== false;
             HP.settings.sprintEnabled = msg.sprint_enabled !== false;
+            HP.settings.kickoffTimeout = msg.kickoff_timeout || 10;  // ✨ Santra süresi
             
             // ✨ Süre GERÇEKTEN değiştiyse VE oyun playing/countdown/paused değil,
             // yani sadece lobby'den gerçek ayar değişiminde sıfırla
@@ -1136,12 +1166,8 @@ function handleMiniMessage(msg) {
     }
     
     if (msg.type === "mini_state") {
-        // ✨ HOST ise backend'den gelen state'i YOKSAY - kendi ürettiği state'i kullanıyor
-        // (HP.onStateUpdate direkt bu fonksiyonu çağırıyor, oradan gelenler işleniyor)
-        // Ama kendi callback'inden gelenler _isLocalHost bayrağı taşımaz — 
-        // Backend'den gelen aynı mesajı görmezden gelelim
+        // ✨ HOST ise backend'den gelen state'i YOKSAY (backend fizik yapmıyor artık ama garanti)
         if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && !msg._local) {
-            // Backend hala fizik hesaplayıp gönderiyor → görmezden gel
             return;
         }
         
@@ -1741,6 +1767,20 @@ function openMiniRoomSettings() {
                     {value: "hizli", label: "🏃 Hızlı"}
                 ]
             },
+			{
+                id: "kickoffTimeout",
+                label: "⏱️ Santra Süresi (Gol Yiyen Topa Dokunma Süresi)",
+                current: miniData.kickoffTimeout || 10,
+                options: [
+                    {value: 5, label: "5 Saniye (Hızlı)"},
+                    {value: 10, label: "10 Saniye (Klasik)"},
+                    {value: 15, label: "15 Saniye"},
+                    {value: 20, label: "20 Saniye"},
+                    {value: 30, label: "30 Saniye"},
+                    {value: 60, label: "60 Saniye"},
+                    {value: 999, label: "♾️ Sınırsız (Kural Devre Dışı)"}
+                ]
+            },
             {
                 id: "splitScreen",
                 label: "🎮 Split-Screen'e İzin Ver (Aynı PC'den 2+ Kişi)",
@@ -1885,6 +1925,13 @@ function openMiniRoomSettings() {
                 localStorage.setItem("miniCreateSplit", splitScreen ? "on" : "off");
             } catch(e) {}
             
+            const kickoffTimeout = parseInt(values.kickoffTimeout) || 10;
+            
+            // localStorage'a kaydet
+            try {
+                localStorage.setItem("miniKickoffTimeout", String(kickoffTimeout));
+            } catch(e) {}
+            
             const payload = {
                 type: "mini_update_settings",
                 goal_target: goalTarget,
@@ -1895,6 +1942,7 @@ function openMiniRoomSettings() {
                 ball_stick: ballStick,
                 sprint_enabled: sprintEnabled,
                 player_count: parseInt(values.playerCount) || 2,
+                kickoff_timeout: kickoffTimeout,  // ✨ Santra süresi
                 advanced_enabled: advancedEnabled
             };
             
@@ -1955,6 +2003,7 @@ function startMiniGame() {
             allowPlase: miniData.allowPlase !== false,
             ballStick: miniData.ballStick !== false,
             sprintEnabled: miniData.sprintEnabled !== false,
+            kickoffTimeout: miniData.kickoffTimeout || 10,  // ✨ Santra süresi
             advancedEnabled: false,
             advanced: null
         };
@@ -2012,13 +2061,57 @@ function startMiniGame() {
     // ✨ Sağ tık → context menü açılmasın (oyun içi bug engeli)
     // Ama isim değiştirme sağ tık'ı ekranın DIŞINDA çalışsın (canvas üzerinde engelle)
     window.addEventListener("contextmenu", miniPreventContextMenu, true);
-    window.addEventListener("blur", () => {
-        if (miniTabHeld) return;  // TAB basılıysa yoksay
+    
+    // ✨ Named function referansları (stopMiniGame'de kaldırılabilsin - memory leak fix)
+    // ✨ Focus kaybında AGRESSİF tuş bırakma (chrome sekme bar sağ tık bug'ı)
+    miniData._blurHandler = () => {
+        // TAB basılı bile olsa focus kaybında tuşları bırak (bug engeli)
         miniReleaseAllKeys();
-    }, true);
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden && !miniTabHeld) miniReleaseAllKeys();
-    }, true);
+        miniTabHeld = false;  // TAB flag'ı sıfırla
+        hideMiniScoreboard();
+        if (miniScoreboardInterval) {
+            clearInterval(miniScoreboardInterval);
+            miniScoreboardInterval = null;
+        }
+    };
+    miniData._visibilityHandler = () => {
+        if (document.hidden) {
+            miniReleaseAllKeys();
+            miniTabHeld = false;
+            hideMiniScoreboard();
+            if (miniScoreboardInterval) {
+                clearInterval(miniScoreboardInterval);
+                miniScoreboardInterval = null;
+            }
+        }
+    };
+    // ✨ Fare canvas dışına çıkarsa da tuşları bırak (extra güvenlik)
+    miniData._mouseLeaveHandler = () => {
+        // Sadece belirli koşullarda (opsiyonel - istersen aç)
+        // miniReleaseAllKeys();
+    };
+    
+    window.addEventListener("blur", miniData._blurHandler, true);
+    window.addEventListener("focusout", miniData._blurHandler, true);
+    document.addEventListener("visibilitychange", miniData._visibilityHandler, true);
+    
+    // ✨ Fare belge dışına çıktı (chrome title bar, tab bar, browser UI)
+    // → HEMEN tuşları bırak (Chrome native menu klavye focus'u çalıyor)
+    miniData._mouseLeaveHandler = (e) => {
+        // Fare gerçekten belge dışına çıktı mı? (e.relatedTarget null olur)
+        if (!e.relatedTarget && !e.toElement) {
+            miniReleaseAllKeys();
+        }
+    };
+    document.documentElement.addEventListener("mouseleave", miniData._mouseLeaveHandler, true);
+    
+    // ✨ Ek güvenlik: her 500ms focus kontrolü
+    // Chrome context menu açıksa document.hasFocus() false döner
+    miniData._focusCheckInterval = setInterval(() => {
+        if (!document.hasFocus()) {
+            miniReleaseAllKeys();
+        }
+    }, 500);
     
     // ✨ Kontrol bilgisini güncelle (kullanıcı ayarlarına göre dinamik)
     updateMiniControlsInfo();
@@ -2105,6 +2198,10 @@ function miniReleaseAllKeys() {
         if (miniData.keysPressed[key]) {
             miniData.keysPressed[key] = false;
             send({ type: "mini_key", key: key, pressed: false });
+            // ✨ HOST fizik motoruna da bildir (0 latency)
+            if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
+                HP.setKey(miniData.playerId, key, false);
+            }
         }
     }
     // P2 (split-screen)
@@ -2114,6 +2211,19 @@ function miniReleaseAllKeys() {
             const msg = { type: "mini_key", key: key, pressed: false };
             if (miniData.splitSlaveId) msg.for_player_id = miniData.splitSlaveId;
             send(msg);
+            // ✨ HOST fizik motoruna da bildir
+            if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && miniData.splitSlaveId) {
+                HP.setKey(miniData.splitSlaveId, key, false);
+            }
+        }
+    }
+    // ✨ Gamepad tuşlarını da bırak
+    if (typeof gpPrevState !== "undefined") {
+        for (const key in gpPrevState) {
+            if (gpPrevState[key]) {
+                gpPrevState[key] = false;
+                sendGamepadKey(key, false);
+            }
         }
     }
 }
@@ -2122,7 +2232,28 @@ function stopMiniGame() {
     window.removeEventListener("keydown", miniKeyDown, true);
     window.removeEventListener("keyup", miniKeyUp, true);
     window.removeEventListener("contextmenu", miniPreventContextMenu, true);
-    window.removeEventListener("blur", miniReleaseAllKeys, true);
+    
+    // ✨ Blur + visibilitychange listener'larını kaldır (memory leak fix)
+    if (miniData._blurHandler) {
+        window.removeEventListener("blur", miniData._blurHandler, true);
+        window.removeEventListener("focusout", miniData._blurHandler, true);  // ✨ Ek
+        miniData._blurHandler = null;
+    }
+    if (miniData._visibilityHandler) {
+        document.removeEventListener("visibilitychange", miniData._visibilityHandler, true);
+        miniData._visibilityHandler = null;
+    }
+    
+    // ✨ Mouse leave + focus check interval temizle
+    if (miniData._mouseLeaveHandler) {
+        document.documentElement.removeEventListener("mouseleave", miniData._mouseLeaveHandler, true);
+        miniData._mouseLeaveHandler = null;
+    }
+    if (miniData._focusCheckInterval) {
+        clearInterval(miniData._focusCheckInterval);
+        miniData._focusCheckInterval = null;
+    }
+    
     if (miniAnimFrame) {
         cancelAnimationFrame(miniAnimFrame);
         miniAnimFrame = null;
@@ -2486,7 +2617,8 @@ function miniRender() {
         // ✨ Şut efekti - hangi oyuncular şut çekti + hangi enerjiyle
         const kickedPlayers = {};  // {playerId: energyPercent}
         if (state.kick_effects && state.kick_effects.length > 0) {
-            const now = Date.now() / 1000;
+            // ✨ HP fizik motoru performance.now() kullanıyor, biz de aynısını kullanmalıyız
+            const now = performance.now() / 1000;
             state.kick_effects.forEach(k => {
                 if (now - k.time < 0.3) {
                     kickedPlayers[k.player_id] = k.energy_at_kick || 1.0;
@@ -2494,6 +2626,81 @@ function miniRender() {
             });
         }
         const kickedPlayerIds = new Set(Object.keys(kickedPlayers).map(k => parseInt(k)));
+
+        // 🔊 ŞUT SESİ (her yeni şut için bir kez çal - SADECE TOPA DEĞDIYSE)
+        if (kickedPlayerIds.size > 0) {
+            if (!miniData._lastKickFrame) miniData._lastKickFrame = new Set();
+
+            // hit_ball bilgisini kick_effects'ten al
+            const hitMap = {};
+            if (state.kick_effects) {
+                state.kick_effects.forEach(k => {
+                    if (k.hit_ball) hitMap[k.player_id] = true;
+                });
+            }
+
+            kickedPlayerIds.forEach(pid => {
+                // Bu frame'de zaten ses çaldıysak tekrar çalma
+                if (miniData._lastKickFrame.has(pid)) return;
+                
+                // ✨ Sadece topa DEĞDİYSE ses çal (boşa şutta ses yok)
+                if (!hitMap[pid]) return;
+                
+                miniData._lastKickFrame.add(pid);
+
+                // Alevli mi normal mi?
+                const isFireKick = state.ball && state.ball.on_fire === true;
+                if (isFireKick) {
+                    MiniAudio.playRandom("fire_kick",
+                        ["fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav"], 0.7);
+                } else {
+                    MiniAudio.playRandom("kick",
+                        ["kick_1.wav", "kick_2.wav"], 0.5);
+                }
+            });
+        }
+        // ✨ Eski kick_effects'lerin id'lerini _lastKickFrame'den de sil
+        // (yoksa aynı şut için tekrar tekrar ses çalar)
+        if (miniData._lastKickFrame) {
+            const activeIds = new Set();
+            if (state.kick_effects) {
+                const now = performance.now() / 1000;
+                state.kick_effects.forEach(k => {
+                    if (now - k.time < 0.3) activeIds.add(k.player_id);
+                });
+            }
+            // Aktif olmayan pid'leri sil
+            for (const pid of miniData._lastKickFrame) {
+                if (!activeIds.has(pid)) miniData._lastKickFrame.delete(pid);
+            }
+        }
+
+        // 🔊 DUVAR + DİREK SESLERİ
+        if (state.hit_events && state.hit_events.length > 0) {
+            if (!miniData._playedHits) miniData._playedHits = new Set();
+            const nowHit = performance.now() / 1000;
+
+            state.hit_events.forEach(h => {
+                // Her event'e benzersiz key ver (time'ı hash gibi kullan)
+                const key = `${h.type}_${h.time}`;
+                if (miniData._playedHits.has(key)) return;
+                if (nowHit - h.time > 0.3) return;  // Eski event'leri atla
+
+                miniData._playedHits.add(key);
+
+                if (h.type === "wall") {
+                    MiniAudio.playRandom("wall",
+                        ["wall_hit_1.wav", "wall_hit_2.wav"], 0.4);
+                } else if (h.type === "post") {
+                    MiniAudio.play("post_hit.wav", 0.6);
+                }
+            });
+
+            // Set'i çok büyümesin diye ara sıra temizle (100 elemandan fazla olunca)
+            if (miniData._playedHits.size > 100) {
+                miniData._playedHits.clear();
+            }
+        }
         
         // Oyuncular
         for (const pid in state.players) {
@@ -2502,7 +2709,20 @@ function miniRender() {
             const p = { x: smoothPos.x, y: smoothPos.y };
             
             const isMe = parseInt(pid) === miniData.playerId;
-            const color = parseInt(pid) === 1 ? "#ff6b6b" : "#4dabf7";
+            
+            // ✨ Takıma göre renk (ID'ye göre değil!)
+            // Önce miniData.players'dan bak, yoksa aktif oyuncu ID'sine bak
+            let playerTeam = null;
+            const playerInfo = miniData.players.find(pl => pl.id === parseInt(pid));
+            if (playerInfo) {
+                playerTeam = playerInfo.team;
+            } else {
+                // Fallback: aktif oyuncu ID'sinden çıkar
+                if (parseInt(pid) === (miniData.gameState?.red_pid)) playerTeam = "red";
+                else if (parseInt(pid) === (miniData.gameState?.blue_pid)) playerTeam = "blue";
+            }
+            
+            const color = playerTeam === "blue" ? "#4dabf7" : "#ff6b6b";
             const justKicked = kickedPlayerIds.has(parseInt(pid));
             
             // Gölge
@@ -2573,15 +2793,16 @@ function miniRender() {
                 const glowStrength = Math.max(0.15, kickEnergyPercent);
                 
                 // ✨ Takım rengi (kırmızı/mavi)
-                const teamColor = parseInt(pid) === 1 ? "#ff6b6b" : "#4dabf7";
-                const teamColorRGB = parseInt(pid) === 1 ? "255, 107, 107" : "77, 171, 247";
+                const teamColor = playerTeam === "blue" ? "#4dabf7" : "#ff6b6b";
+                const teamColorRGB = playerTeam === "blue" ? "77, 171, 247" : "255, 107, 107";
                 
                 // 🔥 İç parlama (ortadan dışa doğru takım renginde gradient)
                 const innerGrad = ctx.createRadialGradient(
                     p.x, p.y, 0,
                     p.x, p.y, cfg.player_radius
                 );
-                innerGrad.addColorStop(0, `rgba(255, 255, 255, ${glowStrength * 0.9})`);
+                // ✨ Ortadaki parlama takım renginde (beyaz yerine)
+                innerGrad.addColorStop(0, `rgba(${teamColorRGB}, ${glowStrength * 1.0})`);
                 innerGrad.addColorStop(0.4, `rgba(${teamColorRGB}, ${glowStrength * 0.7})`);
                 innerGrad.addColorStop(1, `rgba(${teamColorRGB}, 0)`);
                 ctx.fillStyle = innerGrad;
@@ -2602,7 +2823,7 @@ function miniRender() {
             
             // İsim (üstte) - takım rengi
             let pname = miniData.playerNames[pid] || `P${pid}`;
-            const nameColor = parseInt(pid) === 1 ? "#ff8a8a" : "#7abfff";
+            const nameColor = playerTeam === "blue" ? "#7abfff" : "#ff8a8a";
             ctx.font = "bold 12px Segoe UI";
             ctx.textAlign = "center";
             
@@ -2654,14 +2875,19 @@ function miniRender() {
         // ✨ ALEV EFEKTİ (şut çeken oyuncunun rengiyle)
         if (onFire) {
             const lastToucher = state.ball.last_toucher;
-            // Kırmızı: 1 → kırmızı alev, Mavi: 2 → mavi alev
+            // ✨ Takıma göre alev rengi (ID'ye göre değil!)
+            let toucherTeam = null;
+            if (lastToucher) {
+                const toucherInfo = miniData.players.find(pl => pl.id === lastToucher);
+                if (toucherInfo) toucherTeam = toucherInfo.team;
+            }
             let flameR, flameG, flameB, glowColor;
-            if (lastToucher === 2) {
+            if (toucherTeam === "blue") {
                 // Mavi alev
                 flameR = 77; flameG = 171; flameB = 247;
                 glowColor = "#4dabf7";
             } else {
-                // Kırmızı alev (default veya oyuncu 1)
+                // Kırmızı alev (default)
                 flameR = 255; flameG = 107; flameB = 0;
                 glowColor = "#ff6b00";
             }
@@ -2688,8 +2914,14 @@ function miniRender() {
         // Top (alev varsa oyuncu rengiyle, uyarı varsa kırmızı, yoksa beyaz)
         if (onFire) {
             const lastToucher = state.ball.last_toucher;
+            // ✨ Takıma göre
+            let toucherTeam2 = null;
+            if (lastToucher) {
+                const toucherInfo2 = miniData.players.find(pl => pl.id === lastToucher);
+                if (toucherInfo2) toucherTeam2 = toucherInfo2.team;
+            }
             const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, cfg.ball_radius);
-            if (lastToucher === 2) {
+            if (toucherTeam2 === "blue") {
                 // Mavi alev
                 grad.addColorStop(0, "#fff");
                 grad.addColorStop(0.6, "#a5d8ff");
@@ -2725,7 +2957,13 @@ function miniRender() {
         let ballBorderColor = "#000";
         if (onFire) {
             const lastToucher = state.ball.last_toucher;
-            ballBorderColor = lastToucher === 2 ? "#1971c2" : "#ff3300";
+            // ✨ Takıma göre
+            let toucherTeam3 = null;
+            if (lastToucher) {
+                const toucherInfo3 = miniData.players.find(pl => pl.id === lastToucher);
+                if (toucherInfo3) toucherTeam3 = toucherInfo3.team;
+            }
+            ballBorderColor = toucherTeam3 === "blue" ? "#1971c2" : "#ff3300";
         }
         ctx.strokeStyle = ballBorderColor;
         ctx.lineWidth = onFire ? 3 : 2;
@@ -2740,7 +2978,11 @@ function miniRender() {
             drawCountdownOverlay(ctx, cfg, state.countdown);
         } else if (state.game_state === "goal_wait" && state.goal_celebration) {
             drawGoalCelebration(ctx, cfg, state.goal_celebration);
-        } else if (state.kickoff && state.kickoff.active) {
+        } else {
+            // Gol bitince imzayı sıfırla (bir sonraki golde tekrar ses çalsın)
+            miniData._lastGoalSignature = null;
+        }
+        if (state.kickoff && state.kickoff.active) {
             drawKickoffInfo(ctx, cfg, state.kickoff);
         }
     }
@@ -2758,6 +3000,19 @@ function miniRender() {
 // COUNTDOWN OVERLAY (3-2-1-BAŞLA!)
 // ========================================
 function drawCountdownOverlay(ctx, cfg, countdown) {
+    // 🔊 DÜDÜK (BAŞLA! anında çal, sadece 1 kez)
+    // ✨ Sadece maç başı VEYA gol sonrası santrada çalsın (pause resume'da çalmasın)
+    const state = miniData.gameState;
+    const silentWhistle = state && state.silent_whistle === true;
+    
+    if (countdown === 0 && !miniData._whistlePlayed && !silentWhistle) {
+        MiniAudio.play("whistle.wav", 0.6);
+        miniData._whistlePlayed = true;
+    } else if (countdown > 0) {
+        // Countdown başladığında flag'i sıfırla (yeni maç için tekrar çalsın)
+        miniData._whistlePlayed = false;
+    }
+
     // Yarı saydam arkaplan
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.fillRect(0, 0, cfg.width, cfg.height);
@@ -2864,15 +3119,58 @@ function drawKickoffInfo(ctx, cfg, kickoff) {
 // GOL KUTLAMASI OVERLAY
 // ========================================
 function drawGoalCelebration(ctx, cfg, celebration) {
+    // ✨ DEBUG
+    console.log("[GOL DEBUG]",
+        "scorer_pid:", celebration.scorer_pid,
+        "scorer_id:", celebration.scorer_id,
+        "silent:", celebration.silent,
+        "scores:", miniData.gameState?.scores,
+        "last_sig:", miniData._lastGoalSignature
+    );
+	
+    // 🔊 GOL SESİ - Her yeni gol için 1 kez çal
+    // ✨ İmza: skorlar + scorer_pid (yeni gol → skor değişir → imza değişir)
+    const _gs = miniData.gameState;
+    const _scores = _gs ? `${_gs.scores["1"]}-${_gs.scores["2"]}` : "0-0";
+    const _scorerPidForSig = celebration.scorer_pid || celebration.scorer_id;
+    const goalSignature = `${_scorerPidForSig}_${_scores}`;
+    
+    if (celebration.silent === true) {
+        // Pause sonrası aynı gol → ses çalma
+        // İmzayı "silent" ile işaretle → bir sonraki gerçek gol farklı imza sayılır
+        miniData._lastGoalSignature = "silent_" + goalSignature;
+    } else if (miniData._lastGoalSignature !== goalSignature) {
+        // Yeni gol → ses çal
+        MiniAudio.playRandom("goal",
+            ["goal_1.wav", "goal_2.wav", "goal_3.wav"], 0.7);
+        miniData._lastGoalSignature = goalSignature;
+    }
+
     // Hafif arkaplan
     ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
     ctx.fillRect(0, 0, cfg.width, cfg.height);
     
-    const scorerId = celebration.scorer_id;
-    const scorerName = miniData.playerNames[scorerId] || `Oyuncu ${scorerId}`;
+    // ✨ Önce gerçek oyuncu ID'sine bak, yoksa takım ID'sine
+    const scorerPid = celebration.scorer_pid || celebration.scorer_id;
+    const scorerTeamId = celebration.scorer_id;  // 1 veya 2 (renk için)
+    
+    // İsmi gerçek oyuncudan al (miniData.players'dan)
+    let scorerName = "Oyuncu";
+    const scorerPlayer = miniData.players.find(p => p.id === scorerPid);
+    if (scorerPlayer) {
+        scorerName = scorerPlayer.name;
+    } else if (miniData.playerNames[scorerPid]) {
+        scorerName = miniData.playerNames[scorerPid];
+    }
+    
     const isOwnGoal = celebration.own_goal === true;
     const assistId = celebration.assist_id;
-    const assistName = assistId ? miniData.playerNames[assistId] : null;
+    // Asist ismini de gerçek oyuncudan al
+    let assistName = null;
+    if (assistId) {
+        const assistPlayer = miniData.players.find(p => p.id === assistId);
+        assistName = assistPlayer ? assistPlayer.name : miniData.playerNames[assistId];
+    }
     
     // Pulse
     const pulse = Math.sin(Date.now() / 150) * 0.05 + 1;
@@ -2916,7 +3214,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         // "Golü Atan: SELÇUK" (isim kırmızı/mavi)
         // "Asist: MEHMET" (sarı, varsa)
         
-        const scorerTeamColor = scorerId === 1 ? "#ff6b6b" : "#4dabf7";
+        const scorerTeamColor = scorerTeamId === 1 ? "#ff6b6b" : "#4dabf7";
         
         // Golü Atan satırı
         ctx.font = "bold 26px Segoe UI";
@@ -2977,8 +3275,12 @@ function updateMiniHUD() {
     
     const s1 = state.scores["1"] || 0;
     const s2 = state.scores["2"] || 0;
-    const n1 = miniData.playerNames["1"] || "P1";
-    const n2 = miniData.playerNames["2"] || "P2";
+    
+    // ✨ Takıma göre isim al (ID'ye göre değil)
+    const redPlayer = miniData.players.find(p => p.team === "red");
+    const bluePlayer = miniData.players.find(p => p.team === "blue");
+    const n1 = redPlayer ? redPlayer.name : (miniData.redTeamName || "Kırmızı");
+    const n2 = bluePlayer ? bluePlayer.name : (miniData.blueTeamName || "Mavi");
     
     if (scoreEl) {
         scoreEl.innerHTML = `
@@ -3053,20 +3355,18 @@ function updateMiniHUD() {
 // OYUN SONU
 // ========================================
 function showMiniGameOver(msg) {
-    stopMiniGame();
+    // ✨ HP fizik motorunu durdur ama render'ı bırak (arka planda oyun görünsün)
+    if (typeof HP !== 'undefined' && HP.running) HP.stopGame();
     
     const box = document.getElementById("miniGameOverBox");
     if (!box) return;
     box.classList.remove("hidden");
     
-    const title = document.getElementById("miniGameOverTitle");
-    const text = document.getElementById("miniGameOverText");
-    
     const s1 = msg.scores["1"] || 0;
     const s2 = msg.scores["2"] || 0;
-    const n1 = miniData.playerNames["1"] || "P1";
-    const n2 = miniData.playerNames["2"] || "P2";
     
+    // === BAŞLIK ===
+    const title = document.getElementById("miniGameOverTitle");
     if (msg.winner_id === miniData.playerId) {
         title.textContent = "🏆 KAZANDIN!";
         title.style.color = "#51cf66";
@@ -3079,14 +3379,104 @@ function showMiniGameOver(msg) {
         title.style.color = "#ff6b6b";
     }
     
-    text.innerHTML = `
-        <p style="font-size:32px; margin:20px 0;">
-            <span style="color:#ff6b6b;">${n1}</span>
-            <span style="margin:0 20px; color:#ffd43b;">${s1} - ${s2}</span>
-            <span style="color:#4dabf7;">${n2}</span>
-        </p>
-    `;
+    // === SKOR SATIRI ===
+    const scoreLine = document.getElementById("miniGameOverScoreLine");
+    if (scoreLine) {
+        scoreLine.innerHTML = `
+            <span style="color:#ff6b6b;">${miniData.redTeamName || "Kırmızı"}</span>
+            <span style="margin:0 18px; color:#ffd43b;">${s1} - ${s2}</span>
+            <span style="color:#4dabf7;">${miniData.blueTeamName || "Mavi"}</span>
+        `;
+    }
     
+    // === SCOREBOARD ===
+    // Takım başlıkları
+    const redTitle = document.getElementById("miniGameOverRedTitle");
+    const blueTitle = document.getElementById("miniGameOverBlueTitle");
+    if (redTitle) redTitle.textContent = `🔴 ${miniData.redTeamName || "Kırmızı Takım"}`;
+    if (blueTitle) blueTitle.textContent = `🔵 ${miniData.blueTeamName || "Mavi Takım"}`;
+    
+    // Oyuncuları takımlara ayır
+    const redTeam = miniData.players.filter(p => p.team === "red");
+    const blueTeam = miniData.players.filter(p => p.team === "blue");
+    const spectators = miniData.players.filter(p => p.team !== "red" && p.team !== "blue");
+    
+    // Stats al (son state'ten)
+    const stats = (miniData.gameState && miniData.gameState.stats) || {};
+    
+    // Takım listesi render
+    function renderTeamList(containerId, players, nameColor) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = "";
+        
+        if (players.length === 0) {
+            container.innerHTML = `<div class="miniGameOverSpecEmpty">Boş</div>`;
+            return;
+        }
+        
+        // Header (uzun isimler)
+        const header = document.createElement("div");
+        header.className = "miniGameOverHeader";
+        header.innerHTML = `
+            <div style="text-align:left; padding-left:4px;">İsim</div>
+            <div title="Gol">Gol</div>
+            <div title="Asist">Asist</div>
+            <div title="Pas">Pas</div>
+            <div title="Kurtarış">Kurtarış</div>
+        `;
+        container.appendChild(header);
+        
+        // Satırlar (animasyon delay ile)
+        players.forEach((p, i) => {
+            const st = stats[String(p.id)] || { goals: 0, assists: 0, passes: 0 };
+            const isMe = p.id === miniData.playerId;
+            const crown = p.id === 1 ? " 👑" : "";
+            const meMark = isMe ? ' <span style="color:#909090;font-size:10px;">(sen)</span>' : '';
+            
+            const row = document.createElement("div");
+            row.className = "miniGameOverRow";
+            row.style.animationDelay = (0.7 + i * 0.1) + "s";
+            row.innerHTML = `
+                <span class="miniGameOverName" style="color:${nameColor};${isMe?'font-weight:800;':''}">${p.name}${crown}${meMark}</span>
+                <span class="miniGameOverStat">${st.goals}</span>
+                <span class="miniGameOverStat">${st.assists}</span>
+                <span class="miniGameOverStat">${st.passes}</span>
+                <span class="miniGameOverStat">${st.saves || 0}</span>
+            `;
+            container.appendChild(row);
+        });
+    }
+    
+    // İzleyici listesi
+    function renderSpecList(players) {
+        const container = document.getElementById("miniGameOverSpecList");
+        if (!container) return;
+        container.innerHTML = "";
+        
+        if (players.length === 0) {
+            container.innerHTML = `<div class="miniGameOverSpecEmpty">İzleyici yok</div>`;
+            return;
+        }
+        
+        players.forEach((p, i) => {
+            const isMe = p.id === miniData.playerId;
+            const crown = p.id === 1 ? " 👑" : "";
+            const meMark = isMe ? ' <span style="color:#909090;font-size:10px;">(sen)</span>' : '';
+            
+            const row = document.createElement("div");
+            row.className = "miniGameOverSpecRow";
+            row.style.animationDelay = (0.7 + i * 0.1) + "s";
+            row.innerHTML = `👁️ <span style="color:${isMe ? '#fff' : '#c0c0c0'};${isMe?'font-weight:700;':''}">${p.name}${crown}${meMark}</span>`;
+            container.appendChild(row);
+        });
+    }
+    
+    renderTeamList("miniGameOverRedList", redTeam, "#ff8a8a");
+    renderTeamList("miniGameOverBlueList", blueTeam, "#7abfff");
+    renderSpecList(spectators);
+    
+    // === BUTONLAR ===
     // Rematch sadece host
     const rematchBtn = document.getElementById("miniRematchBtn");
     if (rematchBtn) {
@@ -3096,6 +3486,9 @@ function showMiniGameOver(msg) {
             rematchBtn.classList.add("hidden");
         }
     }
+    
+    // ✨ Tuşları bırak (oyun bitti, karakter hareket etmesin)
+    miniReleaseAllKeys();
 }
 
 // ========================================
@@ -3143,6 +3536,7 @@ setTimeout(() => {
                 const savedStick = localStorage.getItem("miniBallStick");
                 const savedSprintEn = localStorage.getItem("miniSprintEnabled");
                 const savedPc = localStorage.getItem("miniPlayerCount");
+                const savedKt = localStorage.getItem("miniKickoffTimeout");
                 
                 if (savedGoal && goalEl) {
                     const opt = [...goalEl.options].find(o => o.value === savedGoal);
@@ -3171,6 +3565,13 @@ setTimeout(() => {
                 if (savedPc && pcEl) {
                     const opt = [...pcEl.options].find(o => o.value === savedPc);
                     if (opt) pcEl.value = savedPc;
+                }
+                if (savedKt) {
+                    const ktEl = document.getElementById("miniKickoffTimeoutSelect");
+                    if (ktEl) {
+                        const opt = [...ktEl.options].find(o => o.value === savedKt);
+                        if (opt) ktEl.value = savedKt;
+                    }
                 }
             } catch(e) {}
         }
@@ -3263,7 +3664,6 @@ setTimeout(() => {
                 localStorage.setItem("miniAllowPlase", allowPlase ? "on" : "off");
                 localStorage.setItem("miniBallStick", ballStick ? "on" : "off");
                 localStorage.setItem("miniSprintEnabled", sprintEnabled ? "on" : "off");
-                localStorage.setItem("miniSprintEnabled", sprintEnabled ? "on" : "off");
                 if (!advancedEnabled) {
                     // Sadece preset seçildiyse kaydet (özgür değerler kaydetme)
                     localStorage.setItem("miniCreateGoal", String(goalTarget));
@@ -3283,6 +3683,25 @@ setTimeout(() => {
                 if (b) savedBlueName = b;
             } catch(e) {}
             
+            // ✨ Santra süresi (dropdown'dan, yoksa localStorage'dan)
+            let savedKickoffTimeout = 10;
+            const kickoffEl = document.getElementById("miniKickoffTimeoutSelect");
+            if (kickoffEl) {
+                const val = parseInt(kickoffEl.value);
+                if ([5, 10, 15, 20, 30, 60, 999].includes(val)) {
+                    savedKickoffTimeout = val;
+                }
+            } else {
+                try {
+                    const kt = parseInt(localStorage.getItem("miniKickoffTimeout"));
+                    if (!isNaN(kt) && [5, 10, 15, 20, 30, 60, 999].includes(kt)) {
+                        savedKickoffTimeout = kt;
+                    }
+                } catch(e) {}
+            }
+            // localStorage'a da kaydet
+            try { localStorage.setItem("miniKickoffTimeout", String(savedKickoffTimeout)); } catch(e) {}
+            
             const payload = {
                 type: "mini_create_room",
                 name: name,
@@ -3294,6 +3713,7 @@ setTimeout(() => {
                 ball_stick: ballStick,
                 sprint_enabled: sprintEnabled,
                 player_count: playerCount,
+                kickoff_timeout: savedKickoffTimeout,  // ✨ Santra süresi
                 red_team_name: savedRedName,
                 blue_team_name: savedBlueName,
                 advanced_enabled: advancedEnabled
@@ -3850,7 +4270,7 @@ function createMiniScoreboard() {
                     <div style="color: #b0b0b0; font-size: 14px; font-weight: 600;
                                 text-align: center; margin-bottom: 12px;
                                 padding-bottom: 8px; border-bottom: 1px solid rgba(150,150,150,0.15);">
-                        👁️ İzleyiciler
+                          İzleyiciler
                     </div>
                     <div id="scoreSpecList"></div>
                 </div>
@@ -3914,14 +4334,15 @@ function renderMiniScoreboard() {
         }
         
         // Header
-        let html = `<div style="display:grid; grid-template-columns: 1fr 30px 30px 30px 45px;
-                                gap: 8px; color: #909090; font-size: 10px; font-weight: 600;
+        let html = `<div style="display:grid; grid-template-columns: 1fr 28px 28px 28px 28px 45px;
+                                gap: 6px; color: #909090; font-size: 10px; font-weight: 600;
                                 text-transform: uppercase; letter-spacing: 0.5px;
                                 margin-bottom: 6px; padding: 0 4px;">
             <div>İsim</div>
             <div style="text-align:center;" title="Gol">G</div>
             <div style="text-align:center;" title="Asist">A</div>
             <div style="text-align:center;" title="Pas">P</div>
+            <div style="text-align:center;" title="Kurtarış">K</div>
             <div style="text-align:right;">Ping</div>
         </div>`;
         
@@ -3940,8 +4361,8 @@ function renderMiniScoreboard() {
             // ✨ İsim rengi takım rengine göre
             const nameColor = teamColor || "#d0d0d0";
             
-            html += `<div style="display:grid; grid-template-columns: 1fr 30px 30px 30px 45px;
-                                 gap: 8px; padding: 6px 4px; font-size: 13px;
+            html += `<div style="display:grid; grid-template-columns: 1fr 28px 28px 28px 28px 45px;
+                                 gap: 6px; padding: 6px 4px; font-size: 13px;
                                  font-weight: ${isMe ? '700' : '500'};
                                  border-bottom: 1px solid rgba(255,255,255,0.04);">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: ${nameColor};">
@@ -3950,6 +4371,7 @@ function renderMiniScoreboard() {
                 <div style="text-align:center; color: #d0d0d0;">${st.goals}</div>
                 <div style="text-align:center; color: #d0d0d0;">${st.assists}</div>
                 <div style="text-align:center; color: #d0d0d0;">${st.passes}</div>
+                <div style="text-align:center; color: #d0d0d0;">${st.saves || 0}</div>
                 <div style="text-align:right; color: ${pingColor}; font-family: monospace; font-size: 11px;">${pingText}</div>
             </div>`;
         });
@@ -4753,5 +5175,98 @@ function updateMiniPingDisplay() {
 }
 
 // ✨ Ping başlatma & pause lobby update - handleMiniMessage içine gömdük (aşağıda)
+
+// ========================================
+// 🔊 SES SİSTEMİ (Audio Manager)
+// ========================================
+const MiniAudio = {
+    _unlocked: false,
+    _cache: {},       // Yüklenen ses dosyaları
+    _lastPlayed: {},  // Son çalınan ses (aynı grupta tekrar çalmayı önler)
+
+    // Ses dosyasını önceden yükle (cache'e al)
+    preload(name) {
+        if (this._cache[name]) return;
+        const audio = new Audio(`/oyun_modlari/mini_futbol/sounds/${name}`);
+        audio.preload = "auto";
+        this._cache[name] = audio;
+    },
+
+    // Kullanıcı ilk tıkladığında/dokunduğunda unlock et (Chrome autoplay fix)
+    unlock() {
+        if (this._unlocked) return;
+        // ✨ Gerçek bir ses dosyasını sessiz oynat → unlock olur
+        try {
+            const a = new Audio("/oyun_modlari/mini_futbol/sounds/kick_1.wav");
+            a.volume = 0.01;
+            a.play().then(() => {
+                this._unlocked = true;
+                console.log("[SES] Audio unlocked ✓");
+            }).catch((err) => {
+                // Yine de unlock kabul et (kullanıcı etkileşimi zaten oldu)
+                this._unlocked = true;
+                console.log("[SES] Audio unlocked (fallback) ✓");
+            });
+        } catch(e) {
+            this._unlocked = true;
+        }
+    },
+
+    // Tek ses çal
+    play(name, volume) {
+        if (!this._unlocked) return;
+        try {
+            let audio = this._cache[name];
+            if (!audio) {
+                audio = new Audio(`/oyun_modlari/mini_futbol/sounds/${name}`);
+                this._cache[name] = audio;
+            }
+            // Sesi başa sar (üst üste çalabilsin)
+            const clone = audio.cloneNode();
+            clone.volume = (volume !== undefined) ? volume : 0.6;
+            clone.play().catch(() => {});
+        } catch(e) {}
+    },
+
+    // Gruptan rastgele çal (arka arkaya aynısı çalmaz)
+    playRandom(group, files, volume) {
+        if (!this._unlocked) return;
+        if (!files || files.length === 0) return;
+
+        let available = files;
+
+        // Son çalınan aynıysa listeden çıkar
+        const last = this._lastPlayed[group];
+        if (files.length > 1 && last) {
+            available = files.filter(f => f !== last);
+        }
+
+        // Rastgele seç
+        const chosen = available[Math.floor(Math.random() * available.length)];
+        this._lastPlayed[group] = chosen;
+        this.play(chosen, volume);
+    },
+
+    // Tüm sesleri önceden yükle
+    preloadAll() {
+        const files = [
+            "post_hit.wav",
+            "wall_hit_1.wav", "wall_hit_2.wav",
+            "goal_1.wav", "goal_2.wav", "goal_3.wav",
+            "whistle.wav",
+            "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
+            "kick_1.wav", "kick_2.wav"
+        ];
+        files.forEach(f => this.preload(f));
+        console.log("[SES] Sesler preload edildi ✓");
+    }
+};
+
+// Sayfa yüklenince sesleri cache'e al
+setTimeout(() => MiniAudio.preloadAll(), 500);
+
+// Kullanıcı herhangi bir yere tıklayınca veya tuşa basınca unlock et
+document.addEventListener("click", () => MiniAudio.unlock(), { once: false });
+document.addEventListener("keydown", () => MiniAudio.unlock(), { once: false });
 
 console.log("Mini Futbol JS yüklendi ✓");

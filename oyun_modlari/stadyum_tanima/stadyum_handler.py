@@ -352,6 +352,15 @@ async def handle_stadyum_message(
         if len(room["players"]) >= 2:
             await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
             return _handled(current_room_code, current_player_id)
+        
+        # ✨ Aynı isim var mı? (case-insensitive)
+        existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
+        if name.lower().strip() in existing_names:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": f"Bu isimde ({name}) bir oyuncu zaten odada var. Farklı bir isim seç."
+            })
+            return _handled(current_room_code, current_player_id)
 
         current_room_code = join_code
         current_player_id = 2

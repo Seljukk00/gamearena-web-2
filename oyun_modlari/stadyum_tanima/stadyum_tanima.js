@@ -222,7 +222,8 @@ function updateStadLobby() {
         nameCell.style.flex = "1";
         nameCell.style.textAlign = "left";
         nameCell.style.paddingLeft = "10px";
-        nameCell.textContent = p.id === stadData.playerId ? `${p.id}. ${p.name} (Sen)` : `${p.id}. ${p.name}`;
+        const crown = p.id === 1 ? " 👑" : "";
+        nameCell.textContent = p.id === stadData.playerId ? `${p.id}. ${p.name} (Sen)${crown}` : `${p.id}. ${p.name}${crown}`;
         li.appendChild(nameCell);
         
         if (p.id !== stadData.playerId && stadData.playerId === 1) {

@@ -437,6 +437,16 @@ async def handle_bil_bakalim_message(
             await safe_send(websocket, {"type": "error", "message": "Bu oda farklı bir mod için."})
             result["handled"] = True
             return result
+        
+        # ✨ Aynı isim var mı? (case-insensitive)
+        existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
+        if name.lower().strip() in existing_names:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": f"Bu isimde ({name}) bir oyuncu zaten odada var. Farklı bir isim seç."
+            })
+            result["handled"] = True
+            return result
 
         new_player_id = 2
         room["players"][2] = {"ws": websocket, "name": name}
