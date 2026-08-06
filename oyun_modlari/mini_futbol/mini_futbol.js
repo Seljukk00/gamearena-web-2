@@ -754,9 +754,23 @@ function handleMiniMessage(msg) {
     if (msg.type === "mini_returned_to_lobby") {
         console.log("[MINI] Host lobbye döndü, otomatik lobbye geçiliyor...");
         
-        // Oyun sonu popup'ı varsa kapat
+        // ✨ Countdown sayacı varsa durdur
+        stopMiniGameOverCountdown();
+        
+        // Oyun sonu popup'ı varsa kapat + butonları resetle
         const overBox = document.getElementById("miniGameOverBox");
         if (overBox) overBox.classList.add("hidden");
+        
+        // ✨ "Dönülüyor..." takılı kalmasın - butonu resetle
+        const menuBtn = document.getElementById("miniGameOverMenuBtn");
+        if (menuBtn) {
+            menuBtn.disabled = false;
+            menuBtn.textContent = "🏠 Lobiye Dön";
+        }
+        const rematchBtn = document.getElementById("miniRematchBtn");
+        if (rematchBtn) {
+            rematchBtn.disabled = false;
+        }
         
         // ✨ Kullanıcının duraklatıldı ekranını kapat
         const guestPausedBox = document.getElementById("miniGuestPausedBox");
@@ -1090,15 +1104,42 @@ function handleMiniMessage(msg) {
         return;
     }
     
-    // Yeni oyuncu katıldı (oyun içi)
+    // Yeni oyuncu katıldı (oyun içi - eski mesaj, artık kullanılmıyor ama kalsın)
     if (msg.type === "mini_player_joined") {
-        showToast("👋 Yeni Oyuncu", `${msg.player_name} katıldı!`, null, "success");
+        showToast("🎮 Oyuna Katıldı", `${msg.player_name} oyuna dahil oldu!`, null, "success");
         return;
     }
     
-    // ✨ Oyuncu oyundan çıkıp izleyici oldu
+    // ✨ Yeni biri odaya katıldı (oyunda VEYA lobide - fark etmez)
+    if (msg.type === "mini_new_player_joined_room") {
+        showToast("👋 Odaya Katıldı", `${msg.player_name} odaya katıldı!`, null, "success");
+        return;
+    }
+    
+    // ✨ Oyuncu oyundan çıkıp lobiye döndü (ESC menüsünden "Lobiye Dön" diyerek)
     if (msg.type === "mini_player_left_game") {
-        showToast("👋 Oyundan Ayrıldı", `${msg.player_name} izleyici oldu`, null, "info");
+        showToast("🚪 Lobiye Döndü", `${msg.player_name} lobiye döndü.`, null, "info");
+        return;
+    }
+    
+    // ✨ Oyuncu lobiden oyuna geri döndü (Oyuna Katıl butonu)
+    if (msg.type === "mini_player_rejoined") {
+        showToast("⚽ Oyuna Katıldı", `${msg.player_name} oyuna katıldı!`, null, "success");
+        return;
+    }
+
+    // ✨ Bir oyuncu tamamen odadan/sayfadan ayrıldı (Disconnect)
+    if (msg.type === "mini_opponent_left") {
+        const playerName = msg.player_name || "Bir oyuncu";
+        showToast("👋 Odadan Ayrıldı", `${playerName} odadan ayrıldı.`, null, "warning");
+        return;
+    }
+	
+	// ✨ Host ayarları değiştirdi - tek toast'ta alt alta göster
+    if (msg.type === "mini_settings_changed") {
+        if (msg.changes && Array.isArray(msg.changes) && msg.changes.length > 0) {
+            showMiniSettingsToast(msg.changes);
+        }
         return;
     }
     
@@ -1162,6 +1203,26 @@ function handleMiniMessage(msg) {
         
         const overBox = document.getElementById("miniGameOverBox");
         if (overBox) overBox.classList.add("hidden");
+        
+        // ✨ Buton state'ini resetle
+        const menuBtn = document.getElementById("miniGameOverMenuBtn");
+        if (menuBtn) {
+            menuBtn.disabled = false;
+            menuBtn.textContent = "🚪 Lobiye Dön";
+        }
+        
+        // ✨ Ben in_lobby (lobide bekleyen) misafirsem → oyuna girme, lobide kal
+        const myPlayer = miniData.players.find(p => p.id === miniData.playerId);
+        if (myPlayer && myPlayer.in_lobby && miniData.playerId !== 1) {
+            console.log("[MINI] Ben lobide bekliyorum, oyun başlasa bile lobide kalıyorum");
+            // Lobide kal, sadece bilgi ver
+            if (typeof showToast === "function") {
+                showToast("⚽ Oyun Başladı", "Sen lobide bekliyorsun. Oyuna katılmak için 'Oyuna Katıl' bas.", null, "info");
+            }
+            // Lobby update göster (lobide kal)
+            updateMiniLobby();
+            return;
+        }
         
         showScreen("miniGame");
         startMiniGame();
@@ -3468,6 +3529,7 @@ function showMiniGameOver(msg) {
             <div title="Asist">Asist</div>
             <div title="Pas">Pas</div>
             <div title="Kurtarış">Kurtarış</div>
+            <div title="Ping">Ping</div>
         `;
         container.appendChild(header);
         
@@ -3478,6 +3540,17 @@ function showMiniGameOver(msg) {
             const crown = p.id === 1 ? " 👑" : "";
             const meMark = isMe ? ' <span style="color:#909090;font-size:10px;">(sen)</span>' : '';
             
+            // ✨ Ping bilgisi
+            const ping = (miniData.pings && miniData.pings[p.id] !== undefined) ? miniData.pings[p.id] : null;
+            let pingText = "-";
+            let pingColor = "#909090";
+            if (ping !== null) {
+                pingText = `${ping}ms`;
+                if (ping < 80) pingColor = "#51cf66";
+                else if (ping < 200) pingColor = "#ffd43b";
+                else pingColor = "#ff6b6b";
+            }
+            
             const row = document.createElement("div");
             row.className = "miniGameOverRow";
             row.style.animationDelay = (0.7 + i * 0.1) + "s";
@@ -3487,6 +3560,7 @@ function showMiniGameOver(msg) {
                 <span class="miniGameOverStat">${st.assists}</span>
                 <span class="miniGameOverStat">${st.passes}</span>
                 <span class="miniGameOverStat">${st.saves || 0}</span>
+                <span class="miniGameOverStat" style="color:${pingColor}; font-family:monospace; font-size:12px;">${pingText}</span>
             `;
             container.appendChild(row);
         });
@@ -3533,6 +3607,88 @@ function showMiniGameOver(msg) {
     
     // ✨ Tuşları bırak (oyun bitti, karakter hareket etmesin)
     miniReleaseAllKeys();
+    
+    // ✨ 30 SANİYE OTOMATİK LOBIYE DÖNÜŞ SAYACI
+    startMiniGameOverCountdown();
+}
+
+// ========================================
+// OYUN SONU OTOMATİK GERİ SAYIM (30 sn)
+// ========================================
+let miniGameOverCountdownInterval = null;
+
+function startMiniGameOverCountdown() {
+    // Eski interval varsa temizle
+    stopMiniGameOverCountdown();
+    
+    let seconds = 30;
+    
+    // Countdown metnini popup'a ekle (yoksa)
+    let countdownEl = document.getElementById("miniGameOverCountdown");
+    if (!countdownEl) {
+        const box = document.getElementById("miniGameOverBox");
+        const card = box ? box.querySelector(".overlayCard") : null;
+        if (card) {
+            countdownEl = document.createElement("p");
+            countdownEl.id = "miniGameOverCountdown";
+            countdownEl.style.cssText = "margin-top:15px; color:#adb5bd; font-size:14px; text-align:center;";
+            card.appendChild(countdownEl);
+        }
+    }
+    
+    function updateText() {
+        if (!countdownEl) return;
+        countdownEl.innerHTML = `⏳ <span style="color:#ffd43b; font-weight:bold;">${seconds}</span> saniye sonra otomatik lobiye dönülecek`;
+    }
+    updateText();
+    
+    miniGameOverCountdownInterval = setInterval(() => {
+        seconds--;
+        updateText();
+        
+        if (seconds <= 0) {
+            stopMiniGameOverCountdown();
+            
+            // Popup açık mı? (kullanıcı zaten kapatmamış mı?)
+            const overBox = document.getElementById("miniGameOverBox");
+            if (overBox && !overBox.classList.contains("hidden")) {
+                console.log("[MINI] 30 sn doldu, otomatik lobiye dönülüyor...");
+                
+                // ✨ OTOMATİK dönüş - manuel gibi davranma!
+                // Sadece popup'ı kapat + lobiye geç (backend'e in_lobby işaretleme)
+                overBox.classList.add("hidden");
+                
+                // Buton state'lerini resetle
+                const menuBtn = document.getElementById("miniGameOverMenuBtn");
+                const rematchBtn = document.getElementById("miniRematchBtn");
+                if (menuBtn) {
+                    menuBtn.disabled = false;
+                    menuBtn.textContent = "🚪 Lobiye Dön";
+                }
+                if (rematchBtn) rematchBtn.disabled = false;
+                
+                if (miniData.playerId === 1) {
+                    // HOST: backend'e "otomatik" flag ile bildir
+                    send({ type: "mini_return_to_lobby", auto: true });
+                } else {
+                    // MİSAFİR: sadece kendi ekranını lobiye çevir, backend'e izleyici olma isteği gönderme
+                    stopMiniGame();
+                    showScreen("miniLobby");
+                    updateMiniLobby();
+                }
+            }
+        }
+    }, 1000);
+}
+
+function stopMiniGameOverCountdown() {
+    if (miniGameOverCountdownInterval) {
+        clearInterval(miniGameOverCountdownInterval);
+        miniGameOverCountdownInterval = null;
+    }
+    // Sayaç yazısını sil
+    const countdownEl = document.getElementById("miniGameOverCountdown");
+    if (countdownEl) countdownEl.remove();
 }
 
 // ========================================
@@ -3836,6 +3992,7 @@ setTimeout(() => {
     const rematchBtn = document.getElementById("miniRematchBtn");
     if (rematchBtn) {
         rematchBtn.onclick = () => {
+            stopMiniGameOverCountdown();  // ✨ Sayacı durdur
             document.getElementById("miniGameOverBox").classList.add("hidden");
             send({ type: "mini_start_game" });
         };
@@ -3844,11 +4001,35 @@ setTimeout(() => {
     const menuBtn = document.getElementById("miniGameOverMenuBtn");
     if (menuBtn) {
         menuBtn.onclick = () => {
-            document.getElementById("miniGameOverBox").classList.add("hidden");
-            // ✨ Ana menüye değil, lobby'ye dön (oda açık kalsın)
-            send({ type: "mini_return_to_lobby" });
-            showScreen("miniLobby");
-            updateMiniLobby();
+            stopMiniGameOverCountdown();  // ✨ Sayacı durdur
+            
+            // ✨ HOST → backend'den broadcast bekle (herkesi lobiye atsın)
+            // ✨ MİSAFİR → direkt kendi ekranını lobiye çevir (backend sadece bize update yollayacak)
+            
+            if (miniData.playerId === 1) {
+                // HOST: broadcast bekle
+                send({ type: "mini_return_to_lobby" });
+                menuBtn.disabled = true;
+                menuBtn.textContent = "⌛ Dönülüyor...";
+            } else {
+                // MİSAFİR: backend'e izleyici yap komutu gönder + kendisi lobbye geç
+                send({ type: "mini_return_to_lobby" });
+                
+                // Popup'ı kapat
+                const overBox = document.getElementById("miniGameOverBox");
+                if (overBox) overBox.classList.add("hidden");
+                
+                // Oyun döngüsünü durdur
+                stopMiniGame();
+                
+                // Lobby'e geç
+                showScreen("miniLobby");
+                updateMiniLobby();
+                
+                // Butonu resetle (bir sonraki oyun için)
+                menuBtn.disabled = false;
+                menuBtn.textContent = "🚪 Lobiye Dön";
+            }
         };
     }
     
@@ -4213,6 +4394,16 @@ document.addEventListener("keydown", (e) => {
     // Normal durum → kullanıcı ESC menüsünü aç
     showMiniGuestEscMenu();
 }, true);
+
+function showMiniGuestEscMenu() {
+    const box = document.getElementById("miniGuestEscBox");
+    if (box) box.classList.remove("hidden");
+    miniReleaseAllKeys();
+    
+    // ✨ Eğer misafirsen ve ESC menüsünü açtıysan, Host'a oyunu durdurması için 
+    // bir sinyal gönderilebilir veya misafir ekranında "DURAKLATILDI" yazabilir.
+    // Şimdilik sadece sürenin akmaması için Host'un pause etmesi en temizi.
+}
 
 // ✨ Popup kapandığında (hidden class eklenince) kullanıcı ESC menüsünü geri getir
 function setupPopupReturnToPause(popupId) {
@@ -5464,6 +5655,92 @@ function syncLocalHPWithServer() {
             }
         }
     }
+}
+
+// ========================================
+// ⚙️ AYAR DEĞİŞİKLİĞİ TOAST (birden fazla ayarı alt alta gösterir)
+// ========================================
+function showMiniSettingsToast(changes) {
+    // Eski toast varsa kaldır
+    const existing = document.getElementById("miniSettingsToast");
+    if (existing) existing.remove();
+    
+    // Toast oluştur
+    const toast = document.createElement("div");
+    toast.id = "miniSettingsToast";
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: linear-gradient(135deg, rgba(30, 40, 60, 0.98), rgba(20, 30, 45, 0.98));
+        border: 2px solid #4dabf7;
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 10px 40px rgba(77, 171, 247, 0.4), 0 0 60px rgba(77, 171, 247, 0.2);
+        z-index: 100000;
+        min-width: 320px;
+        max-width: 450px;
+        color: #fff;
+        font-family: 'Segoe UI', sans-serif;
+        animation: settingsToastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    `;
+    
+    // Başlık
+    let html = `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; 
+                    padding-bottom:10px; border-bottom:1px solid rgba(77,171,247,0.3);">
+            <span style="font-size:24px;">⚙️</span>
+            <div style="flex:1;">
+                <div style="color:#4dabf7; font-weight:700; font-size:15px;">
+                    Oda Ayarları Güncellendi
+                </div>
+                <div style="color:#adb5bd; font-size:11px;">
+                    ${changes.length} ayar değiştirildi
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Her değişiklik için satır
+    changes.forEach((change, i) => {
+        html += `
+            <div style="padding:6px 0; font-size:13px; color:#e0e0e0; line-height:1.5;
+                        animation: settingsRowFadeIn 0.3s ease-out ${i * 0.08}s both;">
+                ${change.msg}
+            </div>
+        `;
+    });
+    
+    toast.innerHTML = html;
+    document.body.appendChild(toast);
+    
+    // Animasyon CSS'i (yoksa ekle)
+    if (!document.getElementById("miniSettingsToastStyles")) {
+        const style = document.createElement("style");
+        style.id = "miniSettingsToastStyles";
+        style.textContent = `
+            @keyframes settingsToastSlideIn {
+                from { opacity: 0; transform: translateX(400px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes settingsToastSlideOut {
+                from { opacity: 1; transform: translateX(0); }
+                to { opacity: 0; transform: translateX(400px); }
+            }
+            @keyframes settingsRowFadeIn {
+                from { opacity: 0; transform: translateX(15px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // ✨ Otomatik kapat (değişiklik sayısına göre süre ayarla - her satır +500ms)
+    const displayTime = Math.min(3000 + changes.length * 500, 8000);  // min 3s, max 8s
+    setTimeout(() => {
+        toast.style.animation = "settingsToastSlideOut 0.3s ease-in forwards";
+        setTimeout(() => toast.remove(), 300);
+    }, displayTime);
 }
 
 console.log("Mini Futbol JS yüklendi ✓");
