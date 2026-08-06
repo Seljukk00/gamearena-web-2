@@ -1590,14 +1590,14 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 "red_pid": red_pid,
                 "blue_pid": blue_pid
             })
-            
-            # Toast göster diğerlerine
-            for pid, pdata in room["players"].items():
-                if pid != new_pid:
-                    await safe_send(pdata["ws"], {
-                        "type": "mini_player_joined",
-                        "player_name": name
-                    })
+        
+        # ✨ Toast göster diğerlerine (oyun içinde VEYA lobide - fark etmez, herkes görsün)
+        for pid, pdata in room["players"].items():
+            if pid != new_pid:
+                await safe_send(pdata["ws"], {
+                    "type": "mini_new_player_joined_room",
+                    "player_name": name
+                })
         
         await send_minifutbol_lobby_update(room, broadcast)
         return {"handled": True, "room_code": join_code, "player_id": new_pid}
@@ -1672,8 +1672,16 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if game_speed not in ["yavas", "normal", "hizli"]:
             game_speed = "normal"
         
-        # ✨ Oyun içindeyse ve match_duration değiştiyse süreyi baştan başlat
+        # ✨ ESKİ değerleri sakla (toast için değişiklik tespiti)
         old_match_duration = room.get("match_duration", 180)
+        old_goal_target = room.get("goal_target", 3)
+        old_game_speed = room.get("game_speed", "normal")
+        old_allow_plase = room.get("allow_plase", True)
+        old_ball_stick = room.get("ball_stick", True)
+        old_sprint_enabled = room.get("sprint_enabled", True)
+        old_split_screen = room.get("split_screen", False)
+        old_kickoff_timeout = room.get("kickoff_timeout", 10)
+        old_player_count = room.get("player_count", 2)
         
         room["goal_target"] = goal_target
         room["match_duration"] = match_duration
@@ -1726,7 +1734,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             print(f"[MINI ADVANCED] Gelişmiş ayarlar KAPALI - klasik preset kullanılıyor")
         
         # ✨ SPLIT-SCREEN YÖNETİMİ (sadece izin ayarı, fake player oluşturmaz)
-        old_split = room.get("split_screen", False)
+        old_split = old_split_screen  # Yukarıda aldık
         room["split_screen"] = split_screen
         
         if split_screen and not old_split:
@@ -1767,6 +1775,99 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             
             room["split_owner"] = None
             room["split_slave_id"] = None
+        
+        # ✨ DEĞİŞEN AYARLAR İÇİN TOAST BROADCAST
+        changes = []
+        
+        # Oyuncu sayısı
+        if old_player_count != new_player_count:
+            mode_labels = {2:"1v1", 4:"2v2", 6:"3v3", 8:"4v4", 10:"5v5"}
+            changes.append({
+                "msg": f"👥 Oyuncu Sayısı: {mode_labels.get(new_player_count, str(new_player_count))} olarak değiştirildi"
+            })
+        
+        # Kazanma skoru
+        if old_goal_target != goal_target:
+            if goal_target >= 999:
+                score_text = "♾️ Sınırsız"
+            else:
+                score_text = f"{goal_target} gol"
+            changes.append({
+                "msg": f"⚽ Kazanma Skoru: {score_text} olarak değiştirildi"
+            })
+        
+        # Maç süresi
+        if old_match_duration != match_duration:
+            if match_duration >= 99999:
+                dur_text = "♾️ Sınırsız"
+            elif match_duration >= 60:
+                dur_text = f"{match_duration // 60} dk"
+            else:
+                dur_text = f"{match_duration} sn"
+            changes.append({
+                "msg": f"⏱️ Maç Süresi: {dur_text} olarak değiştirildi"
+            })
+        
+        # Oyun hızı
+        if old_game_speed != game_speed:
+            speed_labels = {"yavas": "🐢 Yavaş", "normal": "🚶 Normal", "hizli": "🏃 Hızlı"}
+            changes.append({
+                "msg": f"⚡ Oyun Hızı: {speed_labels.get(game_speed, game_speed)} olarak değiştirildi"
+            })
+        
+        # Santra süresi
+        if old_kickoff_timeout != new_kickoff_timeout:
+            if new_kickoff_timeout >= 999:
+                kt_text = "♾️ Sınırsız (Kural Kapalı)"
+            else:
+                kt_text = f"{new_kickoff_timeout} saniye"
+            changes.append({
+                "msg": f"⏱️ Santra Süresi: {kt_text} olarak değiştirildi"
+            })
+        
+        # Split-Screen
+        if old_split_screen != split_screen:
+            if split_screen:
+                changes.append({"msg": "🎮 Split-Screen özelliği etkinleştirildi"})
+            else:
+                changes.append({"msg": "🎮 Split-Screen özelliği devre dışı bırakıldı"})
+        
+        # Falso izni
+        if old_allow_plase != allow_plase:
+            if allow_plase:
+                changes.append({"msg": "🌀 Falso etkinleştirildi"})
+            else:
+                changes.append({"msg": "🌀 Falso devre dışı bırakıldı"})
+        
+        # Top yapışma
+        if old_ball_stick != ball_stick:
+            if ball_stick:
+                changes.append({"msg": "🧲 Top Kontrolü (topa yapışma) özelliği etkinleştirildi"})
+            else:
+                changes.append({"msg": "🧲 Top Kontrolü (topa yapışma) devre dışı bırakıldı"})
+        
+        # Sprint
+        if old_sprint_enabled != sprint_enabled:
+            if sprint_enabled:
+                changes.append({"msg": "⚡ Sprint etkinleştirildi"})
+            else:
+                changes.append({"msg": "⚡ Sprint devre dışı bırakıldı"})
+        
+        # ✨ Gelişmiş Mod Toggle
+        old_advanced_enabled = room.get("advanced_enabled", False)
+        if old_advanced_enabled != advanced_enabled:
+            if advanced_enabled:
+                changes.append({"msg": "🔧 Gelişmiş ayarlar etkinleştirildi"})
+            else:
+                changes.append({"msg": "🔧 Gelişmiş ayarlar devre dışı bırakıldı"})
+        
+        # ✨ Değişiklikleri herkese broadcast et (host dahil)
+        if changes:
+            await broadcast(room, {
+                "type": "mini_settings_changed",
+                "changes": changes
+            })
+            print(f"[MINI] {len(changes)} ayar değişikliği toast gönderildi (herkese)")
         
         await send_minifutbol_lobby_update(room, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -2658,16 +2759,49 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        # ✨ Sadece oyun bittiyse (finished) lobby'e dönmeye izin ver
-        if room.get("phase") != "finished":
-            # Zaten lobby veya playing durumunda, sadece lobby update gönder
+        # ✨ Otomatik dönüş mü, manuel mi?
+        is_auto = bool(data.get("auto", False))
+        
+        # ✨ MİSAFİR "Lobiye Dön" bastıysa → kendisini izleyici yap
+        if player_id != 1:
+            if player_id in room["players"]:
+                player_name = room["players"][player_id].get("name", f"P{player_id}")
+                room["players"][player_id]["team"] = "spectator"
+                
+                # ✨ SADECE MANUEL dönüşte in_lobby=True yap (rematch'te alınmasın)
+                # OTOMATİK dönüşte in_lobby=False (host rematch derse otomatik oyuna girsin)
+                if not is_auto:
+                    room["players"][player_id]["in_lobby"] = True
+                    print(f"[MINI] Misafir {player_name} MANUEL lobbye döndü (in_lobby=True, spectator)")
+                else:
+                    room["players"][player_id]["in_lobby"] = False
+                    print(f"[MINI] Misafir {player_name} OTOMATİK lobbye döndü (in_lobby=False)")
+                
+                # Diğerlerine bildir (host görsün)
+                for pid, pdata in room["players"].items():
+                    if pid != player_id:
+                        await safe_send(pdata["ws"], {
+                            "type": "mini_player_left_game",
+                            "player_name": player_name
+                        })
             await send_minifutbol_lobby_update(room, broadcast)
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        print(f"[MINI] Lobbye dönüldü: {room_code}")
+        # ✨ HOST → Lobby'de ise zaten dönmüş, sadece update gönder
+        if room.get("phase") == "lobby":
+            await send_minifutbol_lobby_update(room, broadcast)
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        # Faz'ı lobby'ye çevir
+        print(f"[MINI] Host lobbye döndü: {room_code} (phase={room.get('phase')})")
+        
+        # Faz'ı lobby'ye çevir (playing veya finished fark etmez)
         room["phase"] = "lobby"
+        
+        # Eski game task'ı iptal et (varsa)
+        old_task = room.get("mini_task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+        room["mini_task"] = None
         
         # Game state'i temizle (yeni oyun için)
         if "game_state" in room:
@@ -2763,10 +2897,20 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if player_id not in room["players"]:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
+        player_name = room["players"][player_id].get("name", f"P{player_id}")
+        
         # Lobide bayrağını kaldır
         room["players"][player_id]["in_lobby"] = False
         # spectator olarak kalır, host takıma sürükleyebilir artık
-        print(f"[MINI] Oyuncu {player_id} oyuna geri döndü, host takıma alabilir artık")
+        print(f"[MINI] {player_name} lobiden oyuna geri döndü")
+        
+        # ✨ Diğerlerine (özellikle host) toast bildir
+        for pid, pdata in room["players"].items():
+            if pid != player_id:
+                await safe_send(pdata["ws"], {
+                    "type": "mini_player_rejoined",
+                    "player_name": player_name
+                })
         
         await send_minifutbol_lobby_update(room, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
