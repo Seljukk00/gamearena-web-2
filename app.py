@@ -416,13 +416,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 return
 
             # ✨ MINI FUTBOL - Özel davranış (multiplayer, oda kapanmaz)
-            if room_mode == "mini_futbol" and room.get("phase") not in ("lobby", None):
+            if room_mode == "mini_futbol":
                 # Host ayrıldıysa oda tamamen kapansın
                 if player_id == 1:
+                    # Diğer oyunculara mini_ ön ekiyle bildir (Genel handler yakalamasın)
                     for pid, pdata in room["players"].items():
                         await safe_send(pdata["ws"], {
-                            "type": "opponent_left",
-                            "message": "Host oyundan ayrıldı. Oda kapandı.",
+                            "type": "mini_host_left",
+                            "message": "Host ayrıldı, oda kapatılıyor.",
                             "player_name": left_name
                         })
                     for task_key in ["mini_task"]:
@@ -433,10 +434,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     return
                 
                 # ✨ Normal oyuncu ayrıldı - oda AÇIK kalsın
-                # Sadece diğerlerine toast bildir
+                # Sadece diğerlerine mini_ ön ekiyle bildir
                 await broadcast(room, {
-                    "type": "opponent_left",
-                    "message": f"{left_name} oyundan ayrıldı.",
+                    "type": "mini_opponent_left",
+                    "message": f"{left_name} odadan ayrıldı.",
                     "player_name": left_name
                 })
                 
