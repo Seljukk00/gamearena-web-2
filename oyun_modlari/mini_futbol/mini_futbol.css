@@ -528,8 +528,8 @@
 
 .miniGameOverRow {
     display: grid;
-    grid-template-columns: minmax(120px, 2fr) 60px 60px 60px 85px;
-    gap: 8px;
+    grid-template-columns: minmax(120px, 2fr) 55px 55px 55px 75px 65px;
+    gap: 6px;
     padding: 10px 8px;
     font-size: 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -564,8 +564,8 @@
 
 .miniGameOverHeader {
     display: grid;
-    grid-template-columns: minmax(120px, 2fr) 60px 60px 60px 85px;
-    gap: 8px;
+    grid-template-columns: minmax(120px, 2fr) 55px 55px 55px 75px 65px;
+    gap: 6px;
     color: #ffd43b;
     font-size: 11px;
     font-weight: 700;
