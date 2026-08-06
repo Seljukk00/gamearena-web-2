@@ -787,8 +787,8 @@ function handleMiniMessage(msg) {
         miniData.currentPositions = {};
         miniData.targetPositions = {};
         
-        // ✨ HOST ise HP motoruna da yeni oyuncuları bildir
-        if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
+        // ✨ HOST VEYA GUEST - her ikisi de HP'yi güncellesin
+        if (typeof HP !== 'undefined' && HP.running) {
             const newRedPid = msg.red_pid;
             const newBluePid = msg.blue_pid;
             
@@ -1186,6 +1186,62 @@ function handleMiniMessage(msg) {
         }
         
         miniData.gameState = msg;
+        
+        // ✨ GUEST: Local HP'yi server state ile senkronla (top + oyuncular)
+        if (miniData.playerId !== 1 && typeof HP !== 'undefined' && HP.running && HP.room?.gameState) {
+            const localGS = HP.room.gameState;
+            
+            // Top pozisyonu senkron
+            if (msg.ball && localGS.ball) {
+                const dx = msg.ball.x - localGS.ball.x;
+                const dy = msg.ball.y - localGS.ball.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist > 100) {
+                    // Çok uzak → ışınla
+                    localGS.ball.x = msg.ball.x;
+                    localGS.ball.y = msg.ball.y;
+                    localGS.ball.vx = 0;
+                    localGS.ball.vy = 0;
+                } else if (dist > 2) {
+                    // Yumuşak lerp
+                    localGS.ball.x += dx * 0.3;
+                    localGS.ball.y += dy * 0.3;
+                }
+            }
+            
+            // Rakip oyuncu pozisyonu senkron (kendi karakterim hariç)
+            if (msg.players) {
+                for (const pid in msg.players) {
+                    if (parseInt(pid) === miniData.playerId) continue; // Kendi karakterim = local
+                    const sp = msg.players[pid];
+                    const lp = localGS.players[pid];
+                    if (!lp) continue;
+                    
+                    const dx = sp.x - lp.x;
+                    const dy = sp.y - lp.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (dist > 80) {
+                        lp.x = sp.x;
+                        lp.y = sp.y;
+                    } else if (dist > 1) {
+                        lp.x += dx * 0.3;
+                        lp.y += dy * 0.3;
+                    }
+                }
+            }
+            
+            // State senkronu (countdown, goal_wait, kickoff)
+            if (msg.game_state) {
+                localGS.state = msg.game_state;
+            }
+            // Skor senkronu
+            if (msg.scores) {
+                localGS.scores[1] = msg.scores["1"] || 0;
+                localGS.scores[2] = msg.scores["2"] || 0;
+            }
+        }
         
         // ✨ SNAPSHOT INTERPOLATION - Her state'i timestamp ile buffer'a at
         const now_ = performance.now();
@@ -2580,14 +2636,19 @@ function miniRender() {
     ctx.stroke();
     
     // === OYUNCULAR ve TOP ===
+    // ✨ State kaynağı: Server (miniData.gameState) her zaman ana kaynak
+    // Ama oyuncu pozisyonları için local HP'yi tercih et (0 lag)
     const state = miniData.gameState;
+    const localHPActive = typeof HP !== 'undefined' && HP.running && HP.room && HP.room.gameState;
+    const useLocal = localHPActive;
+    
     if (state) {
-        // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok eder
+        // ✨ SNAPSHOT INTERPOLATION - Sadece server state için (local zaten 60fps akıcı)
         // Render zamanı: şu an - 100ms (gecikmeli render, paketler arası yumuşak)
         const renderTime = performance.now() - miniData.interpDelay;
         const snaps = miniData.snapshots;
         
-        if (snaps.length >= 2) {
+        if (!useLocal && snaps.length >= 2) {
             // renderTime'ı içeren iki snapshot bul (before ve after)
             let before = null;
             let after = null;
@@ -2742,8 +2803,13 @@ function miniRender() {
         
         // Oyuncular
         for (const pid in state.players) {
-            // ✨ Interpolated pozisyonu kullan
-            let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+            // ✨ Yerel HP'den pozisyon al (varsa), yoksa server'dan
+            let smoothPos;
+            if (useLocal && HP.room.gameState.players[pid]) {
+                smoothPos = HP.room.gameState.players[pid];
+            } else {
+                smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+            }
             
             // ✨ Kendi karakterim + prediction aktifse → predicted pozisyonu kullan
             if (miniData.predictionActive && parseInt(pid) === miniData.playerId && miniData.predictedSelf) {
@@ -2781,12 +2847,10 @@ function miniRender() {
             ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
             ctx.fill();
             
-            // ✨ Sprint enerji bilgisi
-            // ✨ HOST + kendi karakterim ise HP'den direkt oku
+            // ✨ Sprint enerji bilgisi - local HP varsa oradan oku
             let energyPercent = 1.0;
             let sprintActive = false;
-            if (parseInt(pid) === miniData.playerId && miniData.playerId === 1 && 
-                typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players?.[pid]) {
+            if (typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players?.[pid]) {
                 const hpp = HP.room.gameState.players[pid];
                 energyPercent = (hpp.sprint_energy || 0) / 100;
                 sprintActive = hpp.keys.sprint && hpp.sprint_energy > 1;
@@ -2879,8 +2943,13 @@ function miniRender() {
             ctx.shadowBlur = 0;
         }
         
-        // Top
-        const bSmooth = miniData.currentPositions.ball || state.ball;
+        // Top - Yerel HP'den al (varsa)
+        let bSmooth;
+        if (useLocal && HP.room.gameState.ball) {
+            bSmooth = HP.room.gameState.ball;
+        } else {
+            bSmooth = miniData.currentPositions.ball || state.ball;
+        }
         const b = {
             x: bSmooth.x,
             y: bSmooth.y,
@@ -3354,10 +3423,10 @@ function updateMiniHUD() {
     }
     
     // ✨ SPRINT ENERJİ gösterimi (bar)
-    // ✨ HOST ise HP'den direkt oku (backend'in eski state'i karışmasın)
+    // ✨ HOST veya GUEST → local HP çalışıyorsa oradan oku (0 latency)
     let mySprint = null;
-    if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players?.[1]) {
-        const p = HP.room.gameState.players[1];
+    if (typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players?.[miniData.playerId]) {
+        const p = HP.room.gameState.players[miniData.playerId];
         mySprint = {
             energy: p.sprint_energy || 0,
             max_energy: 100,
