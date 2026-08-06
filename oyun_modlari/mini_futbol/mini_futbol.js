@@ -32,6 +32,11 @@ let miniData = {
     pingInterval: null,  // setInterval handle
     lastPingSent: 0,
     
+    // ✨ CLIENT-SIDE PREDICTION (misafir için)
+    predictedSelf: null,     // {x, y, vx, vy} - kendi karakterimin tahmini pozisyonu
+    predictedKeys: {up:false, down:false, left:false, right:false, sprint:false},
+    predictionActive: false, // Sadece misafirse aktif olur
+    
     };
 
 
@@ -2119,6 +2124,15 @@ function startMiniGame() {
     // Render başlat
     if (miniAnimFrame) cancelAnimationFrame(miniAnimFrame);
     miniAnimFrame = requestAnimationFrame(miniRender);
+    
+    // ✨ MİSAFİR ise prediction başlat (host için gerek yok)
+    if (miniData.playerId !== 1) {
+        miniData.predictionActive = true;
+        miniData.predictedSelf = null;  // İlk state gelince set edilecek
+        console.log("[PREDICTION] Misafir prediction aktif");
+    } else {
+        miniData.predictionActive = false;
+    }
 }
 
 // ✨ Kontrol bilgisini güncelle (klavye + gamepad + kullanıcı ayarlarına göre)
@@ -2279,6 +2293,11 @@ function stopMiniGame() {
     
     // ✨ Gamepad polling'i durdur
     stopGamepadPolling();
+    
+    // ✨ Prediction'ı sıfırla
+    miniData.predictionActive = false;
+    miniData.predictedSelf = null;
+    miniData.predictedKeys = {up:false, down:false, left:false, right:false, sprint:false};
 }
 
 // ========================================
@@ -2327,6 +2346,11 @@ function miniKeyDown(e) {
         HP.setKey(targetPid, key, true);
     }
     
+    // ✨ MİSAFİR PREDICTION - kendi tuşumu prediction'a bildir
+    if (miniData.predictionActive && forPlayer === 1) {
+        miniData.predictedKeys[key] = true;
+    }
+    
     // Backend'e gönder
     const msg = { type: "mini_key", key: key, pressed: true };
     if (forPlayer === 2 && miniData.splitSlaveId) {
@@ -2358,6 +2382,11 @@ function miniKeyUp(e) {
     if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
         const targetPid = (forPlayer === 2 && miniData.splitSlaveId) ? miniData.splitSlaveId : miniData.playerId;
         HP.setKey(targetPid, key, false);
+    }
+    
+    // ✨ MİSAFİR PREDICTION - kendi tuşumu prediction'a bildir
+    if (miniData.predictionActive && forPlayer === 1) {
+        miniData.predictedKeys[key] = false;
     }
     
     const msg = { type: "mini_key", key: key, pressed: false };
@@ -2702,10 +2731,21 @@ function miniRender() {
             }
         }
         
+        // ✨ PREDICTION - misafirse kendi karakterimi tahmin edip güncelle
+        if (miniData.predictionActive) {
+            updateMiniPrediction();
+        }
+        
         // Oyuncular
         for (const pid in state.players) {
             // ✨ Interpolated pozisyonu kullan
-            const smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+            let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+            
+            // ✨ Kendi karakterim + prediction aktifse → predicted pozisyonu kullan
+            if (miniData.predictionActive && parseInt(pid) === miniData.playerId && miniData.predictedSelf) {
+                smoothPos = { x: miniData.predictedSelf.x, y: miniData.predictedSelf.y };
+            }
+            
             const p = { x: smoothPos.x, y: smoothPos.y };
             
             const isMe = parseInt(pid) === miniData.playerId;
@@ -5268,5 +5308,111 @@ setTimeout(() => MiniAudio.preloadAll(), 500);
 // Kullanıcı herhangi bir yere tıklayınca veya tuşa basınca unlock et
 document.addEventListener("click", () => MiniAudio.unlock(), { once: false });
 document.addEventListener("keydown", () => MiniAudio.unlock(), { once: false });
+
+// ========================================
+// ✨ CLIENT-SIDE PREDICTION (Misafir için)
+// ========================================
+
+// Prediction sabitleri (host physics ile aynı olmalı)
+const PRED_PLAYER_SPEED_MAP = {
+    "yavas": 2.0,
+    "normal": 2.8,
+    "hizli": 3.5
+};
+const PRED_PLAYER_ACCEL_MAP = {
+    "yavas": 0.4,
+    "normal": 0.55,
+    "hizli": 0.8
+};
+const PRED_FRICTION = 0.90;
+const PRED_SPRINT_MULT = 1.5;
+const PRED_FIELD_WIDTH = 1000;
+const PRED_FIELD_HEIGHT = 500;
+const PRED_PLAYER_RADIUS = 20;
+const PRED_PLAYER_OUT_MARGIN = 55;
+const PRED_LERP_SPEED = 0.25;  // Server düzeltmesi ne kadar hızlı uygulansın
+
+// Prediction her frame çalışır (~60fps)
+function updateMiniPrediction() {
+    if (!miniData.predictionActive) return;
+    if (!miniData.gameState) return;
+    if (!miniData.playerId) return;
+    
+    // Kendi ID'mizin gerçek pozisyonu server'dan
+    const serverPos = miniData.gameState.players[String(miniData.playerId)];
+    if (!serverPos) return;
+    
+    // İlk kez → server pozisyonundan başlat
+    if (!miniData.predictedSelf) {
+        miniData.predictedSelf = {
+            x: serverPos.x,
+            y: serverPos.y,
+            vx: 0,
+            vy: 0
+        };
+        return;
+    }
+    
+    const p = miniData.predictedSelf;
+    const keys = miniData.predictedKeys;
+    
+    // Hız ayarı
+    const speedMode = miniData.gameSpeed || "normal";
+    const PLAYER_SPEED = PRED_PLAYER_SPEED_MAP[speedMode] || 2.8;
+    const PLAYER_ACCEL = PRED_PLAYER_ACCEL_MAP[speedMode] || 0.55;
+    
+    // Sprint kontrolü (basit - enerjiye bakmıyoruz)
+    const sprintActive = keys.sprint;
+    const maxSpeed = PLAYER_SPEED * (sprintActive ? PRED_SPRINT_MULT : 1.0);
+    
+    // İvme uygula
+    if (keys.up) p.vy -= PLAYER_ACCEL;
+    if (keys.down) p.vy += PLAYER_ACCEL;
+    if (keys.left) p.vx -= PLAYER_ACCEL;
+    if (keys.right) p.vx += PLAYER_ACCEL;
+    
+    // Max hız
+    const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+    if (spd > maxSpeed) {
+        p.vx = (p.vx / spd) * maxSpeed;
+        p.vy = (p.vy / spd) * maxSpeed;
+    }
+    
+    // Sürtünme
+    p.vx *= PRED_FRICTION;
+    p.vy *= PRED_FRICTION;
+    if (Math.abs(p.vx) < 0.1) p.vx = 0;
+    if (Math.abs(p.vy) < 0.1) p.vy = 0;
+    
+    // Pozisyon güncelle
+    p.x += p.vx;
+    p.y += p.vy;
+    
+    // Duvar sınırı (basit)
+    const R = PRED_PLAYER_RADIUS;
+    const M = PRED_PLAYER_OUT_MARGIN;
+    if (p.x - R < -M) { p.x = -M + R; p.vx = 0; }
+    if (p.x + R > PRED_FIELD_WIDTH + M) { p.x = PRED_FIELD_WIDTH + M - R; p.vx = 0; }
+    if (p.y - R < -M) { p.y = -M + R; p.vy = 0; }
+    if (p.y + R > PRED_FIELD_HEIGHT + M) { p.y = PRED_FIELD_HEIGHT + M - R; p.vy = 0; }
+    
+    // ✨ SERVER RECONCILIATION - server pozisyonuna yumuşakça yaklaş
+    // Tahminim serverdan çok uzaksa → snap et
+    const dx = serverPos.x - p.x;
+    const dy = serverPos.y - p.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist > 60) {
+        // Çok uzak → snap (ışınlan)
+        p.x = serverPos.x;
+        p.y = serverPos.y;
+        p.vx = 0;
+        p.vy = 0;
+    } else if (dist > 3) {
+        // Ufak fark → yumuşakça yaklaş (lerp)
+        p.x += dx * PRED_LERP_SPEED;
+        p.y += dy * PRED_LERP_SPEED;
+    }
+}
 
 console.log("Mini Futbol JS yüklendi ✓");
