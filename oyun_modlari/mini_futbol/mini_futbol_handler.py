@@ -1869,22 +1869,25 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             if target_pid != room.get("split_slave_id"):
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        # ✨ HOST MODE: Tuşu host tarayıcısına yönlendir (host fizik motoruna işlesin)
+        # ✨ HOST MODE: Tuşu gönderen hariç herkese ilet
+        # Böylece:
+        # - Host, misafir input'unu alır
+        # - Misafir de host input'unu alır
+        # - Her client kendi local HP'sinde rakip input'unu işler
         if room.get("host_mode"):
-            if player_id == 1:
-                # Host'un kendi tuşu → zaten host client tarafında işleniyor, backend'e gerek yok
-                pass
-            else:
-                # Misafirin tuşu → host'a ilet
-                host_ws = room["players"].get(1, {}).get("ws")
-                if host_ws:
-                    await safe_send(host_ws, {
-                        "type": "mini_guest_input",
-                        "from_player_id": player_id,
-                        "target_pid": target_pid,
-                        "key": key,
-                        "pressed": bool(pressed)
-                    })
+            relay_msg = {
+                "type": "mini_guest_input",
+                "from_player_id": player_id,
+                "target_pid": target_pid,
+                "key": key,
+                "pressed": bool(pressed)
+            }
+            for pid, pdata in room["players"].items():
+                if pid == player_id:
+                    continue
+                ws_target = pdata.get("ws")
+                if ws_target:
+                    await safe_send(ws_target, relay_msg)
         
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     

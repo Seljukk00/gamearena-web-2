@@ -340,8 +340,8 @@ function sendGamepadKey(key, pressed) {
     }
     // P1 ise doğrudan gider (kendi player_id)
     
-    // ✨ HOST ise kendi fizik motoruna da bildir (0 latency)
-    if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
+    // ✨ Local HP'ye bildir (host + misafir)
+    if (typeof HP !== 'undefined' && HP.running) {
         HP.setKey(targetPid, key, pressed);
     }
     
@@ -1069,6 +1069,12 @@ function handleMiniMessage(msg) {
         
         updateMiniLobby();
         
+        // ✨ Misafir için local HP'yi başlatmayı dene (eğer oyun ekranındaysa)
+        const gameScreen = document.getElementById("miniGameScreen");
+        if (gameScreen && !gameScreen.classList.contains("hidden")) {
+            startMiniLocalPhysicsIfNeeded();
+        }
+        
         // ✨ Pause lobby açıksa onu da güncelle
         const pauseBox = document.getElementById("miniPauseLobbyBox");
         if (pauseBox && !pauseBox.classList.contains("hidden")) {
@@ -1162,10 +1168,13 @@ function handleMiniMessage(msg) {
         return;
     }
     
-    // ✨ Host'a gelen misafir tuşu → HP'ye ilet
+    // ✨ Rakip veya misafir tuşu → Her iki taraf da kendi HP'sine işlesin
     if (msg.type === "mini_guest_input") {
         if (typeof HP !== 'undefined' && HP.running) {
-            HP.setKey(msg.target_pid, msg.key, msg.pressed);
+            // Eğer bu tuş zaten benimse (ben gönderdiysem) tekrar işleme (zaten keyDown'da işledik)
+            if (msg.from_player_id !== miniData.playerId) {
+                HP.setKey(msg.target_pid, msg.key, msg.pressed);
+            }
         }
         return;
     }
@@ -1968,6 +1977,61 @@ function openMiniRoomSettings() {
 }
 
 // ========================================
+// LOCAL HP BAŞLATMA (Host + Misafir)
+// ========================================
+function startMiniLocalPhysicsIfNeeded() {
+    if (typeof HP === 'undefined') return false;
+    if (!miniData.playerId || HP.running) return true;
+    if (!miniData.players || miniData.players.length === 0) return false;
+
+    const isHost = miniData.playerId === 1;
+    const settings = {
+        goalTarget: miniData.goalTarget,
+        matchDuration: miniData.matchDuration,
+        gameSpeed: miniData.gameSpeed,
+        allowPlase: miniData.allowPlase !== false,
+        ballStick: miniData.ballStick !== false,
+        sprintEnabled: miniData.sprintEnabled !== false,
+        kickoffTimeout: miniData.kickoffTimeout || 10,
+        advancedEnabled: false,
+        advanced: null
+    };
+
+    const playerList = miniData.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        team: p.team,
+        is_split_slave: p.is_split_slave || false
+    }));
+
+    HP.onStateUpdate = null;
+    HP.onGoal = null;
+    HP.onGameOver = null;
+
+    if (isHost) {
+        console.log("[HOST-PHYSICS] Host fizik motoru kuruluyor...");
+        HP.onStateUpdate = (stateMsg) => {
+            stateMsg._local = true;
+            handleMiniMessage(stateMsg);
+
+            const cleanState = Object.assign({}, stateMsg);
+            delete cleanState._local;
+            send({ type: "mini_host_state", state: cleanState });
+        };
+
+        HP.onGameOver = (winData) => {
+            handleMiniMessage(winData);
+            send({ type: "mini_host_state", state: winData });
+        };
+    } else {
+        console.log("[GUEST-HP] Misafir local fizik motoru başlatıldı ✓");
+    }
+
+    HP.startGame(settings, playerList);
+    return true;
+}
+
+// ========================================
 // OYUN BAŞLATMA
 // ========================================
 function startMiniGame() {
@@ -1975,11 +2039,8 @@ function startMiniGame() {
     miniData.keysPressed = {};
     miniData.keysPressed2 = {};
     
-    // ✨ HOST ise kendi fizik motorunu başlat
-    if (miniData.playerId === 1 && typeof HP !== 'undefined') {
-        console.log("[HOST-PHYSICS] Host olarak fizik motoru başlatılıyor...");
-        
-        // ✨ Chrome arka planda sekmeyi yavaşlatmasın (sessiz ses çal - tarayıcı sekmeyi aktif sayar)
+    // ✨ HOST ise sekmeyi canlı tut
+    if (miniData.playerId === 1) {
         if (!miniData._keepAliveAudio) {
             try {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1987,69 +2048,19 @@ function startMiniGame() {
                     const ctx = new AudioCtx();
                     const oscillator = ctx.createOscillator();
                     const gainNode = ctx.createGain();
-                    gainNode.gain.value = 0.0001;  // Neredeyse duyulmaz
+                    gainNode.gain.value = 0.0001;
                     oscillator.connect(gainNode);
                     gainNode.connect(ctx.destination);
-                    oscillator.frequency.value = 20;  // Çok düşük frekans
+                    oscillator.frequency.value = 20;
                     oscillator.start();
                     miniData._keepAliveAudio = { ctx, oscillator };
-                    console.log("[HOST-PHYSICS] Keep-alive audio başlatıldı (sekme arkada da çalışsın)");
                 }
-            } catch(e) {
-                console.warn("[HOST-PHYSICS] Keep-alive audio başlatılamadı:", e);
-            }
+            } catch(e) {}
         }
-        
-        // Ayarlar
-        const settings = {
-            goalTarget: miniData.goalTarget,
-            matchDuration: miniData.matchDuration,
-            gameSpeed: miniData.gameSpeed,
-            allowPlase: miniData.allowPlase !== false,
-            ballStick: miniData.ballStick !== false,
-            sprintEnabled: miniData.sprintEnabled !== false,
-            kickoffTimeout: miniData.kickoffTimeout || 10,  // ✨ Santra süresi
-            advancedEnabled: false,
-            advanced: null
-        };
-        
-        // Oyuncu listesi
-        const playerList = miniData.players.map(p => ({
-            id: p.id, name: p.name, team: p.team, is_split_slave: p.is_split_slave || false
-        }));
-        
-        // Callback: fizik motoru state ürettiğinde bu çalışacak
-        HP.onStateUpdate = (stateMsg) => {
-            // 1) Kendi ekranımda göster
-            stateMsg._local = true;
-            handleMiniMessage(stateMsg);
-            
-            // 2) Backend üzerinden misafirlere yolla
-            // _local flag'ı çıkart (misafir onu kendi _local sanmasın)
-            const cleanState = Object.assign({}, stateMsg);
-            delete cleanState._local;
-            send({
-                type: "mini_host_state",
-                state: cleanState
-            });
-        };
-        
-        HP.onGoal = (goalData) => {
-            console.log("[HOST-PHYSICS] Gol!", goalData);
-        };
-        
-        HP.onGameOver = (winData) => {
-            console.log("[HOST-PHYSICS] Oyun sonu!", winData);
-            handleMiniMessage(winData);
-            // Misafirlere de yolla
-            send({
-                type: "mini_host_state",
-                state: winData
-            });
-        };
-        
-        HP.startGame(settings, playerList);
     }
+    
+    // ✨ Local HP başlatmayı dene (Host veya Guest fark etmez)
+    startMiniLocalPhysicsIfNeeded();
     
     // Skor tablosunu güncelle
     updateMiniHUD();
@@ -2277,9 +2288,12 @@ function stopMiniGame() {
     miniData.keysPressed = {};
     miniData.keysPressed2 = {};
     
-    // ✨ HOST fizik motorunu durdur
-    if (typeof HP !== 'undefined' && HP.running) {
-        HP.stopGame();
+    // ✨ Local fizik motorunu durdur ve callbackleri temizle
+    if (typeof HP !== 'undefined') {
+        HP.onStateUpdate = null;
+        HP.onGoal = null;
+        HP.onGameOver = null;
+        if (HP.running) HP.stopGame();
     }
     
     // ✨ Keep-alive audio kapat
@@ -2340,15 +2354,10 @@ function miniKeyDown(e) {
     
     keyList[key] = true;
     
-    // ✨ HOST ise kendi fizik motoruna da bildir (0 latency)
-    if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
+    // ✨ Local HP'ye işle (host + misafir)
+    if (typeof HP !== 'undefined' && HP.running) {
         const targetPid = (forPlayer === 2 && miniData.splitSlaveId) ? miniData.splitSlaveId : miniData.playerId;
         HP.setKey(targetPid, key, true);
-    }
-    
-    // ✨ MİSAFİR PREDICTION - kendi tuşumu prediction'a bildir
-    if (miniData.predictionActive && forPlayer === 1) {
-        miniData.predictedKeys[key] = true;
     }
     
     // Backend'e gönder
@@ -2378,15 +2387,10 @@ function miniKeyUp(e) {
     
     keyList[key] = false;
     
-    // ✨ HOST ise kendi fizik motoruna da bildir
-    if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
+    // ✨ Local HP'ye işle (host + misafir)
+    if (typeof HP !== 'undefined' && HP.running) {
         const targetPid = (forPlayer === 2 && miniData.splitSlaveId) ? miniData.splitSlaveId : miniData.playerId;
         HP.setKey(targetPid, key, false);
-    }
-    
-    // ✨ MİSAFİR PREDICTION - kendi tuşumu prediction'a bildir
-    if (miniData.predictionActive && forPlayer === 1) {
-        miniData.predictedKeys[key] = false;
     }
     
     const msg = { type: "mini_key", key: key, pressed: false };
@@ -3012,7 +3016,7 @@ function miniRender() {
         ctx.stroke();
     }
     
-    // ✨ COUNTDOWN veya GOL KUTLAMASI overlay
+    // ✨ COUNTDOWN veya GOL KUTLAMASI overlay (server state'inden)
     if (state) {
         if (state.game_state === "countdown" && state.countdown !== null && state.countdown !== undefined) {
             drawCountdownOverlay(ctx, cfg, state.countdown);
@@ -5412,6 +5416,53 @@ function updateMiniPrediction() {
         // Ufak fark → yumuşakça yaklaş (lerp)
         p.x += dx * PRED_LERP_SPEED;
         p.y += dy * PRED_LERP_SPEED;
+    }
+}
+
+// ✨ RECONCILIATION: Yerel HP motorunu, server'dan gelen gerçek veriyle hizala
+function syncLocalHPWithServer() {
+    if (typeof HP === 'undefined' || !HP.running || !HP.room || !HP.room.gameState) return;
+    if (!miniData.gameState || miniData.playerId === 1) return; // Host zaten otorite, sync gerekmez
+
+    const localGS = HP.room.gameState;
+    const serverGS = miniData.gameState;
+
+    // 1) Topu senkronize et (Yumuşak lerp)
+    if (serverGS.ball && localGS.ball) {
+        const dx = serverGS.ball.x - localGS.ball.x;
+        const dy = serverGS.ball.y - localGS.ball.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        if (dist > 150) { // Çok büyük fark varsa ışınla
+            localGS.ball.x = serverGS.ball.x;
+            localGS.ball.y = serverGS.ball.y;
+            localGS.ball.vx = serverGS.ball.vx || 0;
+            localGS.ball.vy = serverGS.ball.vy || 0;
+        } else if (dist > 1) { // Küçük farkları yavaşça düzelt (%15 her frame)
+            localGS.ball.x += dx * 0.15;
+            localGS.ball.y += dy * 0.15;
+        }
+    }
+
+    // 2) Oyuncuları senkronize et
+    if (serverGS.players) {
+        for (const pid in serverGS.players) {
+            const sP = serverGS.players[pid];
+            const lP = localGS.players[pid];
+            if (!lP) continue;
+
+            const dx = sP.x - lP.x;
+            const dy = sP.y - lP.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist > 80) { // Işınla
+                lP.x = sP.x;
+                lP.y = sP.y;
+            } else if (dist > 0.5) { // %20 hızla yaklaş
+                lP.x += dx * 0.2;
+                lP.y += dy * 0.2;
+            }
+        }
     }
 }
 
