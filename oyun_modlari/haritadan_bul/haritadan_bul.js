@@ -24,7 +24,7 @@ let haritaData = {
     roundStarting: false,
     zoom: 1.0,
     minZoom: 1.0,
-    maxZoom: 5.0,
+    maxZoom: 20.0,
     panX: 0,
     panY: 0,
     isPanning: false,
@@ -102,7 +102,7 @@ document.getElementById("createHaritaBtn").onclick = () => {
     localStorage.setItem("playerName", name);
     myName = name;
     
-    const turnSec = parseInt(document.getElementById("haritaTurnSecondsSelect").value) || 30;
+    const turnSec = parseInt(document.getElementById("haritaTurnSecondsSelect").value);
     const difficulty = document.getElementById("haritaDifficultySelect").value || "karisik";
     send({
         type: "harita_create_room",
@@ -144,20 +144,23 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
             {
                 id: "turnSec",
                 label: "⏱️ Tur Süresi",
-                current: haritaData.turnSeconds || 30,
+                current: haritaData.turnSeconds,
                 options: [
                     {value: 15, label: "15 saniye"},
                     {value: 20, label: "20 saniye"},
                     {value: 30, label: "30 saniye"},
                     {value: 45, label: "45 saniye"},
-                    {value: 60, label: "60 saniye"}
+                    {value: 60, label: "60 saniye"},
+                    {value: 90, label: "90 saniye"},
+                    {value: 120, label: "120 saniye"},
+                    {value: 0, label: "♾️ Sınırsız"}
                 ]
             }
         ],
         onSave: (values) => {
             send({
                 type: "harita_update_settings",
-                turn_seconds: parseInt(values.turnSec) || 30,
+                turn_seconds: parseInt(values.turnSec),
                 difficulty: values.difficulty
             });
         }
@@ -258,14 +261,14 @@ function resetHaritaView() {
     applyHaritaTransform();
 }
 
-// Wheel zoom
+// Wheel zoom - ✨ %300 adım
 haritaMapWrapper.addEventListener("wheel", (e) => {
     if (haritaData.currentTurn !== haritaData.playerId) {
         e.preventDefault();
         return;
     }
     e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.3 : -0.3;
+    const delta = e.deltaY < 0 ? 1.0 : -1.0;
     zoomHaritaAt(e.clientX, e.clientY, delta);
     broadcastHaritaView();
 }, { passive: false });
@@ -284,6 +287,7 @@ haritaMapWrapper.addEventListener("mousedown", (e) => {
         haritaData.panStartOffsetX = haritaData.panX;
         haritaData.panStartOffsetY = haritaData.panY;
         haritaMapWrapper.style.cursor = "grabbing";
+        hideHaritaTooltip();
     } else if (e.button === 1) {
         e.preventDefault();
         resetHaritaView();
@@ -314,14 +318,14 @@ window.addEventListener("mouseup", (e) => {
 document.getElementById("haritaZoomIn").onclick = () => {
     if (haritaData.currentTurn !== haritaData.playerId) return;
     const rect = haritaMapWrapper.getBoundingClientRect();
-    zoomHaritaAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 0.3);
+    zoomHaritaAt(rect.left + rect.width / 2, rect.top + rect.height / 2, 1.0);
     broadcastHaritaView();
 };
 
 document.getElementById("haritaZoomOut").onclick = () => {
     if (haritaData.currentTurn !== haritaData.playerId) return;
     const rect = haritaMapWrapper.getBoundingClientRect();
-    zoomHaritaAt(rect.left + rect.width / 2, rect.top + rect.height / 2, -0.3);
+    zoomHaritaAt(rect.left + rect.width / 2, rect.top + rect.height / 2, -1.0);
     broadcastHaritaView();
 };
 
@@ -387,28 +391,56 @@ haritaMapWrapper.addEventListener("mousemove", (e) => {
     const mapX = (rawX - haritaData.panX) / (rect.width * haritaData.zoom);
     const mapY = (rawY - haritaData.panY) / (rect.height * haritaData.zoom);
     
-    // SVG path'ten ülke kodu bul
+    // SVG path'ten ülke bul (tooltip ve fake cursor'ı geçici kapat, sonra aç)
+    const tooltip = document.getElementById("haritaTooltip");
+    const fakeCursor = document.getElementById("haritaFakeCursor");
+    const fakeTooltip = document.getElementById("haritaFakeTooltip");
+    const _tOld = tooltip.style.pointerEvents;
+    const _fcOld = fakeCursor ? fakeCursor.style.pointerEvents : null;
+    const _ftOld = fakeTooltip ? fakeTooltip.style.pointerEvents : null;
+    tooltip.style.pointerEvents = "none";
+    if (fakeCursor) fakeCursor.style.pointerEvents = "none";
+    if (fakeTooltip) fakeTooltip.style.pointerEvents = "none";
+    
     const hovered = document.elementFromPoint(e.clientX, e.clientY);
+    
+    tooltip.style.pointerEvents = _tOld;
+    if (fakeCursor) fakeCursor.style.pointerEvents = _fcOld;
+    if (fakeTooltip) fakeTooltip.style.pointerEvents = _ftOld;
+    
     let countryCode = null;
+    let countryTr = null;
     if (hovered && hovered.tagName === "path") {
-        // id veya class üzerinden eşleştir
         const pathId = hovered.id;
         const pathClass = hovered.className && hovered.className.baseVal;
         for (const [code, cdata] of Object.entries(haritaData.countries)) {
             if (cdata.iso === pathId || cdata.iso === pathClass) {
                 countryCode = code;
+                countryTr = cdata.tr;
                 break;
             }
         }
     }
+    
+    // Tooltip kapalı - ülke adları zaten haritada yazıyor
+    tooltip.classList.add("hidden");
+    
     broadcastHaritaMouseThrottled(mapX, mapY, countryCode);
+});
+
+// ✨ Fare harita dışına çıkarsa rakibe "imleç yok" sinyali gönder
+haritaMapWrapper.addEventListener("mouseleave", (e) => {
+    if (haritaData.currentTurn !== haritaData.playerId) return;
+    broadcastHaritaMouse(-999, -999, null);  // Özel işaret: imleci gizle
 });
 
 // Timer
 function startHaritaTimer(seconds) {
     stopHaritaTimer();
     haritaData.timerSeconds = seconds;
+    haritaData.timerUnlimited = (seconds === 0);
     updateHaritaTimerDisplay();
+    if (haritaData.timerUnlimited) return;
     haritaData.timerInterval = setInterval(() => {
         haritaData.timerSeconds--;
         updateHaritaTimerDisplay();
@@ -425,6 +457,11 @@ function stopHaritaTimer() {
 
 function updateHaritaTimerDisplay() {
     const el = document.getElementById("haritaTimer");
+    if (haritaData.timerUnlimited) {
+        el.textContent = "♾️";
+        el.classList.remove("warning", "danger");
+        return;
+    }
     el.textContent = haritaData.timerSeconds + "s";
     el.classList.remove("warning", "danger");
     if (haritaData.timerSeconds <= 5) el.classList.add("danger");
@@ -442,7 +479,8 @@ function getHaritaPlayerName(id) {
 
 function updateHaritaLobby() {
     if (haritaRoomHelper) { haritaRoomHelper.renderCode(); haritaRoomHelper.renderLink(); }
-    document.getElementById("haritaLobbyTurnSeconds").textContent = haritaData.turnSeconds || 30;
+    const _ts = haritaData.turnSeconds;
+    document.getElementById("haritaLobbyTurnSeconds").textContent = (_ts === 0) ? "♾️" : _ts;
     
     // Zorluk göster
     const diffNames = {
@@ -582,7 +620,7 @@ function flyHaritaToCountry(code) {
     const cdata = haritaData.countries[code];
     const rect = haritaMapWrapper.getBoundingClientRect();
     
-    const targetZoom = 3.5;
+    const targetZoom = 5.0;
     haritaData.zoom = targetZoom;
     
     haritaData.panX = rect.width / 2 - cdata.x * rect.width * targetZoom;
@@ -614,6 +652,9 @@ function renderHaritaMarkers() {
         p.style.cursor = "";
     });
 
+    // ✨ Hangi path'e hangi ülke bağlandı takip et (aynı path'e birden fazla bind olmasın)
+    const boundPaths = new Set();
+
     // Sadece oyundaki ülkeleri yönet
     Object.entries(haritaData.countries).forEach(([code, cdata]) => {
         // SVG'de bu ülkenin path'lerini bul (id veya class)
@@ -626,6 +667,15 @@ function renderHaritaMarkers() {
         }
 
         if (parts.length === 0) return;
+        
+        // ✨ Bu path'e zaten başka ülke bind olmuşsa atla (Galler ↔ İngiltere çakışması)
+        // Öncelik: ilk gelen (COUNTRIES dict'te önce gelen kazanır)
+        // Ama İngiltere için özel exception: Ingiltere kazanmalı
+        const pathKey = cdata.iso;
+        if (boundPaths.has(pathKey)) {
+            return;  // Bu path zaten başka ülkeye bağlanmış, atla
+        }
+        boundPaths.add(pathKey);
 
         parts.forEach(part => {
             // Durum sınıfları
@@ -644,16 +694,13 @@ function renderHaritaMarkers() {
                 part.onclick = (e) => {
                     e.stopPropagation();
                     haritaData.pendingCode = code;
-                    renderHaritaMarkers(); // pending rengi göster
+                    renderHaritaMarkers();
                     document.getElementById("haritaConfirmCountry").textContent = cdata.tr;
                     document.getElementById("haritaConfirmBox").classList.remove("hidden");
                 };
             }
 
-            // Tooltip
-            part.onmouseenter = (e) => showHaritaTooltip(cdata.tr, e);
-            part.onmousemove = (e) => moveHaritaTooltip(e);
-            part.onmouseleave = () => hideHaritaTooltip();
+            // Tooltip artık wrapper'ın mousemove'unda global takip ediliyor
         });
     });
 }
@@ -661,8 +708,9 @@ function renderHaritaMarkers() {
 function showHaritaTooltip(text, e) {
     const tooltip = document.getElementById("haritaTooltip");
     tooltip.textContent = text;
+    tooltip.style.left = (e.clientX + 15) + "px";
+    tooltip.style.top = (e.clientY - 30) + "px";
     tooltip.classList.remove("hidden");
-    moveHaritaTooltip(e);
 }
 
 function moveHaritaTooltip(e) {
@@ -672,13 +720,27 @@ function moveHaritaTooltip(e) {
 }
 
 function hideHaritaTooltip() {
-    document.getElementById("haritaTooltip").classList.add("hidden");
+    const tt = document.getElementById("haritaTooltip");
+    tt.classList.add("hidden");
+    tt.style.display = "";
 }
 
 function renderHaritaAll() {
     updateHaritaTopBar();
     updateHaritaPlayerCard();
     renderHaritaMarkers();
+    // Sıra bende ise fake cursor/tooltip gizle
+    if (haritaData.currentTurn === haritaData.playerId) {
+        const fc = document.getElementById("haritaFakeCursor");
+        const ft = document.getElementById("haritaFakeTooltip");
+        if (fc) { fc.classList.add("hidden"); fc.style.display = "none"; }
+        if (ft) { ft.classList.add("hidden"); ft.style.display = "none"; }
+    } else {
+        const fc = document.getElementById("haritaFakeCursor");
+        const ft = document.getElementById("haritaFakeTooltip");
+        if (fc) fc.style.display = "";
+        if (ft) ft.style.display = "";
+    }
 }
 
 // Mesaj handler wrap
@@ -687,7 +749,7 @@ handleMessage = function(msg) {
     if (msg.type === "harita_room_created" || msg.type === "harita_room_joined") {
         haritaData.playerId = msg.player_id;
         haritaData.roomCode = msg.room_code;
-        haritaData.turnSeconds = msg.turn_seconds || 30;
+        haritaData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 30;
         haritaData.difficulty = msg.difficulty || "karisik";
         haritaData.inGame = true;
         inRoom = true;
@@ -699,7 +761,7 @@ handleMessage = function(msg) {
     if (msg.type === "harita_lobby_update") {
         haritaData.roomCode = msg.room_code;
         haritaData.players = msg.players;
-        haritaData.turnSeconds = msg.turn_seconds || 30;
+        haritaData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 30;
         haritaData.difficulty = msg.difficulty || haritaData.difficulty || "karisik";
         updateHaritaLobby();
         return;
@@ -719,6 +781,21 @@ handleMessage = function(msg) {
         haritaData.pendingCode = null;
         haritaData.lastSelectedCode = null;
         haritaData.lastCorrectCode = null;
+        
+        // ✨ Rakip imleci ve tooltip'i temizle (oyun başında)
+        document.getElementById("haritaFakeCursor").classList.add("hidden");
+        document.getElementById("haritaFakeTooltip").classList.add("hidden");
+        
+        // ✨ Rematch için: önceki popup'ları ve overlay'leri temizle
+        document.getElementById("haritaGameOverBox").classList.add("hidden");
+        document.getElementById("haritaConfirmBox").classList.add("hidden");
+        document.getElementById("haritaCorrectAnswer").classList.add("hidden");
+        hideHaritaBigOverlay();
+        // SVG path'lerini de temizle
+        const allPaths = document.querySelectorAll("#haritaWorldMap path");
+        allPaths.forEach(p => {
+            p.classList.remove("haritaCorrect", "haritaWrong", "haritaPending", "haritaClickable", "haritaHoverSync");
+        });
         
         showScreen("haritaGame");
         resetHaritaView();
@@ -782,12 +859,57 @@ handleMessage = function(msg) {
         applyHaritaTransform();
         return;
     }
+    
+    if (msg.type === "harita_confirm_sync") {
+        // İzleyende popup gösterme - tamamen kapalı
+        return;
+    }
 	
 	if (msg.type === "harita_mouse_sync") {
-        if (msg.player_id === haritaData.playerId) return;
         const cursor = document.getElementById("haritaFakeCursor");
         const tooltip = document.getElementById("haritaFakeTooltip");
         const rect = haritaMapWrapper.getBoundingClientRect();
+        
+        // Sıra bende ise rakip imleci ASLA görünmemeli
+        if (haritaData.currentTurn === haritaData.playerId) {
+            cursor.classList.add("hidden");
+            tooltip.classList.add("hidden");
+            cursor.style.display = "none";
+            tooltip.style.display = "none";
+            // Hover sync'i de temizle
+            document.querySelectorAll("#haritaWorldMap path.haritaHoverSync").forEach(p => {
+                p.classList.remove("haritaHoverSync");
+            });
+            return;
+        }
+        
+        // Kendi mesajım geri geldiyse gösterme
+        if (msg.player_id === haritaData.playerId) return;
+        
+        // ✨ Rakibin hover ettiği ülkeyi highlight et (izleyende de yeşil göster)
+        document.querySelectorAll("#haritaWorldMap path.haritaHoverSync").forEach(p => {
+            p.classList.remove("haritaHoverSync");
+        });
+        if (msg.country && haritaData.countries[msg.country]) {
+            const cdata = haritaData.countries[msg.country];
+            const byId = document.getElementById(cdata.iso);
+            if (byId) {
+                byId.classList.add("haritaHoverSync");
+            } else {
+                const parts = document.querySelectorAll("#haritaWorldMap ." + CSS.escape(cdata.iso));
+                parts.forEach(p => p.classList.add("haritaHoverSync"));
+            }
+        }
+        
+        cursor.style.display = "";
+        tooltip.style.display = "";
+        
+        // ✨ Özel işaret: -999 → fare harita dışı, imleci gizle
+        if (msg.x === -999 && msg.y === -999) {
+            cursor.classList.add("hidden");
+            tooltip.classList.add("hidden");
+            return;
+        }
         
         const localX = msg.x * rect.width * haritaData.zoom + haritaData.panX;
         const localY = msg.y * rect.height * haritaData.zoom + haritaData.panY;
@@ -796,14 +918,8 @@ handleMessage = function(msg) {
         cursor.style.top = localY + "px";
         cursor.classList.remove("hidden");
         
-        if (msg.country && haritaData.countries[msg.country]) {
-            tooltip.textContent = haritaData.countries[msg.country].tr;
-            tooltip.classList.remove("hidden");
-            tooltip.style.left = (rect.left + localX + 15) + "px";
-            tooltip.style.top = (rect.top + localY - 30) + "px";
-        } else {
-            tooltip.classList.add("hidden");
-        }
+        // Fake tooltip kapalı - ülke adları zaten haritada yazıyor
+        tooltip.classList.add("hidden");
         return;
     }
     
@@ -813,6 +929,8 @@ handleMessage = function(msg) {
         haritaData.lastSelectedCode = msg.selected_code;
         haritaData.lastCorrectCode = msg.correct_code;
         stopHaritaTimer();
+        document.getElementById("haritaFakeCursor").classList.add("hidden");
+        document.getElementById("haritaFakeTooltip").classList.add("hidden");
         
         const playerName = getHaritaPlayerName(msg.player_id);
         let statusText = "";

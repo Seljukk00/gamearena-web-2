@@ -11,6 +11,92 @@ from oyun_modlari.kim_milyoner.ai_soru_uretici import generate_questions_async
 # Turnstile secret (Cloudflare)
 TURNSTILE_SECRET = os.getenv("TURNSTILE_SECRET", "")
 
+# ==========================================
+# ✨ SUPABASE - AI SORU HAVUZU
+# ==========================================
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+_supabase_client = None
+
+def get_supabase():
+    """Supabase client'ı lazy init - sadece ihtiyaç olduğunda oluştur"""
+    global _supabase_client
+    if _supabase_client is not None:
+        return _supabase_client
+    
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("[SUPABASE] ⚠️ URL veya KEY tanımsız (.env kontrol et)")
+        return None
+    
+    try:
+        from supabase import create_client
+        _supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("[SUPABASE] ✓ Client oluşturuldu")
+        return _supabase_client
+    except Exception as e:
+        print(f"[SUPABASE] ✗ Client hatası: {e}")
+        return None
+
+
+def supabase_save_question(category, level, question):
+    """AI ürettiği soruyu Supabase'e kaydet (asenkron değil, hızlı)"""
+    client = get_supabase()
+    if not client:
+        return
+    
+    try:
+        # Karışık kategoride target'ı belirle
+        target_cat = "futbol" if category == "karisik" else category
+        
+        # Zaten var mı? (aynı soruyu 2 kez kaydetme)
+        existing = client.table("ai_questions").select("id").eq("soru", question["soru"]).limit(1).execute()
+        if existing.data and len(existing.data) > 0:
+            return  # Zaten var, ekleme
+        
+        # Kaydet
+        client.table("ai_questions").insert({
+            "category": target_cat,
+            "level": level,
+            "soru": question["soru"],
+            "secenekler": question["secenekler"],
+            "cevap": question["cevap"],
+            "used_count": 0
+        }).execute()
+        print(f"[SUPABASE] ✓ Yeni soru kaydedildi: [{target_cat}][{level}]")
+    except Exception as e:
+        print(f"[SUPABASE] ✗ Kaydetme hatası: {e}")
+
+
+def supabase_get_questions(category, level, exclude_soru_list):
+    """Supabase'den kullanıcının görmediği soruları çek"""
+    client = get_supabase()
+    if not client:
+        return []
+    
+    try:
+        target_cat = "futbol" if category == "karisik" else category
+        
+        # Supabase'den tüm bu kategori+level sorularını çek
+        # (karışıksa hem futbol hem genel_kultur)
+        if category == "karisik":
+            response = client.table("ai_questions").select("*").in_("category", ["futbol", "genel_kultur"]).eq("level", level).execute()
+        else:
+            response = client.table("ai_questions").select("*").eq("category", target_cat).eq("level", level).execute()
+        
+        if not response.data:
+            return []
+        
+        # Görmediği soruları filtrele
+        excluded = set(exclude_soru_list) if exclude_soru_list else set()
+        available = [q for q in response.data if q["soru"] not in excluded]
+        
+        print(f"[SUPABASE] {len(available)}/{len(response.data)} kullanılabilir soru [{target_cat}][{level}]")
+        return available
+    except Exception as e:
+        print(f"[SUPABASE] ✗ Sorgu hatası: {e}")
+        return []
+
 
 def verify_turnstile_token(token, remote_ip=""):
     """Cloudflare Turnstile token'ını doğrula"""
@@ -52,8 +138,50 @@ def verify_turnstile_token(token, remote_ip=""):
 
 ML_PARA = [500, 1000, 2000, 3000, 5000, 7500, 15000, 30000, 60000, 125000, 250000, 1000000]
 ML_PARA_STR = ["500", "1.000", "2.000", "3.000", "5.000", "7.500", "15.000", "30.000", "60.000", "125.000", "250.000", "1.000.000"]
-ML_FLOW = ["kolay", "kolay", "orta", "orta", "orta", "zor", "zor", "zor", "zor", "cok_zor", "cok_zor", "cok_zor"]
+# ✨ Karışık için klasik progresif zorluk sırası (12 soruluk)
+ML_FLOW_KARISIK_BASE = ["kolay", "kolay", "orta", "orta", "orta", "zor", "zor", "zor", "zor", "cok_zor", "cok_zor", "cok_zor"]
 ML_TOPLAM_SORU = 12
+ML_ALLOWED_TOTAL_Q = [6, 8, 10, 12, 15, 20, 25]
+
+
+def get_ml_flow(difficulty, total_q=12):
+    """Zorluk seçimine göre N soruluk zorluk dizisini döndür"""
+    if difficulty == "karisik":
+        # Base 12'yi total_q'ya ölçekle
+        base = ML_FLOW_KARISIK_BASE
+        result = []
+        for i in range(total_q):
+            idx = int(i * len(base) / total_q)
+            if idx >= len(base):
+                idx = len(base) - 1
+            result.append(base[idx])
+        return result
+    elif difficulty in ["kolay", "orta", "zor", "cok_zor"]:
+        return [difficulty] * total_q
+    else:
+        return get_ml_flow("karisik", total_q)
+
+
+def get_ml_prize(q_idx, total_q):
+    """Soru index'ine göre ödül miktarını hesapla (12 dışı sayılar için ölçekle)"""
+    if total_q == 12:
+        return ML_PARA[q_idx], ML_PARA_STR[q_idx]
+    # 12'den farklıysa ML_PARA'yı ölçekle
+    idx = int(q_idx * (len(ML_PARA) - 1) / max(1, total_q - 1))
+    if idx >= len(ML_PARA):
+        idx = len(ML_PARA) - 1
+    return ML_PARA[idx], ML_PARA_STR[idx]
+
+
+def get_ml_para_agaci(total_q):
+    """N soruluk oyun için para ağacı string listesi"""
+    if total_q == 12:
+        return ML_PARA_STR[:]
+    result = []
+    for i in range(total_q):
+        _, ps = get_ml_prize(i, total_q)
+        result.append(ps)
+    return result
 
 
 def _handled(room_code, player_id):
@@ -65,28 +193,91 @@ def _not_handled(room_code, player_id):
 
 
 def get_other_player_id(pid):
+    """SADECE 2 kişilik oyunlar için - artık kullanılmıyor"""
     return 2 if pid == 1 else 1
 
 
+def get_next_ml_turn_player(room):
+    """Sıradaki oyuncunun ID'sini döndür (2-5 kişi destekli, round-robin)"""
+    active_ids = sorted(room["players"].keys())
+    if not active_ids:
+        return None
+    current = room.get("ml_current_player", active_ids[0])
+    if current not in active_ids:
+        return active_ids[0]
+    idx = active_ids.index(current)
+    next_idx = (idx + 1) % len(active_ids)
+    return active_ids[next_idx]
+
+
 def ml_pick_question(room, q_idx):
-    """Sorucular önce AI havuzundan, yoksa manuel havuzdan"""
-    level = ML_FLOW[q_idx]
-    played = room.get("ml_played", [])
+    """
+    ✨ Öncelik Sırası:
+    1. Manuel havuz (questions.py)
+    2. Supabase havuzu
+    3. Oda AI havuzu
+    4. Fallback
+    """
+    difficulty = room.get("ml_difficulty", "karisik")
+    total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+    flow = get_ml_flow(difficulty, total_q)
+    # q_idx toplam soruyu geçerse son level
+    if q_idx >= len(flow):
+        level = flow[-1]
+    else:
+        level = flow[q_idx]
+    played = room.get("ml_played", [])  # Bu oyun içinde gösterilenler
+    seen_hashes = room.get("ml_seen_hashes", set())  # Kullanıcının geçmişte gördükleri
+    category = room.get("ml_category", "futbol")
     
-    # AI soruları var mı?
+    # --- 1. MANUEL HAVUZDAN dene (questions.py) ---
+    if category == "karisik":
+        pool = []
+        for cat in ["futbol", "genel_kultur"]:
+            for q in ML_QUESTIONS.get(cat, {}).get(level, []):
+                if q["soru"] not in played and q["soru"] not in seen_hashes:
+                    pool.append(q)
+    else:
+        pool = [q for q in ML_QUESTIONS.get(category, {}).get(level, []) 
+                if q["soru"] not in played and q["soru"] not in seen_hashes]
+
+    if pool:
+        q = random.choice(pool)
+        played.append(q["soru"])
+        room["ml_played"] = played
+        print(f"[ML] Manuel havuzdan seçildi (level={level})")
+        return q
+    
+    # --- 2. SUPABASE havuzundan dene (AI'nın önceden ürettikleri, kalıcı) ---
+    excluded = list(played) + list(seen_hashes)
+    supabase_pool = supabase_get_questions(category, level, excluded)
+    if supabase_pool:
+        q = random.choice(supabase_pool)
+        played.append(q["soru"])
+        room["ml_played"] = played
+        print(f"[ML] Supabase havuzundan seçildi (level={level})")
+        # Formatı düzelt (secenekler zaten liste olmalı)
+        return {
+            "soru": q["soru"],
+            "secenekler": q["secenekler"] if isinstance(q["secenekler"], list) else json.loads(q["secenekler"]),
+            "cevap": q["cevap"]
+        }
+    
+    # --- 3. ODA AI HAVUZUNDAN dene (varsa) ---
     ai_pool = room.get("ml_ai_questions", {})
-    
-    # AI havuzundan dene
     if ai_pool and level in ai_pool:
-        ai_sorular = [q for q in ai_pool[level] if q["soru"] not in played]
+        ai_sorular = [q for q in ai_pool[level] 
+                      if q["soru"] not in played and q["soru"] not in seen_hashes]
         if ai_sorular:
             q = random.choice(ai_sorular)
             played.append(q["soru"])
             room["ml_played"] = played
+            print(f"[ML] Oda AI havuzundan seçildi (level={level})")
+            supabase_save_question(category, level, q)
             return q
     
-    # AI'de yoksa manuel havuzdan
-    category = room.get("ml_category", "futbol")
+    # --- 4. FALLBACK: history dikkate almadan tekrar dene (kullanıcı bu sorulari zaten görmüş ama başka çare yok) ---
+    print(f"[ML] ⚠️ Yeni soru bulunamadı, tekrarlanan soru gösterilebilir (level={level})")
     
     if category == "karisik":
         pool = []
@@ -96,16 +287,16 @@ def ml_pick_question(room, q_idx):
                     pool.append(q)
     else:
         pool = [q for q in ML_QUESTIONS.get(category, {}).get(level, []) if q["soru"] not in played]
-
-    if not pool:
-        room["ml_played"] = []
-        return ml_pick_question(room, q_idx)
-
-    q = random.choice(pool)
-    played.append(q["soru"])
-    room["ml_played"] = played
-    return q
-
+    
+    if pool:
+        q = random.choice(pool)
+        played.append(q["soru"])
+        room["ml_played"] = played
+        return q
+    
+    # Bu oyunda gösterilenleri sıfırla
+    room["ml_played"] = []
+    return ml_pick_question(room, q_idx)
 
 async def ml_turn_timer(room, turn_id, question_no, broadcast):
     try:
@@ -120,11 +311,19 @@ async def ml_turn_timer(room, turn_id, question_no, broadcast):
             return
         if room.get("ml_answered"):
             return
+        if turn_id not in room.get("players", {}):
+            return
 
         print(f"[ML TIMER] Süre doldu, oyuncu {turn_id}")
 
         room["ml_answered"] = True
         q = room["ml_current_q"]
+        
+        q_idx = room.get("ml_q_idx", 0)
+        total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+        prize, _ = get_ml_prize(q_idx, total_q)
+        if turn_id in room["scores"]:
+            room["scores"][turn_id] -= prize
 
         await broadcast(room, {
             "type": "ml_answer_result",
@@ -145,26 +344,38 @@ async def ml_turn_timer(room, turn_id, question_no, broadcast):
 
 
 async def ml_next_turn(room, broadcast):
+    """Sıra bitti → sıradaki oyuncuya geç, gerektiğinde q_idx artır"""
     current_player = room["ml_current_player"]
-    other_player = get_other_player_id(current_player)
-
-    room["ml_player_q_idx"][current_player] += 1
-
-    next_player = other_player
-
-    if room["ml_player_q_idx"][next_player] >= ML_TOPLAM_SORU:
-        if room["ml_player_q_idx"][current_player] >= ML_TOPLAM_SORU:
+    total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+    
+    # Şu anki oyuncunun soru sayacını artır
+    if current_player in room["ml_player_q_idx"]:
+        room["ml_player_q_idx"][current_player] += 1
+    
+    # Sıradaki oyuncuyu bul (round-robin, aktif oyuncular arasında)
+    next_player = get_next_ml_turn_player(room)
+    if next_player is None:
+        await ml_finish(room, broadcast)
+        return
+    
+    # Sıradaki oyuncu total_q'ya ulaştıysa oyun bitti
+    if room["ml_player_q_idx"].get(next_player, 0) >= total_q:
+        # Herkesin sorusu bitti mi?
+        all_done = all(
+            room["ml_player_q_idx"].get(pid, 0) >= total_q
+            for pid in room["players"].keys()
+        )
+        if all_done:
             await ml_finish(room, broadcast)
             return
-        next_player = current_player
-
-    if room["ml_player_q_idx"][next_player] >= ML_TOPLAM_SORU:
-        await ml_finish(room, broadcast)
+        # Bir tur daha at (bu oyuncu bitti ama diğerleri devam)
+        # Sıra atlama: bu oyuncuyu pas geç, sıra bir sonraki oyuncuya
+        room["ml_current_player"] = next_player  # geçici
+        await ml_next_turn(room, broadcast)
         return
 
     q_idx = room["ml_player_q_idx"][next_player]
     q = ml_pick_question(room, q_idx)
-
     q = {
         "soru": q["soru"],
         "secenekler": list(q["secenekler"]),
@@ -176,6 +387,10 @@ async def ml_next_turn(room, broadcast):
     room["ml_current_q"] = q
     room["ml_answered"] = False
     room["ml_removed"] = []
+    
+    difficulty = room.get("ml_difficulty", "karisik")
+    flow = get_ml_flow(difficulty, total_q)
+    prize, prize_str = get_ml_prize(q_idx, total_q)
 
     await broadcast(room, {
         "type": "ml_new_question",
@@ -183,11 +398,12 @@ async def ml_next_turn(room, broadcast):
         "q_idx": q_idx,
         "question": q["soru"],
         "options": q["secenekler"],
-        "prize": ML_PARA[q_idx],
-        "prize_str": ML_PARA_STR[q_idx],
-        "level": ML_FLOW[q_idx],
+        "prize": prize,
+        "prize_str": prize_str,
+        "level": flow[q_idx] if q_idx < len(flow) else flow[-1],
         "scores": room["scores"],
-        "jokers": room["ml_jokers"]
+        "jokers": room["ml_jokers"],
+        "total_questions": total_q
     })
 
     old_task = room.get("ml_task")
@@ -198,60 +414,54 @@ async def ml_next_turn(room, broadcast):
 
 async def ml_finish(room, broadcast):
     room["phase"] = "over"
-    s1 = room["scores"][1]
-    s2 = room["scores"][2]
-
-    if s1 > s2:
-        winner = 1
-    elif s2 > s1:
-        winner = 2
-    else:
-        winner = 0
+    
+    # Sıralama (yüksekten alçağa)
+    sorted_scores = sorted(room["scores"].items(), key=lambda x: -x[1])
+    ranking = []
+    for pid, score in sorted_scores:
+        pname = "?"
+        if pid in room["players"]:
+            pname = room["players"][pid]["name"]
+        elif pid in room.get("left_players", {}):
+            pname = room["left_players"][pid]
+        ranking.append({"player_id": pid, "name": pname, "score": score})
+    
+    winner_id = ranking[0]["player_id"] if ranking else 0
+    # Beraberlik
+    if len(ranking) >= 2 and ranking[0]["score"] == ranking[1]["score"]:
+        winner_id = 0
 
     await broadcast(room, {
         "type": "ml_game_over",
         "scores": room["scores"],
-        "winner_id": winner
+        "winner_id": winner_id,
+        "ranking": ranking
     })
 
 
 async def start_ml_game(room, safe_send, broadcast):
     room["phase"] = "playing"
-    room["scores"] = {1: 0, 2: 0}
+    active_ids = sorted(room["players"].keys())
+    total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+    
+    room["scores"] = {pid: 0 for pid in active_ids}
     room["ml_played"] = []
-    room["ml_player_q_idx"] = {1: 0, 2: 0}
+    room["ml_player_q_idx"] = {pid: 0 for pid in active_ids}
     room["ml_answered"] = False
     room["ml_removed"] = []
+    room["left_players"] = {}
+    if "ml_seen_hashes" not in room:
+        room["ml_seen_hashes"] = set()
     room["ml_jokers"] = {
-        1: {"fifty": True, "audience": True, "phone": True},
-        2: {"fifty": True, "audience": True, "phone": True}
+        pid: {"fifty": True, "audience": True, "phone": True}
+        for pid in active_ids
     }
     
-    # AI hazır değilse birazcık bekle
-    if not room.get("ml_ai_ready") and room.get("ml_ai_generation_task"):
-        print(f"[ML] AI hala hazır değil, bekleniyor...")
-        
-        for pid, pdata in room["players"].items():
-            await safe_send(pdata["ws"], {
-                "type": "ml_loading",
-                "message": "⏳ Sorular hazırlanıyor, birazdan başlıyor..."
-            })
-        
-        # AI task'ının bitmesini bekle (maks 10 saniye)
-        try:
-            await asyncio.wait_for(room["ml_ai_generation_task"], timeout=10.0)
-        except asyncio.TimeoutError:
-            print(f"[ML] AI timeout, manuel sorularla devam")
-    
-    if room.get("ml_ai_ready"):
-        print(f"[ML] ✓ AI soruları kullanılacak")
-    else:
-        print(f"[ML] Manuel sorular kullanılacak")
+    print(f"[ML] Oyun başlıyor - Oyuncu: {len(active_ids)}, Soru: {total_q}")
 
-    first_player = 1
+    first_player = active_ids[0]
     q_idx = 0
     q = ml_pick_question(room, q_idx)
-
     q = {
         "soru": q["soru"],
         "secenekler": list(q["secenekler"]),
@@ -261,6 +471,11 @@ async def start_ml_game(room, safe_send, broadcast):
     room["ml_current_player"] = first_player
     room["ml_q_idx"] = q_idx
     room["ml_current_q"] = q
+    
+    difficulty = room.get("ml_difficulty", "karisik")
+    flow = get_ml_flow(difficulty, total_q)
+    prize, prize_str = get_ml_prize(q_idx, total_q)
+    para_agaci = get_ml_para_agaci(total_q)
 
     players = [
         {"id": pid, "name": pdata["name"]}
@@ -278,12 +493,14 @@ async def start_ml_game(room, safe_send, broadcast):
             "q_idx": q_idx,
             "question": q["soru"],
             "options": q["secenekler"],
-            "prize": ML_PARA[q_idx],
-            "prize_str": ML_PARA_STR[q_idx],
-            "level": ML_FLOW[q_idx],
+            "prize": prize,
+            "prize_str": prize_str,
+            "level": flow[q_idx] if q_idx < len(flow) else flow[-1],
             "scores": room["scores"],
             "jokers": room["ml_jokers"],
-            "para_agaci": ML_PARA_STR
+            "para_agaci": para_agaci,
+            "total_questions": total_q,
+            "max_players": room.get("ml_max_players", 2)
         })
 
     room["ml_task"] = asyncio.create_task(ml_turn_timer(room, first_player, q_idx, broadcast))
@@ -294,15 +511,18 @@ async def send_ml_lobby_update(room, broadcast):
         {"id": pid, "name": pdata["name"]}
         for pid, pdata in sorted(room["players"].items())
     ]
+    max_players = room.get("ml_max_players", 2)
     await broadcast(room, {
         "type": "ml_lobby_update",
         "room_code": room["code"],
         "players": players,
-        "can_start": len(room["players"]) == 2,
+        "can_start": len(room["players"]) == max_players,
         "category": room.get("ml_category", "futbol"),
         "difficulty": room.get("ml_difficulty", "karisik"),
         "turn_seconds": room.get("turn_seconds", 60),
-        "ai_ready": room.get("ml_ai_ready", False)
+        "ai_ready": room.get("ml_ai_ready", False),
+        "max_players": max_players,
+        "total_questions": room.get("ml_total_questions", ML_TOPLAM_SORU)
     })
 
 
@@ -346,10 +566,22 @@ async def _background_generate_ai_questions(room, broadcast):
             room["ml_ai_questions"] = ai_questions
             room["ml_ai_ready"] = True
             print(f"[ML BG] ✓ AI soruları hazır!")
+            
+            # ✨ SUPABASE'E DE KAYDET (kalıcı olsun, ileride kullanılsın)
+            saved_count = 0
+            for level, questions in ai_questions.items():
+                for q in questions:
+                    try:
+                        supabase_save_question(category, level, q)
+                        saved_count += 1
+                    except Exception as e:
+                        print(f"[ML BG] Supabase kayıt hatası: {e}")
+            print(f"[ML BG] ✓ {saved_count} soru Supabase'e kaydedildi")
         else:
+            # ✨ AI başarısız olsa bile havuz hazır (questions.py + Supabase var)
             room["ml_ai_questions"] = {}
-            room["ml_ai_ready"] = False
-            print(f"[ML BG] ✗ AI başarısız, manuel sorular kullanılacak")
+            room["ml_ai_ready"] = True
+            print(f"[ML BG] ✗ AI başarısız, ama manuel havuz + Supabase kullanılabilir → HAZIR")
         
         # Lobby'yi güncelle (AI hazır olduğunu bildir)
         if room.get("phase") == "lobby":
@@ -387,6 +619,8 @@ async def handle_milyoner_message(
         difficulty = (data.get("difficulty") or "karisik").strip()
         turn_seconds_raw = data.get("turn_seconds", 60)
         turnstile_token = data.get("turnstile_token", "")
+        max_players_raw = data.get("max_players", 2)
+        total_q_raw = data.get("total_questions", ML_TOPLAM_SORU)
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -420,6 +654,20 @@ async def handle_milyoner_message(
         except:
             ml_turn_seconds = 60
 
+        try:
+            max_players = int(max_players_raw)
+            if max_players not in [2, 3, 4, 5]:
+                max_players = 2
+        except:
+            max_players = 2
+
+        try:
+            total_q = int(total_q_raw)
+            if total_q not in ML_ALLOWED_TOTAL_Q:
+                total_q = ML_TOPLAM_SORU
+        except:
+            total_q = ML_TOPLAM_SORU
+
         current_room_code = make_room_code()
         current_player_id = 1
 
@@ -431,8 +679,10 @@ async def handle_milyoner_message(
             "turn_seconds": ml_turn_seconds,
             "ml_category": category,
             "ml_difficulty": difficulty,
+            "ml_max_players": max_players,
+            "ml_total_questions": total_q,
             "ml_played": [],
-            "ml_player_q_idx": {1: 0, 2: 0},
+            "ml_player_q_idx": {},
             "ml_current_player": 1,
             "ml_q_idx": 0,
             "ml_current_q": None,
@@ -442,11 +692,9 @@ async def handle_milyoner_message(
             "ml_ai_questions": {},
             "ml_ai_ready": False,
             "ml_ai_generation_task": None,
-            "ml_jokers": {
-                1: {"fifty": True, "audience": True, "phone": True},
-                2: {"fifty": True, "audience": True, "phone": True}
-            },
-            "scores": {1: 0, 2: 0}
+            "ml_jokers": {},
+            "scores": {},
+            "left_players": {}
         }
 
         await safe_send(websocket, {
@@ -455,15 +703,18 @@ async def handle_milyoner_message(
             "player_id": 1,
             "category": category,
             "difficulty": difficulty,
-            "turn_seconds": ml_turn_seconds
+            "turn_seconds": ml_turn_seconds,
+            "max_players": max_players,
+            "total_questions": total_q
         })
         await send_ml_lobby_update(rooms[current_room_code], broadcast)
         
-        # 🤖 AI sorularını ARKA PLANDA üretmeye başla
+        # ✨ Manuel havuz + Supabase yeterli, AI'yı SADECE oyun sırasında ihtiyaç olursa çağırırız
+        # (Böylece oda hemen hazır olur, kullanıcı Start basabilir)
         room_ref = rooms[current_room_code]
-        room_ref["ml_ai_generation_task"] = asyncio.create_task(
-            _background_generate_ai_questions(room_ref, broadcast)
-        )
+        room_ref["ml_ai_ready"] = True  # Havuz hazır
+        room_ref["ml_ai_questions"] = {}
+        print(f"[ML] Oda hazır, Start basılabilir (AI ihtiyaç anında devreye girer)")
         
         return _handled(current_room_code, current_player_id)
 
@@ -483,11 +734,15 @@ async def handle_milyoner_message(
         if room.get("mode") != "kim_milyoner":
             await safe_send(websocket, {"type": "error", "message": "Bu oda farklı bir mod için."})
             return _handled(current_room_code, current_player_id)
-        if len(room["players"]) >= 2:
-            await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+        
+        max_players = room.get("ml_max_players", 2)
+        if len(room["players"]) >= max_players:
+            await safe_send(websocket, {"type": "error", "message": f"Oda dolu ({max_players}/{max_players})."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Oyun zaten başlamış."})
             return _handled(current_room_code, current_player_id)
         
-        # ✨ Aynı isim var mı? (case-insensitive)
         existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
         if name.lower().strip() in existing_names:
             await safe_send(websocket, {
@@ -496,17 +751,30 @@ async def handle_milyoner_message(
             })
             return _handled(current_room_code, current_player_id)
 
+        # Boş slot bul
+        used_ids = set(room["players"].keys())
+        new_pid = None
+        for pid in range(1, max_players + 1):
+            if pid not in used_ids:
+                new_pid = pid
+                break
+        if new_pid is None:
+            await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+            return _handled(current_room_code, current_player_id)
+
         current_room_code = join_code
-        current_player_id = 2
-        room["players"][2] = {"ws": websocket, "name": name}
-        room["phase"] = "lobby"
+        current_player_id = new_pid
+        room["players"][new_pid] = {"ws": websocket, "name": name}
 
         await safe_send(websocket, {
             "type": "ml_room_joined",
             "room_code": current_room_code,
-            "player_id": 2,
+            "player_id": new_pid,
             "category": room.get("ml_category", "futbol"),
-            "turn_seconds": room.get("turn_seconds", 60)
+            "difficulty": room.get("ml_difficulty", "karisik"),
+            "turn_seconds": room.get("turn_seconds", 60),
+            "max_players": max_players,
+            "total_questions": room.get("ml_total_questions", ML_TOPLAM_SORU)
         })
         await send_ml_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -535,7 +803,35 @@ async def handle_milyoner_message(
         except:
             new_turn_sec = 60
 
+        try:
+            new_max = int(data.get("max_players", room.get("ml_max_players", 2)))
+            if new_max not in [2, 3, 4, 5]:
+                new_max = room.get("ml_max_players", 2)
+            if new_max < len(room["players"]):
+                new_max = room.get("ml_max_players", 2)
+        except:
+            new_max = room.get("ml_max_players", 2)
+
+        try:
+            new_total_q = int(data.get("total_questions", room.get("ml_total_questions", ML_TOPLAM_SORU)))
+            if new_total_q not in ML_ALLOWED_TOTAL_Q:
+                new_total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+        except:
+            new_total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+
+        new_cat = (data.get("category") or room.get("ml_category", "futbol")).strip()
+        if new_cat not in ["futbol", "genel_kultur", "karisik"]:
+            new_cat = room.get("ml_category", "futbol")
+
+        new_diff = (data.get("difficulty") or room.get("ml_difficulty", "karisik")).strip()
+        if new_diff not in ["kolay", "orta", "zor", "cok_zor", "karisik"]:
+            new_diff = room.get("ml_difficulty", "karisik")
+
         room["turn_seconds"] = new_turn_sec
+        room["ml_max_players"] = new_max
+        room["ml_total_questions"] = new_total_q
+        room["ml_category"] = new_cat
+        room["ml_difficulty"] = new_diff
 
         await send_ml_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -545,9 +841,21 @@ async def handle_milyoner_message(
         if current_player_id != 1:
             await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
             return _handled(current_room_code, current_player_id)
-        if len(room["players"]) != 2:
-            await safe_send(websocket, {"type": "error", "message": "2 oyuncu gerekli."})
+        max_players = room.get("ml_max_players", 2)
+        if len(room["players"]) != max_players:
+            await safe_send(websocket, {"type": "error", "message": f"{max_players} oyuncu gerekli."})
             return _handled(current_room_code, current_player_id)
+        
+        # ✨ Her iki oyuncudan da seen_hashes al ve birleştir
+        # (Frontend'den gelen seen_hashes host'un, ama misafirinki de dahil edilmeli)
+        # Şimdilik sadece host'un history'sini kullan
+        seen_hashes = data.get("seen_hashes", [])
+        if isinstance(seen_hashes, list):
+            room["ml_seen_hashes"] = set(seen_hashes)
+            print(f"[ML] Host history: {len(seen_hashes)} soru dışlanacak")
+        else:
+            room["ml_seen_hashes"] = set()
+        
         await start_ml_game(room, safe_send, broadcast)
         return _handled(current_room_code, current_player_id)
 
@@ -575,6 +883,9 @@ async def handle_milyoner_message(
         q_idx = room.get("ml_q_idx", 0)
         if correct:
             room["scores"][current_player_id] += ML_PARA[q_idx]
+        else:
+            # ✨ Yanlış cevap → soru değeri kadar - puan
+            room["scores"][current_player_id] -= ML_PARA[q_idx]
 
         room["ml_answered"] = True
 
@@ -710,16 +1021,77 @@ async def handle_milyoner_message(
             return _handled(current_room_code, current_player_id)
 
         return _handled(current_room_code, current_player_id)
-
+        
+    # ---------- TELEFON POPUP GÖSTER (relay) ----------
+    if msg_type == "ml_phone_popup_show":
+        if room.get("phase") != "playing":
+            return _handled(current_room_code, current_player_id)
+        # Sadece oynayan gönderebilir
+        if room.get("ml_current_player") != current_player_id:
+            return _handled(current_room_code, current_player_id)
+        
+        # Diğer oyunculara (izleyicilere) ilet
+        contacts = data.get("contacts", [])
+        for pid, pdata in room["players"].items():
+            if pid != current_player_id:
+                await safe_send(pdata["ws"], {
+                    "type": "ml_phone_popup_show",
+                    "contacts": contacts,
+                    "player_id": current_player_id
+                })
+        return _handled(current_room_code, current_player_id)
+    
+    # ---------- TELEFON KİŞİ SEÇİLDİ (relay) ----------
+    if msg_type == "ml_phone_contact_selected":
+        if room.get("phase") != "playing":
+            return _handled(current_room_code, current_player_id)
+        if room.get("ml_current_player") != current_player_id:
+            return _handled(current_room_code, current_player_id)
+        
+        # Diğer oyunculara (izleyicilere) hangi kişi seçildiğini bildir
+        contact_index = data.get("contact_index", 0)
+        for pid, pdata in room["players"].items():
+            if pid != current_player_id:
+                await safe_send(pdata["ws"], {
+                    "type": "ml_phone_contact_selected",
+                    "contact_index": contact_index,
+                    "player_id": current_player_id
+                })
+        return _handled(current_room_code, current_player_id)
+    
     # ---------- REMATCH ----------
     if msg_type == "ml_rematch":
         if current_player_id != 1:
             await safe_send(websocket, {"type": "error", "message": "Sadece host tekrar başlatabilir."})
             return _handled(current_room_code, current_player_id)
-        if len(room["players"]) != 2:
-            await safe_send(websocket, {"type": "error", "message": "2 oyuncu gerekli."})
+        if len(room["players"]) < 2:
             return _handled(current_room_code, current_player_id)
+        
+        # Rematch'te odada kaç kişi varsa onlarla başla
+        room["ml_max_players"] = len(room["players"])
+        
+        seen_hashes = data.get("seen_hashes", [])
+        if isinstance(seen_hashes, list):
+            room["ml_seen_hashes"] = set(seen_hashes)
+        
         await start_ml_game(room, safe_send, broadcast)
+        return _handled(current_room_code, current_player_id)
+
+    # ---------- BACK TO LOBBY ----------
+    if msg_type == "ml_back_to_lobby":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
+            return _handled(current_room_code, current_player_id)
+        
+        room["phase"] = "lobby"
+        room["ml_max_players"] = len(room["players"])
+        
+        old_task = room.get("ml_task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+        
+        await broadcast(room, {"type": "ml_back_to_lobby"})
+        await send_ml_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
 
     return _handled(current_room_code, current_player_id)

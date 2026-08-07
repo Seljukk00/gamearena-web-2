@@ -10,11 +10,34 @@ import time
 # ==========================================
 # FİZİK SABİTLERİ
 # ==========================================
-FIELD_WIDTH = 1000   # ✨ 800 → 1000
-FIELD_HEIGHT = 500   # ✨ 400 → 500
+FIELD_WIDTH = 1000   # ✨ Default (1v1) - odaya göre değişir
+FIELD_HEIGHT = 500   # ✨ Default (1v1) - odaya göre değişir
 PLAYER_RADIUS = 20
 BALL_RADIUS = 12
-GOAL_WIDTH = 180     # ✨ Kale genişletildi (160 → 180)
+GOAL_WIDTH = 180     # ✨ Default (1v1) - odaya göre değişir
+
+# ✨ Oyuncu sayısına göre saha boyutları
+# Anahtar: player_count (2=1v1, 4=2v2, 6=3v3, 8=4v4, 10=5v5)
+FIELD_SIZES = {
+    2:  {"width": 1000, "height": 500, "goal_width": 180},   # 1v1 - mevcut
+    4:  {"width": 1200, "height": 600, "goal_width": 200},   # 2v2
+    6:  {"width": 1400, "height": 700, "goal_width": 220},   # 3v3
+    8:  {"width": 1600, "height": 800, "goal_width": 240},   # 4v4
+    10: {"width": 1800, "height": 900, "goal_width": 260},   # 5v5
+}
+
+def get_field_size(player_count):
+    """Oyuncu sayısına göre saha boyutlarını döndür"""
+    return FIELD_SIZES.get(player_count, FIELD_SIZES[2])
+
+def get_field_dims(room):
+    """Odadan alan boyutlarını al (dinamik)"""
+    return {
+        "width": room.get("field_width", FIELD_WIDTH),
+        "height": room.get("field_height", FIELD_HEIGHT),
+        "goal_width": room.get("field_goal_width", GOAL_WIDTH)
+    }
+
 GOAL_Y_TOP = (FIELD_HEIGHT - GOAL_WIDTH) / 2  # 135
 GOAL_Y_BOTTOM = GOAL_Y_TOP + GOAL_WIDTH  # 265
 
@@ -95,6 +118,7 @@ async def send_minifutbol_lobby_update(room, broadcast):
             "in_lobby": pdata.get("in_lobby", False)  # ✨ Lobide bekleyen mi?
         })
     
+    _fd_lobby = get_field_dims(room)
     msg = {
         "type": "mini_lobby_update",
         "room_code": room["room_code"],
@@ -104,14 +128,14 @@ async def send_minifutbol_lobby_update(room, broadcast):
         "goal_target": room.get("goal_target", 3),
         "match_duration": room.get("match_duration", 180),
         "game_speed": room.get("game_speed", "normal"),
-        "split_screen": room.get("split_screen", False),
-        "split_owner": room.get("split_owner"),
-        "split_slave_id": room.get("split_slave_id"),
         "allow_plase": room.get("allow_plase", True),
         "ball_stick": room.get("ball_stick", True),
         "sprint_enabled": room.get("sprint_enabled", True),
-        "player_count": room.get("player_count", 2),  # ✨ Oyuncu sayısı
-        "kickoff_timeout": room.get("kickoff_timeout", 10)  # ✨ Santra süresi (sn)
+        "player_count": room.get("player_count", 2),
+        "kickoff_timeout": room.get("kickoff_timeout", 10),
+        "field_width": _fd_lobby["width"],
+        "field_height": _fd_lobby["height"],
+        "field_goal_width": _fd_lobby["goal_width"]
     }
     await broadcast(room, msg)
 
@@ -129,26 +153,47 @@ def reset_player_stats(room):
 
 
 def init_game_state(room):
-    """Oyun için başlangıç fizik durumu - takımlarda kim varsa"""
+    """Oyun için başlangıç fizik durumu - TÜM takım oyuncuları sahada"""
     now = time.time()
     
-    # ✨ Kırmızı ve mavi takımdan ilk oyuncuları al
-    red_players = [(pid, p) for pid, p in room["players"].items() if p.get("team") == "red"]
-    blue_players = [(pid, p) for pid, p in room["players"].items() if p.get("team") == "blue"]
+    # ✨ Odanın saha boyutlarını al
+    fd = get_field_dims(room)
+    fw = fd["width"]
+    fh = fd["height"]
+    spawn_offset = fw * 0.2  # Duvardan %20 içeride spawn
     
-    # ✨ Sadece gerçekten takımda olan oyuncuları al (yoksa None)
-    red_pid = red_players[0][0] if red_players else None
-    blue_pid = blue_players[0][0] if blue_players else None
+    # ✨ TÜM kırmızı ve mavi takım oyuncularını al
+    red_players = [pid for pid, p in room["players"].items() if p.get("team") == "red"]
+    blue_players = [pid for pid, p in room["players"].items() if p.get("team") == "blue"]
+    red_players.sort()
+    blue_players.sort()
     
-    # Sahada oynayanları kaydet
-    room["active_red_player"] = red_pid
-    room["active_blue_player"] = blue_pid
+    # Sahada oynayanları kaydet (backward compat: ilk oyuncular)
+    room["active_red_player"] = red_players[0] if red_players else None
+    room["active_blue_player"] = blue_players[0] if blue_players else None
+    room["active_red_players"] = red_players  # ✨ TÜM liste
+    room["active_blue_players"] = blue_players  # ✨ TÜM liste
     
-    # ✨ Sadece takımı olan oyuncuları game_state'e ekle
+    # ✨ Y ekseninde dağılım hesapla
+    def calc_y_positions(count, height):
+        """N oyuncuyu Y ekseninde eşit dağıt"""
+        if count == 1:
+            return [height / 2]
+        # 0.15 ile 0.85 arası eşit dağılım
+        top = height * 0.15
+        bottom = height * 0.85
+        step = (bottom - top) / (count - 1)
+        return [top + i * step for i in range(count)]
+    
+    red_ys = calc_y_positions(len(red_players), fh)
+    blue_ys = calc_y_positions(len(blue_players), fh)
+    
     players_dict = {}
-    if red_pid is not None:
-        players_dict[red_pid] = {
-            "x": 200, "y": FIELD_HEIGHT / 2,
+    # Tüm kırmızı oyuncuları ekle
+    for i, pid in enumerate(red_players):
+        players_dict[pid] = {
+            "x": spawn_offset,
+            "y": red_ys[i],
             "vx": 0, "vy": 0,
             "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
             "last_kick_time": 0,
@@ -156,9 +201,11 @@ def init_game_state(room):
             "last_frame_time": 0,
             "team": "red"
         }
-    if blue_pid is not None:
-        players_dict[blue_pid] = {
-            "x": FIELD_WIDTH - 200, "y": FIELD_HEIGHT / 2,
+    # Tüm mavi oyuncuları ekle
+    for i, pid in enumerate(blue_players):
+        players_dict[pid] = {
+            "x": fw - spawn_offset,
+            "y": blue_ys[i],
             "vx": 0, "vy": 0,
             "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
             "last_kick_time": 0,
@@ -167,12 +214,14 @@ def init_game_state(room):
             "team": "blue"
         }
     
+    print(f"[MINI] init_game_state: {len(red_players)} kırmızı, {len(blue_players)} mavi oyuncu sahada")
+    
     room["game_state"] = {
         "players": players_dict,
         # Top
         "ball": {
-            "x": FIELD_WIDTH / 2,
-            "y": FIELD_HEIGHT / 2,
+            "x": fw / 2,
+            "y": fh / 2,
             "vx": 0,
             "vy": 0,
             "spin": 0  # ✨ Plase kavis değeri (+ saat yönü, - saat yönü tersi)
@@ -204,45 +253,58 @@ def init_game_state(room):
 
 
 def reset_positions(room):
-    """Gol sonrası pozisyonları sıfırla - gol yiyen topa yakın olsun"""
+    """Gol sonrası pozisyonları sıfırla - TÜM takım oyuncuları"""
     gs = room["game_state"]
+    fd = get_field_dims(room)
+    fw = fd["width"]
+    fh = fd["height"]
+    spawn_offset = fw * 0.2
     
     receiving_team = gs.get("kickoff_receiving_team")
     
-    center_x = FIELD_WIDTH / 2
-    center_y = FIELD_HEIGHT / 2
+    center_x = fw / 2
+    center_y = fh / 2
     
-    # ✨ Aktif oyuncuları al (dinamik)
-    red_pid = room.get("active_red_player")
-    blue_pid = room.get("active_blue_player")
+    # ✨ Y ekseninde dağılım
+    def calc_y_positions(count, height):
+        if count == 1:
+            return [height / 2]
+        top = height * 0.15
+        bottom = height * 0.85
+        step = (bottom - top) / (count - 1)
+        return [top + i * step for i in range(count)]
     
-    # Kırmızı oyuncu pozisyonu
-    if red_pid and red_pid in gs["players"]:
-        if receiving_team == 1:
-            gs["players"][red_pid]["x"] = center_x - 50  # topa yakın
-        elif receiving_team == 2:
-            gs["players"][red_pid]["x"] = 150  # uzakta
+    # ✨ Kırmızı takım oyuncularını topla
+    red_pids = sorted([pid for pid, p in gs["players"].items() if p.get("team") == "red"])
+    blue_pids = sorted([pid for pid, p in gs["players"].items() if p.get("team") == "blue"])
+    
+    red_ys = calc_y_positions(len(red_pids), fh)
+    blue_ys = calc_y_positions(len(blue_pids), fh)
+    
+    # KIRMIZI TAKIM
+    for i, pid in enumerate(red_pids):
+        p = gs["players"][pid]
+        # Sadece ilk kırmızı oyuncu topa yaklaşabilir (santra atacaksa)
+        if receiving_team == 1 and i == 0:
+            p["x"] = center_x - 50
         else:
-            gs["players"][red_pid]["x"] = 200  # ilk santra
-        gs["players"][red_pid]["y"] = center_y
-        gs["players"][red_pid]["vx"] = 0
-        gs["players"][red_pid]["vy"] = 0
-        # ✨ Sprint enerjisini sıfırla (yeni tur = full enerji)
-        gs["players"][red_pid]["sprint_energy"] = SPRINT_MAX_ENERGY
+            p["x"] = spawn_offset
+        p["y"] = red_ys[i]
+        p["vx"] = 0
+        p["vy"] = 0
+        p["sprint_energy"] = SPRINT_MAX_ENERGY
     
-    # Mavi oyuncu pozisyonu
-    if blue_pid and blue_pid in gs["players"]:
-        if receiving_team == 2:
-            gs["players"][blue_pid]["x"] = center_x + 50  # topa yakın
-        elif receiving_team == 1:
-            gs["players"][blue_pid]["x"] = FIELD_WIDTH - 150  # uzakta
+    # MAVİ TAKIM
+    for i, pid in enumerate(blue_pids):
+        p = gs["players"][pid]
+        if receiving_team == 2 and i == 0:
+            p["x"] = center_x + 50
         else:
-            gs["players"][blue_pid]["x"] = FIELD_WIDTH - 200  # ilk santra
-        gs["players"][blue_pid]["y"] = center_y
-        gs["players"][blue_pid]["vx"] = 0
-        gs["players"][blue_pid]["vy"] = 0
-        # ✨ Sprint enerjisini sıfırla (yeni tur = full enerji)
-        gs["players"][blue_pid]["sprint_energy"] = SPRINT_MAX_ENERGY
+            p["x"] = fw - spawn_offset
+        p["y"] = blue_ys[i]
+        p["vx"] = 0
+        p["vy"] = 0
+        p["sprint_energy"] = SPRINT_MAX_ENERGY
     
     # Top ortada
     gs["ball"]["x"] = center_x
@@ -454,37 +516,35 @@ def update_physics(room):
             p["y"] = FIELD_HEIGHT + PLAYER_OUT_MARGIN - PLAYER_RADIUS
             p["vy"] = 0
         
-        # ✨ SANTRA KURALI - Her iki takım da kendi yarısında kalır
+        # ✨ SANTRA KURALI - Team bazlı (2-5 kişi destekli)
         if gs.get("kickoff_active"):
-            restricted = gs.get("kickoff_restricted_team")
+            restricted = gs.get("kickoff_restricted_team")  # 1=kırmızı, 2=mavi
             receiving = gs.get("kickoff_receiving_team")
+            p_team = p.get("team")
+            # Team ID (1 veya 2) hesapla
+            p_team_id = 1 if p_team == "red" else (2 if p_team == "blue" else None)
             
-            if pid == restricted:
-                # 🚫 GOL ATAN takım - Santra çemberinin karşı kenarına bile giremez
-                if pid == 1:
-                    # Kırmızı - Sol tarafta kalır, çemberin sol kenarı bile giremez
+            if p_team_id == restricted:
+                # 🚫 GOL ATAN takımdan HERKES - santra çemberine giremez
+                if p_team == "red":
                     boundary_x = CENTER_LINE_X - CENTER_CIRCLE_RADIUS
                     if p["x"] + PLAYER_RADIUS > boundary_x:
                         p["x"] = boundary_x - PLAYER_RADIUS
                         if p["vx"] > 0: p["vx"] = 0
-                elif pid == 2:
-                    # Mavi - Sağ tarafta kalır, çemberin sağ kenarını bile giremez
+                elif p_team == "blue":
                     boundary_x = CENTER_LINE_X + CENTER_CIRCLE_RADIUS
                     if p["x"] - PLAYER_RADIUS < boundary_x:
                         p["x"] = boundary_x + PLAYER_RADIUS
                         if p["vx"] < 0: p["vx"] = 0
             
-            elif pid == receiving:
-                # ⚽ GOL YİYEN (santra atacak) - Kendi yarısı + santra çemberinin karşı tarafına kadar
-                # Topun arkasına geçebilmeli!
-                if pid == 1:
-                    # Kırmızı santra atacak - Çemberin SAĞ kenarına kadar gidebilir
+            elif p_team_id == receiving:
+                # ⚽ GOL YİYEN takımdan HERKES - çemberin karşı tarafına kadar gidebilir
+                if p_team == "red":
                     boundary_x = CENTER_LINE_X + CENTER_CIRCLE_RADIUS
                     if p["x"] + PLAYER_RADIUS > boundary_x:
                         p["x"] = boundary_x - PLAYER_RADIUS
                         if p["vx"] > 0: p["vx"] = 0
-                elif pid == 2:
-                    # Mavi santra atacak - Çemberin SOL kenarına kadar gidebilir
+                elif p_team == "blue":
                     boundary_x = CENTER_LINE_X - CENTER_CIRCLE_RADIUS
                     if p["x"] - PLAYER_RADIUS < boundary_x:
                         p["x"] = boundary_x + PLAYER_RADIUS
@@ -1382,7 +1442,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         goal_target = int(data.get("goal_target", 3))
         match_duration = int(data.get("match_duration", 180))
         game_speed = (data.get("game_speed") or "normal").strip()
-        split_screen_init = bool(data.get("split_screen", False))
         allow_plase_init = bool(data.get("allow_plase", True))
         ball_stick_init = bool(data.get("ball_stick", True))
         sprint_enabled_init = bool(data.get("sprint_enabled", True))
@@ -1422,6 +1481,8 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             game_speed = "normal"
         
         new_code = make_room_code()
+        # ✨ Saha boyutlarını player_count'a göre belirle
+        _fs_create = get_field_size(player_count_init)
         rooms[new_code] = {
             "room_code": new_code,
             "mode": "mini_futbol",
@@ -1435,20 +1496,16 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "max_players": 10,
             "red_team_name": red_team_name_init,
             "blue_team_name": blue_team_name_init,
-            "split_screen": split_screen_init,
-            "split_owner": None,
-            "split_slave_id": None,
             "allow_plase": allow_plase_init,
             "ball_stick": ball_stick_init,
             "sprint_enabled": sprint_enabled_init,
-            "player_count": player_count_init,  # ✨ Toplam takım kişi limiti
-            "kickoff_timeout": kickoff_timeout_init,  # ✨ Santra süresi (sn)
+            "player_count": player_count_init,
+            "field_width": _fs_create["width"],
+            "field_height": _fs_create["height"],
+            "field_goal_width": _fs_create["goal_width"],
+            "kickoff_timeout": kickoff_timeout_init,
             "kicked_names": []
         }
-        
-        # ✨ Split-Screen sadece izin, fake player kontrol ayarlarından eklenecek
-        if split_screen_init:
-            print(f"[MINI SPLIT] Oda oluştururken split izni verildi (fake player yok, kontrol ayarlarından P2 seçilince eklenecek)")
         
         # ✨ Gelişmiş ayarları da uygula (varsa)
         if advanced_enabled_create:
@@ -1557,21 +1614,18 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "match_duration": room["match_duration"],
             "game_speed": room.get("game_speed", "normal"),
             "player_count": room.get("player_count", 2),
-            "kickoff_timeout": room.get("kickoff_timeout", 10),  # ✨ Santra süresi
+            "kickoff_timeout": room.get("kickoff_timeout", 10),
             "mid_game": is_mid_game,
-            "is_paused": is_paused,  # ✨ Pause durumu
+            "is_paused": is_paused,
             "red_team_name": room.get("red_team_name", "Kırmızı Takım"),
             "blue_team_name": room.get("blue_team_name", "Mavi Takım"),
-            "split_screen": room.get("split_screen", False),
-            "split_owner": room.get("split_owner"),
-            "split_slave_id": room.get("split_slave_id"),
-            "field": {
-                "width": FIELD_WIDTH,
-                "height": FIELD_HEIGHT,
+            "field": ({
+                "width": get_field_dims(room)["width"],
+                "height": get_field_dims(room)["height"],
                 "player_radius": PLAYER_RADIUS,
                 "ball_radius": BALL_RADIUS,
-                "goal_width": GOAL_WIDTH
-            } if is_mid_game else None
+                "goal_width": get_field_dims(room)["goal_width"]
+            } if is_mid_game else None)
         })
         
         # ✨ Oyun içindeyse aktif oyuncu isimlerini de gönder (canvas için gerekli)
@@ -1626,7 +1680,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         goal_target = int(data.get("goal_target", 3))
         match_duration = int(data.get("match_duration", 180))
         game_speed = (data.get("game_speed") or "normal").strip()
-        split_screen = bool(data.get("split_screen", False))
         allow_plase = bool(data.get("allow_plase", True))
         ball_stick = bool(data.get("ball_stick", True))
         sprint_enabled = bool(data.get("sprint_enabled", True))
@@ -1656,6 +1709,16 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         room["player_count"] = new_player_count
+        # ✨ Saha boyutlarını yeni player_count'a göre güncelle
+        _fs_update = get_field_size(new_player_count)
+        room["field_width"] = _fs_update["width"]
+        room["field_height"] = _fs_update["height"]
+        room["field_goal_width"] = _fs_update["goal_width"]
+        # ✨ Saha boyutlarını yeni player_count'a göre güncelle
+        _fs_update = get_field_size(new_player_count)
+        room["field_width"] = _fs_update["width"]
+        room["field_height"] = _fs_update["height"]
+        room["field_goal_width"] = _fs_update["goal_width"]
         
         # ✨ Gelişmiş açıksa özgür değer kabul et
         if advanced_enabled:
@@ -1679,7 +1742,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         old_allow_plase = room.get("allow_plase", True)
         old_ball_stick = room.get("ball_stick", True)
         old_sprint_enabled = room.get("sprint_enabled", True)
-        old_split_screen = room.get("split_screen", False)
         old_kickoff_timeout = room.get("kickoff_timeout", 10)
         old_player_count = room.get("player_count", 2)
         
@@ -1733,48 +1795,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             room["advanced_settings"] = None
             print(f"[MINI ADVANCED] Gelişmiş ayarlar KAPALI - klasik preset kullanılıyor")
         
-        # ✨ SPLIT-SCREEN YÖNETİMİ (sadece izin ayarı, fake player oluşturmaz)
-        old_split = old_split_screen  # Yukarıda aldık
-        room["split_screen"] = split_screen
         
-        if split_screen and not old_split:
-            # Split-Screen izni verildi
-            print(f"[MINI SPLIT] İzin verildi (fake player oluşturulmadı, kontrol ayarlarından P2 seçilince eklenecek)")
-        
-        elif not split_screen and old_split:
-            # Split-Screen izni kaldırıldı → varsa fake P2'yi sil
-            slave_id = room.get("split_slave_id")
-            if slave_id and slave_id in room["players"]:
-                del room["players"][slave_id]
-                print(f"[MINI SPLIT] İzin kaldırıldı: fake player (id={slave_id}) silindi")
-                
-                gs = room.get("game_state")
-                if gs and "players" in gs and slave_id in gs["players"]:
-                    del gs["players"][slave_id]
-                
-                if room.get("active_red_player") == slave_id:
-                    room["active_red_player"] = None
-                if room.get("active_blue_player") == slave_id:
-                    room["active_blue_player"] = None
-                
-                if gs:
-                    active_players_info = {}
-                    red_pid = room.get("active_red_player")
-                    blue_pid = room.get("active_blue_player")
-                    if red_pid and red_pid in room["players"]:
-                        active_players_info[str(red_pid)] = room["players"][red_pid]["name"]
-                    if blue_pid and blue_pid in room["players"]:
-                        active_players_info[str(blue_pid)] = room["players"][blue_pid]["name"]
-                    
-                    await broadcast(room, {
-                        "type": "mini_active_players_changed",
-                        "players": active_players_info,
-                        "red_pid": red_pid,
-                        "blue_pid": blue_pid
-                    })
-            
-            room["split_owner"] = None
-            room["split_slave_id"] = None
         
         # ✨ DEĞİŞEN AYARLAR İÇİN TOAST BROADCAST
         changes = []
@@ -1825,12 +1846,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 "msg": f"⏱️ Santra Süresi: {kt_text} olarak değiştirildi"
             })
         
-        # Split-Screen
-        if old_split_screen != split_screen:
-            if split_screen:
-                changes.append({"msg": "🎮 Split-Screen özelliği etkinleştirildi"})
-            else:
-                changes.append({"msg": "🎮 Split-Screen özelliği devre dışı bırakıldı"})
+        
         
         # Falso izni
         if old_allow_plase != allow_plase:
@@ -1887,7 +1903,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        # ✨ Takım kontrolü kaldırıldı - host boş oda ile de başlatabilir (izleyici modunda)
+        # ✨ Oyuncu sayısı kontrolü kaldırıldı - host istediği zaman başlatabilir
         red_players = [p for p in room["players"].values() if p.get("team") == "red"]
         blue_players = [p for p in room["players"].values() if p.get("team") == "blue"]
         total_team_players = len(red_players) + len(blue_players)
@@ -1909,33 +1925,37 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         # ✨ Backend fizik yapmıyor artık, host yapıyor → game_loop başlatma
         room["host_mode"] = True  # Bu odada host authoritative
         
-        # ✨ Sadece sahada oynayan oyuncuların adları
+        # ✨ TÜM takım oyuncularının isimleri
         active_players_info = {}
-        red_pid = room.get("active_red_player")
-        blue_pid = room.get("active_blue_player")
-        if red_pid and red_pid in room["players"]:
-            active_players_info[str(red_pid)] = room["players"][red_pid]["name"]
-        if blue_pid and blue_pid in room["players"]:
-            active_players_info[str(blue_pid)] = room["players"][blue_pid]["name"]
+        red_pids = room.get("active_red_players", [])
+        blue_pids = room.get("active_blue_players", [])
+        # Backward compat: sadece 1 aktif oyuncu varsa da ekle
+        if not red_pids and room.get("active_red_player"):
+            red_pids = [room["active_red_player"]]
+        if not blue_pids and room.get("active_blue_player"):
+            blue_pids = [room["active_blue_player"]]
+        for pid in red_pids + blue_pids:
+            if pid in room["players"]:
+                active_players_info[str(pid)] = room["players"][pid]["name"]
         
+        _fd_start = get_field_dims(room)
         await broadcast(room, {
             "type": "mini_game_started",
             "players": active_players_info,
-            "red_pid": red_pid,
-            "blue_pid": blue_pid,
+            "red_pid": red_pids[0] if red_pids else None,       # backward compat
+            "blue_pid": blue_pids[0] if blue_pids else None,    # backward compat
+            "red_pids": red_pids,   # ✨ TÜM liste
+            "blue_pids": blue_pids, # ✨ TÜM liste
             "red_team_name": room.get("red_team_name", "Kırmızı Takım"),
             "blue_team_name": room.get("blue_team_name", "Mavi Takım"),
             "goal_target": room["goal_target"],
             "match_duration": room["match_duration"],
-            "split_screen": room.get("split_screen", False),        # ✨
-            "split_owner": room.get("split_owner"),                  # ✨
-            "split_slave_id": room.get("split_slave_id"),           # ✨
             "field": {
-                "width": FIELD_WIDTH,
-                "height": FIELD_HEIGHT,
+                "width": _fd_start["width"],
+                "height": _fd_start["height"],
                 "player_radius": PLAYER_RADIUS,
                 "ball_radius": BALL_RADIUS,
-                "goal_width": GOAL_WIDTH
+                "goal_width": _fd_start["goal_width"]
             }
         })
         
@@ -1961,14 +1981,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         
         key = data.get("key")
         pressed = data.get("pressed", False)
-        target_pid = data.get("for_player_id", player_id)
-        
-        # ✨ Güvenlik: Split-screen sahibi mi kontrol et
-        if target_pid != player_id:
-            if player_id != room.get("split_owner"):
-                return {"handled": True, "room_code": room_code, "player_id": player_id}
-            if target_pid != room.get("split_slave_id"):
-                return {"handled": True, "room_code": room_code, "player_id": player_id}
+        target_pid = player_id  # ✨ Split-Screen kaldırıldı, herkes kendi karakterini kontrol eder
         
         # ✨ HOST MODE: Tuşu gönderen hariç herkese ilet
         # Böylece:
@@ -2345,9 +2358,106 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         room["players"][target_pid]["team"] = new_team
         print(f"[MINI] Oyuncu {target_pid} → {new_team} takıma atıldı")
         
-        # ✨ Oyun içindeyse (pause) aktif oyuncuları güncelle
-        is_paused = room.get("phase") == "playing" and room.get("game_state", {}).get("state") == "paused"
-        if is_paused:
+        # ✨ Oyun içindeyse (playing veya pause) aktif oyuncu listesini güncelle
+        is_playing_now = room.get("phase") == "playing"
+        if is_playing_now:
+            gs = room.get("game_state")
+            if gs:
+                # ✨ TÜM takım oyuncularını topla (çoklu oyuncu destekli)
+                red_players_lobby = sorted([pid for pid, p in room["players"].items() if p.get("team") == "red"])
+                blue_players_lobby = sorted([pid for pid, p in room["players"].items() if p.get("team") == "blue"])
+                
+                new_red_pid = red_players_lobby[0] if red_players_lobby else None
+                new_blue_pid = blue_players_lobby[0] if blue_players_lobby else None
+                
+                # ✨ Aktif oyuncu listelerini güncelle
+                room["active_red_player"] = new_red_pid
+                room["active_blue_player"] = new_blue_pid
+                room["active_red_players"] = red_players_lobby
+                room["active_blue_players"] = blue_players_lobby
+                
+                # ✨ Y ekseninde dağılım
+                fd = get_field_dims(room)
+                fw = fd["width"]
+                fh = fd["height"]
+                spawn_offset = fw * 0.2
+                
+                def calc_y_positions(count, height):
+                    if count == 1:
+                        return [height / 2]
+                    top = height * 0.15
+                    bottom = height * 0.85
+                    step = (bottom - top) / (count - 1)
+                    return [top + i * step for i in range(count)]
+                
+                red_ys = calc_y_positions(len(red_players_lobby), fh)
+                blue_ys = calc_y_positions(len(blue_players_lobby), fh)
+                
+                # ✨ Game_state'te olmayan oyuncuları sil (takım dışı olanlar)
+                keep_pids = set(red_players_lobby + blue_players_lobby)
+                for pid in list(gs["players"].keys()):
+                    if pid not in keep_pids:
+                        del gs["players"][pid]
+                        print(f"[MINI] Oyuncu {pid} game_state'ten silindi (takımdan çıktı)")
+                
+                # ✨ Kırmızı oyuncuları ekle/güncelle
+                for i, pid in enumerate(red_players_lobby):
+                    if pid not in gs["players"]:
+                        gs["players"][pid] = {
+                            "x": spawn_offset, "y": red_ys[i],
+                            "vx": 0, "vy": 0,
+                            "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
+                            "last_kick_time": 0,
+                            "sprint_energy": SPRINT_MAX_ENERGY,
+                            "last_frame_time": 0,
+                            "team": "red"
+                        }
+                        print(f"[MINI] Yeni kırmızı oyuncu {pid} eklendi")
+                    else:
+                        gs["players"][pid]["team"] = "red"
+                        gs["players"][pid]["x"] = spawn_offset
+                        gs["players"][pid]["y"] = red_ys[i]
+                        gs["players"][pid]["vx"] = 0
+                        gs["players"][pid]["vy"] = 0
+                
+                # ✨ Mavi oyuncuları ekle/güncelle
+                for i, pid in enumerate(blue_players_lobby):
+                    if pid not in gs["players"]:
+                        gs["players"][pid] = {
+                            "x": fw - spawn_offset, "y": blue_ys[i],
+                            "vx": 0, "vy": 0,
+                            "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
+                            "last_kick_time": 0,
+                            "sprint_energy": SPRINT_MAX_ENERGY,
+                            "last_frame_time": 0,
+                            "team": "blue"
+                        }
+                        print(f"[MINI] Yeni mavi oyuncu {pid} eklendi")
+                    else:
+                        gs["players"][pid]["team"] = "blue"
+                        gs["players"][pid]["x"] = fw - spawn_offset
+                        gs["players"][pid]["y"] = blue_ys[i]
+                        gs["players"][pid]["vx"] = 0
+                        gs["players"][pid]["vy"] = 0
+                
+                # ✨ Herkese bildir - TÜM oyuncu listesi
+                active_players_info = {}
+                for pid in red_players_lobby + blue_players_lobby:
+                    if pid in room["players"]:
+                        active_players_info[str(pid)] = room["players"][pid]["name"]
+                
+                await broadcast(room, {
+                    "type": "mini_active_players_changed",
+                    "players": active_players_info,
+                    "red_pid": new_red_pid,
+                    "blue_pid": new_blue_pid,
+                    "red_pids": red_players_lobby,
+                    "blue_pids": blue_players_lobby
+                })
+        
+        # ✨ Eski pause kodu kaldırıldı (yukarıya taşındı)
+        is_paused = False  # gereksiz ama uyumluluk için
+        if False:  # eski blok devre dışı
             gs = room["game_state"]
             
             # Yeni aktif oyuncuları belirle
@@ -2438,110 +2548,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         
         await send_minifutbol_lobby_update(room, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
-    
-    # ==========================================
-    # SPLIT PLAYER EKLE/KALDIR (kontrol ayarlarından gamepad P2)
-    # ==========================================
-    if msg_type == "mini_add_split_player":
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        room = rooms[room_code]
-        if room.get("mode") != "mini_futbol":
-            return {"handled": False, "room_code": room_code, "player_id": player_id}
-        
-        # ✨ Split izni kontrolü
-        if not room.get("split_screen"):
-            await safe_send(websocket, {"type": "error", "message": "Split-Screen izni yok! Host oda ayarlarından açmalı."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        # ✨ Zaten aynı sahiple split açıksa çıkart
-        if room.get("split_owner") == player_id and room.get("split_slave_id"):
-            await safe_send(websocket, {"type": "error", "message": "Zaten split-screen açık."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        # ✨ Toplam oyuncu limiti kontrolü
-        if len(room["players"]) >= room.get("max_players", 10):
-            await safe_send(websocket, {"type": "error", "message": "Oda dolu! Split açılamaz."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        # Fake P2 oluştur
-        if player_id not in room["players"]:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        owner_name = room["players"][player_id]["name"]
-        # (P2) ekini soy (zaten varsa)
-        base_name = owner_name.replace(" (P2)", "").replace(" (P3)", "").replace(" (P4)", "")
-        fake_name = f"{base_name} (P2)"
-        
-        # Yeni player_id (en küçük boş)
-        new_pid = 2
-        while new_pid in room["players"]:
-            new_pid += 1
-        
-        room["players"][new_pid] = {
-            "name": fake_name,
-            "ws": websocket,
-            "score": 0,
-            "team": "spectator",
-            "is_split_slave": True
-        }
-        room["split_owner"] = player_id
-        room["split_slave_id"] = new_pid
-        print(f"[MINI SPLIT] Fake P2 eklendi: {fake_name} (id={new_pid}, owner={player_id})")
-        
-        await send_minifutbol_lobby_update(room, broadcast)
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-    
-    if msg_type == "mini_remove_split_player":
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        room = rooms[room_code]
-        if room.get("mode") != "mini_futbol":
-            return {"handled": False, "room_code": room_code, "player_id": player_id}
-        
-        # Sadece split owner çıkarabilir
-        if room.get("split_owner") != player_id:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        slave_id = room.get("split_slave_id")
-        if slave_id and slave_id in room["players"]:
-            del room["players"][slave_id]
-            print(f"[MINI SPLIT] Fake P2 (id={slave_id}) silindi (owner={player_id})")
             
-            # Game state'ten de sil
-            gs = room.get("game_state")
-            if gs and "players" in gs and slave_id in gs["players"]:
-                del gs["players"][slave_id]
-            
-            if room.get("active_red_player") == slave_id:
-                room["active_red_player"] = None
-            if room.get("active_blue_player") == slave_id:
-                room["active_blue_player"] = None
-            
-            if gs:
-                active_players_info = {}
-                red_pid = room.get("active_red_player")
-                blue_pid = room.get("active_blue_player")
-                if red_pid and red_pid in room["players"]:
-                    active_players_info[str(red_pid)] = room["players"][red_pid]["name"]
-                if blue_pid and blue_pid in room["players"]:
-                    active_players_info[str(blue_pid)] = room["players"][blue_pid]["name"]
-                
-                await broadcast(room, {
-                    "type": "mini_active_players_changed",
-                    "players": active_players_info,
-                    "red_pid": red_pid,
-                    "blue_pid": blue_pid
-                })
-        
-        room["split_owner"] = None
-        room["split_slave_id"] = None
-        
-        await send_minifutbol_lobby_update(room, broadcast)
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-    
     # ==========================================
     # OYUNCU İSMİ DEĞİŞTİR (kendi ismini veya kendi P2'sini)
     # ==========================================

@@ -250,6 +250,33 @@
 
             <div class="centerBox">
                 <label class="timerLabel">
+                    👥 Oyuncu Sayısı:
+                    <select id="mlMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    ❓ Soru Sayısı:
+                    <select id="mlTotalQuestionsSelect">
+                        <option value="6">6 Soru</option>
+                        <option value="8">8 Soru</option>
+                        <option value="10">10 Soru</option>
+                        <option value="12" selected>12 Soru (Klasik)</option>
+                        <option value="15">15 Soru</option>
+                        <option value="20">20 Soru</option>
+                        <option value="25">25 Soru</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
                     Soru Kategorisi:
                     <select id="mlCategorySelect">
                         <option value="futbol" selected>⚽ Futbol</option>
@@ -343,6 +370,9 @@
                         <option value="30" selected>30 saniye</option>
                         <option value="45">45 saniye</option>
                         <option value="60">60 saniye</option>
+                        <option value="90">90 saniye</option>
+                        <option value="120">120 saniye</option>
+                        <option value="0">♾️ Sınırsız</option>
                     </select>
                 </label>
             </div>
@@ -458,8 +488,11 @@
             <div class="overlayCard">
                 <h2 style="color:#ffd43b;">Ülke Seçimi</h2>
                 <p style="font-size:26px; margin:15px 0; color:#51cf66; font-weight:bold;" id="haritaConfirmCountry">---</p>
-                <p style="font-size:16px; color:#adb5bd;">Bu ülkeyi seçmek istediğine emin misin?</p>
-                <div class="confirmButtons">
+                <p id="haritaConfirmQuestion" style="font-size:16px; color:#adb5bd;">Bu ülkeyi seçmek istediğine emin misin?</p>
+                <p id="haritaConfirmSpectatorMsg" class="hidden" style="font-size:18px; color:#ffa94d; font-weight:bold; margin:15px 0;">
+                    ⏳ Rakip karar veriyor...
+                </p>
+                <div class="confirmButtons" id="haritaConfirmButtons">
                     <button id="haritaConfirmYesBtn" class="bigBtn greenBtn">EVET</button>
                     <button id="haritaConfirmNoBtn" class="bigBtn redBtn">İPTAL</button>
                 </div>
@@ -672,6 +705,32 @@
 
             <div class="centerBox">
                 <label class="timerLabel">
+                    👥 Oyuncu Sayısı:
+                    <select id="takimMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    ❓ Soru Sayısı:
+                    <select id="takimTotalQuestionsSelect">
+                        <option value="6">6 Soru</option>
+                        <option value="9">9 Soru</option>
+                        <option value="12" selected>12 Soru</option>
+                        <option value="15">15 Soru</option>
+                        <option value="20">20 Soru</option>
+                        <option value="25">25 Soru</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
                     Tur Süresi:
                     <select id="takimTurnSecondsSelect">
                         <option value="15">15 saniye</option>
@@ -791,9 +850,10 @@
             </div>
             <ul id="mlPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Kategori: <span id="mlLobbyCategory">Futbol</span></span>
+                <span>👥 <span id="mlLobbyMaxPlayers">2</span> Oyuncu</span>
+                <span style="margin-left: 15px;">Kategori: <span id="mlLobbyCategory">Futbol</span></span>
                 <span style="margin-left: 15px;">Zorluk: <span id="mlLobbyDifficulty">Karışık</span></span>
-                <span style="margin-left: 15px;">Soru: 12</span>
+                <span style="margin-left: 15px;">Soru: <span id="mlLobbyTotalQuestions">12</span></span>
                 <span style="margin-left: 15px;">Süre: <span id="mlLobbyTurnSeconds">60</span> sn</span>
             </div>
             <div class="lobbyInfo" style="margin-top:10px;">
@@ -824,8 +884,9 @@
             </div>
             <ul id="takimPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Zorluk: <span id="takimLobbyDifficulty">Kolay</span></span>
-                <span style="margin-left: 20px;">Soru: 12</span>
+                <span>👥 <span id="takimLobbyMaxPlayers">2</span> Oyuncu</span>
+                <span style="margin-left: 20px;">Zorluk: <span id="takimLobbyDifficulty">Kolay</span></span>
+                <span style="margin-left: 20px;">Soru: <span id="takimLobbyTotalQuestions">12</span></span>
                 <span style="margin-left: 20px;">Süre: <span id="takimLobbyTurnSeconds">60</span> sn</span>
             </div>
             <div class="centerBox">
@@ -839,7 +900,7 @@
         <!-- KİM MİLYONER - OYUN EKRANI -->
         <section id="mlGameScreen" class="hidden">
             <div class="mlTopBar">
-                <div class="mlTopSide">
+                <div class="mlTopSide" id="mlTopSide1">
                     <div id="mlP1Name" class="mlPlayerName scoreMine">---</div>
                     <div id="mlP1Money" class="mlMoneyText">0 TL</div>
                 </div>
@@ -847,7 +908,7 @@
                     <div id="mlTimer" class="mlTimerBig">60</div>
                     <div id="mlScoreLine">0 - 0</div>
                 </div>
-                <div class="mlTopSide" style="text-align:right;">
+                <div class="mlTopSide" id="mlTopSide2" style="text-align:right;">
                     <div id="mlP2Name" class="mlPlayerName scoreOpp">---</div>
                     <div id="mlP2Money" class="mlMoneyText">0 TL</div>
                 </div>
@@ -894,8 +955,21 @@
                 </div>
 
                 <div class="mlRightPanel">
-                    <h3 class="mlParaAgaciTitle">💰 PARA AĞACI</h3>
-                    <div id="mlParaAgaci" class="mlParaAgaci"></div>
+                    <div class="mlRightHeader">
+                        <button id="mlRightPrevBtn" class="mlRightNavBtn" title="Önceki">◀</button>
+                        <h3 class="mlParaAgaciTitle" id="mlRightPanelTitle">💰 PARA AĞACI</h3>
+                        <button id="mlRightNextBtn" class="mlRightNavBtn" title="Sonraki">▶</button>
+                    </div>
+                    <div class="mlRightSlider">
+                        <div class="mlRightSliderInner" id="mlRightSliderInner">
+                            <div class="mlRightPage" id="mlRightPageMoney">
+                                <div id="mlParaAgaci" class="mlParaAgaci"></div>
+                            </div>
+                            <div class="mlRightPage" id="mlRightPageBoard">
+                                <ol id="mlScoreboardList" class="mlScoreboardList"></ol>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -908,7 +982,9 @@
         <div id="mlGameOverBox" class="overlay hidden">
             <div class="overlayCard">
                 <h1 id="mlGameOverTitle"></h1>
-                <p id="mlGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <p id="mlGameOverText" style="font-size:22px; margin:15px 0;"></p>
+
+                <ol id="mlGameOverList" class="mlGameOverList"></ol>
 
                 <!-- Reklam -->
                 <div class="ad-container" style="max-width:400px; margin: 15px auto;">
@@ -925,6 +1001,7 @@
 
                 <div class="confirmButtons">
                     <button id="mlRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="mlBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="mlBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
             </div>
@@ -937,7 +1014,7 @@
                     <div id="takimQuestionNo">Soru 1/12</div>
                     <div id="takimTurnInfo">Sıra: ---</div>
                 </div>
-                <div class="takimScoreboard">
+                <div class="takimScoreboard" id="takimScoreboard2P">
                     <span id="takimP1Name" class="scoreMine">---</span>
                     <span id="takimScore" class="takimScoreText">0 - 0</span>
                     <span id="takimP2Name" class="scoreOpp">---</span>
@@ -983,8 +1060,11 @@
                     <p id="takimStatusMsg" class="takimStatus"></p>
                 </div>
 
-                <!-- Sağ panel (boş, dengeleme için) -->
-                <div class="takimSidePanel"></div>
+                <!-- Sağ panel: Skorbord (3+ kişide görünür) -->
+                <div class="takimSidePanel" id="takimScoreboardPanel">
+                    <h3 style="color:gold; margin:0 0 10px 0; text-align:center;">🏆 SIRALAMA</h3>
+                    <ol id="takimScoreboardList" class="takimScoreboardList"></ol>
+                </div>
             </div>
 
             <div id="takimOptionsBox" class="takimOptions">
@@ -1017,7 +1097,9 @@
         <div id="takimGameOverBox" class="overlay hidden">
             <div class="overlayCard">
                 <h1 id="takimGameOverTitle"></h1>
-                <p id="takimGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <p id="takimGameOverText" style="font-size:22px; margin:15px 0;"></p>
+
+                <ol id="takimGameOverList" class="takimGameOverList"></ol>
 
                 <!-- Reklam -->
                 <div class="ad-container" style="max-width:400px; margin: 15px auto;">
@@ -1034,6 +1116,7 @@
 
                 <div class="confirmButtons">
                     <button id="takimRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="takimBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="takimBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
             </div>
@@ -1619,13 +1702,7 @@
                         </select>
                     </div>
                     
-                    <div class="miniCreateField">
-                        <label>🎮 Split-Screen'e İzin Ver:</label>
-                        <select id="miniSplitScreenSelect">
-                            <option value="off" selected>❌ Reddet (Sadece Klavye)</option>
-                            <option value="on">✅ İzin Ver (Aynı PC'den 2+ Kişi)</option>
-                        </select>
-                    </div>
+                    
                     
                     <div class="miniCreateField">
                         <label>🌀 Falso'ya İzin Ver (Plase):</label>
@@ -1817,7 +1894,7 @@
                 <span>Skor: <span id="miniLobbyGoalTarget">3</span> gol</span>
                 <span style="margin-left: 15px;">Süre: <span id="miniLobbyDuration">3 dk</span></span>
                 <span style="margin-left: 15px;">Hız: <span id="miniLobbySpeed">🚶 Normal</span></span>
-                <span style="margin-left: 15px;">Mod: 1v1</span>
+                <span style="margin-left: 15px;">Mod: <span id="miniLobbyMode">1v1</span></span>
             </div>
             
             <div class="centerBox" style="flex-wrap: wrap;">
@@ -2245,7 +2322,7 @@
             <div style="font-size:70px; margin:10px 0;">🚪</div>
             <h2 style="color:#ffa94d; margin:10px 0 15px 0;">Oda Dolu!</h2>
             <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
-                Bu odada zaten 2 oyuncu var.<br>Başka bir odaya katılmayı dene.
+                Bu oda dolu.<br>Başka bir odaya katılmayı deneyiniz.
             </p>
             <div class="confirmButtons">
                 <button id="roomFullOkBtn" class="bigBtn greenBtn">Tamam</button>

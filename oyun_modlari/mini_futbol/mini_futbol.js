@@ -55,8 +55,26 @@ let miniGamepad = {
     index: -1,             // navigator.getGamepads() içindeki index
     name: "",              // Kontrolcü adı
     slot: "off",           // "off" / "p1" / "p2"
-    pollInterval: null     // Polling loop handle
+    pollInterval: null,    // Polling loop handle
+    enabled: true          // ✨ Kullanıcı tarafından etkinleştirilmiş mi (default: true)
 };
+
+// ✨ localStorage'dan enabled durumunu oku
+function loadGamepadEnabled() {
+    try {
+        const saved = localStorage.getItem("miniGamepadEnabled");
+        if (saved !== null) miniGamepad.enabled = (saved !== "false");
+    } catch(e) {}
+}
+
+function saveGamepadEnabled() {
+    try {
+        localStorage.setItem("miniGamepadEnabled", miniGamepad.enabled ? "true" : "false");
+    } catch(e) {}
+}
+
+// Sayfa yüklendiğinde oku
+loadGamepadEnabled();
 
 function initGamepadListeners() {
     // Kontrolcü takıldığında
@@ -65,11 +83,16 @@ function initGamepadListeners() {
         miniGamepad.connected = true;
         miniGamepad.index = e.gamepad.index;
         miniGamepad.name = e.gamepad.id;
-        // ✨ Yeni konsol takıldığında her zaman "Devre Dışı" ile başla
-        miniGamepad.slot = "off";
-        try { localStorage.setItem("miniGamepadSlot", "off"); } catch(e) {}
-        stopGamepadPolling();  // Önceki polling varsa durdur
+        miniGamepad.slot = "p1";
         updateGamepadUI();
+        
+        // ✨ Oyun ekranındaysa VE kullanıcı etkinleştirmişse polling'i başlat
+        if (miniGamepad.enabled) {
+            const gameScreen = document.getElementById("miniGameScreen");
+            if (gameScreen && !gameScreen.classList.contains("hidden")) {
+                startGamepadPolling();
+            }
+        }
     });
     
     // Kontrolcü çıkarıldığında
@@ -94,23 +117,11 @@ function checkExistingGamepads() {
     let found = false;
     for (let i = 0; i < pads.length; i++) {
         if (pads[i] && pads[i].connected) {
-            // Yeni bir kontrolcü mü, yoksa aynı mı?
-            const isNew = miniGamepad.index !== pads[i].index;
-            
             miniGamepad.connected = true;
             miniGamepad.index = pads[i].index;
             miniGamepad.name = pads[i].id;
-            
-            // ✨ Yeni kontrolcü ise slot'u sıfırla
-            if (isNew) {
-                miniGamepad.slot = "off";
-                try { localStorage.setItem("miniGamepadSlot", "off"); } catch(e) {}
-                stopGamepadPolling();
-                console.log(`[GAMEPAD] Yeni kontrolcü: ${pads[i].id} (slot=off)`);
-            } else {
-                console.log(`[GAMEPAD] Mevcut kontrolcü: ${pads[i].id}`);
-            }
-            
+            miniGamepad.slot = "p1";  // ✨ Otomatik P1
+            console.log(`[GAMEPAD] Kontrolcü hazır: ${pads[i].id} (P1)`);
             found = true;
             break;
         }
@@ -130,71 +141,10 @@ function checkExistingGamepads() {
 
 function updateGamepadUI() {
     const section = document.getElementById("miniGamepadSection");
-    const nameEl = document.getElementById("miniGamepadName");
-    if (!section) return;
-    
-    if (!miniGamepad.connected) {
+    if (section) {
+        // ✨ Split-Screen kaldırıldı, bu section artık kullanılmıyor
         section.classList.add("hidden");
-        return;
     }
-    
-    // Kontrolcü bağlı → seçim bölümünü göster
-    section.classList.remove("hidden");
-    
-    // İsim (uzunsa kısalt)
-    if (nameEl) {
-        let name = miniGamepad.name || "Bilinmeyen Kontrolcü";
-        name = name.split("(")[0].trim();
-        if (name.length > 40) name = name.substring(0, 40) + "...";
-        nameEl.textContent = name;
-    }
-    
-    // ✨ Aktif slot butonunu vurgula
-    document.querySelectorAll(".miniGpBtn").forEach(btn => {
-        const slot = btn.dataset.slot;
-        if (slot === miniGamepad.slot) {
-            btn.style.boxShadow = "0 0 15px currentColor";
-            btn.style.transform = "scale(1.05)";
-        } else {
-            btn.style.boxShadow = "";
-            btn.style.transform = "";
-        }
-    });
-    
-    // ✨ P2 durumu değerlendirmesi
-    const p2Btn = document.querySelector('.miniGpBtn[data-slot="p2"]');
-    if (p2Btn) {
-        const isHost = miniData.playerId === 1;
-        
-        // Fake P2 olmayan başka gerçek oyuncu var mı?
-        const otherRealPlayers = miniData.players.filter(p => 
-            p.id !== miniData.playerId && !p.is_split_slave
-        );
-        
-        let canUseP2 = false;
-        let disabledReason = "";
-        
-        if (!isHost) {
-            disabledReason = "Sadece host split-screen açabilir";
-        } else if (otherRealPlayers.length > 0) {
-            disabledReason = "Odada zaten 2. oyuncu var, split-screen açılamaz";
-        } else {
-            canUseP2 = true;
-        }
-        
-        if (canUseP2) {
-            p2Btn.style.opacity = "1";
-            p2Btn.style.cursor = "pointer";
-            p2Btn.disabled = false;
-            p2Btn.title = "";
-        } else {
-            p2Btn.style.opacity = "0.4";
-            p2Btn.style.cursor = "not-allowed";
-            p2Btn.disabled = true;
-            p2Btn.title = disabledReason;
-        }
-    }
-    
     // Kısayol tuşları güncel
     updateKeyBindingsUI();
 }
@@ -202,29 +152,18 @@ function updateGamepadUI() {
 function updateKeyBindingsUI() {
     const p1TextEl = document.getElementById("miniKeyP1Text");
     const p2Div = document.getElementById("miniKeyP2");
-    const p2TextEl = document.getElementById("miniKeyP2Text");
     
     if (!p1TextEl) return;
     
-    // P1 kısayolları
-    if (miniGamepad.connected && miniGamepad.slot === "p1") {
-        p1TextEl.innerHTML = `🎮 <b>Kontrolcü</b>: Sol Stick / D-Pad hareket | X / Kare şut | R2 sprint`;
+    // P1 kısayolları (klavye + gamepad birlikte)
+    if (miniGamepad.connected) {
+        p1TextEl.innerHTML = `⌨️ <b>Klavye</b>: WASD | Space | Shift &nbsp;+&nbsp; 🎮 <b>Kontrolcü</b>: Stick | X/Kare | R2`;
     } else {
         p1TextEl.innerHTML = `⌨️ <b>Klavye</b>: WASD hareket | Space şut | Sol Shift sprint`;
     }
     
-    // P2 (split-screen aktifse görünür)
-    const splitActive = miniData.splitScreen || miniGamepad.slot === "p2";
-    if (splitActive && p2Div && p2TextEl) {
-        p2Div.classList.remove("hidden");
-        if (miniGamepad.connected && miniGamepad.slot === "p2") {
-            p2TextEl.innerHTML = `🎮 <b>Kontrolcü</b>: Sol Stick / D-Pad hareket | X / Kare şut | R2 sprint`;
-        } else {
-            p2TextEl.innerHTML = `⌨️ <b>Klavye</b>: Ok Tuşları hareket | Num 0 / Sağ Ctrl şut | Sağ Shift / Num 1 sprint`;
-        }
-    } else if (p2Div) {
-        p2Div.classList.add("hidden");
-    }
+    // P2 alanını komple gizle (split-screen kaldırıldı)
+    if (p2Div) p2Div.classList.add("hidden");
 }
 
 // ========================================
@@ -234,7 +173,8 @@ function updateKeyBindingsUI() {
 // Önceki tuş state (basıldı/bırakıldı algılamak için)
 let gpPrevState = {
     up: false, down: false, left: false, right: false,
-    kick: false, sprint: false
+    kick: false, sprint: false,
+    start: false, select: false  // ✨ START (ESC) ve SELECT (TAB)
 };
 
 const GP_DEADZONE = 0.25;  // Analog stick ölü bölge
@@ -264,23 +204,76 @@ function releaseAllGamepadKeys() {
             gpPrevState[key] = false;
         }
     });
+    // ✨ start/select durum flagsları sıfırla (event simülasyonu olduğu için send yok)
+    gpPrevState.start = false;
+    gpPrevState.select = false;
 }
 
 function pollGamepad() {
-    if (!miniGamepad.connected || miniGamepad.slot === "off") return;
+    if (!miniGamepad.connected) return;
+    if (!miniGamepad.enabled) return;  // ✨ Kullanıcı kapatmış
     
     // Oyun ekranında değilsek gönderme
     const gameScreen = document.getElementById("miniGameScreen");
     if (!gameScreen || gameScreen.classList.contains("hidden")) return;
     
-    // Pause popup açıksa gönderme
-    const pauseBox = document.getElementById("miniPauseLobbyBox");
-    if (pauseBox && !pauseBox.classList.contains("hidden")) return;
-    
     // Kontrolcüyü oku
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = pads[miniGamepad.index];
     if (!pad) return;
+    
+    // === START (Button 9) → ESC gibi davran ===
+    const btnStart = pad.buttons[9] && pad.buttons[9].pressed;
+    if (btnStart && !gpPrevState.start) {
+        gpPrevState.start = true;
+        // ESC keydown event simüle et
+        const escEvent = new KeyboardEvent("keydown", {
+            key: "Escape",
+            code: "Escape",
+            keyCode: 27,
+            which: 27,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(escEvent);
+        console.log("[GAMEPAD] START → ESC");
+    } else if (!btnStart && gpPrevState.start) {
+        gpPrevState.start = false;
+    }
+    
+    // === SELECT (Button 8) → TAB gibi davran (basılı tutulunca skorboard) ===
+    const btnSelect = pad.buttons[8] && pad.buttons[8].pressed;
+    if (btnSelect && !gpPrevState.select) {
+        gpPrevState.select = true;
+        // TAB keydown event
+        const tabEvent = new KeyboardEvent("keydown", {
+            key: "Tab",
+            code: "Tab",
+            keyCode: 9,
+            which: 9,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(tabEvent);
+        console.log("[GAMEPAD] SELECT basıldı → TAB");
+    } else if (!btnSelect && gpPrevState.select) {
+        gpPrevState.select = false;
+        // TAB keyup event
+        const tabUpEvent = new KeyboardEvent("keyup", {
+            key: "Tab",
+            code: "Tab",
+            keyCode: 9,
+            which: 9,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(tabUpEvent);
+        console.log("[GAMEPAD] SELECT bırakıldı → TAB kapandı");
+    }
+    
+    // Pause popup açıksa hareket/şut gönderme (START/SELECT çalışsın diye yukarıda)
+    const pauseBox = document.getElementById("miniPauseLobbyBox");
+    if (pauseBox && !pauseBox.classList.contains("hidden")) return;
     
     // === HAREKET (Sol stick + D-Pad) ===
     let leftX = pad.axes[0] || 0;
@@ -327,20 +320,11 @@ function pollGamepad() {
 }
 
 function sendGamepadKey(key, pressed) {
-    // Slot'a göre hangi oyuncuya gidecek
+    // ✨ Gamepad her zaman kendi oyuncumuza gider (P1 = klavye ile aynı)
     const msg = { type: "mini_key", key: key, pressed: pressed };
-    let targetPid = miniData.playerId;
+    const targetPid = miniData.playerId;
     
-    if (miniGamepad.slot === "p2") {
-        // P2 = split-screen slave
-        if (miniData.splitSlaveId) {
-            msg.for_player_id = miniData.splitSlaveId;
-            targetPid = miniData.splitSlaveId;
-        }
-    }
-    // P1 ise doğrudan gider (kendi player_id)
-    
-    // ✨ Local HP'ye bildir (host + misafir)
+    // Local HP'ye bildir (host + misafir)
     if (typeof HP !== 'undefined' && HP.running) {
         HP.setKey(targetPid, key, pressed);
     }
@@ -348,90 +332,9 @@ function sendGamepadKey(key, pressed) {
     send(msg);
 }
 
-function selectGamepadSlot(slot) {
-    if (!miniGamepad.connected) return;
-    
-    if (slot === "p2") {
-        // ✨ Split-Screen izni var mı?
-        if (!miniData.splitScreen) {
-            showToast("⚠️ İzin Yok", "Host Split-Screen'e izin vermeli. Oda ayarlarından açtırın.", null);
-            return;
-        }
-        
-        // Zaten split açıksa (kendisinin) tekrar açma
-        const myP2 = miniData.players.find(p => 
-            p.is_split_slave && miniData.splitSlaveId === p.id
-        );
-        
-        if (!myP2) {
-            // Fake P2 ekle
-            send({ type: "mini_add_split_player" });
-        }
-        
-        miniGamepad.slot = "p2";
-        console.log("[GAMEPAD] Slot: P2 (fake player ekleniyor)");
-    } else if (slot === "p1") {
-        miniGamepad.slot = "p1";
-        console.log("[GAMEPAD] Slot: P1 (klavye yerine)");
-        
-        // ✨ Bu kişinin fake P2'si varsa kaldır
-        if (miniData.splitOwner === miniData.playerId && miniData.splitSlaveId) {
-            send({ type: "mini_remove_split_player" });
-        }
-    } else {
-        miniGamepad.slot = "off";
-        console.log("[GAMEPAD] Slot: OFF");
-        
-        // ✨ Bu kişinin fake P2'si varsa kaldır
-        if (miniData.splitOwner === miniData.playerId && miniData.splitSlaveId) {
-            send({ type: "mini_remove_split_player" });
-        }
-    }
-    
-    // localStorage'a kaydet (hatırlansın)
-    try {
-        localStorage.setItem("miniGamepadSlot", miniGamepad.slot);
-    } catch(e) {}
-    
-    updateGamepadUI();
-    updateMiniControlsInfo();  // ✨ Oyun ekranındaki kontrol bilgisini de güncelle
-    
-    // ✨ Polling'i başlat veya durdur
-    if (miniGamepad.slot === "off") {
-        stopGamepadPolling();
-    } else {
-        // Oyun ekranındaysak hemen başlat
-        const gameScreen = document.getElementById("miniGameScreen");
-        if (gameScreen && !gameScreen.classList.contains("hidden")) {
-            startGamepadPolling();
-        }
-    }
-    
-    // Mesaj göster
-    const msgEl = document.getElementById("miniGamepadMsg");
-    if (msgEl) {
-        if (slot === "p1") msgEl.textContent = "✅ Klavye yerine kontrolcü kullanılacak";
-        else if (slot === "p2") msgEl.textContent = "✅ Split-screen açıldı, kontrolcü P2 için";
-        else msgEl.textContent = "❌ Kontrolcü devre dışı";
-        setTimeout(() => { if (msgEl) msgEl.textContent = ""; }, 3000);
-    }
-}
-
 // Sayfa yüklendiğinde gamepad listener'larını başlat
 setTimeout(() => {
-    // ✨ Yeni konsol algılandığında her zaman "off" ile başla
-    // (Kayıtlı slot kullanmıyoruz artık - kullanıcı her seferinde manuel seçsin)
-    miniGamepad.slot = "off";
-    
     initGamepadListeners();
-    
-    // Buton olayları
-    document.addEventListener("click", (e) => {
-        const btn = e.target.closest(".miniGpBtn");
-        if (!btn || btn.disabled) return;
-        const slot = btn.dataset.slot;
-        if (slot) selectGamepadSlot(slot);
-    });
 }, 200);
 
 function clearMiniDropHighlights() {
@@ -801,6 +704,28 @@ function handleMiniMessage(msg) {
         miniData.currentPositions = {};
         miniData.targetPositions = {};
         
+        // ✨ Snapshot buffer'ı temizle (eski oyuncunun hayaleti kalmasın)
+        miniData.snapshots = [];
+        
+        // ✨ Ayrılan oyuncu varsa HP'den ve game_state'ten sil
+        if (msg.removed_pid) {
+            const removedPid = msg.removed_pid;
+            console.log(`[MINI] Ayrılan oyuncu ${removedPid} HP'den siliniyor`);
+            
+            // Frontend game state
+            if (miniData.gameState && miniData.gameState.players) {
+                delete miniData.gameState.players[String(removedPid)];
+            }
+            
+            // HP motoru
+            if (typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players) {
+                delete HP.room.gameState.players[removedPid];
+            }
+            if (typeof HP !== 'undefined' && HP.running && HP.room?.players) {
+                delete HP.room.players[removedPid];
+            }
+        }
+        
         // ✨ HOST ise HP motoruna da yeni oyuncuları bildir
         if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
             const newRedPid = msg.red_pid;
@@ -828,11 +753,12 @@ function handleMiniMessage(msg) {
                     }
                     
                     // Yeni kırmızı oyuncu ekle VEYA mevcut oyuncuyu kırmızıya taşı
+                    const _spawnR = HP.FIELD_WIDTH * 0.2;
                     if (newRedPid) {
                         if (!gs.players[newRedPid]) {
                             // Yeni oyuncu ekle
                             gs.players[newRedPid] = {
-                                x: 200, y: HP.FIELD_HEIGHT / 2,
+                                x: _spawnR, y: HP.FIELD_HEIGHT / 2,
                                 vx: 0, vy: 0,
                                 keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                                 last_kick_time: 0,
@@ -842,7 +768,7 @@ function handleMiniMessage(msg) {
                             };
                         } else {
                             // ✨ Zaten var olan oyuncuyu kırmızı takım pozisyonuna ışınla
-                            gs.players[newRedPid].x = 200;
+                            gs.players[newRedPid].x = _spawnR;
                             gs.players[newRedPid].y = HP.FIELD_HEIGHT / 2;
                             gs.players[newRedPid].vx = 0;
                             gs.players[newRedPid].vy = 0;
@@ -861,10 +787,11 @@ function handleMiniMessage(msg) {
                     }
                     
                     // Yeni mavi oyuncu ekle VEYA mevcut oyuncuyu maviye taşı
+                    const _spawnB = HP.FIELD_WIDTH * 0.2;
                     if (newBluePid) {
                         if (!gs.players[newBluePid]) {
                             gs.players[newBluePid] = {
-                                x: HP.FIELD_WIDTH - 200, y: HP.FIELD_HEIGHT / 2,
+                                x: HP.FIELD_WIDTH - _spawnB, y: HP.FIELD_HEIGHT / 2,
                                 vx: 0, vy: 0,
                                 keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                                 last_kick_time: 0,
@@ -874,7 +801,7 @@ function handleMiniMessage(msg) {
                             };
                         } else {
                             // ✨ Zaten var olan oyuncuyu mavi takım pozisyonuna ışınla
-                            gs.players[newBluePid].x = HP.FIELD_WIDTH - 200;
+                            gs.players[newBluePid].x = HP.FIELD_WIDTH - _spawnB;
                             gs.players[newBluePid].y = HP.FIELD_HEIGHT / 2;
                             gs.players[newBluePid].vx = 0;
                             gs.players[newBluePid].vy = 0;
@@ -896,6 +823,104 @@ function handleMiniMessage(msg) {
                     console.log("[HOST-PHYSICS] Aktif oyuncular HP'de güncellendi + pozisyonlar sıfırlandı ✓");
                 }
             }
+        }
+        
+        // ✨ ÇOKLU OYUNCU: red_pids ve blue_pids listelerine göre HP'ye tüm oyuncuları ekle
+        if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && HP.room && HP.room.gameState) {
+            const redPids = msg.red_pids || (msg.red_pid ? [msg.red_pid] : []);
+            const bluePids = msg.blue_pids || (msg.blue_pid ? [msg.blue_pid] : []);
+            const allActivePids = new Set([...redPids, ...bluePids]);
+            const gs = HP.room.gameState;
+            
+            // Aktif olmayan oyuncuları HP'den sil
+            for (const pid in gs.players) {
+                if (!allActivePids.has(parseInt(pid))) {
+                    console.log(`[HP MULTI] Oyuncu ${pid} silindi (takım dışı)`);
+                    delete gs.players[pid];
+                }
+            }
+            
+            // Y ekseninde dağılım
+            const calcYs = (count, height) => {
+                if (count === 1) return [height / 2];
+                const top = height * 0.15;
+                const bottom = height * 0.85;
+                const step = (bottom - top) / (count - 1);
+                const ys = [];
+                for (let i = 0; i < count; i++) ys.push(top + i * step);
+                return ys;
+            };
+            
+            const spawnOffset = HP.FIELD_WIDTH * 0.2;
+            const redYs = calcYs(redPids.length, HP.FIELD_HEIGHT);
+            const blueYs = calcYs(bluePids.length, HP.FIELD_HEIGHT);
+            
+            // Kırmızı oyuncuları ekle/güncelle
+            redPids.forEach((pid, i) => {
+                if (!gs.players[pid]) {
+                    gs.players[pid] = {
+                        x: spawnOffset, y: redYs[i],
+                        vx: 0, vy: 0,
+                        keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                        last_kick_time: 0,
+                        sprint_energy: HP.SPRINT_MAX_ENERGY,
+                        last_frame_time: 0,
+                        team: "red"
+                    };
+                    console.log(`[HP MULTI] Yeni kırmızı oyuncu ${pid} eklendi`);
+                } else {
+                    gs.players[pid].team = "red";
+                    // Pozisyonu güncelle (yeni takıma geldiyse)
+                    gs.players[pid].y = redYs[i];
+                }
+                // room.players'a ekle (stats için)
+                if (!HP.room.players[pid]) {
+                    HP.room.players[pid] = {
+                        name: msg.players[String(pid)] || "P" + pid,
+                        team: "red",
+                        goals: 0, assists: 0, passes: 0, saves: 0
+                    };
+                } else {
+                    HP.room.players[pid].team = "red";
+                    if (msg.players[String(pid)]) HP.room.players[pid].name = msg.players[String(pid)];
+                }
+            });
+            
+            // Mavi oyuncuları ekle/güncelle
+            bluePids.forEach((pid, i) => {
+                if (!gs.players[pid]) {
+                    gs.players[pid] = {
+                        x: HP.FIELD_WIDTH - spawnOffset, y: blueYs[i],
+                        vx: 0, vy: 0,
+                        keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                        last_kick_time: 0,
+                        sprint_energy: HP.SPRINT_MAX_ENERGY,
+                        last_frame_time: 0,
+                        team: "blue"
+                    };
+                    console.log(`[HP MULTI] Yeni mavi oyuncu ${pid} eklendi`);
+                } else {
+                    gs.players[pid].team = "blue";
+                    gs.players[pid].y = blueYs[i];
+                }
+                if (!HP.room.players[pid]) {
+                    HP.room.players[pid] = {
+                        name: msg.players[String(pid)] || "P" + pid,
+                        team: "blue",
+                        goals: 0, assists: 0, passes: 0, saves: 0
+                    };
+                } else {
+                    HP.room.players[pid].team = "blue";
+                    if (msg.players[String(pid)]) HP.room.players[pid].name = msg.players[String(pid)];
+                }
+            });
+            
+            HP.room.active_red_player = redPids[0] || null;
+            HP.room.active_blue_player = bluePids[0] || null;
+            HP.room.active_red_players = redPids;
+            HP.room.active_blue_players = bluePids;
+            
+            console.log(`[HP MULTI] Sahada: ${redPids.length} kırmızı, ${bluePids.length} mavi`);
         }
         
         // HUD'ı güncelle
@@ -1025,6 +1050,10 @@ function handleMiniMessage(msg) {
         miniData.playerCount = msg.player_count || 2;
         // ✨ Santra süresi
         miniData.kickoffTimeout = msg.kickoff_timeout || 10;
+        // ✨ Saha boyutları (backend'den gelir)
+        if (msg.field_width) miniData.fieldWidth = msg.field_width;
+        if (msg.field_height) miniData.fieldHeight = msg.field_height;
+        if (msg.field_goal_width) miniData.fieldGoalWidth = msg.field_goal_width;
         if (msg.split_owner !== undefined) miniData.splitOwner = msg.split_owner;
         if (msg.split_slave_id !== undefined) miniData.splitSlaveId = msg.split_slave_id;
         console.log("[MINI DEBUG] lobby_update: playerCount =", miniData.playerCount, "msg:", msg.player_count);
@@ -1063,7 +1092,42 @@ function handleMiniMessage(msg) {
             HP.settings.allowPlase = msg.allow_plase !== false;
             HP.settings.ballStick = msg.ball_stick !== false;
             HP.settings.sprintEnabled = msg.sprint_enabled !== false;
-            HP.settings.kickoffTimeout = msg.kickoff_timeout || 10;  // ✨ Santra süresi
+            HP.settings.kickoffTimeout = msg.kickoff_timeout || 10;
+            // ✨ Saha boyutları (lobby'de player_count değişirse)
+            const oldFW = HP.FIELD_WIDTH;
+            const oldFH = HP.FIELD_HEIGHT;
+            let fieldChanged = false;
+            if (msg.field_width && msg.field_width !== oldFW) {
+                HP.settings.fieldWidth = msg.field_width;
+                HP.FIELD_WIDTH = msg.field_width;
+                fieldChanged = true;
+            }
+            if (msg.field_height && msg.field_height !== oldFH) {
+                HP.settings.fieldHeight = msg.field_height;
+                HP.FIELD_HEIGHT = msg.field_height;
+                fieldChanged = true;
+            }
+            if (msg.field_goal_width) {
+                HP.settings.goalWidth = msg.field_goal_width;
+                HP.GOAL_WIDTH = msg.field_goal_width;
+            }
+            // ✨ Saha değiştiyse: oyuncuları sığdır, topu ortala, canvas güncelle
+            if (fieldChanged) {
+                console.log(`[HP] Saha değişti: ${oldFW}x${oldFH} → ${HP.FIELD_WIDTH}x${HP.FIELD_HEIGHT}`);
+                // Canvas fieldConfig'i güncelle (render için)
+                if (miniData.fieldConfig) {
+                    miniData.fieldConfig.width = HP.FIELD_WIDTH;
+                    miniData.fieldConfig.height = HP.FIELD_HEIGHT;
+                    miniData.fieldConfig.goal_width = HP.GOAL_WIDTH;
+                }
+                // Oyuncuları yeni sahaya ışınla (santra pozisyonuna)
+                if (HP.room && HP.room.gameState) {
+                    HP.resetPositions();
+                    // Snapshot'ları temizle (eski pozisyonlar kalmasın)
+                    miniData.snapshots = [];
+                    miniData.currentPositions = {};
+                }
+            }
             
             // ✨ Süre GERÇEKTEN değiştiyse VE oyun playing/countdown/paused değil,
             // yani sadece lobby'den gerçek ayar değişiminde sıfırla
@@ -1132,6 +1196,28 @@ function handleMiniMessage(msg) {
     if (msg.type === "mini_opponent_left") {
         const playerName = msg.player_name || "Bir oyuncu";
         showToast("👋 Odadan Ayrıldı", `${playerName} odadan ayrıldı.`, null, "warning");
+        
+        // ✨ HP'den ve game state'ten sil (hayalet kalmasın)
+        if (msg.left_player_id) {
+            const leftPid = msg.left_player_id;
+            console.log(`[MINI] ${playerName} (id=${leftPid}) HP'den siliniyor`);
+            
+            if (miniData.gameState && miniData.gameState.players) {
+                delete miniData.gameState.players[String(leftPid)];
+            }
+            
+            if (typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players) {
+                delete HP.room.gameState.players[leftPid];
+            }
+            if (typeof HP !== 'undefined' && HP.running && HP.room?.players) {
+                delete HP.room.players[leftPid];
+            }
+            
+            // Snapshot'ları temizle
+            miniData.snapshots = [];
+            miniData.currentPositions = {};
+        }
+        
         return;
     }
 	
@@ -1200,6 +1286,20 @@ function handleMiniMessage(msg) {
         miniData.splitScreen = msg.split_screen || false;
         miniData.splitOwner = msg.split_owner || null;
         miniData.splitSlaveId = msg.split_slave_id || null;
+        // ✨ TÜM aktif oyuncular (çoklu oyuncu için)
+        miniData.activeRedPids = msg.red_pids || (msg.red_pid ? [msg.red_pid] : []);
+        miniData.activeBluePids = msg.blue_pids || (msg.blue_pid ? [msg.blue_pid] : []);
+        
+        // ✨ HP'nin doğru playerList'le başlaması için miniData.players'ı sync et
+        // Aktif oyunculara takım bilgisini zorla ata (backend'ten miniData.players spectator olabilir)
+        miniData.activeRedPids.forEach(pid => {
+            const p = miniData.players.find(pl => pl.id === pid);
+            if (p) p.team = "red";
+        });
+        miniData.activeBluePids.forEach(pid => {
+            const p = miniData.players.find(pl => pl.id === pid);
+            if (p) p.team = "blue";
+        });
         
         const overBox = document.getElementById("miniGameOverBox");
         if (overBox) overBox.classList.add("hidden");
@@ -1302,6 +1402,12 @@ function handleMiniMessage(msg) {
 // LOBBY GÜNCELLEME
 // ========================================
 function updateMiniLobby() {
+    // ✨ Mod göstergesi (1v1, 2v2, 3v3, 4v4, 5v5)
+    const lobbyMode = document.getElementById("miniLobbyMode");
+    if (lobbyMode) {
+        const modeLabels = {2:"1v1", 4:"2v2", 6:"3v3", 8:"4v4", 10:"5v5"};
+        lobbyMode.textContent = modeLabels[miniData.playerCount] || `${(miniData.playerCount||2)/2}v${(miniData.playerCount||2)/2}`;
+    }
     // Ayarlar bilgisi
     const lobbyGoal = document.getElementById("miniLobbyGoalTarget");
     const lobbyDur = document.getElementById("miniLobbyDuration");
@@ -2046,6 +2152,10 @@ function startMiniLocalPhysicsIfNeeded() {
     if (!miniData.players || miniData.players.length === 0) return false;
 
     const isHost = miniData.playerId === 1;
+    // ✨ Saha boyutlarını fieldConfig'ten al (backend'in gönderdiği)
+    const fw = (miniData.fieldConfig && miniData.fieldConfig.width) || miniData.fieldWidth || 1000;
+    const fh = (miniData.fieldConfig && miniData.fieldConfig.height) || miniData.fieldHeight || 500;
+    const gw = (miniData.fieldConfig && miniData.fieldConfig.goal_width) || miniData.fieldGoalWidth || 180;
     const settings = {
         goalTarget: miniData.goalTarget,
         matchDuration: miniData.matchDuration,
@@ -2054,6 +2164,9 @@ function startMiniLocalPhysicsIfNeeded() {
         ballStick: miniData.ballStick !== false,
         sprintEnabled: miniData.sprintEnabled !== false,
         kickoffTimeout: miniData.kickoffTimeout || 10,
+        fieldWidth: fw,
+        fieldHeight: fh,
+        goalWidth: gw,
         advancedEnabled: false,
         advanced: null
     };
@@ -2130,8 +2243,8 @@ function startMiniGame() {
     window.addEventListener("keydown", miniKeyDown, true);
     window.addEventListener("keyup", miniKeyUp, true);
     
-    // ✨ Gamepad polling başlat (slot aktifse)
-    if (miniGamepad.connected && miniGamepad.slot !== "off") {
+    // ✨ Gamepad bağlı VE etkinse polling başlat
+    if (miniGamepad.connected && miniGamepad.enabled) {
         startGamepadPolling();
     }
     
@@ -2368,6 +2481,11 @@ function stopMiniGame() {
     
     // ✨ Gamepad polling'i durdur
     stopGamepadPolling();
+    
+    // ✨ Titreşimi durdur
+    if (typeof MiniVibration !== "undefined") {
+        MiniVibration.stop();
+    }
     
     // ✨ Prediction'ı sıfırla
     miniData.predictionActive = false;
@@ -2727,9 +2845,13 @@ function miniRender() {
 
             // hit_ball bilgisini kick_effects'ten al
             const hitMap = {};
+            const sprintMap = {};
             if (state.kick_effects) {
                 state.kick_effects.forEach(k => {
                     if (k.hit_ball) hitMap[k.player_id] = true;
+                    // Sprint şut mu? (energy_at_kick > 0 ise sprint aktifti demek değil, 
+                    // ama şut anında topun on_fire olması sprint göstergesi)
+                    if (k.energy_at_kick !== undefined) sprintMap[k.player_id] = k.energy_at_kick;
                 });
             }
 
@@ -2751,6 +2873,16 @@ function miniRender() {
                     MiniAudio.playRandom("kick",
                         ["kick_1.wav", "kick_2.wav"], 0.5);
                 }
+                
+                // ✨ TİTREŞİM - sadece benim şutumsa
+                if (pid === miniData.playerId) {
+                    if (isFireKick) {
+                        MiniVibration.firekick();
+                    } else {
+                        const sprintActive = (sprintMap[pid] || 0) > 0.5;
+                        MiniVibration.kick(sprintActive);
+                    }
+                }
             });
         }
         // ✨ Eski kick_effects'lerin id'lerini _lastKickFrame'den de sil
@@ -2769,7 +2901,7 @@ function miniRender() {
             }
         }
 
-        // 🔊 DUVAR + DİREK SESLERİ
+        // 🔊 DUVAR + DİREK SESLERİ + TİTREŞİM
         if (state.hit_events && state.hit_events.length > 0) {
             if (!miniData._playedHits) miniData._playedHits = new Set();
             const nowHit = performance.now() / 1000;
@@ -2785,8 +2917,14 @@ function miniRender() {
                 if (h.type === "wall") {
                     MiniAudio.playRandom("wall",
                         ["wall_hit_1.wav", "wall_hit_2.wav"], 0.4);
+                    // ✨ Titreşim - sadece benim son dokunduğum toptaysa
+                    if (state.ball && state.ball.last_toucher === miniData.playerId) {
+                        MiniVibration.wallHit();
+                    }
                 } else if (h.type === "post") {
                     MiniAudio.play("post_hit.wav", 0.6);
+                    // ✨ Direk her zaman titretsin (kim çarpmış olursa olsun heyecanlı)
+                    MiniVibration.postHit();
                 }
             });
 
@@ -2929,14 +3067,20 @@ function miniRender() {
             // İsim (üstte) - takım rengi
             let pname = miniData.playerNames[pid] || `P${pid}`;
             const nameColor = playerTeam === "blue" ? "#7abfff" : "#ff8a8a";
-            ctx.font = "bold 12px Segoe UI";
+            // ✨ Font boyutu saha büyüklüğüne göre ölçekle (1v1=14px, 5v5=22px)
+            let nameFontSize = 14;
+            if (cfg.width >= 1800) nameFontSize = 22;       // 5v5
+            else if (cfg.width >= 1600) nameFontSize = 20;  // 4v4
+            else if (cfg.width >= 1400) nameFontSize = 18;  // 3v3
+            else if (cfg.width >= 1200) nameFontSize = 16;  // 2v2
+            ctx.font = `bold ${nameFontSize}px Segoe UI`;
             ctx.textAlign = "center";
             
             // Gölge (okunabilir olsun)
-            ctx.shadowBlur = 4;
+            ctx.shadowBlur = 5;
             ctx.shadowColor = "#000";
             ctx.fillStyle = nameColor;
-            ctx.fillText(pname, p.x, p.y - cfg.player_radius - 8);
+            ctx.fillText(pname, p.x, p.y - cfg.player_radius - nameFontSize * 0.6);
             ctx.shadowBlur = 0;
         }
         
@@ -3113,9 +3257,21 @@ function drawCountdownOverlay(ctx, cfg, countdown) {
     if (countdown === 0 && !miniData._whistlePlayed && !silentWhistle) {
         MiniAudio.play("whistle.wav", 0.6);
         miniData._whistlePlayed = true;
+        // ✨ Düdükte çok hafif titreşim (santra)
+        MiniVibration.whistle();
     } else if (countdown > 0) {
         // Countdown başladığında flag'i sıfırla (yeni maç için tekrar çalsın)
         miniData._whistlePlayed = false;
+        
+        // ✨ Her sayımda kısa tik titreşimi (3, 2, 1)
+        if (!miniData._countdownTicked) miniData._countdownTicked = new Set();
+        const tickKey = `count_${countdown}_${Math.floor(Date.now() / 1500)}`;
+        if (!miniData._countdownTicked.has(tickKey)) {
+            miniData._countdownTicked.add(tickKey);
+            MiniVibration.countdown();
+            // Setı çok büyütmemek için temizle
+            if (miniData._countdownTicked.size > 20) miniData._countdownTicked.clear();
+        }
     }
 
     // Yarı saydam arkaplan
@@ -3249,6 +3405,27 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         MiniAudio.playRandom("goal",
             ["goal_1.wav", "goal_2.wav", "goal_3.wav"], 0.7);
         miniData._lastGoalSignature = goalSignature;
+        
+        // ✨ TİTREŞİM - Ben mi attım, yedim mi?
+        // Benim takımım scorer takımıyla aynı mı?
+        const myPlayer = miniData.players.find(p => p.id === miniData.playerId);
+        const myTeam = myPlayer ? myPlayer.team : null;
+        const scorerTeamId = celebration.scorer_id;  // 1 = kırmızı, 2 = mavi
+        const scorerTeam = scorerTeamId === 1 ? "red" : "blue";
+        const isOwnGoal = celebration.own_goal === true;
+        
+        if (myTeam === "red" || myTeam === "blue") {
+            // Takımdayım
+            let iScored = (myTeam === scorerTeam);
+            if (isOwnGoal) iScored = !iScored;  // Kendi kalesineyse ters çevir
+            
+            if (iScored) {
+                MiniVibration.goalScored();
+            } else {
+                MiniVibration.goalConceded();
+            }
+        }
+        // İzleyiciyim → titreşim yok
     }
 
     // Hafif arkaplan
@@ -3314,7 +3491,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         ctx.shadowBlur = 20;
         ctx.shadowColor = "#ff3333";
         ctx.fillStyle = "#ff6b6b";
-        ctx.fillText(`${scorerName} Kendi Kalesine Attı 🤦`, 0, 20);
+        ctx.fillText(`${scorerName} Kendi Kalesine Attı`, 0, 20);
     } else {
         // "Golü Atan: SELÇUK" (isim kırmızı/mavi)
         // "Asist: MEHMET" (sarı, varsa)
@@ -3722,7 +3899,7 @@ setTimeout(() => {
                 const goalEl = document.getElementById("miniGoalTargetSelect");
                 const durEl = document.getElementById("miniDurationSelect");
                 const speedEl = document.getElementById("miniSpeedSelect");
-                const splitEl = document.getElementById("miniSplitScreenSelect");
+                const splitEl = null;  // Split kaldırıldı
                 const plaseEl = document.getElementById("miniAllowPlaseSelect");
                 const stickEl = document.getElementById("miniBallStickSelect");
                 const sprintEnEl = document.getElementById("miniSprintEnabledSelect");
@@ -3750,9 +3927,7 @@ setTimeout(() => {
                     const opt = [...speedEl.options].find(o => o.value === savedSpeed);
                     if (opt) speedEl.value = savedSpeed;
                 }
-                if (savedSplit && splitEl) {
-                    splitEl.value = savedSplit;
-                }
+                
                 if (savedPlase && plaseEl) {
                     plaseEl.value = savedPlase;
                 }
@@ -3821,8 +3996,7 @@ setTimeout(() => {
             }
             
             const gameSpeed = document.getElementById("miniSpeedSelect").value;
-            const splitScreenEl = document.getElementById("miniSplitScreenSelect");
-            const splitScreen = splitScreenEl ? splitScreenEl.value === "on" : false;
+            const splitScreen = false;  // Split-screen kaldırıldı
             const allowPlaseValEl = document.getElementById("miniAllowPlaseSelect");
             const allowPlase = allowPlaseValEl ? allowPlaseValEl.value !== "off" : true;
             
@@ -4979,8 +5153,7 @@ function showMiniControlSettings() {
         }
     }
     
-    const splitAllowed = miniData.splitScreen === true;
-    
+    // === GAMEPAD BÖLÜMÜ ===
     let gamepadHtml = "";
     if (connectedPads.length === 0) {
         gamepadHtml = `<p style="color:#adb5bd; font-size:13px; text-align:center; padding:15px;
@@ -4991,36 +5164,104 @@ function showMiniControlSettings() {
         gamepadHtml = `<div style="display:flex; flex-direction:column; gap:10px;">`;
         connectedPads.forEach((pad, i) => {
             const isActive = miniGamepad.index === pad.index;
-            const currentSlot = isActive ? miniGamepad.slot : "off";
+            const isEnabled = miniGamepad.enabled && isActive;
+            const borderColor = isEnabled ? "#51cf66" : "#495057";
+            const bgColor = isEnabled ? "rgba(81,207,102,0.1)" : "rgba(73,80,87,0.1)";
+            const titleColor = isEnabled ? "#51cf66" : "#adb5bd";
             
             gamepadHtml += `
-                <div style="padding:10px 12px; background:rgba(103,65,217,0.1); 
-                            border:1px solid #6741d9; border-radius:8px;">
+                <div style="padding:12px 14px; background:${bgColor}; 
+                            border:1px solid ${borderColor}; border-radius:8px; transition:all 0.3s;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="color:#c084fc; font-weight:bold; font-size:13px;">
+                        <span style="color:${titleColor}; font-weight:bold; font-size:13px;">
                             🎮 ${pad.name || "Kontrolcü"}
                         </span>
-                        <span style="color:${isActive ? '#51cf66' : '#adb5bd'}; font-size:11px;">
-                            ${isActive ? '✅ Aktif' : '⏸️ Beklemede'}
-                        </span>
                     </div>
-                    <select class="miniCtrlPadSlot" data-pad-index="${pad.index}"
-                            style="width:100%; padding:8px; background:#1a1e2e; color:#fff; 
-                                   border:1px solid #3b4c63; border-radius:6px; font-size:13px;">
-                        <option value="off" ${currentSlot==='off'?'selected':''}>❌ Devre Dışı</option>
-                        <option value="p1" ${currentSlot==='p1'?'selected':''}>🎮 1. Oyuncu (Klavye Yerine)</option>
-                        ${splitAllowed ? `<option value="p2" ${currentSlot==='p2'?'selected':''}>🎮 2. Oyuncu (Split)</option>` : ''}
-                    </select>
+                    
+                    <!-- ✨ Kontrolcüyü Etkinleştir toggle -->
+                    <label style="display:flex; align-items:center; cursor:pointer; user-select:none;
+                                  padding:8px 10px; background:rgba(0,0,0,0.25); border-radius:6px;
+                                  margin-top:4px;">
+                        <input type="checkbox" id="miniGamepadEnableToggle" ${isEnabled ? 'checked' : ''}
+                               style="margin-right:10px; width:16px; height:16px; cursor:pointer; accent-color:#51cf66;">
+                        <span style="color:#51cf66; font-weight:bold; font-size:13px;">
+                            🎮 Kontrolcüyü Etkinleştir
+                        </span>
+                    </label>
+                    <p style="color:#adb5bd; font-size:11px; margin:6px 0 0 0; text-align:center;">
+                        ${isEnabled ? '✅ Klavye ile birlikte 1. Oyuncuyu kontrol eder' : '⏸️ Sadece klavye çalışır'}
+                    </p>
                 </div>
             `;
         });
         gamepadHtml += `</div>`;
+    }
+    
+    // === TİTREŞİM AYARLARI ===
+    const vibrationEnabled = MiniVibration.isEnabled();
+    const vibrationTypes = [
+        { id: "kick",     label: "⚽ Şut Titreşimi",       default: 25 },
+        { id: "firekick", label: "🔥 Alevli Şut Titreşimi", default: 50 },
+        { id: "wall",     label: "🧱 Duvara Çarpma",       default: 15 },
+        { id: "post",     label: "🥅 Direğe Çarpma",       default: 90 },
+        { id: "goal",     label: "🎯 Gol Titreşimi",       default: 50 },
+        { id: "whistle",  label: "📢 Santra / Düdük",      default: 10 }
+    ];
+    
+    let vibrationHtml = "";
+    if (connectedPads.length > 0) {
+        // Ana toggle
+        vibrationHtml = `
+            <label style="display:flex; align-items:center; cursor:pointer; user-select:none;
+                          padding:10px 14px; background:rgba(255,169,77,0.1);
+                          border:1px solid #ffa94d; border-radius:8px; margin-bottom:10px;">
+                <input type="checkbox" id="miniVibrationMasterToggle" ${vibrationEnabled ? 'checked' : ''}
+                       style="margin-right:12px; width:18px; height:18px; cursor:pointer; accent-color:#ffa94d;">
+                <span style="color:#ffa94d; font-weight:bold; font-size:14px;">
+                    📳 Titreşimi Etkinleştir
+                </span>
+            </label>
+            
+            <div id="miniVibrationContent" style="max-height:${vibrationEnabled ? '2000px' : '0'}; 
+                 overflow:hidden; transition:max-height 0.4s ease-out;">
+                <div style="padding:12px; background:rgba(255,169,77,0.05); border-radius:8px;
+                            border-left:3px solid #ffa94d;">
+                    <p style="color:#adb5bd; font-size:11px; margin:0 0 12px 0; font-style:italic;">
+                        Her titreşim gücünü ayrı ayrı ayarla. Test butonuyla dene!
+                    </p>
+        `;
         
-        if (!splitAllowed) {
-            gamepadHtml += `<p style="color:#ffa94d; font-size:11px; text-align:center; margin-top:10px; font-style:italic;">
-                ⚠️ Split-screen kapalı, sadece 1. Oyuncu seçilebilir. Host oda ayarlarından açabilir.
-            </p>`;
-        }
+        vibrationTypes.forEach(vt => {
+            const currentVal = MiniVibration.getPower(vt.id);
+            vibrationHtml += `
+                <div style="margin-bottom:12px; padding:8px 10px; background:rgba(0,0,0,0.2); border-radius:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="color:#ffd43b; font-weight:bold; font-size:12px;">${vt.label}</span>
+                        <span id="miniVibVal_${vt.id}" style="color:#ffa94d; font-family:monospace;
+                                                              background:rgba(0,0,0,0.4); padding:2px 8px;
+                                                              border-radius:4px; font-size:11px; font-weight:bold;">
+                            %${currentVal}
+                        </span>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="range" id="miniVibRange_${vt.id}" data-vib-type="${vt.id}"
+                               min="0" max="100" step="1" value="${currentVal}"
+                               style="flex:1; height:5px; cursor:pointer; accent-color:#ffa94d;">
+                        <button class="miniVibTestBtn" data-vib-type="${vt.id}"
+                                style="background:#0ca678; color:#fff; border:none; padding:5px 10px;
+                                       border-radius:5px; font-size:11px; font-weight:bold; cursor:pointer;
+                                       min-width:110px; white-space:nowrap;">
+                            🔊 Test Et
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        vibrationHtml += `
+                </div>
+            </div>
+        `;
     }
     
     // Klavye kısayolları
@@ -5063,17 +5304,26 @@ function showMiniControlSettings() {
     overlay.id = "miniControlSettings";
     overlay.className = "overlay";
     overlay.innerHTML = `
-        <div class="overlayCard" style="max-width:600px; max-height:88vh; overflow-y:auto;
+        <div class="overlayCard" style="max-width:640px; max-height:88vh; overflow-y:auto;
                                         border:2px solid #0ca678; box-shadow: 0 0 40px rgba(12,166,120,0.3);">
             <div style="font-size:50px; margin:10px 0;">⚙️</div>
             <h2 style="color:#0ca678; margin:5px 0 20px 0;">Ayarlar</h2>
             
-            <!-- KONTROLCÜ SLOT SEÇİMİ -->
+            <!-- KONTROLCÜ BİLGİSİ -->
             <div style="text-align:left; margin-bottom:20px;">
                 <h3 style="color:#c084fc; font-size:15px; margin:0 0 10px 0; text-align:center;">
                     🎮 Bağlı Kontrolcüler
                 </h3>
                 ${gamepadHtml}
+            </div>
+            
+            <!-- TİTREŞİM AYARLARI (Sadece kontrolcü varsa VE etkinse) -->
+            <div id="miniVibrationSection" style="text-align:left; margin:20px 0 15px 0; padding-top:20px; 
+                 border-top:1px dashed #3b4c63; display:${(connectedPads.length > 0 && miniGamepad.enabled) ? 'block' : 'none'};">
+                <h3 style="color:#ffa94d; font-size:15px; margin:0 0 10px 0; text-align:center;">
+                    📳 Titreşim Ayarları
+                </h3>
+                ${vibrationHtml}
             </div>
             
             <!-- TAB GÖRÜNÜRLÜĞÜ -->
@@ -5142,25 +5392,175 @@ function showMiniControlSettings() {
             if (sb) sb.style.background = `rgba(15, 20, 30, ${val / 100})`;
         });
     }
-    
-    // Gamepad slot değişimi
-    overlay.querySelectorAll(".miniCtrlPadSlot").forEach(sel => {
-        sel.onchange = () => {
-            const padIndex = parseInt(sel.dataset.padIndex);
-            const newSlot = sel.value;
-            // Aktif kontrolcü seçilen mi?
-            if (miniGamepad.index === padIndex) {
-                selectGamepadSlot(newSlot);
+	
+	// ✨ GAMEPAD ETKİNLEŞTİRME TOGGLE
+    const gpEnableToggle = document.getElementById("miniGamepadEnableToggle");
+    if (gpEnableToggle) {
+        gpEnableToggle.addEventListener("change", () => {
+            miniGamepad.enabled = gpEnableToggle.checked;
+            saveGamepadEnabled();
+            
+            if (miniGamepad.enabled) {
+                // Etkinleştirildi → polling'i başlat (oyun içindeyse)
+                const gameScreen = document.getElementById("miniGameScreen");
+                if (gameScreen && !gameScreen.classList.contains("hidden")) {
+                    startGamepadPolling();
+                }
+                showToast("🎮 Kontrolcü", "Kontrolcü etkinleştirildi!", null, "success");
             } else {
-                // Farklı bir gamepad seçildi
-                miniGamepad.index = padIndex;
-                const pads = navigator.getGamepads();
-                if (pads[padIndex]) miniGamepad.name = pads[padIndex].id;
-                miniGamepad.connected = true;
-                selectGamepadSlot(newSlot);
+                // Devre dışı → polling'i durdur + titreşimi kes
+                stopGamepadPolling();
+                MiniVibration.stop();
+                showToast("⏸️ Kontrolcü", "Kontrolcü devre dışı bırakıldı", null, "info");
             }
-            showToast("🎮 Kontrolcü", `Slot değişti: ${newSlot.toUpperCase()}`, null, "success");
-        };
+            
+            // Popup'ı yenile (titreşim bölümü gizlensin/görünsün + border rengi vs)
+            const overlay = document.getElementById("miniControlSettings");
+            if (overlay) {
+                overlay.remove();
+                showMiniControlSettings();
+            }
+        });
+    }
+    
+    // ✨ TİTREŞİM MASTER TOGGLE
+    const vibToggle = document.getElementById("miniVibrationMasterToggle");
+    const vibContent = document.getElementById("miniVibrationContent");
+    if (vibToggle && vibContent) {
+        vibToggle.addEventListener("change", () => {
+            try {
+                localStorage.setItem("miniVibrationEnabled", vibToggle.checked ? "true" : "false");
+            } catch(e) {}
+            
+            if (vibToggle.checked) {
+                vibContent.style.maxHeight = vibContent.scrollHeight + "px";
+                setTimeout(() => {
+                    if (vibToggle.checked) vibContent.style.maxHeight = "3000px";
+                }, 400);
+            } else {
+                vibContent.style.maxHeight = vibContent.scrollHeight + "px";
+                setTimeout(() => {
+                    vibContent.style.maxHeight = "0";
+                }, 10);
+            }
+        });
+    }
+    
+    // ✨ TİTREŞİM SLİDER'LARI (canlı % güncelle + localStorage + aktif teste yansıma)
+    overlay.querySelectorAll('input[id^="miniVibRange_"]').forEach(slider => {
+        const type = slider.dataset.vibType;
+        const valSpan = document.getElementById("miniVibVal_" + type);
+        slider.addEventListener("input", () => {
+            const val = parseInt(slider.value);
+            if (valSpan) valSpan.textContent = `%${val}`;
+            try {
+                localStorage.setItem("miniVibrationPower_" + type, String(val));
+            } catch(e) {}
+            
+            // ✨ Bu tipin aktif testi varsa titreşimi anlık güncelle
+            const testBtn = overlay.querySelector(`.miniVibTestBtn[data-vib-type="${type}"]`);
+            if (testBtn && testBtn.dataset.testing === "true") {
+                // Yeni % ile tekrar başlat (kalan süre kadar)
+                const remainingMs = testBtn._testEndTime ? Math.max(500, testBtn._testEndTime - Date.now()) : 3000;
+                MiniVibration.stop();
+                MiniVibration.testVibrate(type, remainingMs);
+            }
+        });
+    });
+    
+    // Diğer test butonlarını kilitle/aç
+    function setOtherTestBtnsDisabled(activeBtn, disabled) {
+        overlay.querySelectorAll(".miniVibTestBtn").forEach(b => {
+            if (b === activeBtn) return;
+            if (disabled) {
+                b.style.opacity = "0.4";
+                b.style.cursor = "not-allowed";
+                b.dataset.locked = "true";
+            } else {
+                b.style.opacity = "1";
+                b.style.cursor = "pointer";
+                b.dataset.locked = "false";
+            }
+        });
+    }
+    
+    // Test butonunu normale döndürme fonksiyonu
+    function resetTestBtn(btn) {
+        btn.dataset.testing = "false";
+        btn.textContent = "🔊 Test Et";
+        btn.style.background = "#0ca678";
+        if (btn._testTimeout) {
+            clearTimeout(btn._testTimeout);
+            btn._testTimeout = null;
+        }
+        btn._testEndTime = null;
+        // Diğer butonları da serbest bırak
+        setOtherTestBtnsDisabled(btn, false);
+    }
+    
+    // ✨ TEST BUTONLARI (3 saniye titret + kırmızı "Durdur" butonu)
+    overlay.querySelectorAll(".miniVibTestBtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const type = btn.dataset.vibType;
+            
+            // ✨ Başka test aktifse (bu buton kilitliyse) bir şey yapma
+            if (btn.dataset.locked === "true") {
+                showToast("⏸️ Bekle", "Önce diğer testi durdur!", null, "warning");
+                return;
+            }
+            
+            // Zaten aktif test var mı? (durdur modunda mı)
+            if (btn.dataset.testing === "true") {
+                // Durdurma modu → titreşimi kes
+                MiniVibration.stop();
+                clearTimeout(btn._testTimeout);
+                resetTestBtn(btn);
+                return;
+            }
+            
+            // Kontrolcü bağlı mı?
+            if (!miniGamepad.connected) {
+                showToast("⚠️ Kontrolcü Yok", "Test için kontrolcü bağla!", null, "warning");
+                return;
+            }
+            
+            // Titreşim etkin mi?
+            if (!MiniVibration.isEnabled()) {
+                showToast("⚠️ Titreşim Kapalı", "Önce titreşimi etkinleştir!", null, "warning");
+                return;
+            }
+            
+            // Gamepad etkin mi?
+            if (!miniGamepad.enabled) {
+                showToast("⚠️ Kontrolcü Kapalı", "Önce kontrolcüyü etkinleştir!", null, "warning");
+                return;
+            }
+            
+            // % 0 ise test etme
+            const power = MiniVibration.getPower(type);
+            if (power <= 0) {
+                showToast("⚠️ Güç 0", "Titreşim gücünü artır!", null, "warning");
+                return;
+            }
+            
+            // TEST BAŞLAT
+            btn.dataset.testing = "true";
+            btn.textContent = "⏹ Durdur";
+            btn.style.background = "#e03131";
+            btn._testEndTime = Date.now() + 3000;  // ✨ Test bitiş zamanı
+            
+            // ✨ Diğer test butonlarını kilitle
+            setOtherTestBtnsDisabled(btn, true);
+            
+            // 3 saniye boyunca titret (uzun titreşim)
+            MiniVibration.testVibrate(type, 3000);
+            
+            // 3 saniye sonra otomatik geri dön
+            btn._testTimeout = setTimeout(() => {
+                MiniVibration.stop();
+                resetTestBtn(btn);
+            }, 3000);
+        });
     });
     
     // Tuş değiştirme (bind)
@@ -5197,20 +5597,76 @@ function showMiniControlSettings() {
         updateMiniControlsInfo();
     };
     window.addEventListener("keydown", keyListener, true);
+	
+	// ✨ Popup açıkken kontrolcü tuşu algılama (bağlı olmadığı durumda)
+    // Her 300ms'de bir gamepad kontrol et
+    let gamepadCheckInterval = null;
+    if (connectedPads.length === 0) {
+        gamepadCheckInterval = setInterval(() => {
+            const currentPads = navigator.getGamepads ? navigator.getGamepads() : [];
+            let foundNew = false;
+            for (let i = 0; i < currentPads.length; i++) {
+                if (currentPads[i] && currentPads[i].connected) {
+                    // Bir buton basıldı mı kontrol et (aktif kullanım varsa algıla)
+                    const hasActivity = currentPads[i].buttons.some(b => b.pressed) ||
+                                       currentPads[i].axes.some(a => Math.abs(a) > 0.3);
+                    
+                    if (hasActivity || !miniGamepad.connected) {
+                        // Kontrolcü var VE aktivite var (veya ilk kez bağlanıyor)
+                        miniGamepad.connected = true;
+                        miniGamepad.index = currentPads[i].index;
+                        miniGamepad.name = currentPads[i].id;
+                        miniGamepad.slot = "p1";
+                        foundNew = true;
+                        console.log(`[GAMEPAD] Popup açıkken algılandı: ${currentPads[i].id}`);
+                        break;
+                    }
+                }
+            }
+            
+            if (foundNew) {
+                // Popup'ı yenile (kontrolcü göründüğü için)
+                clearInterval(gamepadCheckInterval);
+                gamepadCheckInterval = null;
+                overlay.remove();
+                showMiniControlSettings();
+                showToast("🎮 Kontrolcü Algılandı", miniGamepad.name.split("(")[0].trim(), null, "success");
+            }
+        }, 300);
+    }
     
     // Kapat
     overlay.querySelector("#miniCtrlCloseBtn").onclick = () => {
         window.removeEventListener("keydown", keyListener, true);
+        // Aktif titreşim testleri varsa durdur
+        MiniVibration.stop();
+        overlay.querySelectorAll(".miniVibTestBtn").forEach(b => {
+            if (b._testTimeout) clearTimeout(b._testTimeout);
+        });
+        // Gamepad check interval'i temizle
+        if (gamepadCheckInterval) {
+            clearInterval(gamepadCheckInterval);
+            gamepadCheckInterval = null;
+        }
         overlay.remove();
     };
     
     // Sıfırla
     overlay.querySelector("#miniCtrlResetBtn").onclick = () => {
-        if (!confirm("Ayarları varsayılana sıfırla? (Klavye tuşları + TAB görünürlüğü)")) return;
+        if (!confirm("Ayarları varsayılana sıfırla?\n(Klavye tuşları + TAB görünürlüğü + Titreşim ayarları)")) return;
         try { 
             localStorage.removeItem("miniKeys_p1");
             localStorage.setItem("miniTabOpacity", "5");  // ✨ Default %5
+            // ✨ Titreşim ayarlarını sıfırla
+            localStorage.removeItem("miniVibrationEnabled");
+            localStorage.removeItem("miniVibrationPower_kick");
+            localStorage.removeItem("miniVibrationPower_firekick");
+            localStorage.removeItem("miniVibrationPower_wall");
+            localStorage.removeItem("miniVibrationPower_post");
+            localStorage.removeItem("miniVibrationPower_goal");
+            localStorage.removeItem("miniVibrationPower_whistle");
         } catch(e) {}
+        MiniVibration.stop();
         window.removeEventListener("keydown", keyListener, true);
         overlay.remove();
         showMiniControlSettings();
@@ -5409,6 +5865,212 @@ function updateMiniPingDisplay() {
     });
 }
 
+// ========================================
+// 📳 GAMEPAD TİTREŞİM SİSTEMİ
+// ========================================
+const MiniVibration = {
+    lastVibration: 0,
+    minInterval: 20,  // ✨ Min 20ms arayla (test için biraz esnek)
+    
+    // Ayarları localStorage'dan oku
+    isEnabled() {
+        try {
+            return localStorage.getItem("miniVibrationEnabled") !== "false";
+        } catch(e) { return true; }
+    },
+    
+    getPower(type) {
+        // type: "kick", "firekick", "wall", "post", "goal", "whistle"
+        // Default değerler:
+        const defaults = {
+            kick: 25,       // Şut - hafif
+            firekick: 50,   // Alevli şut - orta
+            wall: 15,       // Duvara çarpma - hafif
+            post: 90,       // Direğe çarpma - güçlü
+            goal: 50,       // Gol - orta
+            whistle: 10     // Santra/düdük - çok hafif
+        };
+        try {
+            const raw = localStorage.getItem("miniVibrationPower_" + type);
+            if (raw !== null) {
+                const val = parseInt(raw);
+                if (!isNaN(val) && val >= 0 && val <= 100) return val;
+            }
+        } catch(e) {}
+        return defaults[type] || 50;
+    },
+    
+    // Titreşim gönder
+    // strong: güçlü motor (düşük frekans, sarsıntı)
+    // weak: zayıf motor (yüksek frekans, buzz)
+    // duration: milisaniye
+    vibrate(strong, weak, duration) {
+        if (!this.isEnabled()) return;
+        if (!miniGamepad.connected) return;
+        if (!miniGamepad.enabled) return;  // ✨ Gamepad kapalıysa titreşim yok
+        // Güç 0 ise titreşme
+        if (strong <= 0.01 && weak <= 0.01) return;
+        
+        // Spam engeli - çok sık titreşim gelmesin
+        const now = performance.now();
+        if (now - this.lastVibration < this.minInterval) return;
+        this.lastVibration = now;
+        
+        try {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const pad = pads[miniGamepad.index];
+            if (!pad) return;
+            
+            // Modern API: dual-rumble
+            if (pad.vibrationActuator && pad.vibrationActuator.playEffect) {
+                pad.vibrationActuator.playEffect("dual-rumble", {
+                    startDelay: 0,
+                    duration: duration,
+                    strongMagnitude: Math.min(1.0, Math.max(0, strong)),
+                    weakMagnitude: Math.min(1.0, Math.max(0, weak))
+                }).catch(() => {});
+            }
+            // Eski API: hapticActuators
+            else if (pad.hapticActuators && pad.hapticActuators.length > 0) {
+                pad.hapticActuators[0].pulse(Math.max(strong, weak), duration).catch(() => {});
+            }
+        } catch(e) {
+            // Titreşim desteklemiyorsa sessizce geç
+        }
+    },
+    
+    // Preset titreşimler (kullanıcının % ayarını okur)
+    kick(sprintActive) {
+        const p = this.getPower("kick") / 100;
+        if (sprintActive) {
+            this.vibrate(0.8 * p, 0.6 * p, 100);
+        } else {
+            this.vibrate(0.6 * p, 0.4 * p, 80);
+        }
+    },
+    
+    firekick() {
+        const p = this.getPower("firekick") / 100;
+        this.vibrate(1.0 * p, 0.8 * p, 150);
+    },
+    
+    ballTouch() {
+        // Topa dokunma - kick ayarının 1/4'ü kadar
+        const p = this.getPower("kick") / 100;
+        this.vibrate(0.3 * p, 0.5 * p, 40);
+    },
+    
+    wallHit() {
+        const p = this.getPower("wall") / 100;
+        this.vibrate(0.8 * p, 0.7 * p, 80);
+    },
+    
+    postHit() {
+        const p = this.getPower("post") / 100;
+        this.vibrate(1.0 * p, 0.9 * p, 200);
+    },
+    
+    goalScored() {
+        const p = this.getPower("goal") / 100;
+        this.vibrate(0.9 * p, 0.7 * p, 250);
+        // Kısa ikinci pulse
+        setTimeout(() => {
+            this.vibrate(0.7 * p, 0.5 * p, 180);
+        }, 350);
+    },
+    
+    goalConceded() {
+        const p = this.getPower("goal") / 100;
+        this.vibrate(0.6 * p, 0.4 * p, 200);
+    },
+    
+    playerCollision() {
+        // Sabit hafif (ayar yok)
+        this.vibrate(0.2, 0.15, 60);
+    },
+    
+    countdown() {
+        const p = this.getPower("whistle") / 100;
+        this.vibrate(0.6 * p, 0.8 * p, 30);
+    },
+    
+    whistle() {
+        const p = this.getPower("whistle") / 100;
+        this.vibrate(0.8 * p, 1.0 * p, 100);
+    },
+    
+    // ✨ TEST fonksiyonu - Gerçek oyundaki preset'i çağırır, verilen süre boyunca tekrarlar
+    _testInterval: null,
+    testVibrate(type, durationMs) {
+        const p = this.getPower(type) / 100;
+        if (p <= 0) return;
+        
+        // Eski test intervalı varsa temizle
+        if (this._testInterval) {
+            clearInterval(this._testInterval);
+            this._testInterval = null;
+        }
+        
+        // Preset fonksiyonunu çağır (gerçek oyundaki gibi)
+        const callPreset = () => {
+            switch(type) {
+                case "kick": this.kick(false); break;
+                case "firekick": this.firekick(); break;
+                case "wall": this.wallHit(); break;
+                case "post": this.postHit(); break;
+                case "goal": this.goalScored(); break;
+                case "whistle": this.whistle(); break;
+            }
+        };
+        
+        // İlk pulse hemen
+        callPreset();
+        
+        // Preset sürelerine göre tekrar aralığı
+        // kick: 80ms, firekick: 150ms, wall: 80ms, post: 200ms, goal: 250ms, whistle: 100ms
+        const intervalMap = {
+            kick: 150,
+            firekick: 200,
+            wall: 130,
+            post: 250,
+            goal: 400,
+            whistle: 180
+        };
+        const interval = intervalMap[type] || 200;
+        
+        // Süre bitene kadar tekrarla
+        const totalDuration = durationMs || 3000;
+        const endTime = Date.now() + totalDuration;
+        
+        this._testInterval = setInterval(() => {
+            if (Date.now() >= endTime) {
+                clearInterval(this._testInterval);
+                this._testInterval = null;
+                return;
+            }
+            callPreset();
+        }, interval);
+    },
+    
+    // Titreşimi durdur
+    stop() {
+        // ✨ Aktif test intervalı varsa temizle
+        if (this._testInterval) {
+            clearInterval(this._testInterval);
+            this._testInterval = null;
+        }
+        
+        if (!miniGamepad.connected) return;
+        try {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const pad = pads[miniGamepad.index];
+            if (pad && pad.vibrationActuator) {
+                pad.vibrationActuator.reset();
+            }
+        } catch(e) {}
+    }
+};
+
 // ✨ Ping başlatma & pause lobby update - handleMiniMessage içine gömdük (aşağıda)
 
 // ========================================
@@ -5521,8 +6183,20 @@ const PRED_PLAYER_ACCEL_MAP = {
 };
 const PRED_FRICTION = 0.90;
 const PRED_SPRINT_MULT = 1.5;
+// ✨ Fallback default değerler (fieldConfig'ten gerçek boyut alınır)
 const PRED_FIELD_WIDTH = 1000;
 const PRED_FIELD_HEIGHT = 500;
+
+function getPredFieldWidth() {
+    if (miniData.fieldConfig && miniData.fieldConfig.width) return miniData.fieldConfig.width;
+    if (miniData.fieldWidth) return miniData.fieldWidth;
+    return PRED_FIELD_WIDTH;
+}
+function getPredFieldHeight() {
+    if (miniData.fieldConfig && miniData.fieldConfig.height) return miniData.fieldConfig.height;
+    if (miniData.fieldHeight) return miniData.fieldHeight;
+    return PRED_FIELD_HEIGHT;
+}
 const PRED_PLAYER_RADIUS = 20;
 const PRED_PLAYER_OUT_MARGIN = 55;
 const PRED_LERP_SPEED = 0.25;  // Server düzeltmesi ne kadar hızlı uygulansın
@@ -5583,13 +6257,15 @@ function updateMiniPrediction() {
     p.x += p.vx;
     p.y += p.vy;
     
-    // Duvar sınırı (basit)
+    // Duvar sınırı (basit) - saha boyutları dinamik
     const R = PRED_PLAYER_RADIUS;
     const M = PRED_PLAYER_OUT_MARGIN;
+    const _pfw = getPredFieldWidth();
+    const _pfh = getPredFieldHeight();
     if (p.x - R < -M) { p.x = -M + R; p.vx = 0; }
-    if (p.x + R > PRED_FIELD_WIDTH + M) { p.x = PRED_FIELD_WIDTH + M - R; p.vx = 0; }
+    if (p.x + R > _pfw + M) { p.x = _pfw + M - R; p.vx = 0; }
     if (p.y - R < -M) { p.y = -M + R; p.vy = 0; }
-    if (p.y + R > PRED_FIELD_HEIGHT + M) { p.y = PRED_FIELD_HEIGHT + M - R; p.vy = 0; }
+    if (p.y + R > _pfh + M) { p.y = _pfh + M - R; p.vy = 0; }
     
     // ✨ SERVER RECONCILIATION - server pozisyonuna yumuşakça yaklaş
     // Tahminim serverdan çok uzaksa → snap et

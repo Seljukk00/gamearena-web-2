@@ -32,6 +32,9 @@ def harita_get_valid_indices():
 async def harita_turn_timer(room, turn_id, round_no, broadcast):
     try:
         seconds = room.get("turn_seconds", 30)
+        if seconds == 0:
+            # Sınırsız süre - timer başlatma
+            return
         await asyncio.sleep(seconds)
 
         if room.get("phase") != "playing":
@@ -229,7 +232,7 @@ async def handle_harita_message(
 
         try:
             harita_turn_seconds = int(turn_seconds_raw)
-            if harita_turn_seconds not in [15, 20, 30, 45, 60]:
+            if harita_turn_seconds not in [0, 15, 20, 30, 45, 60, 90, 120]:
                 harita_turn_seconds = 30
         except:
             harita_turn_seconds = 30
@@ -259,7 +262,8 @@ async def handle_harita_message(
             "type": "harita_room_created",
             "room_code": current_room_code,
             "player_id": 1,
-            "difficulty": difficulty
+            "difficulty": difficulty,
+            "turn_seconds": harita_turn_seconds
         })
         await send_harita_lobby_update(rooms[current_room_code], broadcast)
         return _handled(current_room_code, current_player_id)
@@ -302,7 +306,8 @@ async def handle_harita_message(
             "type": "harita_room_joined",
             "room_code": current_room_code,
             "player_id": 2,
-            "difficulty": room.get("difficulty", "karisik")
+            "difficulty": room.get("difficulty", "karisik"),
+            "turn_seconds": room.get("turn_seconds", 30)
         })
         await send_harita_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -326,7 +331,7 @@ async def handle_harita_message(
 
         try:
             new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 30)))
-            if new_turn_sec not in [15, 20, 30, 45, 60]:
+            if new_turn_sec not in [0, 15, 20, 30, 45, 60, 90, 120]:
                 new_turn_sec = 30
         except:
             new_turn_sec = 30
@@ -367,6 +372,23 @@ async def handle_harita_message(
                 "zoom": data.get("zoom", 1.0),
                 "pan_x": data.get("pan_x", 0),
                 "pan_y": data.get("pan_y", 0)
+            })
+        return _handled(current_room_code, current_player_id)
+
+    # ---------- CONFIRM POPUP SYNC ----------
+    if msg_type == "harita_confirm_sync":
+        if room.get("phase") != "playing":
+            return _handled(current_room_code, current_player_id)
+        if room.get("turn") != current_player_id:
+            return _handled(current_room_code, current_player_id)
+
+        other_id = get_other_player_id(current_player_id)
+        if other_id in room["players"]:
+            await safe_send(room["players"][other_id]["ws"], {
+                "type": "harita_confirm_sync",
+                "player_id": current_player_id,
+                "action": data.get("action"),
+                "country_code": data.get("country_code")
             })
         return _handled(current_room_code, current_player_id)
 

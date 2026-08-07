@@ -313,6 +313,7 @@
     z-index: 80;
     pointer-events: none;
     animation: bigOverlayIn 0.5s ease-out;
+    opacity: 0.2;
 }
 
 #haritaBigOverlayText {
@@ -515,6 +516,10 @@
     cursor: pointer;
 }
 
+#haritaWorldMap path.haritaHoverSync {
+    fill: #3d5a3d !important;
+}
+
 #haritaWorldMap path.haritaPending {
     fill: #ffa94d !important;
 }
@@ -525,4 +530,34 @@
 
 #haritaWorldMap path.haritaWrong {
     fill: #ff6b6b !important;
+}
+
+/* ✨ SVG zoom'da bulanıklaşmasın */
+#haritaSvgContainer,
+#haritaSvgContainer svg,
+#haritaWorldMap {
+    image-rendering: auto !important;
+    shape-rendering: geometricPrecision !important;
+    text-rendering: geometricPrecision !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* ✨ Zoom yapınca SVG net kalsın */
+.haritaMapWrapper {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* ✨ SVG text'ler (ülke isimleri) her zaman net */
+#haritaWorldMap text {
+    shape-rendering: geometricPrecision !important;
+    text-rendering: geometricPrecision !important;
+    -webkit-font-smoothing: subpixel-antialiased !important;
+    font-smoothing: subpixel-antialiased !important;
+}
+
+/* ✨ SVG path'ler net kalsın */
+#haritaWorldMap path {
+    shape-rendering: geometricPrecision !important;
 }

@@ -10,6 +10,8 @@ let mlData = {
     difficulty: "karisik",
     aiReady: false,
     turnSeconds: 60,
+    maxPlayers: 2,
+    totalQuestions: 12,
     players: [],
     currentPlayer: null,
     q_idx: 0,
@@ -18,14 +20,15 @@ let mlData = {
     prize: 0,
     prizeStr: "500",
     level: "kolay",
-    scores: { 1: 0, 2: 0 },
-    jokers: { 1: {}, 2: {} },
+    scores: {},
+    jokers: {},
     paraAgaci: [],
     answered: false,
     removed: [],
     timerInterval: null,
     timerSeconds: 60,
-    audienceMode: false
+    audienceMode: false,
+    rightPanelPage: "money"  // "money" veya "board"
 };
 
 const mlSounds = {
@@ -34,6 +37,49 @@ const mlSounds = {
     question: null,
     menu: null
 };
+
+// ========================================
+// ✨ SORU HISTORY SİSTEMİ (localStorage)
+// ========================================
+const ML_HISTORY_KEY = "ml_seen_questions";
+
+function getMlHistory() {
+    try {
+        const raw = localStorage.getItem(ML_HISTORY_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+    } catch(e) {
+        return [];
+    }
+}
+
+function addMlHistory(questionText) {
+    if (!questionText) return;
+    let history = getMlHistory();
+    
+    // Zaten varsa ekleme
+    if (history.includes(questionText)) return;
+    
+    history.push(questionText);
+    
+    // ✨ Sınır yok - kullanıcı istediği kadar soru görebilir
+    // Havuz büyürken tümünü hatırlar
+    
+    try {
+        localStorage.setItem(ML_HISTORY_KEY, JSON.stringify(history));
+        console.log(`[ML HISTORY] Toplam görülen: ${history.length} soru`);
+    } catch(e) {
+        console.error("[ML HISTORY] Kayıt hatası:", e);
+    }
+}
+
+function clearMlHistory() {
+    try {
+        localStorage.removeItem(ML_HISTORY_KEY);
+        console.log("[ML HISTORY] Geçmiş sıfırlandı");
+    } catch(e) {}
+}
 
 function loadMlSounds() {
     try {
@@ -202,50 +248,84 @@ const PHONE_CONTACTS = [
     { name: "💇 Kuaför Fatma Teyze", desc: "Herkesin dedikodusunu Yapar" }
 ];
 
-function showPhoneBox() {
+function showPhoneBox(fromNetwork = false, networkContacts = null) {
     const box = document.getElementById("mlPhoneBox");
     const list = document.getElementById("mlPhoneList");
     const answerBox = document.getElementById("mlPhoneAnswer");
     
-    // 5 rastgele karakter seç (isim önemsiz)
-    const shuffled = PHONE_CONTACTS.slice()
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 5);
-    
-    // 5 kişiden 1 tanesi "kötü" (%20 doğru), 4'ü "iyi" (%80 doğru)
-    // Kötü olan index rastgele seçilir
-    const badIndex = Math.floor(Math.random() * 5);
-    shuffled.forEach((c, i) => {
-        c._isBad = (i === badIndex);
-    });
+    let shuffled;
+    if (fromNetwork && networkContacts) {
+        // ✨ Ağdan geldi (izleyici) → aynı listeyi kullan
+        shuffled = networkContacts;
+    } else {
+        // Kendim oynuyorum → yeni liste oluştur
+        shuffled = PHONE_CONTACTS.slice()
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 5);
+        
+        // 5 kişiden 1 tanesi "kötü" (%20 doğru), 4'ü "iyi" (%80 doğru)
+        const badIndex = Math.floor(Math.random() * 5);
+        shuffled.forEach((c, i) => {
+            c._isBad = (i === badIndex);
+        });
+        
+        // ✨ İzleyiciye de bu listeyi gönder (backend relay)
+        send({ 
+            type: "ml_phone_popup_show", 
+            contacts: shuffled 
+        });
+    }
     
     // Liste doldur
     list.innerHTML = "";
     answerBox.classList.add("hidden");
     answerBox.innerHTML = "";
     
-    shuffled.forEach(contact => {
+    shuffled.forEach((contact, i) => {
         const div = document.createElement("div");
         div.className = "mlPhoneContact";
+        div.dataset.contactIndex = i;
         div.innerHTML = `
             <div class="mlPhoneIcon">📞</div>
             <div class="mlPhoneInfo">
                 <div class="mlPhoneName">${contact.name}</div>
                 <div class="mlPhoneDesc">${contact.desc}</div>
             </div>
-            <button class="mlPhoneCallBtn">ARA</button>
+            <button class="mlPhoneCallBtn">${fromNetwork ? '👁️ İZLİYORSUN' : 'ARA'}</button>
         `;
-        div.onclick = () => callPhoneContact(contact, shuffled);
+        
+        // ✨ Sadece oynayan tıklayabilir
+        if (!fromNetwork) {
+            div.onclick = () => callPhoneContact(contact, shuffled, i);
+        } else {
+            div.style.cursor = "not-allowed";
+            div.style.opacity = "0.9";
+        }
         list.appendChild(div);
     });
     
     box.classList.remove("hidden");
 }
 
-function callPhoneContact(contact, allContacts) {
+function callPhoneContact(contact, allContacts, contactIndex) {
     // Diğerlerini disable et
     document.querySelectorAll(".mlPhoneContact").forEach(el => {
         el.classList.add("disabled");
+    });
+    
+    // ✨ Seçilen kişiyi vurgula
+    document.querySelectorAll(".mlPhoneContact").forEach((el, i) => {
+        if (i === contactIndex) {
+            el.classList.add("selected");
+            el.style.border = "2px solid #51cf66";
+            el.style.background = "rgba(81, 207, 102, 0.2)";
+        }
+    });
+    
+    // ✨ İzleyiciye de hangi kişi seçildiğini bildir
+    send({ 
+        type: "ml_phone_contact_selected", 
+        contact_index: contactIndex 
     });
     
     // Backend'e söyle: isBad true ise kötü karakter (%20 doğru), false ise iyi (%80 doğru)
@@ -349,6 +429,8 @@ document.getElementById("createMlBtn").onclick = () => {
     const category = document.getElementById("mlCategorySelect").value;
     const difficulty = document.getElementById("mlDifficultySelect").value;
     const turnSec = parseInt(document.getElementById("mlTurnSecondsSelect").value) || 60;
+    const maxPlayers = parseInt(document.getElementById("mlMaxPlayersSelect").value) || 2;
+    const totalQuestions = parseInt(document.getElementById("mlTotalQuestionsSelect").value) || 12;
     
     send({
         type: "ml_create_room",
@@ -356,6 +438,8 @@ document.getElementById("createMlBtn").onclick = () => {
         category: category,
         difficulty: difficulty,
         turn_seconds: turnSec,
+        max_players: maxPlayers,
+        total_questions: totalQuestions,
         turnstile_token: mlTurnstileToken
     });
     mlTurnstileToken = null;
@@ -363,7 +447,14 @@ document.getElementById("createMlBtn").onclick = () => {
 };
 
 document.getElementById("createMlBackBtn").onclick = () => showScreen("modselect");
-document.getElementById("mlStartBtn").onclick = () => send({ type: "ml_start_game" });
+document.getElementById("mlStartBtn").onclick = () => {
+    const seenHashes = getMlHistory();
+    console.log(`[ML] Başlatılıyor - ${seenHashes.length} önceden görülmüş soru gönderiliyor`);
+    send({ 
+        type: "ml_start_game",
+        seen_hashes: seenHashes
+    });
+};
 document.getElementById("mlLobbyLeaveBtn").onclick = () => { showEscPopup(); };
 
 // Oda Ayarları butonu
@@ -371,6 +462,53 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
         title: "Kim Milyoner - Oda Ayarları",
         fields: [
+            {
+                id: "maxPlayers",
+                label: "👥 Oyuncu Sayısı",
+                current: mlData.maxPlayers || 2,
+                options: [
+                    {value: 2, label: "2 Oyuncu"},
+                    {value: 3, label: "3 Oyuncu"},
+                    {value: 4, label: "4 Oyuncu"},
+                    {value: 5, label: "5 Oyuncu"}
+                ]
+            },
+            {
+                id: "totalQ",
+                label: "❓ Soru Sayısı",
+                current: mlData.totalQuestions || 12,
+                options: [
+                    {value: 6, label: "6 Soru"},
+                    {value: 8, label: "8 Soru"},
+                    {value: 10, label: "10 Soru"},
+                    {value: 12, label: "12 Soru"},
+                    {value: 15, label: "15 Soru"},
+                    {value: 20, label: "20 Soru"},
+                    {value: 25, label: "25 Soru"}
+                ]
+            },
+            {
+                id: "category",
+                label: "📚 Kategori",
+                current: mlData.category || "futbol",
+                options: [
+                    {value: "futbol", label: "⚽ Futbol"},
+                    {value: "genel_kultur", label: "📚 Genel Kültür"},
+                    {value: "karisik", label: "🎲 Karışık"}
+                ]
+            },
+            {
+                id: "difficulty",
+                label: "🎯 Zorluk",
+                current: mlData.difficulty || "karisik",
+                options: [
+                    {value: "kolay", label: "🟢 Kolay"},
+                    {value: "orta", label: "🟡 Orta"},
+                    {value: "zor", label: "🔴 Zor"},
+                    {value: "cok_zor", label: "💀 Çok Zor"},
+                    {value: "karisik", label: "🎯 Karışık"}
+                ]
+            },
             {
                 id: "turnSec",
                 label: "⏱️ Tur Süresi",
@@ -387,7 +525,11 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
         onSave: (values) => {
             send({
                 type: "ml_update_settings",
-                turn_seconds: parseInt(values.turnSec) || 60
+                turn_seconds: parseInt(values.turnSec) || 60,
+                max_players: parseInt(values.maxPlayers) || 2,
+                total_questions: parseInt(values.totalQ) || 12,
+                category: values.category,
+                difficulty: values.difficulty
             });
         }
     });
@@ -405,7 +547,46 @@ const mlRoomHelper = window.setupRoomCodeAndLink({
 });
 document.getElementById("mlBackBtn").onclick = () => { showEscPopup(); };
 document.getElementById("mlBackToMenuBtn").onclick = () => location.reload();
-document.getElementById("mlRematchBtn").onclick = () => { document.getElementById("mlGameOverBox").classList.add("hidden"); send({ type: "ml_rematch" }); };
+document.getElementById("mlRematchBtn").onclick = () => { 
+    document.getElementById("mlGameOverBox").classList.add("hidden"); 
+    const seenHashes = getMlHistory();
+    send({ 
+        type: "ml_rematch",
+        seen_hashes: seenHashes
+    });
+};
+
+document.getElementById("mlBackToLobbyBtn").onclick = () => {
+    send({ type: "ml_back_to_lobby" });
+};
+
+// Sağ panel geçiş butonları
+document.getElementById("mlRightPrevBtn").onclick = () => {
+    mlData.rightPanelPage = "money";
+    updateRightPanelUI();
+};
+document.getElementById("mlRightNextBtn").onclick = () => {
+    mlData.rightPanelPage = "board";
+    updateRightPanelUI();
+};
+
+function updateRightPanelUI() {
+    const inner = document.getElementById("mlRightSliderInner");
+    const title = document.getElementById("mlRightPanelTitle");
+    const prevBtn = document.getElementById("mlRightPrevBtn");
+    const nextBtn = document.getElementById("mlRightNextBtn");
+    if (mlData.rightPanelPage === "board") {
+        inner.classList.add("showBoard");
+        title.innerHTML = "🏆 SIRALAMA";
+        prevBtn.classList.remove("hidden");
+        nextBtn.classList.add("hidden");
+    } else {
+        inner.classList.remove("showBoard");
+        title.innerHTML = "💰 PARA AĞACI";
+        prevBtn.classList.add("hidden");
+        nextBtn.classList.remove("hidden");
+    }
+}
 
 document.querySelectorAll(".mlOptBtn").forEach(btn => {
     btn.onclick = () => {
@@ -451,10 +632,40 @@ function updateMlTimerDisplay() {
 function updateMlLobby() {
     if (mlRoomHelper) { mlRoomHelper.renderCode(); mlRoomHelper.renderLink(); }
     document.getElementById("mlLobbyTurnSeconds").textContent = mlData.turnSeconds;
+    const _maxEl = document.getElementById("mlLobbyMaxPlayers");
+    if (_maxEl) _maxEl.textContent = mlData.maxPlayers || 2;
+    const _totEl = document.getElementById("mlLobbyTotalQuestions");
+    if (_totEl) _totEl.textContent = mlData.totalQuestions || 12;
+    
+    // ✨ Kategori göster
+    const catEl = document.getElementById("mlLobbyCategory");
+    if (catEl) {
+        const catLabels = {
+            "futbol": "⚽ Futbol",
+            "genel_kultur": "📚 Genel Kültür",
+            "karisik": "🎲 Karışık"
+        };
+        catEl.textContent = catLabels[mlData.category] || "⚽ Futbol";
+    }
+    
+    // ✨ Zorluk göster
+    const diffEl = document.getElementById("mlLobbyDifficulty");
+    if (diffEl) {
+        const diffLabels = {
+            "kolay": "🟢 Kolay",
+            "orta": "🟡 Orta",
+            "zor": "🔴 Zor",
+            "cok_zor": "💀 Çok Zor",
+            "karisik": "🎯 Karışık"
+        };
+        diffEl.textContent = diffLabels[mlData.difficulty] || "🎯 Karışık";
+    }
+    
     const aiStatusEl = document.getElementById("mlAiStatus");
     if (aiStatusEl) {
-        aiStatusEl.textContent = mlData.aiReady ? "✅ Sorular hazır!" : "⏳ Sorular hazırlanıyor...";
-        aiStatusEl.style.color = mlData.aiReady ? "#51cf66" : "#ffa94d";
+        // ✨ Havuz her zaman hazır (questions.py + Supabase)
+        aiStatusEl.textContent = "✅ Sorular hazır!";
+        aiStatusEl.style.color = "#51cf66";
     }
     const list = document.getElementById("mlPlayersList");
     list.innerHTML = "";
@@ -485,10 +696,15 @@ function updateMlLobby() {
         list.appendChild(li);
     });
     const startBtn = document.getElementById("mlStartBtn");
+    const maxP = mlData.maxPlayers || 2;
+    const curP = mlData.players.length;
     if (mlData.playerId === 1) {
         startBtn.classList.remove("hidden");
-        startBtn.disabled = !mlData.aiReady || mlData.players.length < 2;
+        startBtn.disabled = curP < maxP;
         startBtn.style.opacity = startBtn.disabled ? "0.5" : "1";
+        startBtn.textContent = curP < maxP ? `Oyuncu bekleniyor (${curP}/${maxP})` : "Oyunu Başlat";
+    } else {
+        startBtn.classList.add("hidden");
     }
     
     // Oda Ayarları butonu - sadece host
@@ -500,27 +716,43 @@ function updateMlLobby() {
 }
 
 function renderMlJokers() {
-    const myJokers = mlData.jokers[mlData.playerId] || {};
+    // ✨ Şu an sırası kimdeyse ONUN jokerlerini göster (izleyici de rakibin jokerlerini görsün)
+    const currentPlayerId = mlData.currentPlayer;
+    const activeJokers = mlData.jokers[currentPlayerId] || mlData.jokers[String(currentPlayerId)] || {};
+    
+    // Sıra bende mi? (buton tıklanabilir mi kontrolü için)
     const isMyTurn = mlData.currentPlayer === mlData.playerId && !mlData.answered;
     
     const fiftyBtn = document.getElementById("mlJokerFifty");
     const audBtn = document.getElementById("mlJokerAudience");
     const phoneBtn = document.getElementById("mlJokerPhone");
     
-    // 50:50
-    fiftyBtn.classList.remove("used");
-    if (!myJokers.fifty) fiftyBtn.classList.add("used");
-    fiftyBtn.disabled = !myJokers.fifty || !isMyTurn;
+    // ✨ Yardımcı: buton state'ini ayarla
+    // - Kullanılmış → soluk (used class)
+    // - Kullanılmamış + sıra bende → tam parlak, tıklanabilir
+    // - Kullanılmamış + sıra rakibimde → tam parlak ama tıklanamaz (izleyici görünümü)
+    function styleJokerBtn(btn, isAvailable) {
+        btn.classList.remove("used");
+        if (!isAvailable) {
+            // Kullanılmış → soluk
+            btn.classList.add("used");
+            btn.disabled = true;
+            btn.style.opacity = "";  // CSS "used" class'ı halleder
+        } else {
+            // Kullanılmamış → tam parlak
+            btn.style.opacity = "1";  // ✨ İzleyici de tam görsün
+            btn.disabled = !isMyTurn;  // Sadece sıra bende ise tıklanabilir
+            if (!isMyTurn) {
+                btn.style.cursor = "not-allowed";
+            } else {
+                btn.style.cursor = "pointer";
+            }
+        }
+    }
     
-    // Seyirci
-    audBtn.classList.remove("used");
-    if (!myJokers.audience) audBtn.classList.add("used");
-    audBtn.disabled = !myJokers.audience || !isMyTurn;
-    
-    // Telefon
-    phoneBtn.classList.remove("used");
-    if (!myJokers.phone) phoneBtn.classList.add("used");
-    phoneBtn.disabled = !myJokers.phone || !isMyTurn;
+    styleJokerBtn(fiftyBtn, activeJokers.fifty);
+    styleJokerBtn(audBtn, activeJokers.audience);
+    styleJokerBtn(phoneBtn, activeJokers.phone);
 }
 
 function getMlPlayerName(id) {
@@ -544,20 +776,59 @@ function renderMlParaAgaci() {
 }
 
 function renderMlAll() {
-    // İsimleri set et
+    const isMulti = (mlData.maxPlayers || 2) >= 3;
+    const topBar = document.querySelector(".mlTopBar");
+    if (topBar) {
+        if (isMulti) topBar.classList.add("multiMode");
+        else topBar.classList.remove("multiMode");
+    }
+    
+    // İsimleri set et (2 kişilikte kullanılır)
     document.getElementById("mlP1Name").textContent = getMlPlayerName(1);
     document.getElementById("mlP2Name").textContent = getMlPlayerName(2);
     
-    document.getElementById("mlP1Money").textContent = mlData.scores[1].toLocaleString() + " TL";
-    document.getElementById("mlP2Money").textContent = mlData.scores[2].toLocaleString() + " TL";
+    // ✨ Negatif skorlar kırmızı
+    const p1El = document.getElementById("mlP1Money");
+    const p2El = document.getElementById("mlP2Money");
+    const s1 = mlData.scores[1] || 0;
+    const s2 = mlData.scores[2] || 0;
+    
+    p1El.textContent = s1.toLocaleString() + " TL";
+    p2El.textContent = s2.toLocaleString() + " TL";
+    
+    // Renk: negatifse kırmızı, pozitifse normal
+    if (s1 < 0) {
+        p1El.style.color = "#ff3333";
+        p1El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)";
+    } else {
+        p1El.style.color = "";
+        p1El.style.textShadow = "";
+    }
+    if (s2 < 0) {
+        p2El.style.color = "#ff3333";
+        p2El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)";
+    } else {
+        p2El.style.color = "";
+        p2El.style.textShadow = "";
+    }
     
     // Sıradaki oyuncu göster (0-0 yerine)
     const turnName = getMlPlayerName(mlData.currentPlayer);
     const turnColor = mlData.currentPlayer === mlData.playerId ? "#51cf66" : "#ffa94d";
     document.getElementById("mlScoreLine").innerHTML = `Sıra: <span style="color:${turnColor}; font-weight:bold;">${turnName}</span>`;
     
-    // Soru ve ödül
-    document.getElementById("mlQuestionInfo").textContent = `Soru ${(mlData.qIdx || 0) + 1}/12`;
+    // ✨ Soru + zorluk (kolay/orta/zor/çok zor)
+    const levelLabels = {
+        "kolay": "🟢 Kolay",
+        "orta": "🟡 Orta",
+        "zor": "🔴 Zor",
+        "cok_zor": "💀 Çok Zor"
+    };
+    const levelText = levelLabels[mlData.level] || "";
+    const qInfoEl = document.getElementById("mlQuestionInfo");
+    const totalQ = mlData.totalQuestions || 12;
+    qInfoEl.innerHTML = `Soru ${(mlData.qIdx || 0) + 1}/${totalQ} &nbsp;•&nbsp; <span style="font-size:13px;">${levelText}</span>`;
+    
     document.getElementById("mlPrizeInfo").textContent = `Ödül: ${mlData.prizeStr || "0"} TL`;
     document.getElementById("mlQuestionText").textContent = mlData.question;
     
@@ -575,9 +846,76 @@ function renderMlAll() {
     
     renderMlJokers();
     
+    // Sağ panel: multiMode ise skorbord kullanılabilir
+    renderMlScoreboardList();
+    updateRightPanelUI();
+    
     // Yeni soruda telefon ve seyirci kutularını gizle
     document.getElementById("mlPhoneBox").classList.add("hidden");
     document.getElementById("mlAudienceBox").classList.add("hidden");
+}
+
+function renderMlScoreboardList() {
+    const listEl = document.getElementById("mlScoreboardList");
+    if (!listEl) return;
+    
+    const rows = mlData.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        score: mlData.scores[p.id] ?? 0
+    }));
+    rows.sort((a, b) => b.score - a.score);
+    
+    // FLIP animasyonu için eski pozisyonları al
+    const oldPositions = {};
+    Array.from(listEl.children).forEach(li => {
+        const pid = parseInt(li.dataset.pid);
+        oldPositions[pid] = li.getBoundingClientRect().top;
+    });
+    
+    listEl.innerHTML = "";
+    rows.forEach((row, idx) => {
+        const li = document.createElement("li");
+        li.dataset.pid = row.id;
+        li.className = "mlScoreRow";
+        if (row.id === mlData.currentPlayer) li.classList.add("activeTurn");
+        if (row.id === mlData.playerId) li.classList.add("meRow");
+        
+        const rankBadge = document.createElement("span");
+        rankBadge.className = "mlRankBadge";
+        const medals = ["🥇", "🥈", "🥉"];
+        rankBadge.textContent = medals[idx] || `${idx + 1}.`;
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "mlScoreName";
+        nameSpan.textContent = row.name + (row.id === mlData.playerId ? " (Sen)" : "");
+        
+        const scoreSpan = document.createElement("span");
+        scoreSpan.className = "mlScoreVal";
+        if (row.score < 0) scoreSpan.classList.add("negative");
+        scoreSpan.textContent = row.score.toLocaleString() + " TL";
+        
+        li.appendChild(rankBadge);
+        li.appendChild(nameSpan);
+        li.appendChild(scoreSpan);
+        listEl.appendChild(li);
+    });
+    
+    // FLIP animasyonu
+    Array.from(listEl.children).forEach(li => {
+        const pid = parseInt(li.dataset.pid);
+        const newTop = li.getBoundingClientRect().top;
+        const oldTop = oldPositions[pid];
+        if (oldTop !== undefined && oldTop !== newTop) {
+            const diff = oldTop - newTop;
+            li.style.transform = `translateY(${diff}px)`;
+            li.style.transition = "none";
+            requestAnimationFrame(() => {
+                li.style.transform = "";
+                li.style.transition = "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)";
+            });
+        }
+    });
 }
 
 const _originalHandleMessageML = handleMessage;
@@ -588,20 +926,49 @@ handleMessage = function(msg) {
             mlData.turnSeconds = msg.turn_seconds; 
             mlData.category = msg.category || "futbol";
             mlData.difficulty = msg.difficulty || "karisik";
+            if (msg.max_players !== undefined) mlData.maxPlayers = msg.max_players;
+            if (msg.total_questions !== undefined) mlData.totalQuestions = msg.total_questions;
             mlData.aiReady = false;
             inRoom = true;
             showScreen("mlLobby"); updateMlLobby();
         } else if (msg.type === "ml_lobby_update") {
             mlData.roomCode = msg.room_code;
             mlData.players = msg.players; 
-            mlData.aiReady = msg.ai_ready === true; 
+            mlData.aiReady = msg.ai_ready === true;
+            if (msg.category !== undefined) mlData.category = msg.category;
+            if (msg.difficulty !== undefined) mlData.difficulty = msg.difficulty;
+            if (msg.turn_seconds !== undefined) mlData.turnSeconds = msg.turn_seconds;
+            if (msg.max_players !== undefined) mlData.maxPlayers = msg.max_players;
+            if (msg.total_questions !== undefined) mlData.totalQuestions = msg.total_questions;
+            updateMlLobby();
+        } else if (msg.type === "ml_player_left") {
+            // Bir oyuncu ayrıldı
+            if (msg.players) mlData.players = msg.players;
+            if (msg.scores) mlData.scores = msg.scores;
+            if (msg.player_id !== undefined) {
+                delete mlData.jokers[msg.player_id];
+            }
+            renderMlAll();
+            if (typeof showToast === "function") {
+                showToast(`${msg.name || "Bir oyuncu"} oyundan ayrıldı`, "warn");
+            }
+        } else if (msg.type === "ml_back_to_lobby") {
+            document.getElementById("mlGameOverBox").classList.add("hidden");
+            document.getElementById("mlPhoneBox").classList.add("hidden");
+            document.getElementById("mlAudienceBox").classList.add("hidden");
+            stopAllMlSounds();
+            showScreen("mlLobby");
             updateMlLobby();
         } else if (msg.type === "ml_game_started" || msg.type === "ml_new_question") {
             if (msg.player_id !== undefined) mlData.playerId = msg.player_id;
             if (msg.players) mlData.players = msg.players;
             if (msg.current_player !== undefined) mlData.currentPlayer = msg.current_player;
             if (msg.q_idx !== undefined) mlData.qIdx = msg.q_idx;
-            if (msg.question !== undefined) mlData.question = msg.question;
+            if (msg.question !== undefined) {
+                mlData.question = msg.question;
+                // ✨ Yeni soruyu history'e ekle (bir daha çıkmasın)
+                addMlHistory(msg.question);
+            }
             if (msg.options !== undefined) mlData.options = msg.options;
             if (msg.prize !== undefined) mlData.prize = msg.prize;
             if (msg.prize_str !== undefined) mlData.prizeStr = msg.prize_str;
@@ -611,9 +978,14 @@ handleMessage = function(msg) {
             if (msg.para_agaci) mlData.paraAgaci = msg.para_agaci;
             if (msg.turn_seconds !== undefined) mlData.turnSeconds = msg.turn_seconds;
             if (msg.category !== undefined) mlData.category = msg.category;
+            if (msg.total_questions !== undefined) mlData.totalQuestions = msg.total_questions;
+            if (msg.max_players !== undefined) mlData.maxPlayers = msg.max_players;
             mlData.answered = false; 
             mlData.removed = [];
+            document.getElementById("mlGameOverBox").classList.add("hidden");
             document.getElementById("mlAudienceBox").classList.add("hidden");
+            document.getElementById("mlPhoneBox").classList.add("hidden");
+            mlData.rightPanelPage = "money";
             showScreen("mlGame"); playMlSound("question"); renderMlAll(); startMlTimer(mlData.turnSeconds);
         } else if (msg.type === "ml_answer_result") {
             mlData.answered = true; mlData.scores = msg.scores; stopMlTimer(); stopMlSound("question");
@@ -622,6 +994,30 @@ handleMessage = function(msg) {
                 else if (btn.dataset.letter === msg.selected && !msg.correct) btn.classList.add("wrong");
             });
             playMlSound(msg.correct ? "correct" : "wrong");
+        } else if (msg.type === "ml_phone_popup_show") {
+            // ✨ Oynayan telefon jokerini kullandı - izleyici olarak biz de popup'ı görüyoruz
+            console.log("[ML] İzleyici modu: Telefon popup'ı gösteriliyor");
+            showPhoneBox(true, msg.contacts);
+        } else if (msg.type === "ml_phone_contact_selected") {
+            // ✨ Oynayan bir kişi seçti - biz de vurgula
+            console.log("[ML] İzleyici modu: Kişi seçildi, index:", msg.contact_index);
+            const idx = msg.contact_index;
+            document.querySelectorAll(".mlPhoneContact").forEach((el, i) => {
+                el.classList.add("disabled");
+                if (i === idx) {
+                    el.classList.add("selected");
+                    el.style.border = "2px solid #51cf66";
+                    el.style.background = "rgba(81, 207, 102, 0.2)";
+                    
+                    // Loading göster
+                    const answerBox = document.getElementById("mlPhoneAnswer");
+                    const contactName = el.querySelector(".mlPhoneName")?.textContent || "?";
+                    answerBox.classList.remove("hidden");
+                    answerBox.innerHTML = `
+                        <div class="mlPhoneCallingText">📞 ${contactName} aranıyor...</div>
+                    `;
+                }
+            });
         } else if (msg.type === "ml_joker_result") {
             if (msg.jokers) mlData.jokers = msg.jokers;
             
@@ -646,7 +1042,59 @@ handleMessage = function(msg) {
                 renderMlJokers();
             }
         } else if (msg.type === "ml_game_over") {
-            stopAllMlSounds(); document.getElementById("mlGameOverBox").classList.remove("hidden");
+            stopAllMlSounds();
+            
+            const title = document.getElementById("mlGameOverTitle");
+            const text = document.getElementById("mlGameOverText");
+            
+            if (msg.winner_id === 0) { title.textContent = "BERABERE!"; title.style.color = "#74c0fc"; }
+            else if (msg.winner_id === mlData.playerId) { title.textContent = "KAZANDIN! 🏆"; title.style.color = "#51cf66"; if (typeof startConfetti === "function") startConfetti(); }
+            else { title.textContent = "KAYBETTİN 😢"; title.style.color = "#ff6b6b"; }
+            
+            // Sıralama listesi
+            let ranking = msg.ranking;
+            if (!ranking || !Array.isArray(ranking)) {
+                ranking = [];
+                for (const [pidStr, sc] of Object.entries(mlData.scores || {})) {
+                    const pid = parseInt(pidStr);
+                    ranking.push({ player_id: pid, name: getMlPlayerName(pid), score: sc });
+                }
+                ranking.sort((a, b) => b.score - a.score);
+            }
+            
+            const listEl = document.getElementById("mlGameOverList");
+            if (listEl) {
+                listEl.innerHTML = "";
+                const medals = ["🥇", "🥈", "🥉"];
+                ranking.forEach((row, idx) => {
+                    const li = document.createElement("li");
+                    li.className = "mlGameOverItem";
+                    if (idx === 0) li.classList.add("goldRank");
+                    if (row.player_id === mlData.playerId) li.classList.add("meRow");
+                    const medal = medals[idx] || `${idx + 1}.`;
+                    const scoreCls = row.score < 0 ? "rankScore negative" : "rankScore";
+                    li.innerHTML = `<span class="rankIcon">${medal}</span> <span class="rankName">${row.name}</span> <span class="${scoreCls}">${row.score.toLocaleString()} TL</span>`;
+                    listEl.appendChild(li);
+                });
+            }
+            
+            if (ranking.length === 2) {
+                text.innerHTML = `Skor: <b>${ranking[0].score.toLocaleString()} TL - ${ranking[1].score.toLocaleString()} TL</b>`;
+            } else {
+                text.innerHTML = `<b>${ranking.length}</b> oyuncu yarıştı`;
+            }
+            
+            const rematchBtn = document.getElementById("mlRematchBtn");
+            const lobbyBtn = document.getElementById("mlBackToLobbyBtn");
+            if (mlData.playerId === 1) {
+                rematchBtn.classList.remove("hidden");
+                lobbyBtn.classList.remove("hidden");
+            } else {
+                rematchBtn.classList.add("hidden");
+                lobbyBtn.classList.add("hidden");
+            }
+            
+            document.getElementById("mlGameOverBox").classList.remove("hidden");
         }
         return;
     }

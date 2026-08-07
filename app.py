@@ -438,7 +438,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 await broadcast(room, {
                     "type": "mini_opponent_left",
                     "message": f"{left_name} odadan ayrıldı.",
-                    "player_name": left_name
+                    "player_name": left_name,
+                    "left_player_id": player_id  # ✨ Hangi ID'nin çıktığını da gönder (hayalet fix)
                 })
                 
                 # Game state'ten oyuncuyu temizle
@@ -453,6 +454,23 @@ async def websocket_endpoint(websocket: WebSocket):
                 if room.get("active_blue_player") == player_id:
                     room["active_blue_player"] = None
                 
+                # ✨ Aktif oyuncu değişikliğini herkese bildir (HP'ler güncellensin, hayalet kalmasın)
+                active_players_info = {}
+                red_pid = room.get("active_red_player")
+                blue_pid = room.get("active_blue_player")
+                if red_pid and red_pid in room["players"]:
+                    active_players_info[str(red_pid)] = room["players"][red_pid]["name"]
+                if blue_pid and blue_pid in room["players"]:
+                    active_players_info[str(blue_pid)] = room["players"][blue_pid]["name"]
+                
+                await broadcast(room, {
+                    "type": "mini_active_players_changed",
+                    "players": active_players_info,
+                    "red_pid": red_pid,
+                    "blue_pid": blue_pid,
+                    "removed_pid": player_id  # ✨ Silinmesi gereken oyuncu (hayalet fix)
+                })
+                
                 # Lobby update gönder (kalan oyunculara)
                 try:
                     from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update as slu
@@ -464,6 +482,116 @@ async def websocket_endpoint(websocket: WebSocket):
             
             # Oyun içindeyse (lobby değilse)
             if room.get("phase") not in ("lobby", None):
+                # ✨ TAKIM BİLMECE 3+ KİŞİLİK - Özel davranış (oyun devam eder)
+                if room_mode == "takim_bilmece" and room.get("max_players", 2) >= 3:
+                    # Host çıktıysa oda kapansın (kimse host olamıyor)
+                    if player_id == 1:
+                        for pid, pdata in room["players"].items():
+                            await safe_send(pdata["ws"], {
+                                "type": "opponent_left",
+                                "message": "Host odayı kapattı.",
+                                "player_name": left_name
+                            })
+                        for task_key in ["takim_task"]:
+                            task = room.get(task_key)
+                            if task and not task.done():
+                                task.cancel()
+                        rooms.pop(room_code, None)
+                        return
+                    
+                    # Normal oyuncu çıktı: sıralamadan sil, oyun devam etsin
+                    # Skoru ve state'i temizle
+                    if "scores" in room and player_id in room["scores"]:
+                        # Ayrılan oyuncunun ismini sıralama için sakla
+                        if "left_players" not in room:
+                            room["left_players"] = {}
+                        room["left_players"][player_id] = left_name
+                        del room["scores"][player_id]
+                    if "jokers_left" in room and player_id in room["jokers_left"]:
+                        del room["jokers_left"][player_id]
+                    if "revealed_names" in room and player_id in room["revealed_names"]:
+                        del room["revealed_names"][player_id]
+                    if "year_revealed" in room and player_id in room["year_revealed"]:
+                        del room["year_revealed"][player_id]
+                    if "eliminated_options" in room and player_id in room["eliminated_options"]:
+                        del room["eliminated_options"][player_id]
+                    
+                    # Herkese ayrıldığını bildir (toast için)
+                    await broadcast(room, {
+                        "type": "takim_player_left",
+                        "player_id": player_id,
+                        "name": left_name,
+                        "scores": room.get("scores", {}),
+                        "players": [{"id": pid, "name": pdata["name"]} for pid, pdata in sorted(room["players"].items())]
+                    })
+                    
+                    # Sıra ayrılandaysa → sıradaki oyuncuya geç
+                    if room.get("turn") == player_id:
+                        # Mevcut task'ı iptal et
+                        old_task = room.get("takim_task")
+                        if old_task and not old_task.done():
+                            old_task.cancel()
+                        # Sonraki sorulara otomatik geç
+                        try:
+                            from oyun_modlari.takim_bilmece.takim_handler import takim_next_question
+                            import asyncio as _asyncio
+                            _asyncio.create_task(takim_next_question(room, broadcast))
+                        except Exception as e:
+                            print(f"[TAKIM DISCONNECT next_question HATA] {e}")
+                    
+                    return
+                
+                # ✨ KİM MİLYONER 3+ KİŞİLİK - Özel davranış (oyun devam eder)
+                if room_mode == "kim_milyoner" and room.get("ml_max_players", 2) >= 3:
+                    # Host çıktıysa oda kapansın
+                    if player_id == 1:
+                        for pid, pdata in room["players"].items():
+                            await safe_send(pdata["ws"], {
+                                "type": "opponent_left",
+                                "message": "Host odayı kapattı.",
+                                "player_name": left_name
+                            })
+                        for task_key in ["ml_task", "ml_ai_generation_task"]:
+                            task = room.get(task_key)
+                            if task and not task.done():
+                                task.cancel()
+                        rooms.pop(room_code, None)
+                        return
+                    
+                    # Normal oyuncu çıktı: state temizle
+                    if "left_players" not in room:
+                        room["left_players"] = {}
+                    room["left_players"][player_id] = left_name
+                    
+                    if "scores" in room and player_id in room["scores"]:
+                        del room["scores"][player_id]
+                    if "ml_jokers" in room and player_id in room["ml_jokers"]:
+                        del room["ml_jokers"][player_id]
+                    if "ml_player_q_idx" in room and player_id in room["ml_player_q_idx"]:
+                        del room["ml_player_q_idx"][player_id]
+                    
+                    await broadcast(room, {
+                        "type": "ml_player_left",
+                        "player_id": player_id,
+                        "name": left_name,
+                        "scores": room.get("scores", {}),
+                        "players": [{"id": pid, "name": pdata["name"]} for pid, pdata in sorted(room["players"].items())]
+                    })
+                    
+                    # Sıra ayrılandaysa → sıradakine geç
+                    if room.get("ml_current_player") == player_id:
+                        old_task = room.get("ml_task")
+                        if old_task and not old_task.done():
+                            old_task.cancel()
+                        try:
+                            from oyun_modlari.kim_milyoner.milyoner_handler import ml_next_turn
+                            import asyncio as _asyncio
+                            _asyncio.create_task(ml_next_turn(room, broadcast))
+                        except Exception as e:
+                            print(f"[ML DISCONNECT next_turn HATA] {e}")
+                    
+                    return
+                
                 # Host ayrıldıysa → oda kapansın (misafir oynayamaz)
                 if player_id == 1:
                     for pid, pdata in room["players"].items():

@@ -5,7 +5,7 @@
 // ========================================
 
 const HP = {  // Host Physics namespace
-    // === SABİTLER ===
+    // === SABİTLER (default 1v1 - odaya göre startGame'de güncellenir) ===
     FIELD_WIDTH: 1000,
     FIELD_HEIGHT: 500,
     PLAYER_RADIUS: 20,
@@ -64,6 +64,11 @@ const HP = {  // Host Physics namespace
     startGame(settings, playerList) {
         console.log("[HOST-PHYSICS] Oyun başlatılıyor", settings);
         this.settings = settings;
+        // ✨ Odaya göre saha boyutlarını uygula
+        if (settings.fieldWidth) this.FIELD_WIDTH = settings.fieldWidth;
+        if (settings.fieldHeight) this.FIELD_HEIGHT = settings.fieldHeight;
+        if (settings.goalWidth) this.GOAL_WIDTH = settings.goalWidth;
+        console.log(`[HOST-PHYSICS] Saha: ${this.FIELD_WIDTH}x${this.FIELD_HEIGHT}, Kale: ${this.GOAL_WIDTH}`);
         this.initGameState(playerList);
         this.running = true;
         
@@ -286,19 +291,36 @@ const HP = {  // Host Physics namespace
             };
         }
         
-        // Aktif kırmızı ve mavi oyuncu
-        const redPlayers = playerList.filter(p => p.team === "red");
-        const bluePlayers = playerList.filter(p => p.team === "blue");
-        const redPid = redPlayers.length ? redPlayers[0].id : null;
-        const bluePid = bluePlayers.length ? bluePlayers[0].id : null;
+        // ✨ TÜM kırmızı ve mavi oyuncuları al
+        const redPlayers = playerList.filter(p => p.team === "red").sort((a,b) => a.id - b.id);
+        const bluePlayers = playerList.filter(p => p.team === "blue").sort((a,b) => a.id - b.id);
         
-        this.room.active_red_player = redPid;
-        this.room.active_blue_player = bluePid;
+        this.room.active_red_player = redPlayers.length ? redPlayers[0].id : null;
+        this.room.active_blue_player = bluePlayers.length ? bluePlayers[0].id : null;
+        this.room.active_red_players = redPlayers.map(p => p.id);
+        this.room.active_blue_players = bluePlayers.map(p => p.id);
+        
+        // Y ekseninde dağılım helper
+        const _calcYs = (count, height) => {
+            if (count === 1) return [height / 2];
+            const top = height * 0.15;
+            const bottom = height * 0.85;
+            const step = (bottom - top) / (count - 1);
+            const ys = [];
+            for (let i = 0; i < count; i++) ys.push(top + i * step);
+            return ys;
+        };
+        
+        const _spawnOffset = this.FIELD_WIDTH * 0.2;
+        const _redYs = _calcYs(redPlayers.length, this.FIELD_HEIGHT);
+        const _blueYs = _calcYs(bluePlayers.length, this.FIELD_HEIGHT);
         
         const gsPlayers = {};
-        if (redPid) {
-            gsPlayers[redPid] = {
-                x: 200, y: this.FIELD_HEIGHT / 2,
+        // Tüm kırmızı oyuncular
+        redPlayers.forEach((pl, i) => {
+            gsPlayers[pl.id] = {
+                x: _spawnOffset,
+                y: _redYs[i],
                 vx: 0, vy: 0,
                 keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                 last_kick_time: 0,
@@ -306,10 +328,12 @@ const HP = {  // Host Physics namespace
                 last_frame_time: 0,
                 team: "red"
             };
-        }
-        if (bluePid) {
-            gsPlayers[bluePid] = {
-                x: this.FIELD_WIDTH - 200, y: this.FIELD_HEIGHT / 2,
+        });
+        // Tüm mavi oyuncular
+        bluePlayers.forEach((pl, i) => {
+            gsPlayers[pl.id] = {
+                x: this.FIELD_WIDTH - _spawnOffset,
+                y: _blueYs[i],
                 vx: 0, vy: 0,
                 keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                 last_kick_time: 0,
@@ -317,7 +341,9 @@ const HP = {  // Host Physics namespace
                 last_frame_time: 0,
                 team: "blue"
             };
-        }
+        });
+        
+        console.log(`[HP] Sahada: ${redPlayers.length} kırmızı, ${bluePlayers.length} mavi oyuncu`);
         
         this.room.gameState = {
             players: gsPlayers,
@@ -349,42 +375,51 @@ const HP = {  // Host Physics namespace
         const receiving = gs.kickoff_receiving_team;
         const cx = this.FIELD_WIDTH / 2;
         const cy = this.FIELD_HEIGHT / 2;
+        const _spawn = this.FIELD_WIDTH * 0.2;
         
-        // ✨ ID'ye değil, gerçek takıma göre oyuncu bul (takım değişiminde bug engeli)
-        let redP = null, bluePl = null;
-        for (const pid in gs.players) {
-            const pl = gs.players[pid];
-            if (pl.team === "red" && !redP) redP = pl;
-            else if (pl.team === "blue" && !bluePl) bluePl = pl;
-        }
+        // Y ekseninde dağılım
+        const _calcYs = (count, height) => {
+            if (count === 1) return [height / 2];
+            const top = height * 0.15;
+            const bottom = height * 0.85;
+            const step = (bottom - top) / (count - 1);
+            const ys = [];
+            for (let i = 0; i < count; i++) ys.push(top + i * step);
+            return ys;
+        };
         
-        // ✨ Kırmızı oyuncu - HER ZAMAN sol tarafta sabit pozisyon
-        if (redP) {
-            if (receiving === 1) {
-                redP.x = cx - 50;   // Kırmızı santra atacak (topun solunda)
-            } else if (receiving === 2) {
-                redP.x = 200;       // Mavi santra atacak (kırmızı geride)
+        // ✨ TÜM takım oyuncularını topla
+        const redPids = Object.keys(gs.players).filter(pid => gs.players[pid].team === "red").sort((a,b) => parseInt(a) - parseInt(b));
+        const bluePids = Object.keys(gs.players).filter(pid => gs.players[pid].team === "blue").sort((a,b) => parseInt(a) - parseInt(b));
+        
+        const redYs = _calcYs(redPids.length, this.FIELD_HEIGHT);
+        const blueYs = _calcYs(bluePids.length, this.FIELD_HEIGHT);
+        
+        // KIRMIZI TAKIM
+        redPids.forEach((pid, i) => {
+            const p = gs.players[pid];
+            if (receiving === 1 && i === 0) {
+                p.x = cx - 50;   // İlk kırmızı santra atacak
             } else {
-                redP.x = 200;       // İlk santra
+                p.x = _spawn;
             }
-            redP.y = cy;
-            redP.vx = 0; redP.vy = 0;
-            redP.sprint_energy = this.SPRINT_MAX_ENERGY;
-        }
+            p.y = redYs[i];
+            p.vx = 0; p.vy = 0;
+            p.sprint_energy = this.SPRINT_MAX_ENERGY;
+        });
         
-        // ✨ Mavi oyuncu - HER ZAMAN sağ tarafta sabit pozisyon
-        if (bluePl) {
-            if (receiving === 2) {
-                bluePl.x = cx + 50;                    // Mavi santra atacak (topun sağında)
-            } else if (receiving === 1) {
-                bluePl.x = this.FIELD_WIDTH - 200;     // Kırmızı santra atacak (mavi geride)
+        // MAVİ TAKIM
+        bluePids.forEach((pid, i) => {
+            const p = gs.players[pid];
+            if (receiving === 2 && i === 0) {
+                p.x = cx + 50;
             } else {
-                bluePl.x = this.FIELD_WIDTH - 200;     // İlk santra
+                p.x = this.FIELD_WIDTH - _spawn;
             }
-            bluePl.y = cy;
-            bluePl.vx = 0; bluePl.vy = 0;
-            bluePl.sprint_energy = this.SPRINT_MAX_ENERGY;
-        }
+            p.y = blueYs[i];
+            p.vx = 0; p.vy = 0;
+            p.sprint_energy = this.SPRINT_MAX_ENERGY;
+        });
         
         // Top ortada
         gs.ball.x = cx;
@@ -786,24 +821,27 @@ const HP = {  // Host Physics namespace
             if (p.y - R < -M) { p.y = -M + R; p.vy = 0; }
             if (p.y + R > this.FIELD_HEIGHT + M) { p.y = this.FIELD_HEIGHT + M - R; p.vy = 0; }
             
-            // Santra kuralı
+            // Santra kuralı (team bazlı - çoklu oyuncu destekli)
             if (gs.kickoff_active) {
                 const restricted = gs.kickoff_restricted_team;
                 const receiving = gs.kickoff_receiving_team;
-                const pidInt = parseInt(pid);
-                if (pidInt === restricted) {
-                    if (pidInt === 1) {
+                const pTeamId = p.team === "red" ? 1 : (p.team === "blue" ? 2 : null);
+                
+                if (pTeamId === restricted) {
+                    // Gol atan takımdan HERKES çembere giremez
+                    if (p.team === "red") {
                         const bx = this.CENTER_LINE_X - this.CENTER_CIRCLE_RADIUS;
                         if (p.x + R > bx) { p.x = bx - R; if (p.vx > 0) p.vx = 0; }
-                    } else if (pidInt === 2) {
+                    } else if (p.team === "blue") {
                         const bx = this.CENTER_LINE_X + this.CENTER_CIRCLE_RADIUS;
                         if (p.x - R < bx) { p.x = bx + R; if (p.vx < 0) p.vx = 0; }
                     }
-                } else if (pidInt === receiving) {
-                    if (pidInt === 1) {
+                } else if (pTeamId === receiving) {
+                    // Gol yiyen takımdan HERKES karşı çembere kadar gidebilir
+                    if (p.team === "red") {
                         const bx = this.CENTER_LINE_X + this.CENTER_CIRCLE_RADIUS;
                         if (p.x + R > bx) { p.x = bx - R; if (p.vx > 0) p.vx = 0; }
-                    } else if (pidInt === 2) {
+                    } else if (p.team === "blue") {
                         const bx = this.CENTER_LINE_X - this.CENTER_CIRCLE_RADIUS;
                         if (p.x - R < bx) { p.x = bx + R; if (p.vx < 0) p.vx = 0; }
                     }
