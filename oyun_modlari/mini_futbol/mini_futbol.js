@@ -25,7 +25,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 25,         // ✨ 45 → 25ms (daha hızlı tepki)
+    interpDelay: 10,         // ✨ 25 → 10ms (minimum gecikme)
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -6294,16 +6294,16 @@ function updateMiniPrediction() {
     const dy = serverPos.y - p.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     
-    if (dist > 60) {
+    if (dist > 40) {
         // Çok uzak → snap (ışınlan)
         p.x = serverPos.x;
         p.y = serverPos.y;
         p.vx = 0;
         p.vy = 0;
-    } else if (dist > 3) {
-        // Ufak fark → yumuşakça yaklaş (lerp)
-        p.x += dx * PRED_LERP_SPEED;
-        p.y += dy * PRED_LERP_SPEED;
+    } else if (dist > 2) {
+        // Ufak fark → hızlıca yaklaş
+        p.x += dx * 0.5;
+        p.y += dy * 0.5;
     }
 }
 
@@ -6321,14 +6321,14 @@ function syncLocalHPWithServer() {
         const dy = serverGS.ball.y - localGS.ball.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
 
-        if (dist > 150) { // Çok büyük fark varsa ışınla
+        if (dist > 80) {
             localGS.ball.x = serverGS.ball.x;
             localGS.ball.y = serverGS.ball.y;
             localGS.ball.vx = serverGS.ball.vx || 0;
             localGS.ball.vy = serverGS.ball.vy || 0;
-        } else if (dist > 1) { // Küçük farkları yavaşça düzelt (%15 her frame)
-            localGS.ball.x += dx * 0.15;
-            localGS.ball.y += dy * 0.15;
+        } else if (dist > 1) {
+            localGS.ball.x += dx * 0.3;
+            localGS.ball.y += dy * 0.3;
         }
     }
 
@@ -6343,12 +6343,12 @@ function syncLocalHPWithServer() {
             const dy = sP.y - lP.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
 
-            if (dist > 80) { // Işınla
+            if (dist > 50) {
                 lP.x = sP.x;
                 lP.y = sP.y;
-            } else if (dist > 0.5) { // %20 hızla yaklaş
-                lP.x += dx * 0.2;
-                lP.y += dy * 0.2;
+            } else if (dist > 0.5) {
+                lP.x += dx * 0.35;
+                lP.y += dy * 0.35;
             }
         }
     }
