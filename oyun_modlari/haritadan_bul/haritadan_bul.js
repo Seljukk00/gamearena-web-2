@@ -127,7 +127,7 @@ document.getElementById("haritaStartBtn").onclick = () => {
 };
 
 document.getElementById("haritaLobbyLeaveBtn").onclick = () => {
-    showEscPopup();
+    window._showLeaveConfirmPopup();
 };
 
 // Oda Ayarları butonu

@@ -2490,6 +2490,30 @@
         </div>
     </div>
 
+     <!-- MİNİ FUTBOL CHAT POPUP STACK (chat kapalıyken görünen baloncuklar) -->
+    <div id="miniChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
+
+    <!-- MİNİ FUTBOL CHAT -->
+    <div id="miniChatContainer" class="miniChatContainer" style="display:none;">
+        <!-- Kapalı halde buton -->
+        <button id="miniChatToggleBtn" class="miniChatToggleBtn">
+            💬
+            <span id="miniChatBadge" class="miniChatBadge" style="display:none;">0</span>
+        </button>
+        <!-- Açık halde panel -->
+        <div id="miniChatPanel" class="miniChatPanel" style="display:none;">
+            <div class="miniChatHeader">
+                <span>💬 Sohbet</span>
+                <button id="miniChatCloseBtn" class="miniChatCloseBtn">✕</button>
+            </div>
+            <div id="miniChatMessages" class="miniChatMessages"></div>
+            <div class="miniChatInputRow">
+                <input type="text" id="miniChatInput" class="miniChatInput" placeholder="Mesaj Yaz..." maxlength="100" autocomplete="off">
+                <button id="miniChatSendBtn" class="miniChatSendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
     <!-- KONFETI -->
     <canvas id="confetti"></canvas>
 

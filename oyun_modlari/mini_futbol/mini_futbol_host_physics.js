@@ -177,10 +177,13 @@ const HP = {  // Host Physics namespace
             }
             
             // Normal resume (gol yok, sadece pause) → hemen 3-2-1
+            // ✨ Kalan süreyi kaydet (countdown bitince buradan devam edecek)
+            gs._savedTimeLeft = gs.time_left;
+            
             gs.state = "countdown";
             gs.countdown_start = now;
             gs.countdown_end = now + 3.5;
-            gs.pause_time = now;
+            delete gs.pause_time;
             gs._silentWhistle = true;  // ✨ Pause resume → düdük çalma
         }
     },
@@ -471,12 +474,11 @@ const HP = {  // Host Physics namespace
                 gs.time_left = Math.max(0, this.settings.matchDuration - elapsed);
             }
         } else if (gs.state === "countdown") {
-            // ✨ Countdown sırasında:
-            //   - İlk başlangıç (pause_time yok) → tam süre göster (5:00)
-            //   - Pause'dan devam (pause_time var) → kaldığı süreyi göster
-            if (gs.pause_time) {
-                // Pause'dan devam ediyor - time_left'i olduğu gibi bırak (mevcut değeri korur)
-                // Hiçbir şey yapma
+            if (gs._savedTimeLeft !== undefined) {
+                // ✨ Resume sonrası countdown → kaydedilmiş süreyi göster
+                gs.time_left = gs._savedTimeLeft;
+            } else if (gs.pause_time) {
+                // Gol sonrası countdown → mevcut değeri koru
             } else {
                 // İlk başlangıç
                 gs.time_left = this.settings.matchDuration;
@@ -697,8 +699,13 @@ const HP = {  // Host Physics namespace
                 // Countdown bitti → oyun başlasın
                 gs.state = "playing";
                 
-                if (gs.pause_time) {
-                    // ✨ Pause'dan devam ediyor → eski süreyi koru, sadece pause süresi kadar kaydır
+                if (gs._savedTimeLeft !== undefined) {
+                    // ✨ Pause resume sonrası → kaydedilmiş süreden devam et
+                    gs.match_start = now - (this.settings.matchDuration - gs._savedTimeLeft);
+                    delete gs._savedTimeLeft;
+                    delete gs.pause_time;
+                } else if (gs.pause_time) {
+                    // ✨ Gol sonrası santra countdown
                     const pauseDuration = now - gs.pause_time;
                     gs.match_start += pauseDuration;
                     delete gs.pause_time;

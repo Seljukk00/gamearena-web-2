@@ -455,7 +455,7 @@ document.getElementById("mlStartBtn").onclick = () => {
         seen_hashes: seenHashes
     });
 };
-document.getElementById("mlLobbyLeaveBtn").onclick = () => { showEscPopup(); };
+document.getElementById("mlLobbyLeaveBtn").onclick = () => { window._showLeaveConfirmPopup(); };
 
 // Oda Ayarları butonu
 document.getElementById("mlRoomSettingsBtn").onclick = () => {

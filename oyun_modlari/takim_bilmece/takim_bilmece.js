@@ -67,7 +67,7 @@ document.getElementById("takimStartBtn").onclick = () => {
 };
 
 document.getElementById("takimLobbyLeaveBtn").onclick = () => {
-    showEscPopup();
+    window._showLeaveConfirmPopup();
 };
 
 // Oda Ayarları butonu

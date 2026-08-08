@@ -798,7 +798,7 @@ setTimeout(() => {
     if (backBtn) backBtn.onclick = () => showScreen("modselect");
     
     const leaveBtn = document.getElementById("memeLobbyLeaveBtn");
-    if (leaveBtn) leaveBtn.onclick = () => showEscPopup();
+    if (leaveBtn) leaveBtn.onclick = () => window._showLeaveConfirmPopup();
     
     // 🎮 Oyunu Başlat butonu
     const memeStartBtn = document.getElementById("memeStartBtn");

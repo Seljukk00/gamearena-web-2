@@ -43,6 +43,18 @@ let miniData = {
 
 let miniAnimFrame = null;
 
+// ========================================
+// 💬 CHAT SİSTEMİ
+// ========================================
+let miniChat = {
+    open: false,
+    unread: 0,
+    messages: [],    // {sender_id, sender_name, text, team, ts}
+    maxMessages: 50,
+    typingPlayers: {},  // {playerId: true} - şu an yazan oyuncular
+    lastTypingSent: 0    // spam engeli
+};
+
 // ✨ Drag & Drop state
 let miniDragPlayerId = null;
 let miniDragFromTeam = null;
@@ -478,6 +490,7 @@ showScreen = function(screenName) {
     const miniScreens = ["createMini", "miniLobby", "miniGame"];
     if (!miniScreens.includes(screenName)) {
         stopMiniPing();
+        hideMiniChat();
     }
 };
 
@@ -960,6 +973,7 @@ function handleMiniMessage(msg) {
     }
     
     if (msg.type === "mini_room_created" || msg.type === "mini_room_joined") {
+        showMiniChat();
         miniData.roomCode = msg.room_code;
         miniData.playerId = msg.player_id;
         miniData.goalTarget = msg.goal_target;
@@ -1005,6 +1019,9 @@ function handleMiniMessage(msg) {
     }
     
     if (msg.type === "mini_lobby_update") {
+        // 💬 Chat'i göster (odadaysa her zaman görünmeli)
+        showMiniChat();
+        
         // ✨ Host (player_id=1) listede yoksa → kullanıcı için oda kapandı, katıl ekranına at
         const hasHost = msg.players && msg.players.some(p => p.id === 1);
         if (!hasHost && miniData.playerId !== 1 && inRoom) {
@@ -1054,6 +1071,12 @@ function handleMiniMessage(msg) {
         if (msg.field_width) miniData.fieldWidth = msg.field_width;
         if (msg.field_height) miniData.fieldHeight = msg.field_height;
         if (msg.field_goal_width) miniData.fieldGoalWidth = msg.field_goal_width;
+        // ✨ fieldConfig'i de güncelle (render için)
+        if (msg.field_width && miniData.fieldConfig) {
+            miniData.fieldConfig.width = msg.field_width;
+            miniData.fieldConfig.height = msg.field_height;
+            miniData.fieldConfig.goal_width = msg.field_goal_width;
+        }
         if (msg.split_owner !== undefined) miniData.splitOwner = msg.split_owner;
         if (msg.split_slave_id !== undefined) miniData.splitSlaveId = msg.split_slave_id;
         console.log("[MINI DEBUG] lobby_update: playerCount =", miniData.playerCount, "msg:", msg.player_count);
@@ -1253,6 +1276,9 @@ function handleMiniMessage(msg) {
         // Ping durdur
         stopMiniPing();
         
+        // Chat gizle
+        hideMiniChat();
+        
         // Mini data sıfırla
         inRoom = false;
         miniData.roomCode = "";
@@ -1394,6 +1420,56 @@ function handleMiniMessage(msg) {
     
     if (msg.type === "mini_game_over") {
         showMiniGameOver(msg);
+        return;
+    }
+
+    // 💬 Yazan oyuncu göstergesi
+    if (msg.type === "mini_chat_typing") {
+        if (msg.typing) {
+            miniChat.typingPlayers[msg.player_id] = true;
+        } else {
+            delete miniChat.typingPlayers[msg.player_id];
+        }
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "mini_chat_msg") {
+        // Mesaj geldi = yazma bitti (typing flag'ini kaldır)
+        if (miniChat.typingPlayers[msg.sender_id]) {
+            delete miniChat.typingPlayers[msg.sender_id];
+        }
+        addMiniChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            team: msg.team,
+            ts: msg.ts
+        });
+        return;
+    }
+
+    if (msg.type === "mini_chat_history") {
+        // Yeni katılana son mesajlar (popup gösterme, sadece history'e ekle)
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = miniChat.open;
+            miniChat.open = true;  // Popup tetiklenmesin diye geçici açık say
+            msg.messages.forEach(m => {
+                addMiniChatMessage({
+                    sender_id: m.sender_id,
+                    sender_name: m.sender_name,
+                    text: m.text,
+                    team: m.team,
+                    ts: m.ts,
+                    system: m.system || false
+                });
+            });
+            miniChat.open = wasOpen;  // Eski haline döndür
+            // Badge de sıfırla (geçmiş mesajlar okunmamış sayılmasın)
+            miniChat.unread = 0;
+            const badge = document.getElementById("miniChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
 }
@@ -2427,6 +2503,210 @@ function miniReleaseAllKeys() {
     }
 }
 
+// ========================================
+// 💬 CHAT FONKSİYONLARI
+// ========================================
+
+function showMiniChat() {
+    const container = document.getElementById("miniChatContainer");
+    if (container) container.style.display = "block";
+}
+
+function hideMiniChat() {
+    const container = document.getElementById("miniChatContainer");
+    if (container) container.style.display = "none";
+    closeMiniChatPanel();
+    miniChat.messages = [];
+    miniChat.unread = 0;
+    miniChat.typingPlayers = {};
+    const msgBox = document.getElementById("miniChatMessages");
+    if (msgBox) msgBox.innerHTML = "";
+    // 💬 Popup baloncukları da temizle
+    clearMiniChatPopups();
+}
+
+function toggleMiniChatPanel() {
+    if (miniChat.open) {
+        closeMiniChatPanel();
+    } else {
+        openMiniChatPanel();
+    }
+}
+
+function openMiniChatPanel() {
+    miniChat.open = true;
+    miniChat.unread = 0;
+    const panel = document.getElementById("miniChatPanel");
+    const badge = document.getElementById("miniChatBadge");
+    if (panel) {
+        panel.style.setProperty("display", "flex", "important");
+    }
+    if (badge) badge.style.display = "none";
+    // 💬 Popup baloncukları temizle
+    clearMiniChatPopups();
+    
+    // ✨ Chat dışına tıklayınca kapatma dinleyicisi
+    setTimeout(() => {
+        document.addEventListener("mousedown", miniChatOutsideClickHandler, true);
+    }, 100);
+    // Scroll aşağı
+    const msgBox = document.getElementById("miniChatMessages");
+    if (msgBox) setTimeout(() => { msgBox.scrollTop = msgBox.scrollHeight; }, 50);
+    // Input'a focus
+    const input = document.getElementById("miniChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+}
+
+function closeMiniChatPanel() {
+    miniChat.open = false;
+    const panel = document.getElementById("miniChatPanel");
+    if (panel) panel.style.display = "none";
+    // ✨ Outside click dinleyicisini kaldır
+    document.removeEventListener("mousedown", miniChatOutsideClickHandler, true);
+    // ✨ Input'u temizle
+    const input = document.getElementById("miniChatInput");
+    if (input && input.value) input.value = "";
+}
+
+// Chat dışına tıklandığında paneli kapat
+function miniChatOutsideClickHandler(e) {
+    const container = document.getElementById("miniChatContainer");
+    if (!container) return;
+    // Tıklama chat container içindeyse yoksay
+    if (container.contains(e.target)) return;
+    // Dışarıya tıklandı → kapat
+    closeMiniChatPanel();
+}
+
+function sendMiniChatMessage() {
+    const input = document.getElementById("miniChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    if (text.length > 100) return;
+    input.value = "";
+    send({ type: "mini_chat_send", text: text });
+}
+
+function showMiniChatPopup(msg) {
+    // Chat açıksa popup gösterme
+    if (miniChat.open) return;
+    // Sistem mesajı popup olmasın
+    if (msg.system) return;
+
+    const stack = document.getElementById("miniChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    if (msg.team === "red") popup.classList.add("teamRed");
+    else if (msg.team === "blue") popup.classList.add("teamBlue");
+    else popup.classList.add("teamSpec");
+
+    // İsim rengi
+    let nameColor = "#adb5bd";
+    if (msg.team === "red") nameColor = "#ff8a8a";
+    else if (msg.team === "blue") nameColor = "#7abfff";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = nameColor;
+    nameSpan.textContent = msg.sender_name;
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+
+    // Max 5 popup - fazlaysa en eskisini hemen sil
+    while (stack.children.length > 5) {
+        stack.removeChild(stack.firstChild);
+    }
+
+    // 3 saniye sonra çıkış animasyonu
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            // Stack boşsa gizle
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearMiniChatPopups() {
+    const stack = document.getElementById("miniChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addMiniChatMessage(msg) {
+    // msg: {sender_id, sender_name, text, team, ts, system}
+    miniChat.messages.push(msg);
+    if (miniChat.messages.length > miniChat.maxMessages) {
+        miniChat.messages.shift();
+    }
+
+    const msgBox = document.getElementById("miniChatMessages");
+    if (!msgBox) return;
+
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+
+    if (msg.system) {
+        div.classList.add("systemMsg");
+        div.textContent = msg.text;
+    } else {
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "chatName";
+        // İsim rengi takıma göre
+        if (msg.team === "red") nameSpan.style.color = "#ff8a8a";
+        else if (msg.team === "blue") nameSpan.style.color = "#7abfff";
+        else nameSpan.style.color = "#adb5bd";
+        nameSpan.textContent = msg.sender_name + ":";
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "chatText";
+        textSpan.textContent = " " + msg.text;
+
+        div.appendChild(nameSpan);
+        div.appendChild(textSpan);
+    }
+
+    msgBox.appendChild(div);
+
+    // Max mesaj aşımında eski DOM elemanlarını sil
+    while (msgBox.children.length > miniChat.maxMessages) {
+        msgBox.removeChild(msgBox.firstChild);
+    }
+
+    // Scroll aşağı (panel açıksa)
+    if (miniChat.open) {
+        msgBox.scrollTop = msgBox.scrollHeight;
+    }
+
+    // Panel kapalıysa badge güncelle + popup göster
+    if (!miniChat.open && !msg.system) {
+        miniChat.unread++;
+        const badge = document.getElementById("miniChatBadge");
+        if (badge) {
+            badge.textContent = miniChat.unread;
+            badge.style.display = "flex";
+            // Pop animasyonu tekrar tetikle
+            badge.style.animation = "none";
+            badge.offsetHeight; // reflow
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        // 💬 Popup baloncuk göster (3 sn)
+        showMiniChatPopup(msg);
+    }
+}
+
 function stopMiniGame() {
     window.removeEventListener("keydown", miniKeyDown, true);
     window.removeEventListener("keyup", miniKeyUp, true);
@@ -3267,6 +3547,9 @@ function miniRender() {
 // COUNTDOWN OVERLAY (3-2-1-BAŞLA!)
 // ========================================
 function drawCountdownOverlay(ctx, cfg, countdown) {
+    // ✨ Font ölçekleme
+    const fontScale = Math.max(1, cfg.width / 1000);
+    
     // 🔊 DÜDÜK (BAŞLA! anında çal, sadece 1 kez)
     // ✨ Sadece maç başı VEYA gol sonrası santrada çalsın (pause resume'da çalmasın)
     const state = miniData.gameState;
@@ -3299,12 +3582,12 @@ function drawCountdownOverlay(ctx, cfg, countdown) {
     // Sayı veya BAŞLA yazısı
     let text = "";
     let color = "#ffd43b";
-    let fontSize = 120;
+    let fontSize = 120 * fontScale;
     
     if (countdown === 0) {
         text = "BAŞLA!";
         color = "#51cf66";
-        fontSize = 80;
+        fontSize = 80 * fontScale;
     } else {
         text = String(countdown);
         // Renk sayıya göre
@@ -3349,6 +3632,9 @@ function drawKickoffInfo(ctx, cfg, kickoff) {
     const remaining = kickoff.time_remaining;
     if (remaining <= 0) return;
     
+    // ✨ Font ölçekleme: 1v1 (1000px) baz alınır, büyük sahalarda font büyür
+    const fontScale = Math.max(1, cfg.width / 1000);
+    
     const receivingTeam = kickoff.receiving_team;
     const restrictedTeam = kickoff.restricted_team;
     // ✨ Takım ID'si ile karşılaştır (oyuncu ID değil!)
@@ -3362,7 +3648,7 @@ function drawKickoffInfo(ctx, cfg, kickoff) {
     
     // Süre gösterimi (üstte küçük)
     const timerText = `⏱️ ${remaining.toFixed(1)} sn`;
-    ctx.font = "bold 20px Segoe UI";
+    ctx.font = `bold ${Math.round(20 * fontScale)}px Segoe UI`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     
@@ -3389,7 +3675,7 @@ function drawKickoffInfo(ctx, cfg, kickoff) {
         infoColor = "#adb5bd";
     }
     
-    ctx.font = "bold 16px Segoe UI";
+    ctx.font = `bold ${Math.round(16 * fontScale)}px Segoe UI`;
     ctx.fillStyle = infoColor;
     ctx.fillText(infoText, cfg.width / 2, 38);
     
@@ -3401,6 +3687,9 @@ function drawKickoffInfo(ctx, cfg, kickoff) {
 // GOL KUTLAMASI OVERLAY
 // ========================================
 function drawGoalCelebration(ctx, cfg, celebration) {
+    // ✨ Font ölçekleme
+    const fontScale = Math.max(1, cfg.width / 1000);
+    
     // ✨ DEBUG
     console.log("[GOL DEBUG]",
         "scorer_pid:", celebration.scorer_pid,
@@ -3483,7 +3772,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     
     // ============ GOOOL! yazısı (üstte, büyük) ============
     const goolY = -60;
-    ctx.font = `bold ${75 * pulse}px Segoe UI`;
+    ctx.font = `bold ${Math.round(75 * pulse * fontScale)}px Segoe UI`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowBlur = 35;
@@ -3508,7 +3797,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     // ============ ALT BİLGİ ============
     if (isOwnGoal) {
         // "SELÇUK Kendi Kalesine Attı" (hepsi kırmızı)
-        ctx.font = `bold 28px Segoe UI`;
+        ctx.font = `bold ${Math.round(28 * fontScale)}px Segoe UI`;
         ctx.shadowBlur = 20;
         ctx.shadowColor = "#ff3333";
         ctx.fillStyle = "#ff6b6b";
@@ -3520,7 +3809,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         const scorerTeamColor = scorerTeamId === 1 ? "#ff6b6b" : "#4dabf7";
         
         // Golü Atan satırı
-        ctx.font = "bold 26px Segoe UI";
+        ctx.font = `bold ${Math.round(26 * fontScale)}px Segoe UI`;
         ctx.shadowBlur = 0;
         ctx.textAlign = "center";
         
@@ -3542,7 +3831,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         
         // Asist satırı (varsa)
         if (assistName) {
-            ctx.font = "bold 22px Segoe UI";
+            ctx.font = `bold ${Math.round(22 * fontScale)}px Segoe UI`;
             ctx.shadowBlur = 0;
             
             const label2 = "Asist: ";
@@ -3780,10 +4069,29 @@ function showMiniGameOver(msg) {
             const crown = p.id === 1 ? " 👑" : "";
             const meMark = isMe ? ' <span style="color:#909090;font-size:10px;">(sen)</span>' : '';
             
+            // ✨ Ping bilgisi
+            const ping = (miniData.pings && miniData.pings[p.id] !== undefined) ? miniData.pings[p.id] : null;
+            let pingText = "-";
+            let pingColor = "#909090";
+            if (ping !== null) {
+                pingText = `${ping}ms`;
+                if (ping < 80) pingColor = "#51cf66";
+                else if (ping < 200) pingColor = "#ffd43b";
+                else pingColor = "#ff6b6b";
+            }
+            
             const row = document.createElement("div");
             row.className = "miniGameOverSpecRow";
             row.style.animationDelay = (0.7 + i * 0.1) + "s";
-            row.innerHTML = `👁️ <span style="color:${isMe ? '#fff' : '#c0c0c0'};${isMe?'font-weight:700;':''}">${p.name}${crown}${meMark}</span>`;
+            row.style.display = "flex";
+            row.style.justifyContent = "space-between";
+            row.style.alignItems = "center";
+            row.innerHTML = `
+                <span style="color:${isMe ? '#fff' : '#c0c0c0'};${isMe?'font-weight:700;':''}">
+                    ${p.name}${crown}${meMark}
+                </span>
+                <span style="color:${pingColor}; font-family:monospace; font-size:12px; font-weight:bold;">${pingText}</span>
+            `;
             container.appendChild(row);
         });
     }
@@ -4126,7 +4434,7 @@ setTimeout(() => {
     if (backBtn) backBtn.onclick = () => showScreen("modselect");
     
     const leaveBtn = document.getElementById("miniLobbyLeaveBtn");
-    if (leaveBtn) leaveBtn.onclick = () => showEscPopup();
+    if (leaveBtn) leaveBtn.onclick = () => window._showLeaveConfirmPopup();
     
     const startBtn = document.getElementById("miniStartBtn");
     if (startBtn) {
@@ -4163,6 +4471,31 @@ setTimeout(() => {
         pauseCtrlBtn.addEventListener("click", () => showMiniControlSettings());
     }
     
+    // 💬 CHAT buton event'leri
+    const chatToggle = document.getElementById("miniChatToggleBtn");
+    if (chatToggle) chatToggle.addEventListener("click", toggleMiniChatPanel);
+
+    const chatClose = document.getElementById("miniChatCloseBtn");
+    if (chatClose) chatClose.addEventListener("click", closeMiniChatPanel);
+
+    const chatSend = document.getElementById("miniChatSendBtn");
+    if (chatSend) chatSend.addEventListener("click", sendMiniChatMessage);
+
+    const chatInput = document.getElementById("miniChatInput");
+    if (chatInput) {
+        chatInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendMiniChatMessage();
+                return;
+            }
+            // Chat input açıkken oyun tuşları çalışmasın (zaten miniKeyDown'da input kontrolü var)
+            e.stopPropagation();
+        });
+        
+        }
+
     const nameInput = document.getElementById("createMiniNameInput");
     if (nameInput) {
         nameInput.addEventListener("keypress", (e) => {
@@ -4508,6 +4841,14 @@ function updateMiniPauseLobby() {
 // ✨ ESC - Host için pause/resume, Kullanıcı için özel menü
 document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    
+    // ✨ Chat açıksa önce chat'i kapat
+    if (miniChat.open) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMiniChatPanel();
+        return;
+    }
     
     // Sadece mini futbol oyun ekranında
     const gameScreen = document.getElementById("miniGameScreen");
@@ -4937,6 +5278,54 @@ document.addEventListener("keyup", (e) => {
         clearInterval(miniScoreboardInterval);
         miniScoreboardInterval = null;
     }
+}, true);
+
+// ✨ T TUŞU - Chat aç + input'a focus (CS/Minecraft tarzı)
+document.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (k !== "t") return;
+    
+    // Sadece mini futbol ekranlarında (lobby/oyun)
+    const gameScreen = document.getElementById("miniGameScreen");
+    const lobbyScreen = document.getElementById("miniLobbyScreen");
+    const inMini = (gameScreen && !gameScreen.classList.contains("hidden")) ||
+                   (lobbyScreen && !lobbyScreen.classList.contains("hidden"));
+    if (!inMini) return;
+    
+    // Input/textarea odakta ise yoksay (zaten yazıyor)
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+    
+    // Chat container görünmüyorsa yoksay (oda dışında)
+    const container = document.getElementById("miniChatContainer");
+    if (!container || container.style.display === "none") return;
+    
+    // Chat zaten açıksa yoksay (T harfi input'a yazılsın diye engelleme)
+    if (miniChat.open) return;
+    
+    // Herhangi bir popup açıksa yoksay
+    const openPopups = [
+        "miniPauseLobbyBox", "miniGuestEscBox", "miniGuestPausedBox",
+        "roomSettingsBox", "miniControlSettings", "miniTeamNameEditor",
+        "miniNameEditor", "escConfirmBox", "miniLobbyReturnConfirm",
+        "miniRestartConfirm", "miniResetNamesConfirm", "miniKickConfirm",
+        "miniGuestLobbyConfirm", "miniGameOverBox"
+    ];
+    for (const id of openPopups) {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains("hidden") && el.style.display !== "none") {
+            return;
+        }
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // ✨ Tüm basılı tuşları bırak (karakter dursun)
+    miniReleaseAllKeys();
+    
+    // Chat'i aç + input'a focus
+    openMiniChatPanel();
 }, true);
 
 // ✨ P TUŞU - HIZLI PAUSE (Lobby açmaz)

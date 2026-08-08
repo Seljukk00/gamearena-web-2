@@ -91,7 +91,7 @@ document.getElementById("stadStartBtn").onclick = () => {
 };
 
 document.getElementById("stadLobbyLeaveBtn").onclick = () => {
-    showEscPopup();
+    window._showLeaveConfirmPopup();
 };
 
 document.getElementById("stadRoomSettingsBtn").onclick = () => {

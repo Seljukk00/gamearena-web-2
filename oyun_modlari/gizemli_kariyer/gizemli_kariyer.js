@@ -89,7 +89,7 @@ document.getElementById("gizemStartBtn").onclick = () => {
 };
 
 document.getElementById("gizemLobbyLeaveBtn").onclick = () => {
-    showEscPopup();
+    window._showLeaveConfirmPopup();
 };
 
 document.getElementById("gizemRoomSettingsBtn").onclick = () => {

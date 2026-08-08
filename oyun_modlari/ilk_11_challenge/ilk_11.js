@@ -78,7 +78,7 @@ document.getElementById("ilk11StartBtn").onclick = () => {
 };
 
 document.getElementById("ilk11LobbyLeaveBtn").onclick = () => {
-    showEscPopup();
+    window._showLeaveConfirmPopup();
 };
 
 // Oda Ayarları butonu

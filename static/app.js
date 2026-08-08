@@ -1384,7 +1384,7 @@ joinBtn.onclick = () => {
 startBtn.onclick = () => { send({ type: "start_game" }); };
 
 lobbyLeaveBtn.onclick = () => {
-    showEscPopup();
+    _showLeaveConfirmPopup();
 };
 
 guessModeBtn.onclick = () => {
@@ -1937,12 +1937,56 @@ document.getElementById("escHomeBtn").onclick = () => {
     _leaveRoom(true);
 };
 
-// ❌ Odadan Ayrıl
+// ❌ Odadan Ayrıl → Onay popup göster
 document.getElementById("escLeaveBtn").onclick = () => {
     _escFromF5 = false;
     closeEscPopup();
-    _leaveRoom(true);
+    _showLeaveConfirmPopup();
 };
+
+// ✨ Odadan Ayrıl onay popup'ı
+window._showLeaveConfirmPopup = function() {
+    // Eski varsa kaldır
+    const existing = document.getElementById("leaveConfirmPopup");
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement("div");
+    overlay.id = "leaveConfirmPopup";
+    overlay.className = "overlay";
+    overlay.innerHTML = `
+        <div class="overlayCard escConfirmCard" style="max-width:450px; border:2px solid #ff6b6b; box-shadow: 0 0 40px rgba(255,107,107,0.3);">
+            <div style="font-size:60px; margin:10px 0;">🚪</div>
+            <h2 style="color:#ff6b6b; margin:10px 0 15px 0;">Odadan Ayrılmak İstiyor musun?</h2>
+            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
+                Odadan ayrılırsan oyun sona erer.
+            </p>
+            <div class="confirmButtons">
+                <button id="leaveConfirmYesBtn" class="bigBtn redBtn">🚪 EVET, AYRIL</button>
+                <button id="leaveConfirmNoBtn" class="bigBtn greenBtn">↩️ HAYIR, KAL</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    document.getElementById("leaveConfirmYesBtn").onclick = () => {
+        overlay.remove();
+        const wasHost = _isCurrentHost();
+        inRoom = false;
+        if (ws) { try { ws.close(); } catch(e) {} }
+        setTimeout(() => {
+            connectWS();
+            if (wasHost) {
+                showScreen("modselect");
+            } else {
+                showScreen("join");
+            }
+        }, 300);
+    };
+    
+    document.getElementById("leaveConfirmNoBtn").onclick = () => {
+        overlay.remove();
+    };
+}
 
 // Ortak: odadan ayrıl + ana menüye git
 function _leaveRoom(goHome) {
@@ -1986,6 +2030,7 @@ let _escFromF5 = false;
 document.addEventListener("keydown", (e) => {
     if (e.key === "F5" || (e.ctrlKey && (e.key === "r" || e.key === "R"))) {
         const current = getCurrentScreen();
+        // ✨ miniGame çıkarıldı (kendi F5 kontrolü var)
         const gameScreens = ["game", "select", "lobby",
                               "mlGame", "mlLobby",
                               "takimGame", "takimLobby",
@@ -1994,7 +2039,7 @@ document.addEventListener("keydown", (e) => {
                               "ilk11Game", "ilk11Lobby",
                               "stadGame", "stadLobby",
                               "memeGame", "memeLobby",
-                              "miniGame", "miniLobby"];
+                              "miniLobby"];
         if (gameScreens.includes(current)) {
             e.preventDefault();
             _escFromF5 = true;
@@ -2007,6 +2052,11 @@ document.addEventListener("keydown", (e) => {
 // ESC tuşu
 document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    
+    // ✨ Mini Futbol oyun ekranında ortak ESC handler ÇALIŞMASIN
+    // Mini Futbol kendi ESC handler'ını kullanıyor (mini_futbol.js)
+    const current = getCurrentScreen();
+    if (current === "miniGame") return;
     
     // Popup açıksa kapat
     const escPopupOpen = !document.getElementById("escConfirmBox").classList.contains("hidden");
@@ -2022,19 +2072,26 @@ document.addEventListener("keydown", (e) => {
         return;
     }
     
-    const current = getCurrentScreen();
     if (current === "home") return;
     
-    // Oyun/lobby ekranlarında popup göster
-    const gameScreens = ["game", "select", "lobby",
-                          "mlGame", "mlLobby",
-                          "takimGame", "takimLobby",
-                          "haritaGame", "haritaLobby",
-                          "gizemGame", "gizemLobby",
-                          "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby",
-                          "memeGame", "memeLobby",
-                          "miniGame", "miniLobby"];
+    // ✨ Lobby ekranlarında ESC → direkt ayrılma onayı
+    const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby",
+                          "gizemLobby", "ilk11Lobby", "stadLobby",
+                          "memeLobby", "miniLobby"];
+    if (lobbyScreens.includes(current)) {
+        window._showLeaveConfirmPopup();
+        return;
+    }
+    
+    // Oyun ekranlarında ESC → menü popup
+    const gameScreens = ["game", "select",
+                          "mlGame",
+                          "takimGame",
+                          "haritaGame",
+                          "gizemGame",
+                          "ilk11Game",
+                          "stadGame",
+                          "memeGame"];
     
     if (gameScreens.includes(current)) {
         showEscPopup();

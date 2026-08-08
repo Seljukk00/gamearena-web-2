@@ -1504,7 +1504,9 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "field_height": _fs_create["height"],
             "field_goal_width": _fs_create["goal_width"],
             "kickoff_timeout": kickoff_timeout_init,
-            "kicked_names": []
+            "kicked_names": [],
+            "chat_history": [],
+            "chat_last_msg_time": {}
         }
         
         # ✨ Gelişmiş ayarları da uygula (varsa)
@@ -1643,6 +1645,13 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 "players": active_players_info,
                 "red_pid": red_pid,
                 "blue_pid": blue_pid
+            })
+        
+        # 💬 Yeni katılana chat geçmişini gönder
+        if room.get("chat_history"):
+            await safe_send(websocket, {
+                "type": "mini_chat_history",
+                "messages": room["chat_history"][-50:]
             })
         
         # ✨ Toast göster diğerlerine (oyun içinde VEYA lobide - fark etmez, herkes görsün)
@@ -2745,6 +2754,10 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         room["active_red_player"] = None
         room["active_blue_player"] = None
         
+        # ✨ TÜM oyuncuların in_lobby bayrağını sıfırla (host lobiye dönünce herkes müsait)
+        for pid in room["players"]:
+            room["players"][pid]["in_lobby"] = False
+        
         # ✨ Herkese "lobby'e dön" komutu gönder
         await broadcast(room, {
             "type": "mini_returned_to_lobby",
@@ -2817,6 +2830,10 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         # Aktif oyuncuları sıfırla
         room["active_red_player"] = None
         room["active_blue_player"] = None
+        
+        # ✨ TÜM oyuncuların in_lobby bayrağını sıfırla (host lobiye dönünce herkes müsait)
+        for pid in room["players"]:
+            room["players"][pid]["in_lobby"] = False
         
         # ✨ Herkese "lobby'e dön" komutu gönder (client otomatik yönlensin)
         await broadcast(room, {
@@ -3029,6 +3046,97 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         room["blue_team_name"] = "Mavi Takım"
         
         await send_minifutbol_lobby_update(room, broadcast)
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+    
+    # ==========================================
+    # 💬 CHAT - YAZMA GÖSTERGESİ
+    # ==========================================
+    if msg_type == "mini_chat_typing":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "mini_futbol":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        if player_id not in room["players"]:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        is_typing = bool(data.get("typing", False))
+        
+        # Gönderen hariç herkese ilet
+        typing_msg = {
+            "type": "mini_chat_typing",
+            "player_id": player_id,
+            "typing": is_typing
+        }
+        for pid, pdata in room["players"].items():
+            if pid == player_id:
+                continue
+            ws_target = pdata.get("ws")
+            if ws_target:
+                await safe_send(ws_target, typing_msg)
+        
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+    
+    # ==========================================
+    # 💬 CHAT MESAJI GÖNDER
+    # ==========================================
+    if msg_type == "mini_chat_send":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "mini_futbol":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        if player_id not in room["players"]:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        text = (data.get("text") or "").strip()
+        if not text or len(text) > 100:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # Spam kontrolü (saniyede max 3 mesaj)
+        now = time.time()
+        if "chat_last_msg_time" not in room:
+            room["chat_last_msg_time"] = {}
+        last_times = room["chat_last_msg_time"].get(player_id, [])
+        # Son 1 saniyedeki mesajları filtrele
+        last_times = [t for t in last_times if now - t < 1.0]
+        if len(last_times) >= 3:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        last_times.append(now)
+        room["chat_last_msg_time"][player_id] = last_times
+        
+        sender_name = room["players"][player_id].get("name", f"P{player_id}")
+        sender_team = room["players"][player_id].get("team", "spectator")
+        
+        chat_msg = {
+            "sender_id": player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "team": sender_team,
+            "ts": now
+        }
+        
+        # Geçmişe ekle (max 50)
+        if "chat_history" not in room:
+            room["chat_history"] = []
+        room["chat_history"].append(chat_msg)
+        if len(room["chat_history"]) > 50:
+            room["chat_history"] = room["chat_history"][-50:]
+        
+        # Herkese broadcast
+        await broadcast(room, {
+            "type": "mini_chat_msg",
+            "sender_id": player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "team": sender_team,
+            "ts": now
+        })
+        
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     return {"handled": False, "room_code": room_code, "player_id": player_id}
