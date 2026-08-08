@@ -236,6 +236,21 @@ function handleMemeMessage(msg) {
         showMemeGameOver(msg);
         return;
     }
+    
+    // ✨ Host lobiye döndü → herkesi lobiye at
+    if (msg.type === "meme_back_to_lobby") {
+        if (memeGameOverCountdownInterval) {
+            clearInterval(memeGameOverCountdownInterval);
+            memeGameOverCountdownInterval = null;
+        }
+        document.getElementById("memeGameOverBox").classList.add("hidden");
+        document.getElementById("memeScoreboardBox").classList.add("hidden");
+        document.getElementById("memeVotingBox").classList.add("hidden");
+        stopMemeTimer();
+        showScreen("memeLobby");
+        updateMemeLobby();
+        return;
+    }
 }
 
 // ========================================
@@ -879,7 +894,7 @@ setTimeout(() => {
         };
     });
     
-    // Oyun sonu - ana menü
+    // Oyun sonu - ana menü (tarayıcı yenilemesin)
     const gameOverMenuBtn = document.getElementById("memeGameOverMenuBtn");
     if (gameOverMenuBtn) {
         gameOverMenuBtn.onclick = () => {
@@ -888,10 +903,18 @@ setTimeout(() => {
                 memeGameOverCountdownInterval = null;
             }
             document.getElementById("memeGameOverBox").classList.add("hidden");
+            stopMemeTimer();
             inRoom = false;
+            memeData.roomCode = "";
+            memeData.playerId = null;
+            memeData.players = [];
+            playerId = null;
+            roomCode = "";
             if (ws) { try { ws.close(); } catch(e) {} }
-            connectWS();
-            showScreen("home");
+            setTimeout(() => {
+                if (typeof connectWS === "function") connectWS();
+                showScreen("home");
+            }, 200);
         };
     }
     
@@ -903,8 +926,16 @@ setTimeout(() => {
                 clearInterval(memeGameOverCountdownInterval);
                 memeGameOverCountdownInterval = null;
             }
-            document.getElementById("memeGameOverBox").classList.add("hidden");
-            showScreen("memeLobby");
+            if (memeData.playerId === 1) {
+                // HOST: backend'e broadcast et (herkesi lobiye atar)
+                send({ type: "meme_back_to_lobby" });
+            } else {
+                // MİSAFİR: sadece kendi ekranını lobiye çevir
+                document.getElementById("memeGameOverBox").classList.add("hidden");
+                stopMemeTimer();
+                showScreen("memeLobby");
+                updateMemeLobby();
+            }
         };
     }
     
@@ -1022,7 +1053,8 @@ function openMemeRoomSettings() {
                 options: [
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},
-                    {value: 4, label: "4 Oyuncu"}
+                    {value: 4, label: "4 Oyuncu"},
+                    {value: 5, label: "5 Oyuncu"}
                 ]
             },
             {

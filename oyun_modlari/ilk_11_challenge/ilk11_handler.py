@@ -638,4 +638,20 @@ async def handle_ilk11_message(
         await start_ilk11_game(room, safe_send, broadcast)
         return _handled(current_room_code, current_player_id)
 
+    # ---------- BACK TO LOBBY ----------
+    if msg_type == "ilk11_back_to_lobby":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
+            return _handled(current_room_code, current_player_id)
+        
+        room["phase"] = "lobby"
+        
+        old_task = room.get("ilk11_task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+        
+        await broadcast(room, {"type": "ilk11_back_to_lobby"})
+        await send_ilk11_lobby_update(room, broadcast)
+        return _handled(current_room_code, current_player_id)
+
     return _handled(current_room_code, current_player_id)

@@ -124,12 +124,45 @@ document.getElementById("ilk11BackBtn").onclick = () => {
 };
 
 document.getElementById("ilk11BackToMenuBtn").onclick = () => {
-    location.reload();
+    // Popup'ları kapat
+    ilk11ResultBox.classList.add("hidden");
+    ilk11PopupBox.classList.add("hidden");
+    stopIlk11Timer();
+    
+    // WebSocket kapat
+    if (typeof ws !== "undefined" && ws) {
+        try { ws.close(); } catch(e) {}
+    }
+    // State sıfırla
+    inRoom = false;
+    ilk11Data.roomCode = "";
+    ilk11Data.playerId = null;
+    ilk11Data.players = [];
+    playerId = null;
+    roomCode = "";
+    // WS yeniden bağla + ana menüye
+    setTimeout(() => {
+        if (typeof connectWS === "function") connectWS();
+        showScreen("home");
+    }, 200);
 };
 
 document.getElementById("ilk11RematchBtn").onclick = () => {
     ilk11ResultBox.classList.add("hidden");
     send({ type: "ilk11_rematch" });
+};
+
+// ✨ Lobiye Dön butonu
+document.getElementById("ilk11BackToLobbyBtn").onclick = () => {
+    if (ilk11Data.playerId === 1) {
+        // HOST: backend'e broadcast et
+        send({ type: "ilk11_back_to_lobby" });
+    } else {
+        // MİSAFİR: sadece kendi ekranını lobiye çevir
+        ilk11ResultBox.classList.add("hidden");
+        showScreen("ilk11Lobby");
+        updateIlk11Lobby();
+    }
 };
 
 document.getElementById("ilk11PopupCloseBtn").onclick = () => {
@@ -433,10 +466,14 @@ function renderIlk11Result(data) {
     }
 
     const rematchBtn = document.getElementById("ilk11RematchBtn");
+    const lobbyBtn = document.getElementById("ilk11BackToLobbyBtn");
     if (ilk11Data.playerId === 1) {
         rematchBtn.classList.remove("hidden");
+        lobbyBtn.classList.remove("hidden");
     } else {
         rematchBtn.classList.add("hidden");
+        // ✨ Misafir de kendi lobisine dönebilsin
+        lobbyBtn.classList.remove("hidden");
     }
 
     ilk11ResultBox.classList.remove("hidden");
@@ -623,6 +660,16 @@ handleMessage = function(msg) {
 
     if (msg.type === "ilk11_result") {
         renderIlk11Result(msg);
+        return;
+    }
+    
+    // ✨ Host lobiye döndü → herkesi lobiye at
+    if (msg.type === "ilk11_back_to_lobby") {
+        ilk11ResultBox.classList.add("hidden");
+        ilk11PopupBox.classList.add("hidden");
+        stopIlk11Timer();
+        showScreen("ilk11Lobby");
+        updateIlk11Lobby();
         return;
     }
 

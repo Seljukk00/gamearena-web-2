@@ -873,6 +873,10 @@ function openGameOver(msg) {
 
     if (playerId === 1) newRoundBtn.classList.remove("hidden");
     else newRoundBtn.classList.add("hidden");
+    
+    // ✨ Lobiye Dön butonu - HERKESE göster (host ve misafir)
+    const lobbyBtn = document.getElementById("backToLobbyBtn");
+    if (lobbyBtn) lobbyBtn.classList.remove("hidden");
 }
 
 function resetForNewRound() {
@@ -1187,6 +1191,17 @@ function handleMessage(msg) {
         openGameOver(msg);
         return;
     }
+    
+    // ✨ Host lobiye döndü → herkesi lobiye at
+    if (msg.type === "back_to_lobby") {
+        gameOverBox.classList.add("hidden");
+        stopTimer();
+        hideAnswerPanel();
+        resetForNewRound();
+        showScreen("lobby");
+        updateLobby();
+        return;
+    }
 
     if (msg.type === "wrong_guess_continue") {
         if (msg.guesses_left) guessesLeft = msg.guesses_left;
@@ -1390,6 +1405,19 @@ backToMenuBtn.onclick = () => {
     if (ws) { try { ws.close(); } catch(e) {} }
     connectWS();
     showScreen("home");
+};
+
+// ✨ Lobiye Dön butonu
+document.getElementById("backToLobbyBtn").onclick = () => {
+    if (playerId === 1) {
+        // HOST: backend'e broadcast et (herkesi lobiye atacak)
+        send({ type: "back_to_lobby" });
+    } else {
+        // MİSAFİR: sadece kendi ekranını lobiye çevir
+        gameOverBox.classList.add("hidden");
+        showScreen("lobby");
+        updateLobby();
+    }
 };
 
 // Rakip ayrıldı — "← Geri" butonu → Katıl ekranına
@@ -1728,6 +1756,77 @@ function getPreviousScreen() {
 
 function showEscPopup() {
     document.getElementById("escConfirmBox").classList.remove("hidden");
+    // Şu anki ekrana göre butonları özelleştir
+    _updateEscPopupButtons();
+    // ✨ Host mu misafir mi kontrolü - misafire eski basit menü
+    _applyEscPopupUserMode();
+}
+
+// ✨ Host için 4 buton, misafir için eski EVET/HAYIR
+function _applyEscPopupUserMode() {
+    const isHost = _isCurrentHost();
+    const card = document.querySelector("#escConfirmBox .escConfirmCard");
+    if (!card) return;
+    
+    // 4 buton container
+    const bigMenu = card.querySelector('div[style*="flex-direction:column"]');
+    // Eski gizli container
+    const oldMenu = card.querySelector('div[style*="display:none"]');
+    // Başlık ve mesaj
+    const title = card.querySelector(".escTitle");
+    const msg = document.getElementById("escMenuMsg");
+    const icon = card.querySelector(".escIcon");
+    
+    if (isHost) {
+        // HOST - 4 butonlu zengin menü
+        if (bigMenu) bigMenu.style.display = "flex";
+        if (oldMenu) oldMenu.style.display = "none";
+        if (title) {
+            title.textContent = "Menü";
+            title.style.color = "#ffd43b";
+        }
+        if (msg) {
+            msg.textContent = "Ne yapmak istersin?";
+            msg.style.display = "";
+        }
+        if (icon) icon.textContent = "⏸️";
+    } else {
+        // MİSAFİR - eski basit EVET/HAYIR
+        if (bigMenu) bigMenu.style.display = "none";
+        if (oldMenu) {
+            oldMenu.style.display = "";
+            // Eski butonları görünür yap
+            oldMenu.innerHTML = `
+                <div class="confirmButtons">
+                    <button id="escYesBtn" class="bigBtn redBtn">🚪 EVET, ÇIKIŞ</button>
+                    <button id="escNoBtn" class="bigBtn greenBtn">↩️ HAYIR, DEVAM</button>
+                </div>
+            `;
+            // Butonlara event bağla
+            const yesBtn = document.getElementById("escYesBtn");
+            const noBtn = document.getElementById("escNoBtn");
+            if (yesBtn) {
+                yesBtn.onclick = () => {
+                    _leaveRoom(_escFromF5);
+                };
+            }
+            if (noBtn) {
+                noBtn.onclick = () => {
+                    _escFromF5 = false;
+                    closeEscPopup();
+                };
+            }
+        }
+        if (title) {
+            title.textContent = "Çıkmak İstediğine Emin misin?";
+            title.style.color = "";
+        }
+        if (msg) {
+            msg.textContent = "Oyundan çıkarsan ana menüye dönersin.";
+            msg.style.display = "";
+        }
+        if (icon) icon.textContent = "🚪";
+    }
 }
 
 function closeEscPopup() {
@@ -1739,27 +1838,121 @@ function closeEscPopup() {
     }, 300);
 }
 
-document.getElementById("escYesBtn").onclick = () => {
-    // ✨ Host mu? Global playerId veya mod-özel playerId'ye bak
-    let wasHost = (playerId === 1);
-    if (!wasHost && typeof takimData !== "undefined" && takimData.playerId === 1) wasHost = true;
-    if (!wasHost && typeof mlData !== "undefined" && mlData.playerId === 1) wasHost = true;
-    if (!wasHost && typeof haritaData !== "undefined" && haritaData.playerId === 1) wasHost = true;
-    if (!wasHost && typeof gizemData !== "undefined" && gizemData.playerId === 1) wasHost = true;
-    if (!wasHost && typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) wasHost = true;
-    if (!wasHost && typeof stadData !== "undefined" && stadData.playerId === 1) wasHost = true;
-    if (!wasHost && typeof memeData !== "undefined" && memeData.playerId === 1) wasHost = true;
-    if (!wasHost && typeof miniData !== "undefined" && miniData.playerId === 1) wasHost = true;
+// ✨ Şu anki mod ve ekrana göre butonları göster/gizle
+function _updateEscPopupButtons() {
+    const current = getCurrentScreen();
+    const lobbyBtn = document.getElementById("escLobbyBtn");
+    const msg = document.getElementById("escMenuMsg");
     
-    const goHome = _escFromF5;
+    // Lobby ekranlarında "Lobiye Dön" gereksiz - gizle
+    const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby", 
+                          "gizemLobby", "ilk11Lobby", "stadLobby", 
+                          "memeLobby", "miniLobby"];
+    if (lobbyScreens.includes(current)) {
+        if (lobbyBtn) lobbyBtn.style.display = "none";
+        if (msg) msg.textContent = "Ne yapmak istersin?";
+    } else {
+        if (lobbyBtn) lobbyBtn.style.display = "";
+        if (msg) msg.textContent = "Ne yapmak istersin?";
+    }
+}
+
+// ✨ Host tespiti (tüm modlar için)
+function _isCurrentHost() {
+    if (playerId === 1) return true;
+    if (typeof takimData !== "undefined" && takimData.playerId === 1) return true;
+    if (typeof mlData !== "undefined" && mlData.playerId === 1) return true;
+    if (typeof haritaData !== "undefined" && haritaData.playerId === 1) return true;
+    if (typeof gizemData !== "undefined" && gizemData.playerId === 1) return true;
+    if (typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) return true;
+    if (typeof stadData !== "undefined" && stadData.playerId === 1) return true;
+    if (typeof memeData !== "undefined" && memeData.playerId === 1) return true;
+    if (typeof miniData !== "undefined" && miniData.playerId === 1) return true;
+    return false;
+}
+
+// ✨ Şu anki modu tespit et (mesaj tipi öneki)
+function _getCurrentModePrefix() {
+    const current = getCurrentScreen();
+    if (current.startsWith("takim")) return "takim";
+    if (current.startsWith("ml")) return "ml";
+    if (current.startsWith("harita")) return "harita";
+    if (current.startsWith("gizem")) return "gizem";
+    if (current.startsWith("ilk11")) return "ilk11";
+    if (current.startsWith("stad")) return "stad";
+    if (current.startsWith("meme")) return "meme";
+    if (current.startsWith("mini")) return "mini";
+    return null;  // Bil Bakalım
+}
+
+// ▶️ Devam Et
+document.getElementById("escResumeBtn").onclick = () => {
+    _escFromF5 = false;
+    closeEscPopup();
+};
+
+// 🚪 Lobiye Dön
+document.getElementById("escLobbyBtn").onclick = () => {
+    _escFromF5 = false;
+    const mode = _getCurrentModePrefix();
+    const isHost = _isCurrentHost();
+    
+    closeEscPopup();
+    
+    // Mod-özel lobiye dön mesajı
+    if (mode) {
+        if (isHost) {
+            // Host: backend'e broadcast et
+            send({ type: `${mode}_back_to_lobby` });
+        } else {
+            // Misafir: sadece kendi ekranını çevir
+            const lobbyScreenName = mode + "Lobby";
+            showScreen(lobbyScreenName);
+            // Mod-özel update fonksiyonu (varsa)
+            const updateFnName = `update${mode.charAt(0).toUpperCase()}${mode.slice(1)}Lobby`;
+            if (typeof window[updateFnName] === "function") {
+                window[updateFnName]();
+            }
+        }
+    } else {
+        // ✨ BİL BAKALIM - back_to_lobby mesajı
+        if (isHost) {
+            // HOST: backend'e broadcast et (herkesi lobiye atacak)
+            send({ type: "back_to_lobby" });
+        } else {
+            // MİSAFİR: sadece kendi ekranını lobiye çevir
+            stopTimer();
+            hideAnswerPanel();
+            resetForNewRound();
+            showScreen("lobby");
+            updateLobby();
+        }
+    }
+};
+
+// 🏠 Ana Menü
+document.getElementById("escHomeBtn").onclick = () => {
+    _escFromF5 = false;
+    closeEscPopup();
+    _leaveRoom(true);
+};
+
+// ❌ Odadan Ayrıl
+document.getElementById("escLeaveBtn").onclick = () => {
+    _escFromF5 = false;
+    closeEscPopup();
+    _leaveRoom(true);
+};
+
+// Ortak: odadan ayrıl + ana menüye git
+function _leaveRoom(goHome) {
+    const wasHost = _isCurrentHost();
     
     inRoom = false;
-    _escFromF5 = false;
     
     if (ws) {
         try { ws.close(); } catch(e) {}
     }
-    closeEscPopup();
     setTimeout(() => {
         connectWS();
         if (goHome) {
@@ -1770,12 +1963,23 @@ document.getElementById("escYesBtn").onclick = () => {
             showScreen("join");
         }
     }, 300);
-};
+}
 
-document.getElementById("escNoBtn").onclick = () => {
-    _escFromF5 = false;
-    closeEscPopup();
-};
+// ✨ Geriye uyumluluk: eski escYesBtn/escNoBtn hala var ama gizli
+// Kodun başka yerlerinde bu ID'lere referans varsa kırılmasın
+const _oldEscYes = document.getElementById("escYesBtn");
+const _oldEscNo = document.getElementById("escNoBtn");
+if (_oldEscYes) {
+    _oldEscYes.onclick = () => {
+        _leaveRoom(_escFromF5);
+    };
+}
+if (_oldEscNo) {
+    _oldEscNo.onclick = () => {
+        _escFromF5 = false;
+        closeEscPopup();
+    };
+}
 
 // F5 tuşu - oda içindeyken ESC popup göster
 let _escFromF5 = false;

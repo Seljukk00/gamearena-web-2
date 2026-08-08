@@ -113,7 +113,7 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             vote_seconds = 15
         if total_rounds not in [3, 5, 7, 10]:
             total_rounds = 5
-        if max_players not in [2, 3, 4]:
+        if max_players not in [2, 3, 4, 5]:
             max_players = 2
         
         new_code = make_room_code()
@@ -237,7 +237,7 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
         turn_seconds = int(data.get("turn_seconds", 45))
         vote_seconds = int(data.get("vote_seconds", 15))
         
-        if max_players not in [2, 3, 4]:
+        if max_players not in [2, 3, 4, 5]:
             max_players = 2
         if total_rounds not in [3, 5, 7, 10]:
             total_rounds = 5
@@ -306,6 +306,10 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         print(f"[MEME START] Oyun başlatılıyor: {room_code}")
+        # ✨ Rematch: skorları ve tur sayısını sıfırla
+        room["current_round"] = 0
+        for pid in room["players"]:
+            room["players"][pid]["score"] = 0
         await start_meme_round(room, safe_send, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
@@ -612,6 +616,37 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             "jokers_left": room["player_jokers"][player_id]
         })
         
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+    
+    # ==========================================
+    # BACK TO LOBBY
+    # ==========================================
+    if msg_type == "meme_back_to_lobby":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "meme_arena":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        if player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # Task iptal et
+        old_task = room.get("meme_task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+        room["meme_task"] = None
+        
+        # Phase lobiye çevir + skorları sıfırla
+        room["phase"] = "lobby"
+        room["current_round"] = 0
+        for pid in room["players"]:
+            room["players"][pid]["score"] = 0
+        
+        await broadcast(room, {"type": "meme_back_to_lobby"})
+        await send_meme_lobby_update(room, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     return {"handled": False, "room_code": room_code, "player_id": player_id}

@@ -25,7 +25,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 45,         // 45ms gecikmeli render → paketler arası yumuşak
+    interpDelay: 25,         // ✨ 45 → 25ms (daha hızlı tepki)
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -2680,16 +2680,34 @@ function miniRender() {
     ctx.stroke();
     ctx.setLineDash([]);  // reset
     
-    // Orta çizgi (santra aktifse belirgin)
-    if (kickoffActive) {
-        ctx.strokeStyle = "rgba(255, 107, 107, 0.5)";
+    // Orta çizgi (santra aktifse kısıtlı tarafın yarısı kırmızı)
+    if (kickoffActive && miniData.gameState && miniData.gameState.kickoff) {
+        const restrictedTeam = miniData.gameState.kickoff.restricted_team;
+        ctx.strokeStyle = "rgba(255, 107, 107, 0.6)";
         ctx.lineWidth = 4;
         ctx.setLineDash([10, 8]);
         ctx.beginPath();
-        ctx.moveTo(cfg.width / 2, 0);
-        ctx.lineTo(cfg.width / 2, cfg.height);
+        if (restrictedTeam === 1) {
+            // Kırmızı kısıtlı → sol yarıda kırmızı çizgi
+            ctx.moveTo(cfg.width / 2, 0);
+            ctx.lineTo(cfg.width / 2, cfg.height);
+        } else {
+            // Mavi kısıtlı → sağ yarıda kırmızı çizgi  
+            ctx.moveTo(cfg.width / 2, 0);
+            ctx.lineTo(cfg.width / 2, cfg.height);
+        }
         ctx.stroke();
         ctx.setLineDash([]);
+        
+        // ✨ Kısıtlı tarafın yarısını hafif kırmızı overlay ile boya
+        ctx.fillStyle = "rgba(255, 80, 80, 0.08)";
+        if (restrictedTeam === 1) {
+            // Kırmızı kısıtlı → sol yarıyı kırmızıya boya
+            ctx.fillRect(0, 0, cfg.width / 2, cfg.height);
+        } else {
+            // Mavi kısıtlı → sağ yarıyı kırmızıya boya
+            ctx.fillRect(cfg.width / 2, 0, cfg.width / 2, cfg.height);
+        }
     }
     
     // ✨ KALELER - Haxball tarzı (2 küçük daire + kavisli çizgi)
@@ -3333,8 +3351,11 @@ function drawKickoffInfo(ctx, cfg, kickoff) {
     
     const receivingTeam = kickoff.receiving_team;
     const restrictedTeam = kickoff.restricted_team;
-    const isMyTeamReceiving = receivingTeam === miniData.playerId;
-    const isMyTeamRestricted = restrictedTeam === miniData.playerId;
+    // ✨ Takım ID'si ile karşılaştır (oyuncu ID değil!)
+    const myPlayer = miniData.players.find(p => p.id === miniData.playerId);
+    const myTeamId = myPlayer ? (myPlayer.team === "red" ? 1 : (myPlayer.team === "blue" ? 2 : null)) : null;
+    const isMyTeamReceiving = receivingTeam === myTeamId;
+    const isMyTeamRestricted = restrictedTeam === myTeamId;
     
     // Alt kısımda bilgi göster
     ctx.save();
@@ -6199,7 +6220,7 @@ function getPredFieldHeight() {
 }
 const PRED_PLAYER_RADIUS = 20;
 const PRED_PLAYER_OUT_MARGIN = 55;
-const PRED_LERP_SPEED = 0.25;  // Server düzeltmesi ne kadar hızlı uygulansın
+const PRED_LERP_SPEED = 0.4;  // ✨ 0.25 → 0.4 (daha hızlı server sync)
 
 // Prediction her frame çalışır (~60fps)
 function updateMiniPrediction() {

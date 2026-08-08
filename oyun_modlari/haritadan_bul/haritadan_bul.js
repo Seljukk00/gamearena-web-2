@@ -9,12 +9,13 @@ let haritaData = {
     players: [],
     turnSeconds: 30,
     difficulty: "karisik",
+    maxPlayers: 2,
     totalRounds: 10,
     currentTurn: null,
     roundNo: 0,
     footballer: null,
     countries: {},
-    scores: { 1: 0, 2: 0 },
+    scores: {},
     answered: false,
     pendingCode: null,
     lastSelectedCode: null,
@@ -104,11 +105,15 @@ document.getElementById("createHaritaBtn").onclick = () => {
     
     const turnSec = parseInt(document.getElementById("haritaTurnSecondsSelect").value);
     const difficulty = document.getElementById("haritaDifficultySelect").value || "karisik";
+    const maxPlayers = parseInt(document.getElementById("haritaMaxPlayersSelect").value) || 2;
+    const totalRounds = parseInt(document.getElementById("haritaTotalRoundsSelect").value) || 10;
     send({
         type: "harita_create_room",
         name: name,
         turn_seconds: turnSec,
-        difficulty: difficulty
+        difficulty: difficulty,
+        max_players: maxPlayers,
+        total_rounds: totalRounds
     });
 };
 
@@ -130,6 +135,28 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
         title: "Haritadan Bul - Oda Ayarları",
         fields: [
+            {
+                id: "maxPlayers",
+                label: "👥 Oyuncu Sayısı",
+                current: haritaData.maxPlayers || 2,
+                options: [
+                    {value: 2, label: "2 Oyuncu"},
+                    {value: 3, label: "3 Oyuncu"},
+                    {value: 4, label: "4 Oyuncu"},
+                    {value: 5, label: "5 Oyuncu"}
+                ]
+            },
+            {
+                id: "totalRounds",
+                label: "🔢 Tur Sayısı",
+                current: haritaData.totalRounds || 10,
+                options: [
+                    {value: 5, label: "5 Tur"},
+                    {value: 10, label: "10 Tur"},
+                    {value: 15, label: "15 Tur"},
+                    {value: 20, label: "20 Tur"}
+                ]
+            },
             {
                 id: "difficulty",
                 label: "🎯 Zorluk",
@@ -161,7 +188,9 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
             send({
                 type: "harita_update_settings",
                 turn_seconds: parseInt(values.turnSec),
-                difficulty: values.difficulty
+                difficulty: values.difficulty,
+                max_players: parseInt(values.maxPlayers) || 2,
+                total_rounds: parseInt(values.totalRounds) || 10
             });
         }
     });
@@ -190,6 +219,10 @@ document.getElementById("haritaBackToMenuBtn").onclick = () => {
 document.getElementById("haritaRematchBtn").onclick = () => {
     document.getElementById("haritaGameOverBox").classList.add("hidden");
     send({ type: "harita_rematch" });
+};
+
+document.getElementById("haritaBackToLobbyBtn").onclick = () => {
+    send({ type: "harita_back_to_lobby" });
 };
 
 // Onay popup
@@ -221,7 +254,7 @@ function applyHaritaTransform() {
 }
 
 function updateHaritaMarkerScale() {
-    // SVG sisteminde marker scale gerekmez, boş bırakıldı
+    // SVG sisteminde marker scale gerekmez
 }
 
 function clampHaritaPan() {
@@ -261,7 +294,7 @@ function resetHaritaView() {
     applyHaritaTransform();
 }
 
-// Wheel zoom - ✨ %300 adım
+// Wheel zoom
 haritaMapWrapper.addEventListener("wheel", (e) => {
     if (haritaData.currentTurn !== haritaData.playerId) {
         e.preventDefault();
@@ -273,7 +306,7 @@ haritaMapWrapper.addEventListener("wheel", (e) => {
     broadcastHaritaView();
 }, { passive: false });
 
-// Sağ tık ile pan
+// Sağ tık pan
 haritaMapWrapper.addEventListener("contextmenu", (e) => {
     e.preventDefault();
 });
@@ -391,7 +424,6 @@ haritaMapWrapper.addEventListener("mousemove", (e) => {
     const mapX = (rawX - haritaData.panX) / (rect.width * haritaData.zoom);
     const mapY = (rawY - haritaData.panY) / (rect.height * haritaData.zoom);
     
-    // SVG path'ten ülke bul (tooltip ve fake cursor'ı geçici kapat, sonra aç)
     const tooltip = document.getElementById("haritaTooltip");
     const fakeCursor = document.getElementById("haritaFakeCursor");
     const fakeTooltip = document.getElementById("haritaFakeTooltip");
@@ -422,16 +454,14 @@ haritaMapWrapper.addEventListener("mousemove", (e) => {
         }
     }
     
-    // Tooltip kapalı - ülke adları zaten haritada yazıyor
     tooltip.classList.add("hidden");
     
     broadcastHaritaMouseThrottled(mapX, mapY, countryCode);
 });
 
-// ✨ Fare harita dışına çıkarsa rakibe "imleç yok" sinyali gönder
 haritaMapWrapper.addEventListener("mouseleave", (e) => {
     if (haritaData.currentTurn !== haritaData.playerId) return;
-    broadcastHaritaMouse(-999, -999, null);  // Özel işaret: imleci gizle
+    broadcastHaritaMouse(-999, -999, null);
 });
 
 // Timer
@@ -477,12 +507,20 @@ function getHaritaPlayerName(id) {
     return p ? p.name : `Oyuncu ${id}`;
 }
 
+function isHaritaMultiPlayer() {
+    return (haritaData.maxPlayers || 2) >= 3;
+}
+
 function updateHaritaLobby() {
     if (haritaRoomHelper) { haritaRoomHelper.renderCode(); haritaRoomHelper.renderLink(); }
     const _ts = haritaData.turnSeconds;
     document.getElementById("haritaLobbyTurnSeconds").textContent = (_ts === 0) ? "♾️" : _ts;
     
-    // Zorluk göster
+    const _maxEl = document.getElementById("haritaLobbyMaxPlayers");
+    if (_maxEl) _maxEl.textContent = haritaData.maxPlayers || 2;
+    const _totEl = document.getElementById("haritaLobbyTotalRounds");
+    if (_totEl) _totEl.textContent = haritaData.totalRounds || 10;
+    
     const diffNames = {
         "kolay": "🟢 Kolay",
         "orta": "🟡 Orta",
@@ -525,18 +563,20 @@ function updateHaritaLobby() {
     
     const startBtn = document.getElementById("haritaStartBtn");
     const msg = document.getElementById("haritaLobbyMsg");
+    const maxP = haritaData.maxPlayers || 2;
+    const curP = haritaData.players.length;
     
-    if (haritaData.playerId === 1 && haritaData.players.length === 2) {
+    if (haritaData.playerId === 1 && curP === maxP) {
         startBtn.classList.remove("hidden");
-        msg.textContent = "İki oyuncu hazır. Başlatabilirsin!";
+        msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
         msg.style.color = "#51cf66";
     } else if (haritaData.playerId === 1) {
         startBtn.classList.add("hidden");
-        msg.textContent = "Rakip bekleniyor...";
+        msg.textContent = `Oyuncu bekleniyor... (${curP}/${maxP})`;
         msg.style.color = "#ff6b6b";
     } else {
         startBtn.classList.add("hidden");
-        msg.textContent = "Host bekleniyor...";
+        msg.textContent = `Host bekleniyor... (${curP}/${maxP})`;
         msg.style.color = "#51cf66";
     }
     
@@ -556,12 +596,92 @@ function updateHaritaTopBar() {
     document.getElementById("haritaTurnInfo").innerHTML = 
         `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
     
-    const p1 = getHaritaPlayerName(1);
-    const p2 = getHaritaPlayerName(2);
-    document.getElementById("haritaP1Name").textContent = p1;
-    document.getElementById("haritaP2Name").textContent = p2;
-    document.getElementById("haritaScore").textContent = 
-        `${haritaData.scores[1]} - ${haritaData.scores[2]}`;
+    const isMulti = isHaritaMultiPlayer();
+    const scoreboard2P = document.getElementById("haritaScoreboard2P");
+    const scoreboardPanel = document.getElementById("haritaScoreboardPanel");
+    
+    if (isMulti) {
+        // 3+ kişi: üst skorbord gizle, sağ paneli göster
+        if (scoreboard2P) scoreboard2P.style.visibility = "hidden";
+        if (scoreboardPanel) scoreboardPanel.style.display = "";
+    } else {
+        // 2 kişi: eski davranış
+        if (scoreboard2P) scoreboard2P.style.visibility = "";
+        if (scoreboardPanel) scoreboardPanel.style.display = "none";
+        
+        const p1 = getHaritaPlayerName(1);
+        const p2 = getHaritaPlayerName(2);
+        document.getElementById("haritaP1Name").textContent = p1;
+        document.getElementById("haritaP2Name").textContent = p2;
+        document.getElementById("haritaScore").textContent = 
+            `${haritaData.scores[1] || 0} - ${haritaData.scores[2] || 0}`;
+    }
+    
+    // Multi modda skorbord render
+    if (isMulti) renderHaritaScoreboardList();
+}
+
+function renderHaritaScoreboardList() {
+    const listEl = document.getElementById("haritaScoreboardList");
+    if (!listEl) return;
+    
+    const rows = haritaData.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        score: haritaData.scores[p.id] ?? 0
+    }));
+    rows.sort((a, b) => b.score - a.score);
+    
+    // FLIP animasyonu için eski pozisyonları al
+    const oldPositions = {};
+    Array.from(listEl.children).forEach(li => {
+        const pid = parseInt(li.dataset.pid);
+        oldPositions[pid] = li.getBoundingClientRect().top;
+    });
+    
+    listEl.innerHTML = "";
+    rows.forEach((row, idx) => {
+        const li = document.createElement("li");
+        li.dataset.pid = row.id;
+        li.className = "haritaScoreRow";
+        if (row.id === haritaData.currentTurn) li.classList.add("activeTurn");
+        if (row.id === haritaData.playerId) li.classList.add("meRow");
+        
+        const rankBadge = document.createElement("span");
+        rankBadge.className = "haritaRankBadge";
+        const medals = ["🥇", "🥈", "🥉"];
+        rankBadge.textContent = medals[idx] || `${idx + 1}.`;
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "haritaScoreName";
+        nameSpan.textContent = row.name + (row.id === haritaData.playerId ? " (Sen)" : "");
+        
+        const scoreSpan = document.createElement("span");
+        scoreSpan.className = "haritaScoreVal";
+        if (row.score < 0) scoreSpan.classList.add("negative");
+        scoreSpan.textContent = row.score;
+        
+        li.appendChild(rankBadge);
+        li.appendChild(nameSpan);
+        li.appendChild(scoreSpan);
+        listEl.appendChild(li);
+    });
+    
+    // FLIP animasyonu
+    Array.from(listEl.children).forEach(li => {
+        const pid = parseInt(li.dataset.pid);
+        const newTop = li.getBoundingClientRect().top;
+        const oldTop = oldPositions[pid];
+        if (oldTop !== undefined && oldTop !== newTop) {
+            const diff = oldTop - newTop;
+            li.style.transform = `translateY(${diff}px)`;
+            li.style.transition = "none";
+            requestAnimationFrame(() => {
+                li.style.transform = "";
+                li.style.transition = "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)";
+            });
+        }
+    });
 }
 
 function updateHaritaPlayerCard() {
@@ -641,7 +761,6 @@ function renderHaritaMarkers() {
     const isMyTurn = haritaData.currentTurn === haritaData.playerId;
     const canClick = isMyTurn && !haritaData.answered;
 
-    // Önce tüm path'leri sıfırla
     const allPaths = document.querySelectorAll("#haritaWorldMap path");
     allPaths.forEach(p => {
         p.classList.remove("haritaCorrect", "haritaWrong", "haritaPending", "haritaClickable");
@@ -652,12 +771,9 @@ function renderHaritaMarkers() {
         p.style.cursor = "";
     });
 
-    // ✨ Hangi path'e hangi ülke bağlandı takip et (aynı path'e birden fazla bind olmasın)
     const boundPaths = new Set();
 
-    // Sadece oyundaki ülkeleri yönet
     Object.entries(haritaData.countries).forEach(([code, cdata]) => {
-        // SVG'de bu ülkenin path'lerini bul (id veya class)
         let parts = [];
         const byId = document.getElementById(cdata.iso);
         if (byId) {
@@ -668,17 +784,13 @@ function renderHaritaMarkers() {
 
         if (parts.length === 0) return;
         
-        // ✨ Bu path'e zaten başka ülke bind olmuşsa atla (Galler ↔ İngiltere çakışması)
-        // Öncelik: ilk gelen (COUNTRIES dict'te önce gelen kazanır)
-        // Ama İngiltere için özel exception: Ingiltere kazanmalı
         const pathKey = cdata.iso;
         if (boundPaths.has(pathKey)) {
-            return;  // Bu path zaten başka ülkeye bağlanmış, atla
+            return;
         }
         boundPaths.add(pathKey);
 
         parts.forEach(part => {
-            // Durum sınıfları
             if (code === haritaData.lastCorrectCode) {
                 part.classList.add("haritaCorrect");
             } else if (code === haritaData.lastSelectedCode && code !== haritaData.lastCorrectCode) {
@@ -687,7 +799,6 @@ function renderHaritaMarkers() {
                 part.classList.add("haritaPending");
             }
 
-            // Tıklanabilir mi
             if (canClick) {
                 part.classList.add("haritaClickable");
                 part.style.cursor = "pointer";
@@ -699,8 +810,6 @@ function renderHaritaMarkers() {
                     document.getElementById("haritaConfirmBox").classList.remove("hidden");
                 };
             }
-
-            // Tooltip artık wrapper'ın mousemove'unda global takip ediliyor
         });
     });
 }
@@ -729,7 +838,6 @@ function renderHaritaAll() {
     updateHaritaTopBar();
     updateHaritaPlayerCard();
     renderHaritaMarkers();
-    // Sıra bende ise fake cursor/tooltip gizle
     if (haritaData.currentTurn === haritaData.playerId) {
         const fc = document.getElementById("haritaFakeCursor");
         const ft = document.getElementById("haritaFakeTooltip");
@@ -751,6 +859,8 @@ handleMessage = function(msg) {
         haritaData.roomCode = msg.room_code;
         haritaData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 30;
         haritaData.difficulty = msg.difficulty || "karisik";
+        if (msg.max_players !== undefined) haritaData.maxPlayers = msg.max_players;
+        if (msg.total_rounds !== undefined) haritaData.totalRounds = msg.total_rounds;
         haritaData.inGame = true;
         inRoom = true;
         showScreen("haritaLobby");
@@ -763,6 +873,8 @@ handleMessage = function(msg) {
         haritaData.players = msg.players;
         haritaData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 30;
         haritaData.difficulty = msg.difficulty || haritaData.difficulty || "karisik";
+        if (msg.max_players !== undefined) haritaData.maxPlayers = msg.max_players;
+        if (msg.total_rounds !== undefined) haritaData.totalRounds = msg.total_rounds;
         updateHaritaLobby();
         return;
     }
@@ -777,21 +889,19 @@ handleMessage = function(msg) {
         haritaData.footballer = msg.footballer;
         haritaData.countries = msg.countries;
         haritaData.scores = msg.scores;
+        if (msg.max_players !== undefined) haritaData.maxPlayers = msg.max_players;
         haritaData.answered = false;
         haritaData.pendingCode = null;
         haritaData.lastSelectedCode = null;
         haritaData.lastCorrectCode = null;
         
-        // ✨ Rakip imleci ve tooltip'i temizle (oyun başında)
         document.getElementById("haritaFakeCursor").classList.add("hidden");
         document.getElementById("haritaFakeTooltip").classList.add("hidden");
         
-        // ✨ Rematch için: önceki popup'ları ve overlay'leri temizle
         document.getElementById("haritaGameOverBox").classList.add("hidden");
         document.getElementById("haritaConfirmBox").classList.add("hidden");
         document.getElementById("haritaCorrectAnswer").classList.add("hidden");
         hideHaritaBigOverlay();
-        // SVG path'lerini de temizle
         const allPaths = document.querySelectorAll("#haritaWorldMap path");
         allPaths.forEach(p => {
             p.classList.remove("haritaCorrect", "haritaWrong", "haritaPending", "haritaClickable", "haritaHoverSync");
@@ -823,7 +933,6 @@ handleMessage = function(msg) {
         document.getElementById("haritaCorrectAnswer").classList.add("hidden");
         hideHaritaBigOverlay();
         
-        // SVG path'leri temizle
         const allPaths = document.querySelectorAll("#haritaWorldMap path");
         allPaths.forEach(p => {
             p.classList.remove("haritaCorrect", "haritaWrong", "haritaPending", "haritaClickable");
@@ -861,7 +970,6 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "harita_confirm_sync") {
-        // İzleyende popup gösterme - tamamen kapalı
         return;
     }
 	
@@ -870,23 +978,19 @@ handleMessage = function(msg) {
         const tooltip = document.getElementById("haritaFakeTooltip");
         const rect = haritaMapWrapper.getBoundingClientRect();
         
-        // Sıra bende ise rakip imleci ASLA görünmemeli
         if (haritaData.currentTurn === haritaData.playerId) {
             cursor.classList.add("hidden");
             tooltip.classList.add("hidden");
             cursor.style.display = "none";
             tooltip.style.display = "none";
-            // Hover sync'i de temizle
             document.querySelectorAll("#haritaWorldMap path.haritaHoverSync").forEach(p => {
                 p.classList.remove("haritaHoverSync");
             });
             return;
         }
         
-        // Kendi mesajım geri geldiyse gösterme
         if (msg.player_id === haritaData.playerId) return;
         
-        // ✨ Rakibin hover ettiği ülkeyi highlight et (izleyende de yeşil göster)
         document.querySelectorAll("#haritaWorldMap path.haritaHoverSync").forEach(p => {
             p.classList.remove("haritaHoverSync");
         });
@@ -904,7 +1008,6 @@ handleMessage = function(msg) {
         cursor.style.display = "";
         tooltip.style.display = "";
         
-        // ✨ Özel işaret: -999 → fare harita dışı, imleci gizle
         if (msg.x === -999 && msg.y === -999) {
             cursor.classList.add("hidden");
             tooltip.classList.add("hidden");
@@ -918,7 +1021,6 @@ handleMessage = function(msg) {
         cursor.style.top = localY + "px";
         cursor.classList.remove("hidden");
         
-        // Fake tooltip kapalı - ülke adları zaten haritada yazıyor
         tooltip.classList.add("hidden");
         return;
     }
@@ -935,15 +1037,18 @@ handleMessage = function(msg) {
         const playerName = getHaritaPlayerName(msg.player_id);
         let statusText = "";
         let statusType = "info";
+        const scoreDelta = msg.score_delta ?? 0;
+        const deltaTxt = scoreDelta > 0 ? `+${scoreDelta}` : `${scoreDelta}`;
         
         if (msg.timeout) {
-            statusText = `⏰ ${playerName} süresi doldu!`;
+            statusText = `⏰ ${playerName} süresi doldu! (${deltaTxt})`;
             statusType = "wrong";
         } else if (msg.correct) {
-            statusText = `✓ ${playerName} doğru bildi!`;
+            const timeInfo = msg.answer_time ? ` [${msg.answer_time}sn]` : "";
+            statusText = `✓ ${playerName} doğru bildi!${timeInfo} (${deltaTxt})`;
             statusType = "correct";
         } else {
-            statusText = `✗ ${playerName} yanlış tahmin: ${msg.selected_tr}`;
+            statusText = `✗ ${playerName} yanlış tahmin: ${msg.selected_tr} (${deltaTxt})`;
             statusType = "wrong";
         }
         
@@ -952,7 +1057,8 @@ handleMessage = function(msg) {
         updateHaritaTopBar();
         
         if (msg.correct) {
-            showHaritaBigOverlay("✓ DOĞRU", "correct", 2500);
+            const bonus = scoreDelta === 2 ? "✓ HIZLI DOĞRU!" : "✓ DOĞRU";
+            showHaritaBigOverlay(bonus, "correct", 2500);
         } else {
             showHaritaBigOverlay("✗ YANLIŞ", "wrong", 2500);
         }
@@ -971,6 +1077,26 @@ handleMessage = function(msg) {
         return;
     }
     
+    if (msg.type === "harita_player_left") {
+        // Bir oyuncu ayrıldı
+        if (msg.players) haritaData.players = msg.players;
+        if (msg.scores) haritaData.scores = msg.scores;
+        renderHaritaAll();
+        if (typeof showToast === "function") {
+            showToast(`${msg.name || "Bir oyuncu"} oyundan ayrıldı`, "warn");
+        }
+        return;
+    }
+    
+    if (msg.type === "harita_back_to_lobby") {
+        document.getElementById("haritaGameOverBox").classList.add("hidden");
+        document.getElementById("haritaConfirmBox").classList.add("hidden");
+        stopHaritaTimer();
+        showScreen("haritaLobby");
+        updateHaritaLobby();
+        return;
+    }
+    
     if (msg.type === "harita_game_over") {
         haritaData.scores = msg.scores;
         stopHaritaTimer();
@@ -985,26 +1111,54 @@ handleMessage = function(msg) {
         } else if (msg.winner_id === haritaData.playerId) {
             title.textContent = "KAZANDIN! 🏆";
             title.style.color = "#51cf66";
-            startConfetti();
+            if (typeof startConfetti === "function") startConfetti();
         } else {
             title.textContent = "KAYBETTİN 😢";
             title.style.color = "#ff6b6b";
         }
         
-        const p1 = getHaritaPlayerName(1);
-        const p2 = getHaritaPlayerName(2);
-        text.innerHTML = `
-            <div style="font-size:20px; margin:15px 0;">
-                <span style="color:#51cf66;">${p1}</span>: <b>${haritaData.scores[1]}</b><br>
-                <span style="color:#ff6b6b;">${p2}</span>: <b>${haritaData.scores[2]}</b>
-            </div>
-        `;
+        // Sıralama listesi
+        let ranking = msg.ranking;
+        if (!ranking || !Array.isArray(ranking)) {
+            ranking = [];
+            for (const [pidStr, sc] of Object.entries(haritaData.scores || {})) {
+                const pid = parseInt(pidStr);
+                ranking.push({ player_id: pid, name: getHaritaPlayerName(pid), score: sc });
+            }
+            ranking.sort((a, b) => b.score - a.score);
+        }
+        
+        const listEl = document.getElementById("haritaGameOverList");
+        if (listEl) {
+            listEl.innerHTML = "";
+            const medals = ["🥇", "🥈", "🥉"];
+            ranking.forEach((row, idx) => {
+                const li = document.createElement("li");
+                li.className = "haritaGameOverItem";
+                if (idx === 0) li.classList.add("goldRank");
+                if (row.player_id === haritaData.playerId) li.classList.add("meRow");
+                const medal = medals[idx] || `${idx + 1}.`;
+                const scoreCls = row.score < 0 ? "rankScore negative" : "rankScore";
+                li.innerHTML = `<span class="rankIcon">${medal}</span> <span class="rankName">${row.name}</span> <span class="${scoreCls}">${row.score}</span>`;
+                listEl.appendChild(li);
+            });
+        }
+        
+        // Kısa özet
+        if (ranking.length === 2) {
+            text.innerHTML = `Skor: <b>${ranking[0].score} - ${ranking[1].score}</b>`;
+        } else {
+            text.innerHTML = `<b>${ranking.length}</b> oyuncu yarıştı`;
+        }
         
         const rematchBtn = document.getElementById("haritaRematchBtn");
+        const lobbyBtn = document.getElementById("haritaBackToLobbyBtn");
         if (haritaData.playerId === 1) {
             rematchBtn.classList.remove("hidden");
+            lobbyBtn.classList.remove("hidden");
         } else {
             rematchBtn.classList.add("hidden");
+            lobbyBtn.classList.add("hidden");
         }
         
         document.getElementById("haritaGameOverBox").classList.remove("hidden");
@@ -1014,9 +1168,6 @@ handleMessage = function(msg) {
     _prevHandleMessageHarita(msg);
 };
 
-// (Bu blok silindi - app.js zaten room_mode_result işliyor)
-
 // Başlangıçta popup'ları kapat
 document.getElementById("haritaGameOverBox").classList.add("hidden");
 document.getElementById("haritaConfirmBox").classList.add("hidden");
-

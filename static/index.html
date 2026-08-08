@@ -351,6 +351,30 @@
 
             <div class="centerBox">
                 <label class="timerLabel">
+                    👥 Oyuncu Sayısı:
+                    <select id="haritaMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🔢 Tur Sayısı:
+                    <select id="haritaTotalRoundsSelect">
+                        <option value="5">5 Tur</option>
+                        <option value="10" selected>10 Tur</option>
+                        <option value="15">15 Tur</option>
+                        <option value="20">20 Tur</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
                     Zorluk:
                     <select id="haritaDifficultySelect">
                         <option value="kolay">🟢 Kolay</option>
@@ -412,8 +436,9 @@
             </div>
             <ul id="haritaPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Zorluk: <span id="haritaLobbyDifficulty">🎯 Karışık</span></span>
-                <span style="margin-left: 20px;">Toplam Tur: 10</span>
+                <span>👥 <span id="haritaLobbyMaxPlayers">2</span> Oyuncu</span>
+                <span style="margin-left: 20px;">Zorluk: <span id="haritaLobbyDifficulty">🎯 Karışık</span></span>
+                <span style="margin-left: 20px;">Toplam Tur: <span id="haritaLobbyTotalRounds">10</span></span>
                 <span style="margin-left: 20px;">Süre: <span id="haritaLobbyTurnSeconds">30</span> sn</span>
             </div>
             <div class="centerBox">
@@ -431,7 +456,7 @@
                     <div id="haritaRoundInfo">Tur 1/10</div>
                     <div id="haritaTurnInfo">Sıra: ---</div>
                 </div>
-                <div class="haritaScoreboard">
+                <div class="haritaScoreboard" id="haritaScoreboard2P">
                     <span id="haritaP1Name" class="scoreMine">---</span>
                     <span id="haritaScore" class="haritaScoreText">0 - 0</span>
                     <span id="haritaP2Name" class="scoreOpp">---</span>
@@ -442,7 +467,7 @@
             </div>
 
             <div class="haritaMainLayout">
-                <!-- Sol: Futbolcu Kartı -->
+                <!-- Sol: Futbolcu Kartı + Skorbord (3+ kişide) -->
                 <div class="haritaLeftPanel">
                     <div class="haritaPlayerCard">
                         <h3>FUTBOLCU</h3>
@@ -450,6 +475,12 @@
                         <div id="haritaPlayerName" class="haritaPlayerName">---</div>
                         <div id="haritaPlayerStatus" class="haritaPlayerStatus">Bekleniyor...</div>
                         <div id="haritaCorrectAnswer" class="haritaCorrectAnswer hidden"></div>
+                    </div>
+                    
+                    <!-- ✨ Sıralama paneli (3+ kişide görünür) -->
+                    <div class="haritaScoreboardPanel" id="haritaScoreboardPanel" style="display:none;">
+                        <h3 style="color:gold; margin:0 0 10px 0; text-align:center; font-size:16px;">🏆 SIRALAMA</h3>
+                        <ol id="haritaScoreboardList" class="haritaScoreboardList"></ol>
                     </div>
                 </div>
 
@@ -503,7 +534,9 @@
         <div id="haritaGameOverBox" class="overlay hidden">
             <div class="overlayCard">
                 <h1 id="haritaGameOverTitle"></h1>
-                <p id="haritaGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <p id="haritaGameOverText" style="font-size:22px; margin:15px 0;"></p>
+
+                <ol id="haritaGameOverList" class="haritaGameOverList"></ol>
 
                 <!-- Reklam -->
                 <div class="ad-container" style="max-width:400px; margin: 15px auto;">
@@ -520,6 +553,7 @@
 
                 <div class="confirmButtons">
                     <button id="haritaRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="haritaBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="haritaBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
             </div>
@@ -531,6 +565,30 @@
 
             <div class="centerBox">
                 <input id="createGizemNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    👥 Oyuncu Sayısı:
+                    <select id="gizemMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🔢 Tur Sayısı:
+                    <select id="gizemTotalRoundsSelect">
+                        <option value="5">5 Tur</option>
+                        <option value="10" selected>10 Tur</option>
+                        <option value="15">15 Tur</option>
+                        <option value="20">20 Tur</option>
+                    </select>
+                </label>
             </div>
 
             <div class="centerBox">
@@ -593,8 +651,9 @@
             </div>
             <ul id="gizemPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Zorluk: <span id="gizemLobbyDifficulty">🎯 Karışık</span></span>
-                <span style="margin-left: 20px;">Toplam Tur: 10</span>
+                <span>👥 <span id="gizemLobbyMaxPlayers">2</span> Oyuncu</span>
+                <span style="margin-left: 20px;">Zorluk: <span id="gizemLobbyDifficulty">🎯 Karışık</span></span>
+                <span style="margin-left: 20px;">Toplam Tur: <span id="gizemLobbyTotalRounds">10</span></span>
                 <span style="margin-left: 20px;">Süre: <span id="gizemLobbyTurnSeconds">60</span> sn</span>
             </div>
             <div class="centerBox">
@@ -612,7 +671,7 @@
                     <div id="gizemRoundInfo">Tur 1/10</div>
                     <div id="gizemTurnInfo">Sıra: ---</div>
                 </div>
-                <div class="gizemScoreboard">
+                <div class="gizemScoreboard" id="gizemScoreboard2P">
                     <span id="gizemP1Name" class="scoreMine">---</span>
                     <span id="gizemScore" class="gizemScoreText">0 - 0</span>
                     <span id="gizemP2Name" class="scoreOpp">---</span>
@@ -620,6 +679,12 @@
                 <div class="gizemTopRight">
                     <div id="gizemTimer" class="gizemTimerBig">60s</div>
                 </div>
+            </div>
+
+            <!-- ✨ Sıralama paneli (3+ kişide görünür) -->
+            <div class="gizemScoreboardPanel" id="gizemScoreboardPanel" style="display:none;">
+                <h3 style="color:gold; margin:0 0 10px 0; text-align:center; font-size:16px;">🏆 SIRALAMA</h3>
+                <ol id="gizemScoreboardList" class="gizemScoreboardList"></ol>
             </div>
 
             <!-- Kariyer Akışı -->
@@ -673,7 +738,9 @@
         <div id="gizemGameOverBox" class="overlay hidden">
             <div class="overlayCard">
                 <h1 id="gizemGameOverTitle"></h1>
-                <p id="gizemGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <p id="gizemGameOverText" style="font-size:22px; margin:15px 0;"></p>
+
+                <ol id="gizemGameOverList" class="gizemGameOverList"></ol>
 
                 <!-- Reklam -->
                 <div class="ad-container" style="max-width:400px; margin: 15px auto;">
@@ -690,6 +757,7 @@
 
                 <div class="confirmButtons">
                     <button id="gizemRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="gizemBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="gizemBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
             </div>
@@ -807,7 +875,7 @@
 
         <!-- LOBBY -->
         <section id="lobbyScreen" class="panel hidden">
-            <h2 class="mainTitle">Lobby</h2>
+            <h2 class="mainTitle">Bil Bakalım - Lobby</h2>
             <div class="roomCodeBox">
                 <span class="roomCodeLabel">Oda Kodu:</span>
                 <span id="roomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
@@ -1289,6 +1357,7 @@
 
                 <div class="confirmButtons">
                     <button id="ilk11RematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="ilk11BackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="ilk11BackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
             </div>
@@ -1300,6 +1369,30 @@
 
             <div class="centerBox">
                 <input id="createStadNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    👥 Oyuncu Sayısı:
+                    <select id="stadMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🔢 Tur Sayısı:
+                    <select id="stadTotalRoundsSelect">
+                        <option value="5">5 Tur</option>
+                        <option value="10" selected>10 Tur</option>
+                        <option value="15">15 Tur</option>
+                        <option value="20">20 Tur</option>
+                    </select>
+                </label>
             </div>
 
             <div class="centerBox">
@@ -1350,7 +1443,8 @@
             </div>
             <ul id="stadPlayersList"></ul>
             <div class="lobbyInfo">
-                <span>Toplam Tur: 10</span>
+                <span>👥 <span id="stadLobbyMaxPlayers">2</span> Oyuncu</span>
+                <span style="margin-left: 20px;">Toplam Tur: <span id="stadLobbyTotalRounds">10</span></span>
                 <span style="margin-left:20px;">Süre: <span id="stadLobbyTurnSeconds">30</span> sn</span>
             </div>
             <div class="centerBox">
@@ -1368,7 +1462,7 @@
                     <div id="stadRoundInfo">Tur 1/10</div>
                     <div id="stadTurnInfo">Sıra: ---</div>
                 </div>
-                <div class="haritaScoreboard">
+                <div class="haritaScoreboard" id="stadScoreboard2P">
                     <span id="stadP1Name" class="scoreMine">---</span>
                     <span id="stadScore" class="haritaScoreText">0 - 0</span>
                     <span id="stadP2Name" class="scoreOpp">---</span>
@@ -1376,6 +1470,12 @@
                 <div class="haritaTopRight">
                     <div id="stadTimer" class="haritaTimerBig">30s</div>
                 </div>
+            </div>
+
+            <!-- ✨ Sıralama paneli (3+ kişide görünür) -->
+            <div class="stadScoreboardPanel" id="stadScoreboardPanel" style="display:none;">
+                <h3 style="color:gold; margin:0 0 10px 0; text-align:center; font-size:16px;">🏆 SIRALAMA</h3>
+                <ol id="stadScoreboardList" class="stadScoreboardList"></ol>
             </div>
 
             <div class="stadMainLayout">
@@ -1420,7 +1520,9 @@
         <div id="stadGameOverBox" class="overlay hidden">
             <div class="overlayCard">
                 <h1 id="stadGameOverTitle"></h1>
-                <p id="stadGameOverText" style="font-size:22px; margin:20px 0;"></p>
+                <p id="stadGameOverText" style="font-size:22px; margin:15px 0;"></p>
+
+                <ol id="stadGameOverList" class="stadGameOverList"></ol>
 
                 <!-- Reklam -->
                 <div class="ad-container" style="max-width:400px; margin: 15px auto;">
@@ -1437,6 +1539,7 @@
 
                 <div class="confirmButtons">
                     <button id="stadRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="stadBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                     <button id="stadBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
                 </div>
             </div>
@@ -1457,6 +1560,7 @@
                         <option value="2" selected>2 Oyuncu</option>
                         <option value="3">3 Oyuncu</option>
                         <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
                     </select>
                 </label>
             </div>
@@ -2252,6 +2356,7 @@
 
             <div class="confirmButtons">
                 <button id="newRoundBtn" class="bigBtn greenBtn hidden">Yeni Tur Başlat</button>
+                <button id="backToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
                 <button id="backToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
             </div>
         </div>
@@ -2286,12 +2391,27 @@
     <!-- ESC / GERİ POPUP -->
     <div id="escConfirmBox" class="overlay hidden">
         <div class="overlayCard escConfirmCard">
-            <div class="escIcon">🚪</div>
-            <h2 class="escTitle">Çıkmak İstediğine Emin misin?</h2>
-            <p class="escMsg">Oyundan çıkarsan oda kapanacak ve rakibin de ayrılacak.</p>
-            <div class="confirmButtons">
-                <button id="escYesBtn" class="bigBtn redBtn">🚪 EVET, ÇIKIŞ</button>
-                <button id="escNoBtn" class="bigBtn greenBtn">↩️ HAYIR, DEVAM</button>
+            <div class="escIcon">⏸️</div>
+            <h2 class="escTitle" style="color:#ffd43b;">Menü</h2>
+            <p class="escMsg" id="escMenuMsg">Ne yapmak istersin?</p>
+            <div style="display:flex; flex-direction:column; gap:12px; padding:15px 20px 5px 20px;">
+                <button id="escResumeBtn" class="bigBtn greenBtn" style="width:100%;">
+                    ▶️ Devam Et
+                </button>
+                <button id="escLobbyBtn" class="bigBtn" style="background:#e67e22; width:100%;">
+                    🚪 Lobiye Dön
+                </button>
+                <button id="escHomeBtn" class="bigBtn" style="background:#4dabf7; width:100%;">
+                    🏠 Ana Menü
+                </button>
+                <button id="escLeaveBtn" class="bigBtn redBtn" style="width:100%;">
+                    ❌ Odadan Ayrıl
+                </button>
+            </div>
+            <!-- Eski butonlar (geriye uyumluluk için gizli) -->
+            <div style="display:none;">
+                <button id="escYesBtn"></button>
+                <button id="escNoBtn"></button>
             </div>
         </div>
     </div>

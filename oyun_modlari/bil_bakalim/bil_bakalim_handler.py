@@ -577,6 +577,30 @@ async def handle_bil_bakalim_message(
         result["handled"] = True
         return result
 
+    # --- BACK TO LOBBY (host lobiye dönüyor, herkesi at) ---
+    if msg_type == "back_to_lobby":
+        if player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
+            result["handled"] = True
+            return result
+        
+        # Task'ları iptal et
+        for task_key in ["turn_task", "selection_task", "answer_task"]:
+            task = room.get(task_key)
+            if task and not task.done():
+                task.cancel()
+        
+        # Phase'i lobby'e çevir
+        room["phase"] = "lobby"
+        room["selections"] = {}
+        room["pending_question"] = None
+        room["question_pack"] = []
+        
+        await broadcast(room, {"type": "back_to_lobby"})
+        await send_lobby_update(room, broadcast)
+        result["handled"] = True
+        return result
+
     # --- SELECT SECRET ---
     if msg_type == "select_secret":
         if room["phase"] != "selection":

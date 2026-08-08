@@ -151,7 +151,25 @@ document.getElementById("takimBackBtn").onclick = () => {
 };
 
 document.getElementById("takimBackToMenuBtn").onclick = () => {
-    location.reload();
+    // Popup'ları kapat
+    document.getElementById("takimGameOverBox").classList.add("hidden");
+    document.getElementById("takimPassConfirmBox").classList.add("hidden");
+    // WebSocket bağlantısını kapat (host ise oda dağılır)
+    if (typeof ws !== "undefined" && ws) {
+        try { ws.close(); } catch(e) {}
+    }
+    // State sıfırla
+    inRoom = false;
+    takimData.roomCode = "";
+    takimData.playerId = null;
+    takimData.players = [];
+    playerId = null;
+    roomCode = "";
+    // WS yeniden bağla + ana menüye git
+    setTimeout(() => {
+        if (typeof connectWS === "function") connectWS();
+        showScreen("home");
+    }, 200);
 };
 
 document.getElementById("takimRematchBtn").onclick = () => {
@@ -160,7 +178,15 @@ document.getElementById("takimRematchBtn").onclick = () => {
 };
 
 document.getElementById("takimBackToLobbyBtn").onclick = () => {
-    send({ type: "takim_back_to_lobby" });
+    if (takimData.playerId === 1) {
+        // HOST: backend'e broadcast et (herkesi lobiye atacak)
+        send({ type: "takim_back_to_lobby" });
+    } else {
+        // MİSAFİR: sadece kendi ekranını lobiye çevir
+        document.getElementById("takimGameOverBox").classList.add("hidden");
+        showScreen("takimLobby");
+        updateTakimLobby();
+    }
 };
 
 let takimPickPlayerMode = false;
@@ -889,7 +915,8 @@ handleMessage = function(msg) {
             lobbyBtn.classList.remove("hidden");
         } else {
             rematchBtn.classList.add("hidden");
-            lobbyBtn.classList.add("hidden");
+            // ✨ Misafir de kendi lobisine dönebilsin (izleyici olur)
+            lobbyBtn.classList.remove("hidden");
         }
         document.getElementById("takimGameOverBox").classList.remove("hidden");
         return;

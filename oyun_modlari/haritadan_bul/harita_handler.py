@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 
 from oyun_modlari.bil_bakalim.footballers import ALL_FOOTBALLERS
 from oyun_modlari.haritadan_bul.harita_data import (
@@ -11,6 +12,12 @@ from oyun_modlari.haritadan_bul.harita_data import (
 )
 
 HARITA_TOPLAM_TUR = 10
+HARITA_ALLOWED_ROUNDS = [5, 10, 15, 20]
+
+# ✨ Süre bonusu eşikleri
+FAST_BONUS_SECONDS = 10  # 10 sn içinde doğru → +2
+NORMAL_ANSWER_POINT = 1  # 10 sn sonrası doğru → +1
+WRONG_ANSWER_PENALTY = -1  # yanlış / timeout → -1
 
 
 def _handled(room_code, player_id):
@@ -22,7 +29,21 @@ def _not_handled(room_code, player_id):
 
 
 def get_other_player_id(pid):
+    """SADECE 2 kişilik için (geriye uyumluluk)"""
     return 2 if pid == 1 else 1
+
+
+def get_next_harita_turn_player(room):
+    """Sıradaki oyuncunun ID'sini döndür (round-robin, 2-5 kişi destekli)"""
+    active_ids = sorted(room["players"].keys())
+    if not active_ids:
+        return None
+    current = room.get("turn", active_ids[0])
+    if current not in active_ids:
+        return active_ids[0]
+    idx = active_ids.index(current)
+    next_idx = (idx + 1) % len(active_ids)
+    return active_ids[next_idx]
 
 
 def harita_get_valid_indices():
@@ -45,10 +66,17 @@ async def harita_turn_timer(room, turn_id, round_no, broadcast):
             return
         if room.get("harita_answered"):
             return
+        # Oyuncu ayrılmışsa timer bir şey yapmaz
+        if turn_id not in room.get("players", {}):
+            return
 
         print(f"[HARITA TIMER] Süre doldu, oyuncu {turn_id}")
 
         room["harita_answered"] = True
+
+        # Timeout = -1 ceza
+        if turn_id in room["scores"]:
+            room["scores"][turn_id] += WRONG_ANSWER_PENALTY
 
         idx = room["harita_order"][round_no]
         footballer = ALL_FOOTBALLERS[idx]
@@ -64,7 +92,8 @@ async def harita_turn_timer(room, turn_id, round_no, broadcast):
             "selected_tr": None,
             "correct_code": correct_code,
             "correct_tr": correct_tr,
-            "scores": room["scores"]
+            "scores": room["scores"],
+            "score_delta": WRONG_ANSWER_PENALTY
         })
 
         await asyncio.sleep(3)
@@ -77,26 +106,43 @@ async def harita_turn_timer(room, turn_id, round_no, broadcast):
 
 async def harita_next_round(room, broadcast):
     room["harita_round"] += 1
+    total_rounds = room.get("total_rounds", HARITA_TOPLAM_TUR)
 
-    if room["harita_round"] >= len(room["harita_order"]):
+    if room["harita_round"] >= min(len(room["harita_order"]), total_rounds):
+        # Oyun bitti
         room["phase"] = "over"
-        s1 = room["scores"][1]
-        s2 = room["scores"][2]
-        if s1 > s2:
-            winner = 1
-        elif s2 > s1:
-            winner = 2
-        else:
-            winner = 0
+        # Sıralama (yüksekten alçağa)
+        sorted_scores = sorted(room["scores"].items(), key=lambda x: -x[1])
+        ranking = []
+        for pid, score in sorted_scores:
+            pname = "?"
+            if pid in room["players"]:
+                pname = room["players"][pid]["name"]
+            elif pid in room.get("left_players", {}):
+                pname = room["left_players"][pid]
+            ranking.append({"player_id": pid, "name": pname, "score": score})
+        
+        winner_id = ranking[0]["player_id"] if ranking else 0
+        # Beraberlik kontrolü
+        if len(ranking) >= 2 and ranking[0]["score"] == ranking[1]["score"]:
+            winner_id = 0
+        
         await broadcast(room, {
             "type": "harita_game_over",
             "scores": room["scores"],
-            "winner_id": winner
+            "winner_id": winner_id,
+            "ranking": ranking
         })
         return
 
-    room["turn"] = 1 if room["harita_round"] % 2 == 0 else 2
+    # Sıradaki oyuncuya geç (2-5 kişi destekli)
+    room["turn"] = get_next_harita_turn_player(room)
+    if room["turn"] is None:
+        # Oda boşaldı
+        return
+    
     room["harita_answered"] = False
+    room["turn_start_time"] = time.time()  # ✨ Tur başlangıç zamanı
 
     idx = room["harita_order"][room["harita_round"]]
     footballer = ALL_FOOTBALLERS[idx]
@@ -104,7 +150,7 @@ async def harita_next_round(room, broadcast):
     await broadcast(room, {
         "type": "harita_new_round",
         "round_no": room["harita_round"],
-        "total_rounds": len(room["harita_order"]),
+        "total_rounds": total_rounds,
         "current_turn": room["turn"],
         "footballer": {
             "name": footballer["name"],
@@ -123,30 +169,39 @@ async def harita_next_round(room, broadcast):
 
 async def start_harita_game(room, safe_send, broadcast):
     difficulty = room.get("difficulty", "karisik")
+    total_rounds = room.get("total_rounds", HARITA_TOPLAM_TUR)
     
     if difficulty == "karisik":
-        # Karışık mod: progresif (kolay → orta → zor)
-        order = make_progressive_order(ALL_FOOTBALLERS, HARITA_TOPLAM_TUR)
+        order = make_progressive_order(ALL_FOOTBALLERS, total_rounds)
     else:
-        # Belirli zorluk seviyesi
         valid = get_footballers_by_difficulty(ALL_FOOTBALLERS, difficulty)
         random.shuffle(valid)
-        order = valid[:min(HARITA_TOPLAM_TUR, len(valid))]
+        order = valid[:min(total_rounds, len(valid))]
     
     if not order:
-        # Fallback: eğer o zorlukta futbolcu yoksa tümünü kullan
         valid = harita_get_valid_indices()
         random.shuffle(valid)
-        order = valid[:HARITA_TOPLAM_TUR]
+        order = valid[:total_rounds]
     
-    print(f"[HARITA] Oyun başladı — Zorluk: {difficulty}, Futbolcu sayısı: {len(order)}")
+    # Yetmezse tekrar eklensin
+    while len(order) < total_rounds:
+        extra = harita_get_valid_indices()
+        random.shuffle(extra)
+        order.extend(extra)
+    order = order[:total_rounds]
+    
+    active_ids = sorted(room["players"].keys())
+    print(f"[HARITA] Oyun başladı — Zorluk: {difficulty}, Tur: {len(order)}, Oyuncu: {len(active_ids)}")
 
     room["phase"] = "playing"
-    room["scores"] = {1: 0, 2: 0}
+    room["scores"] = {pid: 0 for pid in active_ids}
     room["harita_order"] = order
     room["harita_round"] = 0
     room["harita_answered"] = False
-    room["turn"] = 1
+    room["turn"] = active_ids[0]  # İlk oyuncu başlar
+    room["total_rounds"] = total_rounds
+    room["turn_start_time"] = time.time()
+    room["left_players"] = {}
 
     players = [
         {"id": pid, "name": pdata["name"]}
@@ -171,19 +226,20 @@ async def start_harita_game(room, safe_send, broadcast):
             "player_id": pid,
             "players": players,
             "turn_seconds": room.get("turn_seconds", 30),
-            "total_rounds": len(order),
-            "current_turn": 1,
+            "total_rounds": total_rounds,
+            "current_turn": room["turn"],
             "round_no": 0,
             "footballer": {
                 "name": footballer["name"],
                 "img_file": footballer.get("img_file", footballer["img"] + ".webp")
             },
             "countries": countries_data,
-            "scores": room["scores"]
+            "scores": room["scores"],
+            "max_players": room.get("max_players", 2)
         })
 
     room["harita_task"] = asyncio.create_task(
-        harita_turn_timer(room, 1, 0, broadcast)
+        harita_turn_timer(room, room["turn"], 0, broadcast)
     )
 
 
@@ -192,13 +248,16 @@ async def send_harita_lobby_update(room, broadcast):
         {"id": pid, "name": pdata["name"]}
         for pid, pdata in sorted(room["players"].items())
     ]
+    max_players = room.get("max_players", 2)
     await broadcast(room, {
         "type": "harita_lobby_update",
         "room_code": room["code"],
         "players": players,
-        "can_start": len(room["players"]) == 2,
+        "can_start": len(room["players"]) == max_players,
         "turn_seconds": room.get("turn_seconds", 30),
-        "difficulty": room.get("difficulty", "karisik")
+        "difficulty": room.get("difficulty", "karisik"),
+        "max_players": max_players,
+        "total_rounds": room.get("total_rounds", HARITA_TOPLAM_TUR)
     })
 
 
@@ -225,6 +284,8 @@ async def handle_harita_message(
         name = (data.get("name") or "").strip()
         turn_seconds_raw = data.get("turn_seconds", 30)
         difficulty = (data.get("difficulty") or "karisik").strip().lower()
+        max_players_raw = data.get("max_players", 2)
+        total_rounds_raw = data.get("total_rounds", HARITA_TOPLAM_TUR)
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -240,6 +301,22 @@ async def handle_harita_message(
         if difficulty not in ["kolay", "orta", "zor", "karisik"]:
             difficulty = "karisik"
 
+        try:
+            max_players = int(max_players_raw)
+            if max_players not in [2, 3, 4, 5]:
+                max_players = 2
+        except:
+            max_players = 2
+
+        try:
+            total_rounds = int(total_rounds_raw)
+            if total_rounds not in HARITA_ALLOWED_ROUNDS:
+                total_rounds = HARITA_TOPLAM_TUR
+        except:
+            total_rounds = HARITA_TOPLAM_TUR
+
+        print(f"[HARITA ODA] Zorluk: {difficulty} | Süre: {harita_turn_seconds}sn | Oyuncu: {max_players} | Tur: {total_rounds}")
+
         current_room_code = make_room_code()
         current_player_id = 1
 
@@ -250,12 +327,16 @@ async def handle_harita_message(
             "phase": "lobby",
             "turn_seconds": harita_turn_seconds,
             "difficulty": difficulty,
-            "scores": {1: 0, 2: 0},
+            "max_players": max_players,
+            "total_rounds": total_rounds,
+            "scores": {},
             "harita_order": [],
             "harita_round": 0,
             "harita_answered": False,
             "turn": 1,
-            "harita_task": None
+            "turn_start_time": 0,
+            "harita_task": None,
+            "left_players": {}
         }
 
         await safe_send(websocket, {
@@ -263,7 +344,9 @@ async def handle_harita_message(
             "room_code": current_room_code,
             "player_id": 1,
             "difficulty": difficulty,
-            "turn_seconds": harita_turn_seconds
+            "turn_seconds": harita_turn_seconds,
+            "max_players": max_players,
+            "total_rounds": total_rounds
         })
         await send_harita_lobby_update(rooms[current_room_code], broadcast)
         return _handled(current_room_code, current_player_id)
@@ -284,8 +367,13 @@ async def handle_harita_message(
         if room.get("mode") != "haritadan_bul":
             await safe_send(websocket, {"type": "error", "message": "Bu oda farklı bir mod için."})
             return _handled(current_room_code, current_player_id)
-        if len(room["players"]) >= 2:
-            await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+        
+        max_players = room.get("max_players", 2)
+        if len(room["players"]) >= max_players:
+            await safe_send(websocket, {"type": "error", "message": f"Oda dolu ({max_players}/{max_players})."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Oyun zaten başlamış."})
             return _handled(current_room_code, current_player_id)
         
         # ✨ Aynı isim var mı? (case-insensitive)
@@ -297,17 +385,29 @@ async def handle_harita_message(
             })
             return _handled(current_room_code, current_player_id)
 
+        # Boş slot bul
+        used_ids = set(room["players"].keys())
+        new_pid = None
+        for pid in range(1, max_players + 1):
+            if pid not in used_ids:
+                new_pid = pid
+                break
+        if new_pid is None:
+            await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+            return _handled(current_room_code, current_player_id)
+
         current_room_code = join_code
-        current_player_id = 2
-        room["players"][2] = {"ws": websocket, "name": name}
-        room["phase"] = "lobby"
+        current_player_id = new_pid
+        room["players"][new_pid] = {"ws": websocket, "name": name}
 
         await safe_send(websocket, {
             "type": "harita_room_joined",
             "room_code": current_room_code,
-            "player_id": 2,
+            "player_id": new_pid,
             "difficulty": room.get("difficulty", "karisik"),
-            "turn_seconds": room.get("turn_seconds", 30)
+            "turn_seconds": room.get("turn_seconds", 30),
+            "max_players": max_players,
+            "total_rounds": room.get("total_rounds", HARITA_TOPLAM_TUR)
         })
         await send_harita_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -340,8 +440,26 @@ async def handle_harita_message(
         if new_difficulty not in ["kolay", "orta", "zor", "karisik"]:
             new_difficulty = "karisik"
 
+        try:
+            new_max = int(data.get("max_players", room.get("max_players", 2)))
+            if new_max not in [2, 3, 4, 5]:
+                new_max = room.get("max_players", 2)
+            if new_max < len(room["players"]):
+                new_max = room.get("max_players", 2)
+        except:
+            new_max = room.get("max_players", 2)
+
+        try:
+            new_total_rounds = int(data.get("total_rounds", room.get("total_rounds", HARITA_TOPLAM_TUR)))
+            if new_total_rounds not in HARITA_ALLOWED_ROUNDS:
+                new_total_rounds = room.get("total_rounds", HARITA_TOPLAM_TUR)
+        except:
+            new_total_rounds = room.get("total_rounds", HARITA_TOPLAM_TUR)
+
         room["turn_seconds"] = new_turn_sec
         room["difficulty"] = new_difficulty
+        room["max_players"] = new_max
+        room["total_rounds"] = new_total_rounds
 
         await send_harita_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -351,8 +469,9 @@ async def handle_harita_message(
         if current_player_id != 1:
             await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
             return _handled(current_room_code, current_player_id)
-        if len(room["players"]) != 2:
-            await safe_send(websocket, {"type": "error", "message": "2 oyuncu gerekli."})
+        max_players = room.get("max_players", 2)
+        if len(room["players"]) != max_players:
+            await safe_send(websocket, {"type": "error", "message": f"{max_players} oyuncu gerekli."})
             return _handled(current_room_code, current_player_id)
         await start_harita_game(room, safe_send, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -364,15 +483,16 @@ async def handle_harita_message(
         if room.get("turn") != current_player_id:
             return _handled(current_room_code, current_player_id)
 
-        other_id = get_other_player_id(current_player_id)
-        if other_id in room["players"]:
-            await safe_send(room["players"][other_id]["ws"], {
-                "type": "harita_view_sync",
-                "player_id": current_player_id,
-                "zoom": data.get("zoom", 1.0),
-                "pan_x": data.get("pan_x", 0),
-                "pan_y": data.get("pan_y", 0)
-            })
+        # Sıra kimdeyse - diğerlerine yolla
+        for pid, pdata in room["players"].items():
+            if pid != current_player_id:
+                await safe_send(pdata["ws"], {
+                    "type": "harita_view_sync",
+                    "player_id": current_player_id,
+                    "zoom": data.get("zoom", 1.0),
+                    "pan_x": data.get("pan_x", 0),
+                    "pan_y": data.get("pan_y", 0)
+                })
         return _handled(current_room_code, current_player_id)
 
     # ---------- CONFIRM POPUP SYNC ----------
@@ -382,14 +502,14 @@ async def handle_harita_message(
         if room.get("turn") != current_player_id:
             return _handled(current_room_code, current_player_id)
 
-        other_id = get_other_player_id(current_player_id)
-        if other_id in room["players"]:
-            await safe_send(room["players"][other_id]["ws"], {
-                "type": "harita_confirm_sync",
-                "player_id": current_player_id,
-                "action": data.get("action"),
-                "country_code": data.get("country_code")
-            })
+        for pid, pdata in room["players"].items():
+            if pid != current_player_id:
+                await safe_send(pdata["ws"], {
+                    "type": "harita_confirm_sync",
+                    "player_id": current_player_id,
+                    "action": data.get("action"),
+                    "country_code": data.get("country_code")
+                })
         return _handled(current_room_code, current_player_id)
 
     # ---------- MOUSE SYNC ----------
@@ -399,15 +519,15 @@ async def handle_harita_message(
         if room.get("turn") != current_player_id:
             return _handled(current_room_code, current_player_id)
 
-        other_id = get_other_player_id(current_player_id)
-        if other_id in room["players"]:
-            await safe_send(room["players"][other_id]["ws"], {
-                "type": "harita_mouse_sync",
-                "player_id": current_player_id,
-                "x": data.get("x", 0),
-                "y": data.get("y", 0),
-                "country": data.get("country")
-            })
+        for pid, pdata in room["players"].items():
+            if pid != current_player_id:
+                await safe_send(pdata["ws"], {
+                    "type": "harita_mouse_sync",
+                    "player_id": current_player_id,
+                    "x": data.get("x", 0),
+                    "y": data.get("y", 0),
+                    "country": data.get("country")
+                })
         return _handled(current_room_code, current_player_id)
 
     # ---------- ANSWER ----------
@@ -429,8 +549,22 @@ async def handle_harita_message(
         correct_code = get_country_key(footballer.get("nationality", ""))
 
         correct = (selected_code == correct_code)
+        
+        # ✨ Süre bonusu hesapla
+        turn_start = room.get("turn_start_time", time.time())
+        elapsed = time.time() - turn_start
+        
+        score_delta = 0
         if correct:
-            room["scores"][current_player_id] += 1
+            if elapsed < FAST_BONUS_SECONDS:
+                score_delta = 2  # Hızlı doğru: +2
+            else:
+                score_delta = 1  # Normal doğru: +1
+        else:
+            score_delta = WRONG_ANSWER_PENALTY  # Yanlış: -1
+        
+        if current_player_id in room["scores"]:
+            room["scores"][current_player_id] += score_delta
 
         room["harita_answered"] = True
 
@@ -450,7 +584,9 @@ async def handle_harita_message(
             "selected_tr": selected_tr,
             "correct_code": correct_code,
             "correct_tr": correct_tr,
-            "scores": room["scores"]
+            "scores": room["scores"],
+            "score_delta": score_delta,
+            "answer_time": round(elapsed, 1)
         })
 
         await asyncio.sleep(3)
@@ -462,9 +598,28 @@ async def handle_harita_message(
         if current_player_id != 1:
             await safe_send(websocket, {"type": "error", "message": "Sadece host tekrar başlatabilir."})
             return _handled(current_room_code, current_player_id)
-        if len(room["players"]) != 2:
+        if len(room["players"]) < 2:
             return _handled(current_room_code, current_player_id)
+        # Rematch'te odada kaç kişi varsa onlarla başla
+        room["max_players"] = len(room["players"])
         await start_harita_game(room, safe_send, broadcast)
+        return _handled(current_room_code, current_player_id)
+
+    # ---------- BACK TO LOBBY ----------
+    if msg_type == "harita_back_to_lobby":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
+            return _handled(current_room_code, current_player_id)
+        
+        room["phase"] = "lobby"
+        room["max_players"] = len(room["players"])
+        
+        old_task = room.get("harita_task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+        
+        await broadcast(room, {"type": "harita_back_to_lobby"})
+        await send_harita_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
 
     return _handled(current_room_code, current_player_id)

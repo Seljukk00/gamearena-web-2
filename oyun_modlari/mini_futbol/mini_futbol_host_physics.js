@@ -1147,7 +1147,9 @@ const HP = {  // Host Physics namespace
                     
                     if (dist < minDist && dist > 0) {
                         if (gs.kickoff_active) {
-                            if (parseInt(pid) !== gs.kickoff_receiving_team) continue;
+                            // ✨ Team bazlı kontrol (oyuncu ID değil, takım ID)
+                            const kickerTeamId = p.team === "red" ? 1 : (p.team === "blue" ? 2 : null);
+                            if (kickerTeamId !== gs.kickoff_receiving_team) continue;
                             gs.kickoff_active = false;
                         }
                         
@@ -1226,8 +1228,8 @@ const HP = {  // Host Physics namespace
                                 ball.kick_time = now;
                                 ball.kicker_id = parseInt(pid);
                                 // ✨ Top oyuncudan uzağa it (yapışma tetiklenmesin)
-                                ball.x = p.x + nx * (this.PLAYER_RADIUS + this.BALL_RADIUS + 2);
-                                ball.y = p.y + ny * (this.PLAYER_RADIUS + this.BALL_RADIUS + 2);
+                                ball.x = p.x + nx * (this.PLAYER_RADIUS + this.BALL_RADIUS + 8);
+                                ball.y = p.y + ny * (this.PLAYER_RADIUS + this.BALL_RADIUS + 8);
                             } else {
                                 let mult = 1.0;
                                 if (sprintActive) mult = ADV_SPRINT_KICK_BONUS;
@@ -1256,6 +1258,10 @@ const HP = {  // Host Physics namespace
         // === TOP-OYUNCU DOKUNMA ===
         for (const pid in gs.players) {
             const p = gs.players[pid];
+            
+            // ✨ Şut sonrası 0.15 sn boyunca aynı oyuncu topa dokunamasın (yapışma engeli)
+            if (p.last_kick_time && (now - p.last_kick_time) < 0.15) continue;
+            
             const dx = ball.x - p.x;
             const dy = ball.y - p.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
@@ -1272,13 +1278,17 @@ const HP = {  // Host Physics namespace
                     const bsKickoff = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
                     if (bsKickoff > this.HARD_BALL_THRESHOLD) {
                         // Sert top → normal fizik çalışsın (aşağıya geç)
-                    } else if (parseInt(pid) === gs.kickoff_restricted_team) {
-                        p.x -= nx * overlap;
-                        p.y -= ny * overlap;
-                        if (p.vx * nx + p.vy * ny > 0) { p.vx = 0; p.vy = 0; }
-                        continue;
-                    } else if (parseInt(pid) === gs.kickoff_receiving_team) {
-                        gs.kickoff_active = false;
+                    } else {
+                        // ✨ Team bazlı kontrol (oyuncu ID değil, takım ID)
+                        const toucherTeamId = p.team === "red" ? 1 : (p.team === "blue" ? 2 : null);
+                        if (toucherTeamId === gs.kickoff_restricted_team) {
+                            p.x -= nx * overlap;
+                            p.y -= ny * overlap;
+                            if (p.vx * nx + p.vy * ny > 0) { p.vx = 0; p.vy = 0; }
+                            continue;
+                        } else if (toucherTeamId === gs.kickoff_receiving_team) {
+                            gs.kickoff_active = false;
+                        }
                     }
                 }
                 

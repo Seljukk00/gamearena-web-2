@@ -592,6 +592,146 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     return
                 
+                # ✨ HARITADAN BUL 3+ KİŞİLİK - Özel davranış (oyun devam eder)
+                if room_mode == "haritadan_bul" and room.get("max_players", 2) >= 3:
+                    if player_id == 1:
+                        for pid, pdata in room["players"].items():
+                            await safe_send(pdata["ws"], {
+                                "type": "opponent_left",
+                                "message": "Host odayı kapattı.",
+                                "player_name": left_name
+                            })
+                        for task_key in ["harita_task"]:
+                            task = room.get(task_key)
+                            if task and not task.done():
+                                task.cancel()
+                        rooms.pop(room_code, None)
+                        return
+                    
+                    if "left_players" not in room:
+                        room["left_players"] = {}
+                    room["left_players"][player_id] = left_name
+                    
+                    if "scores" in room and player_id in room["scores"]:
+                        del room["scores"][player_id]
+                    
+                    await broadcast(room, {
+                        "type": "harita_player_left",
+                        "player_id": player_id,
+                        "name": left_name,
+                        "scores": room.get("scores", {}),
+                        "players": [{"id": pid, "name": pdata["name"]} for pid, pdata in sorted(room["players"].items())]
+                    })
+                    
+                    if room.get("turn") == player_id:
+                        old_task = room.get("harita_task")
+                        if old_task and not old_task.done():
+                            old_task.cancel()
+                        try:
+                            from oyun_modlari.haritadan_bul.harita_handler import harita_next_round
+                            import asyncio as _asyncio
+                            _asyncio.create_task(harita_next_round(room, broadcast))
+                        except Exception as e:
+                            print(f"[HARITA DISCONNECT next_round HATA] {e}")
+                    
+                    return
+                
+                # ✨ GIZEMLI KARIYER 3+ KİŞİLİK - Özel davranış (oyun devam eder)
+                if room_mode == "gizemli_kariyer" and room.get("max_players", 2) >= 3:
+                    if player_id == 1:
+                        for pid, pdata in room["players"].items():
+                            await safe_send(pdata["ws"], {
+                                "type": "opponent_left",
+                                "message": "Host odayı kapattı.",
+                                "player_name": left_name
+                            })
+                        for task_key in ["gizem_task"]:
+                            task = room.get(task_key)
+                            if task and not task.done():
+                                task.cancel()
+                        rooms.pop(room_code, None)
+                        return
+                    
+                    if "left_players" not in room:
+                        room["left_players"] = {}
+                    room["left_players"][player_id] = left_name
+                    
+                    if "scores" in room and player_id in room["scores"]:
+                        del room["scores"][player_id]
+                    if "gizem_jokers" in room and player_id in room["gizem_jokers"]:
+                        del room["gizem_jokers"][player_id]
+                    
+                    await broadcast(room, {
+                        "type": "gizem_player_left",
+                        "player_id": player_id,
+                        "name": left_name,
+                        "scores": room.get("scores", {}),
+                        "jokers_left": room.get("gizem_jokers", {}),
+                        "players": [{"id": pid, "name": pdata["name"]} for pid, pdata in sorted(room["players"].items())]
+                    })
+                    
+                    if room.get("turn") == player_id:
+                        old_task = room.get("gizem_task")
+                        if old_task and not old_task.done():
+                            old_task.cancel()
+                        try:
+                            from oyun_modlari.gizemli_kariyer.gizem_handler import gizem_next_round
+                            import asyncio as _asyncio
+                            _asyncio.create_task(gizem_next_round(room, broadcast))
+                        except Exception as e:
+                            print(f"[GIZEM DISCONNECT next_round HATA] {e}")
+                    
+                    return
+                
+                # ✨ STADYUM TANIMA 3+ KİŞİLİK - Özel davranış (oyun devam eder)
+                if room_mode == "stadyum_tanima" and room.get("max_players", 2) >= 3:
+                    if player_id == 1:
+                        for pid, pdata in room["players"].items():
+                            await safe_send(pdata["ws"], {
+                                "type": "opponent_left",
+                                "message": "Host odayı kapattı.",
+                                "player_name": left_name
+                            })
+                        for task_key in ["stad_task"]:
+                            task = room.get(task_key)
+                            if task and not task.done():
+                                task.cancel()
+                        rooms.pop(room_code, None)
+                        return
+                    
+                    if "left_players" not in room:
+                        room["left_players"] = {}
+                    room["left_players"][player_id] = left_name
+                    
+                    if "scores" in room and player_id in room["scores"]:
+                        del room["scores"][player_id]
+                    if "stad_jokers_left" in room and player_id in room["stad_jokers_left"]:
+                        del room["stad_jokers_left"][player_id]
+                    if "stad_used_jokers" in room and player_id in room["stad_used_jokers"]:
+                        del room["stad_used_jokers"][player_id]
+                    
+                    await broadcast(room, {
+                        "type": "stad_player_left",
+                        "player_id": player_id,
+                        "name": left_name,
+                        "scores": room.get("scores", {}),
+                        "jokers_left": room.get("stad_jokers_left", {}),
+                        "players": [{"id": pid, "name": pdata["name"]} for pid, pdata in sorted(room["players"].items())]
+                    })
+                    
+                    if room.get("stad_current_player") == player_id:
+                        old_task = room.get("stad_task")
+                        if old_task and not old_task.done():
+                            old_task.cancel()
+                        try:
+                            from oyun_modlari.stadyum_tanima.stadyum_handler import stad_next_round
+                            import asyncio as _asyncio
+                            _asyncio.create_task(stad_next_round(room, broadcast))
+                        except Exception as e:
+                            print(f"[STAD DISCONNECT next_round HATA] {e}")
+                    
+                    return
+                
                 # Host ayrıldıysa → oda kapansın (misafir oynayamaz)
                 if player_id == 1:
                     for pid, pdata in room["players"].items():

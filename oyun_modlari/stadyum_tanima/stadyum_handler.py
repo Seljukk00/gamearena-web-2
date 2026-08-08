@@ -9,6 +9,7 @@ from oyun_modlari.stadyum_tanima.stadyumlar import (
 )
 
 TOTAL_ROUNDS = 10
+STAD_ALLOWED_ROUNDS = [5, 10, 15, 20]
 TIME_PER_QUESTION = 20
 POINT_CORRECT = 10
 POINT_WRONG = -3
@@ -25,8 +26,17 @@ def _not_handled(room_code, player_id):
     return {"handled": False, "room_code": room_code, "player_id": player_id}
 
 
-def get_other_player_id(pid):
-    return 2 if pid == 1 else 1
+def get_next_stad_turn_player(room):
+    """Sıradaki oyuncu (round-robin, 2-5 kişi destekli)"""
+    active_ids = sorted(room["players"].keys())
+    if not active_ids:
+        return None
+    current = room.get("stad_current_player", active_ids[0])
+    if current not in active_ids:
+        return active_ids[0]
+    idx = active_ids.index(current)
+    next_idx = (idx + 1) % len(active_ids)
+    return active_ids[next_idx]
 
 
 def build_stadium_image_map():
@@ -47,7 +57,6 @@ def get_stadium_img_file(img_key):
 
 
 def make_stadium_payload(stadyum):
-    """Sadece resim + boş şıklar gönderilir. Şıklar ayrı üretilir."""
     return {
         "img": stadyum["img"],
         "img_file": get_stadium_img_file(stadyum["img"])
@@ -55,7 +64,6 @@ def make_stadium_payload(stadyum):
 
 
 def make_options_for_stadium(stadyum):
-    """4 şık üret: 1 doğru + 3 yanlış (rastgele karışık)"""
     correct = stadyum["isim"]
     wrong_pool = [s["isim"] for s in STADYUMLAR if s["img"] != stadyum["img"]]
 
@@ -80,7 +88,6 @@ def get_current_stadium(room):
 
 
 def get_5050_eliminated_indices(room):
-    """Mevcut şıklardan 2 yanlış şıkkın indexlerini döndür"""
     options = room.get("stad_options", [])
     correct_idx = room.get("stad_correct_index", 0)
     already_elim = room.get("stad_eliminated_indices", [])
@@ -100,32 +107,40 @@ async def send_stad_lobby_update(room, broadcast):
         {"id": pid, "name": pdata["name"]}
         for pid, pdata in sorted(room["players"].items())
     ]
+    max_players = room.get("max_players", 2)
     await broadcast(room, {
         "type": "stad_lobby_update",
         "room_code": room["code"],
         "players": players,
-        "can_start": len(room["players"]) == 2,
+        "can_start": len(room["players"]) == max_players,
         "turn_seconds": room.get("turn_seconds", TIME_PER_QUESTION),
-        "total_rounds": len(room.get("stad_order", [])) or TOTAL_ROUNDS
+        "total_rounds": room.get("total_rounds", TOTAL_ROUNDS),
+        "max_players": max_players
     })
 
 
 async def stad_finish_game(room, broadcast):
     room["phase"] = "over"
-    s1 = room["scores"][1]
-    s2 = room["scores"][2]
-
-    if s1 > s2:
-        winner = 1
-    elif s2 > s1:
-        winner = 2
-    else:
-        winner = 0
+    # Sıralama
+    sorted_scores = sorted(room["scores"].items(), key=lambda x: -x[1])
+    ranking = []
+    for pid, score in sorted_scores:
+        pname = "?"
+        if pid in room["players"]:
+            pname = room["players"][pid]["name"]
+        elif pid in room.get("left_players", {}):
+            pname = room["left_players"][pid]
+        ranking.append({"player_id": pid, "name": pname, "score": score})
+    
+    winner_id = ranking[0]["player_id"] if ranking else 0
+    if len(ranking) >= 2 and ranking[0]["score"] == ranking[1]["score"]:
+        winner_id = 0
 
     await broadcast(room, {
         "type": "stad_game_over",
         "scores": room["scores"],
-        "winner_id": winner
+        "winner_id": winner_id,
+        "ranking": ranking
     })
 
 
@@ -142,13 +157,16 @@ async def stad_turn_timer(room, current_player, round_no, broadcast):
             return
         if room.get("stad_answered"):
             return
+        if current_player not in room.get("players", {}):
+            return
 
         stadyum = get_current_stadium(room)
         if not stadyum:
             return
 
         room["stad_answered"] = True
-        room["scores"][current_player] += POINT_WRONG
+        if current_player in room["scores"]:
+            room["scores"][current_player] += POINT_WRONG
 
         await broadcast(room, {
             "type": "stad_answer_result",
@@ -178,9 +196,15 @@ async def stad_next_round(room, broadcast):
         await stad_finish_game(room, broadcast)
         return
 
-    room["stad_current_player"] = 1 if room["stad_round"] % 2 == 0 else 2
+    room["stad_current_player"] = get_next_stad_turn_player(room)
+    if room["stad_current_player"] is None:
+        await stad_finish_game(room, broadcast)
+        return
+    
     room["stad_answered"] = False
-    room["stad_used_jokers"] = {1: [], 2: []}
+    # Her oyuncu için used_jokers sıfırla
+    all_pids = list(room["players"].keys())
+    room["stad_used_jokers"] = {pid: [] for pid in all_pids}
     room["stad_eliminated_indices"] = []
 
     stadyum = get_current_stadium(room)
@@ -218,18 +242,22 @@ async def start_stad_game(room, safe_send, broadcast):
     if old_task and not old_task.done():
         old_task.cancel()
 
-    selected = random.sample(STADYUMLAR, min(TOTAL_ROUNDS, len(STADYUMLAR)))
+    active_ids = sorted(room["players"].keys())
+    total_rounds = room.get("total_rounds", TOTAL_ROUNDS)
+    
+    selected = random.sample(STADYUMLAR, min(total_rounds, len(STADYUMLAR)))
     order = [s["img"] for s in selected]
 
     room["phase"] = "playing"
-    room["scores"] = {1: 0, 2: 0}
+    room["scores"] = {pid: 0 for pid in active_ids}
     room["stad_order"] = order
     room["stad_round"] = 0
-    room["stad_current_player"] = 1
+    room["stad_current_player"] = active_ids[0]
     room["stad_answered"] = False
-    room["stad_jokers_left"] = {1: MAX_JOKERS, 2: MAX_JOKERS}
-    room["stad_used_jokers"] = {1: [], 2: []}
+    room["stad_jokers_left"] = {pid: MAX_JOKERS for pid in active_ids}
+    room["stad_used_jokers"] = {pid: [] for pid in active_ids}
     room["stad_eliminated_indices"] = []
+    room["left_players"] = {}
 
     players = [
         {"id": pid, "name": pdata["name"]}
@@ -251,17 +279,18 @@ async def start_stad_game(room, safe_send, broadcast):
             "players": players,
             "turn_seconds": room.get("turn_seconds", TIME_PER_QUESTION),
             "total_rounds": len(order),
-            "current_player": 1,
+            "current_player": room["stad_current_player"],
             "round_no": 0,
             "stadium": make_stadium_payload(stadyum),
             "options": options,
             "scores": room["scores"],
-            "jokers_left": room["stad_jokers_left"]
+            "jokers_left": room["stad_jokers_left"],
+            "max_players": room.get("max_players", 2)
         })
 
     room["stad_question_start"] = asyncio.get_running_loop().time()
     room["stad_task"] = asyncio.create_task(
-        stad_turn_timer(room, 1, 0, broadcast)
+        stad_turn_timer(room, room["stad_current_player"], 0, broadcast)
     )
 
 
@@ -287,6 +316,8 @@ async def handle_stadyum_message(
     if msg_type == "stad_create_room":
         name = (data.get("name") or "").strip()
         turn_seconds_raw = data.get("turn_seconds", TIME_PER_QUESTION)
+        max_players_raw = data.get("max_players", 2)
+        total_rounds_raw = data.get("total_rounds", TOTAL_ROUNDS)
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -294,10 +325,24 @@ async def handle_stadyum_message(
 
         try:
             turn_seconds = int(turn_seconds_raw)
-            if turn_seconds not in [20, 30, 45, 60]:
-                turn_seconds = 30
+            if turn_seconds not in [15, 20, 30, 45, 60]:
+                turn_seconds = 20
         except:
-            turn_seconds = 30
+            turn_seconds = 20
+
+        try:
+            max_players = int(max_players_raw)
+            if max_players not in [2, 3, 4, 5]:
+                max_players = 2
+        except:
+            max_players = 2
+
+        try:
+            total_rounds = int(total_rounds_raw)
+            if total_rounds not in STAD_ALLOWED_ROUNDS:
+                total_rounds = TOTAL_ROUNDS
+        except:
+            total_rounds = TOTAL_ROUNDS
 
         current_room_code = make_room_code()
         current_player_id = 1
@@ -310,22 +355,27 @@ async def handle_stadyum_message(
             },
             "phase": "lobby",
             "turn_seconds": turn_seconds,
-            "scores": {1: 0, 2: 0},
+            "max_players": max_players,
+            "total_rounds": total_rounds,
+            "scores": {},
             "stad_order": [],
             "stad_round": 0,
             "stad_current_player": 1,
             "stad_answered": False,
-            "stad_jokers_left": {1: MAX_JOKERS, 2: MAX_JOKERS},
-            "stad_used_jokers": {1: [], 2: []},
+            "stad_jokers_left": {},
+            "stad_used_jokers": {},
             "stad_question_start": 0,
-            "stad_task": None
+            "stad_task": None,
+            "left_players": {}
         }
 
         await safe_send(websocket, {
             "type": "stad_room_created",
             "room_code": current_room_code,
             "player_id": 1,
-            "turn_seconds": turn_seconds
+            "turn_seconds": turn_seconds,
+            "max_players": max_players,
+            "total_rounds": total_rounds
         })
         await send_stad_lobby_update(rooms[current_room_code], broadcast)
         return _handled(current_room_code, current_player_id)
@@ -349,11 +399,14 @@ async def handle_stadyum_message(
             await safe_send(websocket, {"type": "error", "message": "Bu oda farklı bir mod için."})
             return _handled(current_room_code, current_player_id)
 
-        if len(room["players"]) >= 2:
-            await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+        max_players = room.get("max_players", 2)
+        if len(room["players"]) >= max_players:
+            await safe_send(websocket, {"type": "error", "message": f"Oda dolu ({max_players}/{max_players})."})
+            return _handled(current_room_code, current_player_id)
+        if room.get("phase") != "lobby":
+            await safe_send(websocket, {"type": "error", "message": "Oyun zaten başlamış."})
             return _handled(current_room_code, current_player_id)
         
-        # ✨ Aynı isim var mı? (case-insensitive)
         existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
         if name.lower().strip() in existing_names:
             await safe_send(websocket, {
@@ -362,16 +415,28 @@ async def handle_stadyum_message(
             })
             return _handled(current_room_code, current_player_id)
 
+        # Boş slot bul
+        used_ids = set(room["players"].keys())
+        new_pid = None
+        for pid in range(1, max_players + 1):
+            if pid not in used_ids:
+                new_pid = pid
+                break
+        if new_pid is None:
+            await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
+            return _handled(current_room_code, current_player_id)
+
         current_room_code = join_code
-        current_player_id = 2
-        room["players"][2] = {"ws": websocket, "name": name}
-        room["phase"] = "lobby"
+        current_player_id = new_pid
+        room["players"][new_pid] = {"ws": websocket, "name": name}
 
         await safe_send(websocket, {
             "type": "stad_room_joined",
             "room_code": current_room_code,
-            "player_id": 2,
-            "turn_seconds": room.get("turn_seconds", TIME_PER_QUESTION)
+            "player_id": new_pid,
+            "turn_seconds": room.get("turn_seconds", TIME_PER_QUESTION),
+            "max_players": max_players,
+            "total_rounds": room.get("total_rounds", TOTAL_ROUNDS)
         })
         await send_stad_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -396,12 +461,30 @@ async def handle_stadyum_message(
 
         try:
             new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 20)))
-            if new_turn_sec not in [15, 20, 30, 45]:
+            if new_turn_sec not in [15, 20, 30, 45, 60]:
                 new_turn_sec = 20
         except:
             new_turn_sec = 20
 
+        try:
+            new_max = int(data.get("max_players", room.get("max_players", 2)))
+            if new_max not in [2, 3, 4, 5]:
+                new_max = room.get("max_players", 2)
+            if new_max < len(room["players"]):
+                new_max = room.get("max_players", 2)
+        except:
+            new_max = room.get("max_players", 2)
+
+        try:
+            new_total = int(data.get("total_rounds", room.get("total_rounds", TOTAL_ROUNDS)))
+            if new_total not in STAD_ALLOWED_ROUNDS:
+                new_total = room.get("total_rounds", TOTAL_ROUNDS)
+        except:
+            new_total = room.get("total_rounds", TOTAL_ROUNDS)
+
         room["turn_seconds"] = new_turn_sec
+        room["max_players"] = new_max
+        room["total_rounds"] = new_total
 
         await send_stad_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
@@ -412,8 +495,9 @@ async def handle_stadyum_message(
             await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
             return _handled(current_room_code, current_player_id)
 
-        if len(room["players"]) != 2:
-            await safe_send(websocket, {"type": "error", "message": "2 oyuncu gerekli."})
+        max_players = room.get("max_players", 2)
+        if len(room["players"]) != max_players:
+            await safe_send(websocket, {"type": "error", "message": f"{max_players} oyuncu gerekli."})
             return _handled(current_room_code, current_player_id)
 
         await start_stad_game(room, safe_send, broadcast)
@@ -432,7 +516,7 @@ async def handle_stadyum_message(
         if joker_type not in ["takim", "ulke", "5050"]:
             return _handled(current_room_code, current_player_id)
 
-        if room["stad_jokers_left"][current_player_id] <= 0:
+        if room["stad_jokers_left"].get(current_player_id, 0) <= 0:
             return _handled(current_room_code, current_player_id)
 
         used = room["stad_used_jokers"].get(current_player_id, [])
@@ -460,7 +544,6 @@ async def handle_stadyum_message(
             room["stad_eliminated_indices"] = existing + new_elim
             eliminated_indices = room["stad_eliminated_indices"]
 
-        # Herkese aynı bilgiyi gönder (50:50 herkeste gözüksün)
         await broadcast(room, {
             "type": "stad_joker_result",
             "player_id": current_player_id,
@@ -472,7 +555,7 @@ async def handle_stadyum_message(
 
         return _handled(current_room_code, current_player_id)
 
-    # ANSWER (şık seçimi)
+    # ANSWER
     if msg_type == "stad_submit_answer":
         if room.get("phase") != "playing":
             return _handled(current_room_code, current_player_id)
@@ -489,7 +572,6 @@ async def handle_stadyum_message(
         if selected_index < 0 or selected_index >= len(options):
             return _handled(current_room_code, current_player_id)
 
-        # 50:50 ile elenmiş şıkka basılamaz
         if selected_index in room.get("stad_eliminated_indices", []):
             return _handled(current_room_code, current_player_id)
 
@@ -511,7 +593,8 @@ async def handle_stadyum_message(
             earned -= used_count * JOKER_PENALTY
             earned = max(1, earned)
 
-        room["scores"][current_player_id] += earned
+        if current_player_id in room["scores"]:
+            room["scores"][current_player_id] += earned
         room["stad_answered"] = True
 
         old_task = room.get("stad_task")
@@ -540,10 +623,28 @@ async def handle_stadyum_message(
             await safe_send(websocket, {"type": "error", "message": "Sadece host tekrar başlatabilir."})
             return _handled(current_room_code, current_player_id)
 
-        if len(room["players"]) != 2:
+        if len(room["players"]) < 2:
             return _handled(current_room_code, current_player_id)
-
+        
+        room["max_players"] = len(room["players"])
         await start_stad_game(room, safe_send, broadcast)
+        return _handled(current_room_code, current_player_id)
+
+    # BACK TO LOBBY
+    if msg_type == "stad_back_to_lobby":
+        if current_player_id != 1:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
+            return _handled(current_room_code, current_player_id)
+        
+        room["phase"] = "lobby"
+        room["max_players"] = len(room["players"])
+        
+        old_task = room.get("stad_task")
+        if old_task and not old_task.done():
+            old_task.cancel()
+        
+        await broadcast(room, {"type": "stad_back_to_lobby"})
+        await send_stad_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
 
     return _handled(current_room_code, current_player_id)
