@@ -3480,16 +3480,14 @@ function miniRender() {
         }
         
         // Top
-        // ✨ HOST → kendi HP topundan (otorite, gerçek pozisyon)
-        // MİSAFİR → server state / interpolation'dan (host authoritative)
+        // ✨ Karakter HP'den okunuyorsa TOP da HP'den okunmalı (aynı zaman referansı)
+        // Aksi halde: karakter anlık, top 80ms geçikmeli → içinden geçermiş gibi görünür
         let bSmooth;
-        const isHostForBall = miniData.playerId === 1;
-        if (isHostForBall && typeof HP !== 'undefined' && HP.running &&
+        if (typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // Host - kendi HP'si otorite
+            // Hem host hem misafir → HP topu (misafir HP'si server ile reconciliation yapıyor)
             bSmooth = HP.room.gameState.ball;
         } else {
-            // Misafir - interpolation buffer (host'tan gelen state)
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
