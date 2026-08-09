@@ -25,7 +25,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 80,         // ✨ 30 FPS network için 80ms buffer (top ve rakip pürüzsüz)
+    interpDelay: 30,         // ✨ 60 FPS için 30ms buffer (smooth ama az lag)
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -1381,7 +1381,7 @@ function handleMiniMessage(msg) {
             const lgs = HP.room.gameState;
             const sgs = msg;
             
-            // Diğer oyuncuları sunucu pozisyonuna yumuşakça çek (titremesin)
+            // Rakip oyuncuları HP'de HIZLI sync et (topla çarpışma doğru çalışsın)
             if (sgs.players && lgs.players) {
                 for (const pid in sgs.players) {
                     const pidInt = parseInt(pid);
@@ -1394,16 +1394,20 @@ function handleMiniMessage(msg) {
                     const dy = sp.y - lp.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist > 100) {
-                        // Çok uzak → snap
+                    if (dist > 50) {
+                        // Snap
                         lp.x = sp.x;
                         lp.y = sp.y;
-                    } else if (dist > 5) {
-                        // Ufak drift → yumuşak
-                        lp.x += dx * 0.2;
-                        lp.y += dy * 0.2;
+                        lp.vx = sp.vx || 0;
+                        lp.vy = sp.vy || 0;
+                    } else if (dist > 0.5) {
+                        // ✨ HIZLI yaklaştır (%70) - fizik için rakip pozisyonu güncel olsun
+                        lp.x += dx * 0.7;
+                        lp.y += dy * 0.7;
+                        // Hızı da tahmin et (rakip yönünü bilelim)
+                        if (sp.vx !== undefined) lp.vx = sp.vx;
+                        if (sp.vy !== undefined) lp.vy = sp.vy;
                     }
-                    // 5px altında hiç dokunma (titreme engeli)
                 }
                 
                 // ✨ Kendi karakterim: SADECE çok uzaksa hizala (misprediction düzeltmesi)
@@ -1428,21 +1432,26 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // Top pozisyonu → MİSAFİR: Sadece BÜYÜK farkta snap (titreme yok)
+            // Top pozisyonu → MİSAFİR: Yumuşak sync (karakter ile senkron kalsın)
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 120) {
-                    // Ciddi ayrışma → snap (nadiren olur, örn: gol sonrası ışınlanma)
+                if (dist > 100) {
+                    // Ciddi ayrışma → snap
                     lgs.ball.x = sgs.ball.x;
                     lgs.ball.y = sgs.ball.y;
                     lgs.ball.vx = sgs.ball.vx || 0;
                     lgs.ball.vy = sgs.ball.vy || 0;
                     if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
+                } else if (dist > 8) {
+                    // Ufak drift → sadece pozisyon yumuşat, hıza dokunma (titreme engeli)
+                    lgs.ball.x += dx * 0.15;
+                    lgs.ball.y += dy * 0.15;
                 }
-                // Küçük farklarda HİÇ dokunma → local HP kendi fiziğini yapsın (titreme yok)
+                // Spin her zaman sync (görsel efekt için)
+                if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
             }
         }
         
@@ -2332,15 +2341,10 @@ function startMiniLocalPhysicsIfNeeded() {
 
     if (isHost) {
         console.log("[HOST-PHYSICS] Host fizik motoru kuruluyor...");
-        // ✨ 30 FPS network - her 2. frame'de bir gönder
-        miniData._netFrameCounter = 0;
+        // ✨ 60 FPS network (titreme engeli)
         HP.onStateUpdate = (stateMsg) => {
             stateMsg._local = true;
             handleMiniMessage(stateMsg);
-
-            // Network'e her 2. frame'de gönder (60 → 30 FPS)
-            miniData._netFrameCounter = (miniData._netFrameCounter || 0) + 1;
-            if (miniData._netFrameCounter % 2 !== 0) return;
 
             const cleanState = Object.assign({}, stateMsg);
             delete cleanState._local;
@@ -3320,16 +3324,8 @@ function miniRender() {
             // ✨ Interpolated pozisyonu kullan
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            // ✨ MİSAFİR + kendi karakterim → LOCAL HP (0 input lag)
-            if (miniData.playerId !== 1 && parseInt(pid) === miniData.playerId &&
-                typeof HP !== 'undefined' && HP.running && 
-                HP.room && HP.room.gameState && HP.room.gameState.players &&
-                HP.room.gameState.players[miniData.playerId]) {
-                const hpMe = HP.room.gameState.players[miniData.playerId];
-                smoothPos = { x: hpMe.x, y: hpMe.y };
-            }
-            // ✨ Rakip oyuncular → interpolation buffer'dan (local HP değil, titreme yok)
-            // (Yukarıdaki smoothPos zaten interpolated, dokunma)
+            // ✨ MİSAFİR → tüm oyuncular için interpolation buffer (top ile senkron)
+            // (smoothPos zaten yukarıda interpolation'dan alındı, dokunma)
             
             const p = { x: smoothPos.x, y: smoothPos.y };
             
@@ -3478,15 +3474,14 @@ function miniRender() {
         }
         
         // Top
-        // ✨ MİSAFİR → sadece server + interpolation (local HP topu yoksay - güvenilir değil)
-        // ✨ HOST → kendi HP topu (0 lag)
+        // ✨ HOST → local HP (0 lag, kendi hesabı)
+        // ✨ MİSAFİR → server pozisyonu (authoritative, interpolation ile smooth)
         let bSmooth;
         if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // Host → local HP topu
             bSmooth = HP.room.gameState.ball;
         } else {
-            // Misafir → interpolation buffer'dan
+            // Misafir → interpolation buffer
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {

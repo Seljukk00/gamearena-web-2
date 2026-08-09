@@ -268,3 +268,4 @@ Türkçe, samimi dil kullan
 Kodu görmeden kesin çözüm önerme - dosyayı iste
 Kod değişikliği verirken önce plan sun, sonra kod ver
 Büyük iş ise adımlara böl (Adım 1, Adım 2 gibi)
+tüm kodları bul değiş olarak vereceksin bunu bul altına ekleleride bul değiş olarak ver
