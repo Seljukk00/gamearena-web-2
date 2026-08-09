@@ -1374,6 +1374,77 @@ function handleMiniMessage(msg) {
         
         miniData.gameState = msg;
         
+        // ✨ MİSAFİR: HP'yi server state'ine yaklaştır (reconciliation)
+        // Sadece kendi karakterimi hariç tut (kendi karakterimde tam prediction istiyoruz)
+        if (miniData.playerId !== 1 && typeof HP !== 'undefined' && HP.running &&
+            HP.room && HP.room.gameState) {
+            const lgs = HP.room.gameState;
+            const sgs = msg;
+            
+            // Diğer oyuncuları sunucu pozisyonuna yumuşakça çek
+            if (sgs.players && lgs.players) {
+                for (const pid in sgs.players) {
+                    const pidInt = parseInt(pid);
+                    if (pidInt === miniData.playerId) continue;  // Kendim hariç
+                    if (!lgs.players[pidInt]) continue;
+                    
+                    const sp = sgs.players[pid];
+                    const lp = lgs.players[pidInt];
+                    const dx = sp.x - lp.x;
+                    const dy = sp.y - lp.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 60) {
+                        // Çok uzak → snap
+                        lp.x = sp.x;
+                        lp.y = sp.y;
+                    } else if (dist > 1) {
+                        // Yumuşak yaklaştır
+                        lp.x += dx * 0.4;
+                        lp.y += dy * 0.4;
+                    }
+                }
+                
+                // ✨ Kendi karakterim: SADECE çok uzaksa hizala (misprediction düzeltmesi)
+                const myPid = miniData.playerId;
+                if (sgs.players[myPid] && lgs.players[myPid]) {
+                    const sme = sgs.players[myPid];
+                    const lme = lgs.players[myPid];
+                    const dx = sme.x - lme.x;
+                    const dy = sme.y - lme.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 80) {
+                        // Ciddi ayrışma → snap (nadiren olur)
+                        lme.x = sme.x;
+                        lme.y = sme.y;
+                        console.log("[RECONCILE] Kendi karakter snap edildi, fark:", dist.toFixed(1));
+                    } else if (dist > 15) {
+                        // Ufak drift → çok yavaş çek
+                        lme.x += dx * 0.1;
+                        lme.y += dy * 0.1;
+                    }
+                }
+            }
+            
+            // Top pozisyonu da yaklaştır
+            if (sgs.ball && lgs.ball) {
+                const dx = sgs.ball.x - lgs.ball.x;
+                const dy = sgs.ball.y - lgs.ball.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 100) {
+                    lgs.ball.x = sgs.ball.x;
+                    lgs.ball.y = sgs.ball.y;
+                    lgs.ball.vx = sgs.ball.vx || 0;
+                    lgs.ball.vy = sgs.ball.vy || 0;
+                } else if (dist > 2) {
+                    lgs.ball.x += dx * 0.35;
+                    lgs.ball.y += dy * 0.35;
+                }
+            }
+        }
+        
         // ✨ SNAPSHOT INTERPOLATION - Her state'i timestamp ile buffer'a at
         const now_ = performance.now();
         
@@ -3242,8 +3313,17 @@ function miniRender() {
             // ✨ Interpolated pozisyonu kullan
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            // ✨ Kendi karakterim + prediction aktifse → predicted pozisyonu kullan
-            if (miniData.predictionActive && parseInt(pid) === miniData.playerId && miniData.predictedSelf) {
+            // ✨ MİSAFİR + kendi karakterim → HP'nin LOCAL pozisyonunu kullan (0 lag input)
+            // Bu sayede tuşa basınca anlık hareket eder, server'ı beklemez
+            if (miniData.playerId !== 1 && parseInt(pid) === miniData.playerId &&
+                typeof HP !== 'undefined' && HP.running && 
+                HP.room && HP.room.gameState && HP.room.gameState.players &&
+                HP.room.gameState.players[miniData.playerId]) {
+                const hpMe = HP.room.gameState.players[miniData.playerId];
+                smoothPos = { x: hpMe.x, y: hpMe.y };
+            }
+            // ✨ Eski predicted self (kullanılmıyorsa fallback olsun)
+            else if (miniData.predictionActive && parseInt(pid) === miniData.playerId && miniData.predictedSelf) {
                 smoothPos = { x: miniData.predictedSelf.x, y: miniData.predictedSelf.y };
             }
             
