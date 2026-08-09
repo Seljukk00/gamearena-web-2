@@ -1,12 +1,12 @@
 """
-100 TAKIM LISTESI
+TAKIM LISTESI (Duplicate'ler temizlendi)
 Her takim: renk (fallback), TM ID (logo icin)
-Logo URL: https://tmssl.akamaized.net/images/wappen/head/{tm_id}.png
+Logo dosyasi: /takim_logolari/{slug}.png
 """
 
 ALL_TEAMS = {
     # ============================================
-    # ISPANYA - La Liga (10)
+    # ISPANYA - La Liga
     # ============================================
     "Barcelona":                {"color": (165, 0, 80),    "tm_id": 131},
     "Real Madrid":              {"color": (254, 254, 254), "tm_id": 418},
@@ -20,7 +20,6 @@ ALL_TEAMS = {
     "Celta Vigo":               {"color": (135, 206, 250), "tm_id": 940},
     "Real Zaragoza":            {"color": (0, 68, 148),    "tm_id": 237},
     "Las Palmas":               {"color": (255, 215, 0),   "tm_id": 472},
-    "Zaragoza":                 {"color": (0, 68, 148),    "tm_id": 237},
     "Deportivo":                {"color": (0, 100, 200),   "tm_id": 897},
     "Sporting Gijon":           {"color": (200, 16, 46),   "tm_id": 979},
     "Espanyol":                 {"color": (0, 100, 200),   "tm_id": 714},
@@ -35,7 +34,7 @@ ALL_TEAMS = {
     "Levante":                  {"color": (0, 100, 50),    "tm_id": 3368},
 
     # ============================================
-    # INGILTERE - Premier League (12)
+    # INGILTERE - Premier League
     # ============================================
     "Manchester United":        {"color": (218, 41, 28),   "tm_id": 985},
     "Manchester City":          {"color": (108, 171, 221), "tm_id": 281},
@@ -67,7 +66,7 @@ ALL_TEAMS = {
     "Swansea":                  {"color": (255, 255, 255), "tm_id": 383},
 
     # ============================================
-    # ITALYA - Serie A (10)
+    # ITALYA - Serie A
     # ============================================
     "Juventus":                 {"color": (255, 255, 255), "tm_id": 506},
     "Inter":                    {"color": (0, 68, 148),    "tm_id": 46},
@@ -111,7 +110,7 @@ ALL_TEAMS = {
     "Cavese":                   {"color": (0, 0, 0),       "tm_id": 1080},
 
     # ============================================
-    # ALMANYA - Bundesliga (8)
+    # ALMANYA - Bundesliga
     # ============================================
     "Bayern Munih":             {"color": (220, 5, 45),    "tm_id": 27},
     "Borussia Dortmund":        {"color": (253, 225, 0),   "tm_id": 16},
@@ -121,9 +120,9 @@ ALL_TEAMS = {
     "Wolfsburg":                {"color": (101, 173, 32),  "tm_id": 82},
     "Eintracht Frankfurt":      {"color": (227, 35, 39),   "tm_id": 24},
     "Borussia Monchengladbach": {"color": (0, 0, 0),       "tm_id": 18},
-    "Werder Bremen":            {"color": (30, 155, 90),    "tm_id": 86},
-    "Hamburg":                  {"color": (0, 60, 120),     "tm_id": 41},
-    "Stuttgart":                {"color": (255, 255, 255),  "tm_id": 79},
+    "Werder Bremen":            {"color": (30, 155, 90),   "tm_id": 86},
+    "Hamburg":                  {"color": (0, 60, 120),    "tm_id": 41},
+    "Stuttgart":                {"color": (255, 255, 255), "tm_id": 79},
     "Kaiserslautern":           {"color": (200, 16, 46),   "tm_id": 2},
     "Koln":                     {"color": (200, 16, 46),   "tm_id": 3},
     "Hertha Berlin":            {"color": (0, 100, 200),   "tm_id": 44},
@@ -137,7 +136,7 @@ ALL_TEAMS = {
     "Rot Weiss Ahlen":          {"color": (200, 16, 46),   "tm_id": 84},
 
     # ============================================
-    # FRANSA - Ligue 1 (8)
+    # FRANSA - Ligue 1
     # ============================================
     "PSG":                      {"color": (0, 65, 138),    "tm_id": 583},
     "Marseille":                {"color": (47, 161, 207),  "tm_id": 244},
@@ -147,8 +146,8 @@ ALL_TEAMS = {
     "Nice":                     {"color": (200, 16, 46),   "tm_id": 417},
     "Rennes":                   {"color": (200, 16, 46),   "tm_id": 273},
     "Bordeaux":                 {"color": (0, 0, 100),     "tm_id": 39},
-    "Caen":                     {"color": (200, 30, 40),    "tm_id": 1162},
-    "Toulouse":                 {"color": (100, 0, 150),    "tm_id": 415},
+    "Caen":                     {"color": (200, 30, 40),   "tm_id": 1162},
+    "Toulouse":                 {"color": (100, 0, 150),   "tm_id": 415},
     "Cannes":                   {"color": (200, 16, 46),   "tm_id": 895},
     "Nantes":                   {"color": (255, 215, 0),   "tm_id": 995},
     "Auxerre":                  {"color": (255, 255, 255), "tm_id": 290},
@@ -165,7 +164,7 @@ ALL_TEAMS = {
     "Sochaux":                  {"color": (0, 100, 200),   "tm_id": 1237},
 
     # ============================================
-    # TURKIYE - Super Lig (8)
+    # TURKIYE - Super Lig
     # ============================================
     "Galatasaray":              {"color": (250, 180, 35),  "tm_id": 141},
     "Fenerbahce":               {"color": (252, 226, 5),   "tm_id": 36},
@@ -186,22 +185,19 @@ ALL_TEAMS = {
     "Yeni Malatyaspor":         {"color": (255, 165, 0),   "tm_id": 5220},
     "Fatih Karagumruk":         {"color": (200, 16, 46),   "tm_id": 8970},
     "Karsiyaka":                {"color": (0, 100, 50),    "tm_id": 616},
-    "Sarayonu":                 {"color": (100, 100, 100), "tm_id": 30000},
     "Genclerbirligi":           {"color": (200, 16, 46),   "tm_id": 615},
     "Eskisehirspor":            {"color": (255, 165, 0),   "tm_id": 590},
     "Denizlispor":              {"color": (0, 100, 50),    "tm_id": 610},
     "Manisaspor":               {"color": (200, 16, 46),   "tm_id": 611},
-    "Vestel Manisaspor":        {"color": (200, 16, 46),   "tm_id": 611},
     "Istanbulspor":             {"color": (255, 165, 0),   "tm_id": 601},
     "Samsunspor":               {"color": (200, 16, 46),   "tm_id": 596},
     "Altay":                    {"color": (0, 0, 0),       "tm_id": 641},
     "Kayserispor":              {"color": (200, 16, 46),   "tm_id": 2903},
     "Ankaraspor":               {"color": (0, 100, 200),   "tm_id": 2896},
     "Goztepe":                  {"color": (200, 16, 46),   "tm_id": 613},
-    "MKE Ankaragucu":           {"color": (255, 255, 255), "tm_id": 620},
 
     # ============================================
-    # HOLLANDA - Eredivisie (5)
+    # HOLLANDA - Eredivisie
     # ============================================
     "Ajax":                     {"color": (210, 16, 52),   "tm_id": 610},
     "PSV":                      {"color": (237, 28, 36),   "tm_id": 383},
@@ -215,7 +211,7 @@ ALL_TEAMS = {
     "Haarlem":                  {"color": (200, 16, 46),   "tm_id": 6884},
 
     # ============================================
-    # PORTEKIZ - Primeira Liga (5)
+    # PORTEKIZ - Primeira Liga
     # ============================================
     "Sporting":                 {"color": (0, 130, 95),    "tm_id": 336},
     "Benfica":                  {"color": (200, 16, 46),   "tm_id": 294},
@@ -226,13 +222,12 @@ ALL_TEAMS = {
     "Nacional":                 {"color": (200, 16, 46),   "tm_id": 866},
     "Murcia":                   {"color": (200, 16, 46),   "tm_id": 10611},
     "Boavista":                 {"color": (0, 0, 0),       "tm_id": 719},
-    "Sporting Braga":           {"color": (200, 16, 46),   "tm_id": 1075},
     "Estoril":                  {"color": (255, 255, 255), "tm_id": 1074},
     "Alverca":                  {"color": (200, 16, 46),   "tm_id": 1069},
     "Salamanca":                {"color": (0, 100, 50),    "tm_id": 4353},
 
     # ============================================
-    # BREZILYA (5)
+    # BREZILYA
     # ============================================
     "Santos":                   {"color": (0, 0, 0),       "tm_id": 221},
     "Flamengo":                 {"color": (200, 16, 46),   "tm_id": 614},
@@ -243,7 +238,6 @@ ALL_TEAMS = {
     "Cruzeiro":                 {"color": (0, 100, 200),   "tm_id": 609},
     "Vasco da Gama":            {"color": (0, 0, 0),       "tm_id": 978},
     "Atletico Mineiro":         {"color": (0, 0, 0),       "tm_id": 330},
-    "Atletico Paranaense":      {"color": (200, 16, 46),   "tm_id": 1039},
     "Athletico Paranaense":     {"color": (200, 16, 46),   "tm_id": 1039},
     "Botafogo":                 {"color": (0, 0, 0),       "tm_id": 537},
     "Gremio":                   {"color": (0, 100, 200),   "tm_id": 210},
@@ -257,7 +251,7 @@ ALL_TEAMS = {
     "Salgueiros":               {"color": (200, 16, 46),   "tm_id": 12490},
 
     # ============================================
-    # ARJANTIN (3)
+    # ARJANTIN
     # ============================================
     "Boca Juniors":             {"color": (0, 65, 138),    "tm_id": 189},
     "River Plate":              {"color": (200, 16, 46),   "tm_id": 209},
@@ -270,7 +264,7 @@ ALL_TEAMS = {
     "San Lorenzo":              {"color": (200, 16, 46),   "tm_id": 1213},
 
     # ============================================
-    # SUUDI ARABISTAN (3)
+    # SUUDI ARABISTAN / KATAR / BAE
     # ============================================
     "Al-Nassr":                 {"color": (253, 225, 0),   "tm_id": 18544},
     "Al-Hilal":                 {"color": (0, 65, 138),    "tm_id": 1114},
@@ -285,9 +279,10 @@ ALL_TEAMS = {
     "Al-Jazira":                {"color": (0, 100, 50),    "tm_id": 15311},
     "Qatar SC":                 {"color": (100, 100, 100), "tm_id": 15319},
     "Baniyas":                  {"color": (200, 16, 46),   "tm_id": 15328},
+    "Al-Sadd":                  {"color": (255, 255, 255), "tm_id": 656},
 
     # ============================================
-    # ABD - MLS (3)
+    # ABD - MLS
     # ============================================
     "Inter Miami":              {"color": (244, 116, 167), "tm_id": 69261},
     "LA Galaxy":                {"color": (0, 36, 90),     "tm_id": 1061},
@@ -303,7 +298,7 @@ ALL_TEAMS = {
     "LA Aztecs":                {"color": (255, 215, 0),   "tm_id": 30000},
 
     # ============================================
-    # DIGER ULKELER (12)
+    # DIGER ULKELER
     # ============================================
     "Celtic":                   {"color": (0, 132, 61),    "tm_id": 371},
     "Rangers":                  {"color": (0, 65, 138),    "tm_id": 246},
@@ -317,10 +312,7 @@ ALL_TEAMS = {
     "Zenit":                    {"color": (0, 65, 138),    "tm_id": 964},
     "Spartak Moskova":          {"color": (200, 16, 46),   "tm_id": 232},
     "CSKA Moskova":             {"color": (0, 65, 138),    "tm_id": 2410},
-    "Al-Sadd":                  {"color": (255, 255, 255), "tm_id": 656},
     "Vissel Kobe":              {"color": (200, 16, 46),   "tm_id": 26498},
-    
-    # Avrupa (Çek, İskoç, İsviçre, Belçika, Ukrayna, Rusya, Yunanistan, Polonya, Avusturya)
     "Sparta Prague":            {"color": (200, 16, 46),   "tm_id": 197},
     "Standard Liege":           {"color": (200, 16, 46),   "tm_id": 733},
     "Antwerp":                  {"color": (200, 16, 46),   "tm_id": 1349},
@@ -336,7 +328,6 @@ ALL_TEAMS = {
     "Zrinjski":                 {"color": (0, 100, 200),   "tm_id": 5977},
     "Inter Zapresic":           {"color": (200, 16, 46),   "tm_id": 4907},
     "Zagreb":                   {"color": (0, 100, 200),   "tm_id": 3067},
-    "Marsonia":                 {"color": (100, 100, 100), "tm_id": 30000},
     "Hajduk Split":             {"color": (0, 100, 200),   "tm_id": 447},
     "Croatia Zagreb":           {"color": (0, 100, 200),   "tm_id": 419},
     "NK Zagreb":                {"color": (0, 100, 200),   "tm_id": 3067},
@@ -354,8 +345,6 @@ ALL_TEAMS = {
     "Panionios":                {"color": (0, 100, 200),   "tm_id": 132},
     "Aris":                     {"color": (255, 215, 0),   "tm_id": 100},
     "Kavala":                   {"color": (0, 100, 200),   "tm_id": 3092},
-    
-    # Latin Amerika + Diğer
     "Cobreloa":                 {"color": (255, 165, 0),   "tm_id": 12483},
     "Cobresal":                 {"color": (255, 165, 0),   "tm_id": 12484},
     "Colo Colo":                {"color": (0, 0, 0),       "tm_id": 12471},
@@ -364,26 +353,44 @@ ALL_TEAMS = {
     "America":                  {"color": (255, 215, 0),   "tm_id": 12486},
     "Queretaro":                {"color": (0, 0, 0),       "tm_id": 12500},
     "Danubio":                  {"color": (0, 0, 0),       "tm_id": 12472},
-    
-    # Afrika + Diğer
     "Tonnerre":                 {"color": (200, 16, 46),   "tm_id": 30001},
-    
-    # Küçük İngiltere
     "Barnet":                   {"color": (200, 16, 46),   "tm_id": 1189},
-    
-    # Uzak Doğu / Hint
     "Mumbai City":              {"color": (0, 100, 200),   "tm_id": 30002},
     "FC Goa":                   {"color": (255, 165, 0),   "tm_id": 30003},
     "Hai Phong":                {"color": (200, 16, 46),   "tm_id": 30004},
     "Malaysia":                 {"color": (100, 100, 100), "tm_id": 30005},
     "Copenhagen":               {"color": (200, 16, 46),   "tm_id": 174},
     "Munih 1860":               {"color": (0, 100, 200),   "tm_id": 484},
-    "TSV 1860":                 {"color": (0, 100, 200),   "tm_id": 484},
-    "Fatih Karagumruk":         {"color": (200, 16, 46),   "tm_id": 8970},
     "Brasiliense":              {"color": (255, 215, 0),   "tm_id": 4680},
     "Sagan Tosu":               {"color": (255, 105, 180), "tm_id": 3936},
     "Barcelona B":              {"color": (165, 0, 80),    "tm_id": 2988},
 }
+
+
+# ============================================
+# ALIAS SISTEMI (Duplicate isimler)
+# Kariyer verilerinde eski isim kullanılırsa,
+# yeni ismi otomatik bulur.
+# ============================================
+TEAM_ALIASES = {
+    "Zaragoza": "Real Zaragoza",
+    "MKE Ankaragucu": "Ankaragucu",
+    "Vestel Manisaspor": "Manisaspor",
+    "Atletico Paranaense": "Athletico Paranaense",
+    "Sporting Braga": "Braga",
+    "TSV 1860": "Munih 1860",
+    "Marsonia": None,   # tm_id=30000 sahte, kullanılamaz
+    "Sarayonu": None,   # tm_id=30000 sahte, kullanılamaz
+}
+
+
+def resolve_team_name(name):
+    """Alias'ı çöz - eski isim geldiyse yeni isme çevir"""
+    if name in ALL_TEAMS:
+        return name
+    if name in TEAM_ALIASES:
+        return TEAM_ALIASES[name]  # None dönebilir
+    return name  # Bulunamadıysa aynen döndür (fallback tetiklenir)
 
 
 TM_LOGO_BASE = "https://tmssl.akamaized.net/images/wappen/head"
@@ -391,17 +398,19 @@ TM_LOGO_BASE = "https://tmssl.akamaized.net/images/wappen/head"
 
 def get_team_color(team_name):
     """Bir takimin rengini dondurur"""
-    team = ALL_TEAMS.get(team_name)
-    if team:
-        return team["color"]
+    resolved = resolve_team_name(team_name)
+    if resolved and resolved in ALL_TEAMS:
+        return ALL_TEAMS[resolved]["color"]
     return (100, 100, 100)
 
 
 def get_team_logo_url(team_name):
     """Bir takimin TM logo URL'ini dondurur (yoksa None)"""
-    team = ALL_TEAMS.get(team_name)
-    if team and team.get("tm_id"):
-        return f"{TM_LOGO_BASE}/{team['tm_id']}.png"
+    resolved = resolve_team_name(team_name)
+    if resolved and resolved in ALL_TEAMS:
+        team = ALL_TEAMS[resolved]
+        if team.get("tm_id"):
+            return f"{TM_LOGO_BASE}/{team['tm_id']}.png"
     return None
 
 
@@ -413,6 +422,8 @@ def get_all_team_names():
 # Test
 if __name__ == "__main__":
     print(f"Toplam takim sayisi: {len(ALL_TEAMS)}")
-    for name, data in ALL_TEAMS.items():
-        url = get_team_logo_url(name)
-        print(f"- {name} -> {url}")
+    print(f"Alias sayisi: {len(TEAM_ALIASES)}")
+    print("\n--- Alias testi ---")
+    for old in TEAM_ALIASES:
+        new = resolve_team_name(old)
+        print(f"{old} -> {new}")

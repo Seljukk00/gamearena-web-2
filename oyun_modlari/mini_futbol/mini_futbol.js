@@ -1861,13 +1861,25 @@ function showNameEditor(playerObj, isP2) {
         }
     });
     
-    document.getElementById("miniNameSaveBtn").onclick = () => {
+    document.getElementById("miniNameSaveBtn").onclick = async () => {
         const newName = input.value.trim();
         if (!newName) {
             input.style.borderColor = "#ff3333";
             input.focus();
             return;
         }
+        
+        // 🔒 SELJUK KORUMASI
+        if (isSeljukName(newName) && !isSeljukVerified()) {
+            const ok = await showSeljukPasswordPopup();
+            if (!ok) {
+                // İptal → input'u temizle, popup açık kalsın
+                input.value = "";
+                input.focus();
+                return;
+            }
+        }
+        
         overlay.remove();
         
         // Backend'e gönder
@@ -3369,6 +3381,8 @@ function miniRender() {
             ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
             ctx.fill();
             
+            // (Ay-yıldız aşağıda şut parlamasından SONRA çizilecek)
+            
             // ✨ Sprint enerji bilgisi
             // ✨ HOST + kendi karakterim ise HP'den direkt oku
             let energyPercent = 1.0;
@@ -3429,20 +3443,21 @@ function miniRender() {
                 const teamColorRGB = playerTeam === "blue" ? "77, 171, 247" : "255, 107, 107";
                 
                 // 🔥 İç parlama (ortadan dışa doğru takım renginde gradient)
+                // ✨ Kırmızı/mavi parlama sadece %5 opacity (çok hafif)
+                const innerGlow = glowStrength * 0.05;
                 const innerGrad = ctx.createRadialGradient(
                     p.x, p.y, 0,
                     p.x, p.y, cfg.player_radius
                 );
-                // ✨ Ortadaki parlama takım renginde (beyaz yerine)
-                innerGrad.addColorStop(0, `rgba(${teamColorRGB}, ${glowStrength * 1.0})`);
-                innerGrad.addColorStop(0.4, `rgba(${teamColorRGB}, ${glowStrength * 0.7})`);
+                innerGrad.addColorStop(0, `rgba(${teamColorRGB}, ${innerGlow})`);
+                innerGrad.addColorStop(0.4, `rgba(${teamColorRGB}, ${innerGlow * 0.7})`);
                 innerGrad.addColorStop(1, `rgba(${teamColorRGB}, 0)`);
                 ctx.fillStyle = innerGrad;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // ⚡ Dış sarı halka (mevcut)
+                // ⚡ Dış sarı halka (mevcut - dokunulmadı)
                 ctx.shadowBlur = 30 * glowStrength;
                 ctx.shadowColor = "#ffd43b";
                 ctx.strokeStyle = `rgba(255, 212, 59, ${glowStrength})`;
@@ -3451,6 +3466,14 @@ function miniRender() {
                 ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.shadowBlur = 0;
+            }
+            
+            // 🇹🇷 AY-YILDIZ (en son çizilir ki üstüne başka şey gelmesin)
+            const pname_check = miniData.playerNames[pid] || "";
+            if (pname_check === "Seljuk" || pname_check === "seljuk") {
+                // Şut çekince ay-yıldız %100 parlasın (enerjiden bağımsız)
+                const kickGlow = justKicked ? 1.0 : 0;
+                drawTurkishStar(ctx, p.x, p.y, cfg.player_radius, kickGlow);
             }
             
             // İsim (üstte) - takım rengi
@@ -4402,7 +4425,7 @@ setTimeout(() => {
             });
         }
         
-        createBtn.onclick = () => {
+        createBtn.onclick = async () => {
             const name = document.getElementById("createMiniNameInput").value.trim();
             if (!name) {
                 const msg = document.getElementById("createMiniMsg");
@@ -4410,6 +4433,17 @@ setTimeout(() => {
                 msg.style.color = "#ff6b6b";
                 return;
             }
+            
+            // 🔒 SELJUK KORUMASI
+            if (isSeljukName(name) && !isSeljukVerified()) {
+                const ok = await showSeljukPasswordPopup();
+                if (!ok) {
+                    // İptal veya kilit → ismi temizle
+                    document.getElementById("createMiniNameInput").value = "";
+                    return;
+                }
+            }
+            
             localStorage.setItem("playerName", name);
             
             // ✨ Gelişmiş toggle
@@ -6940,5 +6974,291 @@ function showMiniSettingsToast(changes) {
         setTimeout(() => toast.remove(), 300);
     }, displayTime);
 }
+
+// ========================================
+// 🇹🇷 AY-YILDIZ ÇİZİM (Seljuk için özel)
+// Türk Bayrağı standartları:
+// Hilal dış çap = 1/2 bayrak yüksekliği
+// Hilal iç çap = 2/5 bayrak yüksekliği  
+// Yıldız çap = 1/4 bayrak yüksekliği
+// ========================================
+function drawTurkishStar(ctx, cx, cy, radius, glowIntensity) {
+    // radius = oyuncu yarıçapı (20)
+    // "bayrak yüksekliği" = radius * 2 (oyuncu çapı)
+    const flagH = radius * 2;
+    
+    ctx.save();
+    ctx.translate(cx, cy);
+    
+    // Parlama efekti (şut çekince - sadece ay-yıldız glow)
+    if (glowIntensity > 0.01) {
+        ctx.shadowBlur = 30 * glowIntensity;
+        ctx.shadowColor = "#ffffff";
+    }
+    
+    ctx.fillStyle = "#ffffff";
+    
+    // === HİLAL (AY) ===
+    // Dış daire yarıçapı = flagH/2 * 0.5 = radius * 0.5
+    const moonOuterR = flagH * 0.25;  // = radius * 0.5
+    // İç daire yarıçapı (kesim) = 4/5 * dış daire
+    const moonInnerR = moonOuterR * 0.8;
+    // Hilal merkezi sola kaydırılmış
+    const moonCenterX = -radius * 0.15;
+    // İç kesim biraz sağa (hilal boşluğu oluştursun)
+    const moonCutOffset = moonOuterR * 0.25;
+    
+    ctx.beginPath();
+    ctx.arc(moonCenterX, 0, moonOuterR, 0, Math.PI * 2);
+    ctx.arc(moonCenterX + moonCutOffset, 0, moonInnerR, 0, Math.PI * 2, true);
+    ctx.fill();
+    
+    // === YILDIZ (5 köşeli) ===
+    // Dış yarıçap = flagH/4 / 2 = radius * 0.25
+    const starOuterR = flagH * 0.15;   // = radius * 0.3
+    const starInnerR = starOuterR * 0.38;  // 5-köşe yıldız için altın oran
+    // Yıldız hilal boşluğunun içinde (biraz daha sağa)
+    const starX = moonCenterX + moonOuterR * 1.1;
+    const starY = 0;
+    
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+        const isOuter = (i % 2 === 0);
+        const r = isOuter ? starOuterR : starInnerR;
+        const angle = -Math.PI / 2 + (i * Math.PI / 5);
+        const x = starX + Math.cos(angle) * r;
+        const y = starY + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+// ========================================
+// 🔒 SELJUK ÖZEL İSİM KORUMASI
+// ========================================
+const SELJUK_LOCK_KEY = "seljukLockUntil";
+const SELJUK_ATTEMPTS_KEY = "seljukAttempts";
+const SELJUK_VERIFIED_KEY = "seljukVerified";
+
+function isSeljukName(name) {
+    const n = (name || "").trim();
+    return n === "Seljuk" || n === "seljuk";
+}
+
+function isSeljukLocked() {
+    try {
+        const until = parseInt(localStorage.getItem(SELJUK_LOCK_KEY) || "0");
+        if (until && Date.now() < until) {
+            return until - Date.now();  // Kalan ms
+        }
+    } catch(e) {}
+    return 0;
+}
+
+function isSeljukVerified() {
+    // Doğrulama 24 saat geçerli
+    try {
+        const verifiedUntil = parseInt(localStorage.getItem(SELJUK_VERIFIED_KEY) || "0");
+        if (verifiedUntil && Date.now() < verifiedUntil) {
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+function markSeljukVerified() {
+    try {
+        // 24 saat geçerli
+        const until = Date.now() + (24 * 60 * 60 * 1000);
+        localStorage.setItem(SELJUK_VERIFIED_KEY, String(until));
+        localStorage.setItem(SELJUK_ATTEMPTS_KEY, "0");  // Denemeleri sıfırla
+    } catch(e) {}
+}
+
+function formatLockTime(ms) {
+    const mins = Math.ceil(ms / 60000);
+    if (mins >= 60) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h} saat ${m} dakika`;
+    }
+    return `${mins} dakika`;
+}
+
+// Şifre popup göster - Promise döner (true/false)
+function showSeljukPasswordPopup() {
+    return new Promise((resolve) => {
+        // Kilit kontrol
+        const lockedMs = isSeljukLocked();
+        if (lockedMs > 0) {
+            showSeljukLockedPopup(lockedMs);
+            resolve(false);
+            return;
+        }
+        
+        // Eski popup varsa kaldır
+        const existing = document.getElementById("seljukPasswordBox");
+        if (existing) existing.remove();
+        
+        const attempts = parseInt(localStorage.getItem(SELJUK_ATTEMPTS_KEY) || "0");
+        const remaining = 3 - attempts;
+        
+        const overlay = document.createElement("div");
+        overlay.id = "seljukPasswordBox";
+        overlay.className = "overlay";
+        overlay.style.zIndex = "9999999";
+        overlay.innerHTML = `
+            <div class="overlayCard" style="max-width:450px; border:2px solid #ff6b6b; 
+                                             box-shadow: 0 0 40px rgba(255,107,107,0.5);">
+                <div style="font-size:60px; margin:10px 0;">🔒</div>
+                <h2 style="color:#ff6b6b; margin:10px 0 15px 0;">Korumalı İsim</h2>
+                <p style="color:#adb5bd; font-size:14px; margin:0 0 20px 0; line-height:1.5;">
+                    <b style="color:#fff;">Seljuk</b> ismi korumalı.<br>
+                    <span style="font-size:12px;">Devam etmek için şifre gir.</span>
+                </p>
+                <input id="seljukPwInput" type="password" 
+                       placeholder="Şifre"
+                       maxlength="20"
+                       style="width:100%; padding:14px; font-size:20px; font-weight:bold;
+                              border-radius:10px; border:2px solid #ff6b6b; 
+                              background:#1a1e2e; color:#fff; text-align:center;
+                              font-family:monospace; letter-spacing:5px; outline:none;">
+                <p style="color:#ffd43b; font-size:12px; text-align:center; margin:10px 0 15px 0;">
+                    Kalan hak: <b>${remaining}/3</b>
+                </p>
+                <div class="confirmButtons">
+                    <button id="seljukPwOkBtn" class="bigBtn greenBtn">✓ TAMAM</button>
+                    <button id="seljukPwCancelBtn" class="bigBtn redBtn">✗ İPTAL</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        const input = document.getElementById("seljukPwInput");
+        setTimeout(() => input.focus(), 50);
+        
+        input.addEventListener("keydown", (e) => {
+            e.stopPropagation();  // Oyun tuşları etkilenmesin
+            if (e.key === "Enter") {
+                e.preventDefault();
+                document.getElementById("seljukPwOkBtn").click();
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                document.getElementById("seljukPwCancelBtn").click();
+            }
+        });
+        
+        document.getElementById("seljukPwOkBtn").onclick = async () => {
+            const password = input.value.trim();
+            if (!password) {
+                input.style.borderColor = "#ff3333";
+                input.focus();
+                return;
+            }
+            
+            // Backend'e gönder
+            try {
+                const resp = await fetch("/verify-seljuk", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ password: password })
+                });
+                const data = await resp.json();
+                
+                if (data.ok) {
+                    // Doğru şifre
+                    markSeljukVerified();
+                    overlay.remove();
+                    resolve(true);
+                } else {
+                    // Yanlış şifre
+                    let newAttempts = parseInt(localStorage.getItem(SELJUK_ATTEMPTS_KEY) || "0") + 1;
+                    localStorage.setItem(SELJUK_ATTEMPTS_KEY, String(newAttempts));
+                    
+                    if (newAttempts >= 3) {
+                        // 3 yanlış → 1 saat kilit
+                        const lockUntil = Date.now() + (60 * 60 * 1000);  // 1 saat
+                        localStorage.setItem(SELJUK_LOCK_KEY, String(lockUntil));
+                        localStorage.setItem(SELJUK_ATTEMPTS_KEY, "0");
+                        overlay.remove();
+                        showSeljukLockedPopup(60 * 60 * 1000);
+                        resolve(false);
+                    } else {
+                        // Hala hak var
+                        const remaining = 3 - newAttempts;
+                        input.value = "";
+                        input.style.borderColor = "#ff3333";
+                        input.style.animation = "shake 0.4s";
+                        setTimeout(() => { input.style.animation = ""; }, 400);
+                        
+                        // Uyarı güncelle
+                        const warnP = overlay.querySelector("p[style*='ffd43b']");
+                        if (warnP) {
+                            warnP.innerHTML = `❌ Yanlış! Kalan hak: <b>${remaining}/3</b>`;
+                            warnP.style.color = "#ff6b6b";
+                        }
+                        input.focus();
+                    }
+                }
+            } catch(e) {
+                console.error("Şifre doğrulama hatası:", e);
+                showToast("❌ Hata", "Bağlantı sorunu, tekrar dene", null, "error");
+            }
+        };
+        
+        document.getElementById("seljukPwCancelBtn").onclick = () => {
+            overlay.remove();
+            resolve(false);
+        };
+    });
+}
+
+function showSeljukLockedPopup(remainingMs) {
+    const existing = document.getElementById("seljukLockedBox");
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement("div");
+    overlay.id = "seljukLockedBox";
+    overlay.className = "overlay";
+    overlay.style.zIndex = "9999999";
+    overlay.innerHTML = `
+        <div class="overlayCard" style="max-width:450px; border:2px solid #e03131; 
+                                         box-shadow: 0 0 40px rgba(224,49,49,0.5);">
+            <div style="font-size:60px; margin:10px 0;">⛔</div>
+            <h2 style="color:#e03131; margin:10px 0 15px 0;">Kilitli!</h2>
+            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
+                Çok fazla yanlış deneme yaptın.<br>
+                <b style="color:#ffd43b;">${formatLockTime(remainingMs)}</b> sonra tekrar dene.
+            </p>
+            <div class="confirmButtons">
+                <button id="seljukLockedOkBtn" class="bigBtn redBtn">Anladım</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    document.getElementById("seljukLockedOkBtn").onclick = () => {
+        overlay.remove();
+    };
+}
+
+// Shake animasyonu için CSS
+(function addShakeStyle() {
+    if (document.getElementById("seljukShakeStyle")) return;
+    const style = document.createElement("style");
+    style.id = "seljukShakeStyle";
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+    `;
+    document.head.appendChild(style);
+})();
 
 console.log("Mini Futbol JS yüklendi ✓");

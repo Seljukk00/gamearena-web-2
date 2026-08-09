@@ -1,6 +1,8 @@
 import random
 import string
 import os
+from dotenv import load_dotenv
+load_dotenv()  # .env dosyasını yükle
 import time
 import re
 from collections import defaultdict, deque
@@ -105,6 +107,7 @@ app.mount("/flags", StaticFiles(directory="oyun_modlari/takim_bilmece/flags"), n
 app.mount("/ml_assets", StaticFiles(directory="oyun_modlari/kim_milyoner/assets"), name="ml_assets")
 app.mount("/harita_assets", StaticFiles(directory="oyun_modlari/haritadan_bul"), name="harita_assets")
 app.mount("/stadyum_images", StaticFiles(directory="oyun_modlari/stadyum_tanima/images"), name="stadyum_images")
+app.mount("/takim_logolari", StaticFiles(directory="oyun_modlari/gizemli_kariyer/takim_logolari"), name="takim_logolari")
 
 
 # ==========================================
@@ -174,6 +177,29 @@ async def home(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok", "timestamp": time.time()}
+
+
+# ==========================================
+# SELJUK ÖZEL İSİM DOĞRULAMA
+# ==========================================
+@app.post("/verify-seljuk")
+async def verify_seljuk(request: Request):
+    try:
+        body = await request.json()
+        password = str(body.get("password", "")).strip()
+        
+        # .env'den şifreyi oku
+        correct_password = os.getenv("SELJUK_PASSWORD", "")
+        
+        if not correct_password:
+            return JSONResponse(status_code=500, content={"ok": False, "error": "server_config"})
+        
+        if password == correct_password:
+            return {"ok": True}
+        else:
+            return {"ok": False, "error": "wrong"}
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "bad_request"})
 
 
 # ==========================================

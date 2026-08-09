@@ -1,8 +1,23 @@
 import asyncio
 import random
+import re
 
 from oyun_modlari.gizemli_kariyer.futbolcular import ALL_PLAYERS as GIZEM_PLAYERS
 from oyun_modlari.gizemli_kariyer.takimlar import ALL_TEAMS as GIZEM_TEAMS
+
+
+def gizem_team_slug(name):
+    """Takım ismini dosya slug'ına çevir: 'Real Madrid' -> 'real_madrid'"""
+    tr_map = {
+        'ı':'i', 'İ':'i', 'ğ':'g', 'Ğ':'g', 'ü':'u', 'Ü':'u',
+        'ş':'s', 'Ş':'s', 'ö':'o', 'Ö':'o', 'ç':'c', 'Ç':'c'
+    }
+    for tr, en in tr_map.items():
+        name = name.replace(tr, en)
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9]+', '_', name)
+    name = name.strip('_')
+    return name
 
 
 GIZEM_TOPLAM_TUR = 10
@@ -115,13 +130,18 @@ def gizem_pick_question(exclude_indices=None, difficulty="karisik", round_no=0, 
     random.shuffle(options)
     correct_idx = options.index(player["name"])
 
+    from oyun_modlari.gizemli_kariyer.takimlar import resolve_team_name
+    
     career_data = []
     for team_name in player["career"]:
-        team_info = GIZEM_TEAMS.get(team_name, {})
-        tm_id = team_info.get("tm_id")
-        logo_url = f"https://tmssl.akamaized.net/images/wappen/head/{tm_id}.png" if tm_id else ""
+        # ✨ Alias'ı çöz (eski isim → yeni isim)
+        resolved_name = resolve_team_name(team_name) or team_name
+        team_info = GIZEM_TEAMS.get(resolved_name, {})
+        # ✨ Lokal dosya kullan (resolved isim üzerinden slug)
+        slug = gizem_team_slug(resolved_name)
+        logo_url = f"/takim_logolari/{slug}.png"
         career_data.append({
-            "name": team_name,
+            "name": team_name,  # Görsel isim (kariyerdeki orijinal)
             "logo_url": logo_url,
             "color": list(team_info.get("color", (100, 100, 100)))
         })
