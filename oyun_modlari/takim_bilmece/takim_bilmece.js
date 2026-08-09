@@ -27,6 +27,162 @@ let takimData = {
 const takimLobbyScreen = document.getElementById("takimLobbyScreen");
 const takimGameScreen = document.getElementById("takimGameScreen");
 
+// ========================================
+// 💬 TAKIM BİLMECE CHAT
+// ========================================
+let takimChat = {
+    open: false,
+    unread: 0,
+    messages: [],
+    maxMessages: 50
+};
+
+function showTakimChat() {
+    const c = document.getElementById("takimChatContainer");
+    if (c) c.style.display = "block";
+}
+
+function hideTakimChat() {
+    const c = document.getElementById("takimChatContainer");
+    if (c) c.style.display = "none";
+    closeTakimChatPanel();
+    takimChat.messages = [];
+    takimChat.unread = 0;
+    const box = document.getElementById("takimChatMessages");
+    if (box) box.innerHTML = "";
+    clearTakimChatPopups();
+}
+
+function toggleTakimChatPanel() {
+    if (takimChat.open) closeTakimChatPanel();
+    else openTakimChatPanel();
+}
+
+function openTakimChatPanel() {
+    takimChat.open = true;
+    takimChat.unread = 0;
+    const panel = document.getElementById("takimChatPanel");
+    const badge = document.getElementById("takimChatBadge");
+    if (panel) panel.style.setProperty("display", "flex", "important");
+    if (badge) badge.style.display = "none";
+    clearTakimChatPopups();
+    const box = document.getElementById("takimChatMessages");
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    const input = document.getElementById("takimChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+    setTimeout(() => {
+        document.addEventListener("mousedown", takimChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function closeTakimChatPanel() {
+    takimChat.open = false;
+    const panel = document.getElementById("takimChatPanel");
+    if (panel) panel.style.display = "none";
+    document.removeEventListener("mousedown", takimChatOutsideClickHandler, true);
+    const input = document.getElementById("takimChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function takimChatOutsideClickHandler(e) {
+    const c = document.getElementById("takimChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    closeTakimChatPanel();
+}
+
+function sendTakimChatMessage() {
+    const input = document.getElementById("takimChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || text.length > 100) return;
+    input.value = "";
+    send({ type: "takim_chat_send", text: text });
+}
+
+function showTakimChatPopup(msg) {
+    if (takimChat.open) return;
+    const stack = document.getElementById("takimChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+    
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    if (msg.sender_id === 1) popup.classList.add("teamRed");
+    else popup.classList.add("teamBlue");
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+    nameSpan.textContent = msg.sender_name;
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+    
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+    
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+    
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearTakimChatPopups() {
+    const stack = document.getElementById("takimChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addTakimChatMessage(msg) {
+    takimChat.messages.push(msg);
+    if (takimChat.messages.length > takimChat.maxMessages) takimChat.messages.shift();
+    
+    const box = document.getElementById("takimChatMessages");
+    if (!box) return;
+    
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+    nameSpan.textContent = msg.sender_name + ":";
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + msg.text;
+    
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    box.appendChild(div);
+    
+    while (box.children.length > takimChat.maxMessages) box.removeChild(box.firstChild);
+    
+    if (takimChat.open) {
+        box.scrollTop = box.scrollHeight;
+    } else {
+        takimChat.unread++;
+        const badge = document.getElementById("takimChatBadge");
+        if (badge) {
+            badge.textContent = takimChat.unread;
+            badge.style.display = "flex";
+            badge.style.animation = "none";
+            badge.offsetHeight;
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        showTakimChatPopup(msg);
+    }
+}
+
 // showScreen'i genişlet (DOĞRU YÖNTEM: önce eskiyi çağır)
 const _originalShowScreenTakim = showScreen;
 showScreen = function(screenName) {
@@ -35,6 +191,12 @@ showScreen = function(screenName) {
     takimGameScreen.classList.add("hidden");
     if (screenName === "takimLobby") takimLobbyScreen.classList.remove("hidden");
     if (screenName === "takimGame") takimGameScreen.classList.remove("hidden");
+    
+    // 💬 Takım Bilmece chat: sadece takimLobby/takimGame'de görünür
+    const takimScreens = ["takimLobby", "takimGame"];
+    if (!takimScreens.includes(screenName)) {
+        hideTakimChat();
+    }
 };
 
 // Oda oluştur butonu
@@ -739,12 +901,14 @@ handleMessage = function(msg) {
         if (msg.turn_seconds !== undefined) takimData.turnSeconds = msg.turn_seconds;
         takimData.inGame = true;
         inRoom = true;
+        showTakimChat();
         showScreen("takimLobby");
         updateTakimLobby();
         return;
     }
     
     if (msg.type === "takim_lobby_update") {
+        showTakimChat();
         takimData.roomCode = msg.room_code;
         takimData.players = msg.players;
         takimData.difficulty = msg.difficulty || "klasik";
@@ -752,6 +916,30 @@ handleMessage = function(msg) {
         if (msg.max_players !== undefined) takimData.maxPlayers = msg.max_players;
         if (msg.total_questions !== undefined) takimData.totalQuestions = msg.total_questions;
         updateTakimLobby();
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "takim_chat_msg") {
+        addTakimChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            ts: msg.ts
+        });
+        return;
+    }
+    
+    if (msg.type === "takim_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = takimChat.open;
+            takimChat.open = true;
+            msg.messages.forEach(m => addTakimChatMessage(m));
+            takimChat.open = wasOpen;
+            takimChat.unread = 0;
+            const badge = document.getElementById("takimChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
     
@@ -963,3 +1151,70 @@ handleMessage = function(msg) {
 document.getElementById("takimGameOverBox").classList.add("hidden");
 document.getElementById("takimPassConfirmBox").classList.add("hidden");
 document.getElementById("takimJokerCancelBtn").classList.add("hidden");
+
+// ========================================
+// 💬 TAKIM BİLMECE CHAT - Event'ler
+// ========================================
+setTimeout(() => {
+    const toggleBtn = document.getElementById("takimChatToggleBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleTakimChatPanel);
+    
+    const closeBtn = document.getElementById("takimChatCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeTakimChatPanel);
+    
+    const sendBtn = document.getElementById("takimChatSendBtn");
+    if (sendBtn) sendBtn.addEventListener("click", sendTakimChatMessage);
+    
+    const input = document.getElementById("takimChatInput");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendTakimChatMessage();
+                closeTakimChatPanel();  // ✨ Mesaj gönderdikten sonra chat kapansın
+                return;
+            }
+            e.stopPropagation();
+        });
+    }
+    
+    // T tuşu → chat aç + focus
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+        
+        // Sadece Takım Bilmece ekranlarında (takimLobby/takimGame)
+        const current = getCurrentScreen();
+        if (!["takimLobby", "takimGame"].includes(current)) return;
+        
+        // Input/textarea odaktaysa yoksay
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        
+        // Chat görünmüyorsa yoksay
+        const container = document.getElementById("takimChatContainer");
+        if (!container || container.style.display === "none") return;
+        
+        // Zaten açıksa yoksay
+        if (takimChat.open) return;
+        
+        // Popup açıksa yoksay
+        const anyPopup = document.querySelector(".overlay:not(.hidden)");
+        if (anyPopup) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        openTakimChatPanel();
+    }, true);
+    
+    // ESC ile chat kapat (öncelik)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (takimChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeTakimChatPanel();
+        }
+    }, true);
+}, 200);

@@ -133,7 +133,9 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             "used_durumlar": [],
             "player_cards": {},
             "player_selections": {},
-            "kicked_names": []
+            "kicked_names": [],
+            "chat_history": [],
+            "chat_last_msg_time": {}
         }
         
         await safe_send(websocket, {
@@ -208,6 +210,13 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             "total_rounds": room["total_rounds"],
             "max_players": room["max_players"]
         })
+        
+        # 💬 Chat geçmişini yeni katılana gönder
+        if room.get("chat_history"):
+            await safe_send(websocket, {
+                "type": "meme_chat_history",
+                "messages": room["chat_history"][-50:]
+            })
         
         await send_meme_lobby_update(room, broadcast)
         return {"handled": True, "room_code": join_code, "player_id": new_pid}
@@ -647,6 +656,61 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
         
         await broadcast(room, {"type": "meme_back_to_lobby"})
         await send_meme_lobby_update(room, broadcast)
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+    
+    # ==========================================
+    # 💬 CHAT MESAJI GÖNDER
+    # ==========================================
+    if msg_type == "meme_chat_send":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "meme_arena":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        if player_id not in room["players"]:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        import time as _time
+        text = (data.get("text") or "").strip()[:100]
+        if not text:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # Spam kontrolü (saniyede max 3 mesaj)
+        now = _time.time()
+        if "chat_last_msg_time" not in room:
+            room["chat_last_msg_time"] = {}
+        last_times = room["chat_last_msg_time"].get(player_id, [])
+        last_times = [t for t in last_times if now - t < 1.0]
+        if len(last_times) >= 3:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        last_times.append(now)
+        room["chat_last_msg_time"][player_id] = last_times
+        
+        sender_name = room["players"][player_id].get("name", f"P{player_id}")
+        
+        chat_msg = {
+            "sender_id": player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "ts": now
+        }
+        
+        if "chat_history" not in room:
+            room["chat_history"] = []
+        room["chat_history"].append(chat_msg)
+        if len(room["chat_history"]) > 50:
+            room["chat_history"] = room["chat_history"][-50:]
+        
+        await broadcast(room, {
+            "type": "meme_chat_msg",
+            "sender_id": player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "ts": now
+        })
+        
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     return {"handled": False, "room_code": room_code, "player_id": player_id}

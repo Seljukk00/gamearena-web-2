@@ -3371,7 +3371,18 @@ function miniRender() {
             else if (cfg.width >= 1600) nameFontSize = 20;  // 4v4
             else if (cfg.width >= 1400) nameFontSize = 18;  // 3v3
             else if (cfg.width >= 1200) nameFontSize = 16;  // 2v2
+            
+            // ✨ İsim genişliği oyuncu çapına sığmıyorsa font küçült
+            const maxNameWidth = cfg.player_radius * 2.4;  // top çapından biraz büyük olabilir
             ctx.font = `bold ${nameFontSize}px Segoe UI`;
+            let measuredW = ctx.measureText(pname).width;
+            // Kademeli küçült (min 8px)
+            while (measuredW > maxNameWidth && nameFontSize > 8) {
+                nameFontSize -= 1;
+                ctx.font = `bold ${nameFontSize}px Segoe UI`;
+                measuredW = ctx.measureText(pname).width;
+            }
+            
             ctx.textAlign = "center";
             
             // Gölge (okunabilir olsun)
@@ -4488,13 +4499,13 @@ setTimeout(() => {
                 e.preventDefault();
                 e.stopPropagation();
                 sendMiniChatMessage();
+                closeMiniChatPanel();  // ✨ Mesaj gönderdikten sonra chat kapansın
                 return;
             }
             // Chat input açıkken oyun tuşları çalışmasın (zaten miniKeyDown'da input kontrolü var)
             e.stopPropagation();
         });
-        
-        }
+    }
 
     const nameInput = document.getElementById("createMiniNameInput");
     if (nameInput) {

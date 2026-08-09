@@ -1,5 +1,15 @@
 let ws = null;
 
+// ========================================
+// 💬 BİL BAKALIM CHAT
+// ========================================
+let bilChat = {
+    open: false,
+    unread: 0,
+    messages: [],
+    maxMessages: 50
+};
+
 let playerId = null;
 let roomCode = "";
 let myName = "";
@@ -931,6 +941,154 @@ function openKickConfirm(targetId, targetName) {
     noBtn.onclick = closeBox;
 }
 
+// ============ 💬 BİL BAKALIM CHAT ============
+function showBilChat() {
+    const c = document.getElementById("bilChatContainer");
+    if (c) c.style.display = "block";
+}
+
+function hideBilChat() {
+    const c = document.getElementById("bilChatContainer");
+    if (c) c.style.display = "none";
+    closeBilChatPanel();
+    bilChat.messages = [];
+    bilChat.unread = 0;
+    const box = document.getElementById("bilChatMessages");
+    if (box) box.innerHTML = "";
+    clearBilChatPopups();
+}
+
+function toggleBilChatPanel() {
+    if (bilChat.open) closeBilChatPanel();
+    else openBilChatPanel();
+}
+
+function openBilChatPanel() {
+    bilChat.open = true;
+    bilChat.unread = 0;
+    const panel = document.getElementById("bilChatPanel");
+    const badge = document.getElementById("bilChatBadge");
+    if (panel) panel.style.setProperty("display", "flex", "important");
+    if (badge) badge.style.display = "none";
+    clearBilChatPopups();
+    const box = document.getElementById("bilChatMessages");
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    const input = document.getElementById("bilChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+    setTimeout(() => {
+        document.addEventListener("mousedown", bilChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function closeBilChatPanel() {
+    bilChat.open = false;
+    const panel = document.getElementById("bilChatPanel");
+    if (panel) panel.style.display = "none";
+    document.removeEventListener("mousedown", bilChatOutsideClickHandler, true);
+    const input = document.getElementById("bilChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function bilChatOutsideClickHandler(e) {
+    const c = document.getElementById("bilChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    closeBilChatPanel();
+}
+
+function sendBilChatMessage() {
+    const input = document.getElementById("bilChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || text.length > 100) return;
+    input.value = "";
+    send({ type: "bil_chat_send", text: text });
+}
+
+function showBilChatPopup(msg) {
+    if (bilChat.open) return;
+    const stack = document.getElementById("bilChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+    
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    // Bil Bakalım'da takım yok, kim host kim değil ona göre renk
+    if (msg.sender_id === 1) popup.classList.add("teamRed");
+    else popup.classList.add("teamBlue");
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+    nameSpan.textContent = msg.sender_name;
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+    
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+    
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+    
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearBilChatPopups() {
+    const stack = document.getElementById("bilChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addBilChatMessage(msg) {
+    bilChat.messages.push(msg);
+    if (bilChat.messages.length > bilChat.maxMessages) bilChat.messages.shift();
+    
+    const box = document.getElementById("bilChatMessages");
+    if (!box) return;
+    
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+    nameSpan.textContent = msg.sender_name + ":";
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + msg.text;
+    
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    box.appendChild(div);
+    
+    while (box.children.length > bilChat.maxMessages) box.removeChild(box.firstChild);
+    
+    if (bilChat.open) {
+        box.scrollTop = box.scrollHeight;
+    } else {
+        bilChat.unread++;
+        const badge = document.getElementById("bilChatBadge");
+        if (badge) {
+            badge.textContent = bilChat.unread;
+            badge.style.display = "flex";
+            badge.style.animation = "none";
+            badge.offsetHeight;
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        showBilChatPopup(msg);
+    }
+}
+
 // ============ MESAJ İŞLEME ============
 function handleMessage(msg) {
     if (msg.type === "error") {
@@ -1018,6 +1176,7 @@ function handleMessage(msg) {
         turnSeconds = msg.turn_seconds || 45;
         guessLimit = msg.guess_limit || 0;
         inRoom = true;
+        showBilChat();
         showScreen("lobby");
         updateLobby();
         return;
@@ -1029,12 +1188,14 @@ function handleMessage(msg) {
         turnSeconds = msg.turn_seconds || 45;
         guessLimit = msg.guess_limit || 0;
         inRoom = true;
+        showBilChat();
         showScreen("lobby");
         updateLobby();
         return;
     }
 
     if (msg.type === "lobby_update") {
+        showBilChat();
         roomCode = msg.room_code;
         players = msg.players;
         turnSeconds = msg.turn_seconds || 45;
@@ -1189,6 +1350,30 @@ function handleMessage(msg) {
         scores = msg.scores;
         updateTopBar();
         openGameOver(msg);
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "bil_chat_msg") {
+        addBilChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            ts: msg.ts
+        });
+        return;
+    }
+    
+    if (msg.type === "bil_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = bilChat.open;
+            bilChat.open = true;
+            msg.messages.forEach(m => addBilChatMessage(m));
+            bilChat.open = wasOpen;
+            bilChat.unread = 0;
+            const badge = document.getElementById("bilChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
     
@@ -2318,6 +2503,12 @@ showScreen = function(screenName) {
     try {
         window.history.pushState({ screen: screenName }, "", "");
     } catch (e) {}
+    
+    // 💬 Bil Bakalım chat: sadece lobby/select/game ekranlarında görünür
+    const bilScreens = ["lobby", "select", "game"];
+    if (!bilScreens.includes(screenName)) {
+        hideBilChat();
+    }
 };
 
 // Tarayıcı Geri butonuna basılınca
@@ -2405,6 +2596,73 @@ document.getElementById("backYesBtn").onclick = () => {
 document.getElementById("backNoBtn").onclick = () => {
     closeBackConfirmPopup();
 };
+
+// ========================================
+// 💬 BİL BAKALIM CHAT - Event'ler
+// ========================================
+setTimeout(() => {
+    const toggleBtn = document.getElementById("bilChatToggleBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleBilChatPanel);
+    
+    const closeBtn = document.getElementById("bilChatCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeBilChatPanel);
+    
+    const sendBtn = document.getElementById("bilChatSendBtn");
+    if (sendBtn) sendBtn.addEventListener("click", sendBilChatMessage);
+    
+    const input = document.getElementById("bilChatInput");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendBilChatMessage();
+                closeBilChatPanel();  // ✨ Mesaj gönderdikten sonra chat kapansın
+                return;
+            }
+            e.stopPropagation();
+        });
+    }
+    
+    // T tuşu → chat aç + focus
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+        
+        // Sadece Bil Bakalım ekranlarında (lobby/select/game)
+        const current = getCurrentScreen();
+        if (!["lobby", "select", "game"].includes(current)) return;
+        
+        // Input/textarea odaktaysa yoksay
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        
+        // Chat görünmüyorsa yoksay
+        const container = document.getElementById("bilChatContainer");
+        if (!container || container.style.display === "none") return;
+        
+        // Zaten açıksa yoksay
+        if (bilChat.open) return;
+        
+        // Popup açıksa yoksay
+        const anyPopup = document.querySelector(".overlay:not(.hidden)");
+        if (anyPopup) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        openBilChatPanel();
+    }, true);
+    
+    // ESC ile chat kapat (öncelik)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (bilChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeBilChatPanel();
+        }
+    }, true);
+}, 200);
 
 // ==========================================
 // ODA AYARLARI POPUP - Ortak Sistem

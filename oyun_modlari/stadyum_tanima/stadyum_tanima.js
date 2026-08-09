@@ -30,6 +30,172 @@ const createStadScreen = document.getElementById("createStadScreen");
 const stadLobbyScreen = document.getElementById("stadLobbyScreen");
 const stadGameScreen = document.getElementById("stadGameScreen");
 
+// ========================================
+// 💬 STADYUM TANIMA CHAT
+// ========================================
+let stadChat = {
+    open: false,
+    unread: 0,
+    messages: [],
+    maxMessages: 50
+};
+
+// ✨ 2-5 kişi için farklı renk paleti
+const STAD_CHAT_COLORS = ["#ff8a8a", "#7abfff", "#51cf66", "#ffd43b", "#c084fc"];
+
+function getStadChatColor(pid) {
+    if (!pid) return "#adb5bd";
+    const idx = (pid - 1) % STAD_CHAT_COLORS.length;
+    return STAD_CHAT_COLORS[idx];
+}
+
+function showStadChat() {
+    const c = document.getElementById("stadChatContainer");
+    if (c) c.style.display = "block";
+}
+
+function hideStadChat() {
+    const c = document.getElementById("stadChatContainer");
+    if (c) c.style.display = "none";
+    closeStadChatPanel();
+    stadChat.messages = [];
+    stadChat.unread = 0;
+    const box = document.getElementById("stadChatMessages");
+    if (box) box.innerHTML = "";
+    clearStadChatPopups();
+}
+
+function toggleStadChatPanel() {
+    if (stadChat.open) closeStadChatPanel();
+    else openStadChatPanel();
+}
+
+function openStadChatPanel() {
+    stadChat.open = true;
+    stadChat.unread = 0;
+    const panel = document.getElementById("stadChatPanel");
+    const badge = document.getElementById("stadChatBadge");
+    if (panel) panel.style.setProperty("display", "flex", "important");
+    if (badge) badge.style.display = "none";
+    clearStadChatPopups();
+    const box = document.getElementById("stadChatMessages");
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    const input = document.getElementById("stadChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+    setTimeout(() => {
+        document.addEventListener("mousedown", stadChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function closeStadChatPanel() {
+    stadChat.open = false;
+    const panel = document.getElementById("stadChatPanel");
+    if (panel) panel.style.display = "none";
+    document.removeEventListener("mousedown", stadChatOutsideClickHandler, true);
+    const input = document.getElementById("stadChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function stadChatOutsideClickHandler(e) {
+    const c = document.getElementById("stadChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    closeStadChatPanel();
+}
+
+function sendStadChatMessage() {
+    const input = document.getElementById("stadChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || text.length > 100) return;
+    input.value = "";
+    send({ type: "stad_chat_send", text: text });
+}
+
+function showStadChatPopup(msg) {
+    if (stadChat.open) return;
+    const stack = document.getElementById("stadChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+    
+    const color = getStadChatColor(msg.sender_id);
+    
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    popup.style.borderLeftColor = color;
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = color;
+    nameSpan.textContent = msg.sender_name;
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+    
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+    
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+    
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearStadChatPopups() {
+    const stack = document.getElementById("stadChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addStadChatMessage(msg) {
+    stadChat.messages.push(msg);
+    if (stadChat.messages.length > stadChat.maxMessages) stadChat.messages.shift();
+    
+    const box = document.getElementById("stadChatMessages");
+    if (!box) return;
+    
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = getStadChatColor(msg.sender_id);
+    nameSpan.textContent = msg.sender_name + ":";
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + msg.text;
+    
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    box.appendChild(div);
+    
+    while (box.children.length > stadChat.maxMessages) box.removeChild(box.firstChild);
+    
+    if (stadChat.open) {
+        box.scrollTop = box.scrollHeight;
+    } else {
+        stadChat.unread++;
+        const badge = document.getElementById("stadChatBadge");
+        if (badge) {
+            badge.textContent = stadChat.unread;
+            badge.style.display = "flex";
+            badge.style.animation = "none";
+            badge.offsetHeight;
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        showStadChatPopup(msg);
+    }
+}
+
 const _prevShowScreenStad = showScreen;
 showScreen = function(screenName) {
     _prevShowScreenStad(screenName);
@@ -40,6 +206,12 @@ showScreen = function(screenName) {
     if (screenName === "createStad") createStadScreen.classList.remove("hidden");
     if (screenName === "stadLobby") stadLobbyScreen.classList.remove("hidden");
     if (screenName === "stadGame") stadGameScreen.classList.remove("hidden");
+    
+    // 💬 Stadyum Tanıma chat: sadece stadLobby/stadGame'de görünür
+    const stadScreens = ["stadLobby", "stadGame"];
+    if (!stadScreens.includes(screenName)) {
+        hideStadChat();
+    }
 };
 
 const stadCard = document.querySelector('[data-mod="stadyum_tanima"]');
@@ -519,18 +691,44 @@ handleMessage = function(msg) {
         if (msg.total_rounds !== undefined) stadData.totalRounds = msg.total_rounds;
         stadData.inGame = true;
         inRoom = true;
+        showStadChat();
         showScreen("stadLobby");
         updateStadLobby();
         return;
     }
 
     if (msg.type === "stad_lobby_update") {
+        showStadChat();
         stadData.roomCode = msg.room_code;
         stadData.players = msg.players;
         stadData.turnSeconds = msg.turn_seconds || 20;
         stadData.totalRounds = msg.total_rounds || 10;
         if (msg.max_players !== undefined) stadData.maxPlayers = msg.max_players;
         updateStadLobby();
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "stad_chat_msg") {
+        addStadChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            ts: msg.ts
+        });
+        return;
+    }
+    
+    if (msg.type === "stad_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = stadChat.open;
+            stadChat.open = true;
+            msg.messages.forEach(m => addStadChatMessage(m));
+            stadChat.open = wasOpen;
+            stadChat.unread = 0;
+            const badge = document.getElementById("stadChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
 
@@ -700,3 +898,65 @@ handleMessage = function(msg) {
 };
 
 document.getElementById("stadGameOverBox").classList.add("hidden");
+
+// ========================================
+// 💬 STADYUM TANIMA CHAT - Event'ler
+// ========================================
+setTimeout(() => {
+    const toggleBtn = document.getElementById("stadChatToggleBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleStadChatPanel);
+    
+    const closeBtn = document.getElementById("stadChatCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeStadChatPanel);
+    
+    const sendBtn = document.getElementById("stadChatSendBtn");
+    if (sendBtn) sendBtn.addEventListener("click", sendStadChatMessage);
+    
+    const input = document.getElementById("stadChatInput");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendStadChatMessage();
+                closeStadChatPanel();
+                return;
+            }
+            e.stopPropagation();
+        });
+    }
+    
+    // T tuşu → chat aç + focus
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+        
+        const current = getCurrentScreen();
+        if (!["stadLobby", "stadGame"].includes(current)) return;
+        
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        
+        const container = document.getElementById("stadChatContainer");
+        if (!container || container.style.display === "none") return;
+        
+        if (stadChat.open) return;
+        
+        const anyPopup = document.querySelector(".overlay:not(.hidden)");
+        if (anyPopup) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        openStadChatPanel();
+    }, true);
+    
+    // ESC ile chat kapat (öncelik)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (stadChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeStadChatPanel();
+        }
+    }, true);
+}, 200);

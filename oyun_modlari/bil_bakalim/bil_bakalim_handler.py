@@ -363,6 +363,8 @@ async def handle_bil_bakalim_message(
             "players": {1: {"ws": websocket, "name": name}},
             "phase": "lobby",
             "scores": {1: 0, 2: 0},
+            "chat_history": [],
+            "chat_last_msg_time": {},
             "footballer_indices": [],
             "footballers": [],
             "selections": {},
@@ -458,6 +460,14 @@ async def handle_bil_bakalim_message(
             "player_id": 2,
             "turn_seconds": room.get("turn_seconds", 45)
         })
+        
+        # 💬 Chat geçmişini yeni katılana gönder
+        if room.get("chat_history"):
+            await safe_send(websocket, {
+                "type": "bil_chat_history",
+                "messages": room["chat_history"][-50:]
+            })
+        
         await send_lobby_update(room, broadcast)
 
         result["handled"] = True
@@ -846,6 +856,58 @@ async def handle_bil_bakalim_message(
                     room["turn"] = other_id
                     await send_turn_update(room, safe_send, broadcast)
 
+        result["handled"] = True
+        return result
+
+    # ==========================================
+    # 💬 CHAT MESAJI GÖNDER
+    # ==========================================
+    if msg_type == "bil_chat_send":
+        if player_id not in room["players"]:
+            result["handled"] = True
+            return result
+        
+        import time as _time
+        text = sanitize_string(data.get("text", ""), max_length=100).strip()
+        if not text or len(text) > 100:
+            result["handled"] = True
+            return result
+        
+        # Spam kontrolü (saniyede max 3 mesaj)
+        now = _time.time()
+        if "chat_last_msg_time" not in room:
+            room["chat_last_msg_time"] = {}
+        last_times = room["chat_last_msg_time"].get(player_id, [])
+        last_times = [t for t in last_times if now - t < 1.0]
+        if len(last_times) >= 3:
+            result["handled"] = True
+            return result
+        last_times.append(now)
+        room["chat_last_msg_time"][player_id] = last_times
+        
+        sender_name = room["players"][player_id].get("name", f"P{player_id}")
+        
+        chat_msg = {
+            "sender_id": player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "ts": now
+        }
+        
+        if "chat_history" not in room:
+            room["chat_history"] = []
+        room["chat_history"].append(chat_msg)
+        if len(room["chat_history"]) > 50:
+            room["chat_history"] = room["chat_history"][-50:]
+        
+        await broadcast(room, {
+            "type": "bil_chat_msg",
+            "sender_id": player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "ts": now
+        })
+        
         result["handled"] = True
         return result
 

@@ -28,6 +28,172 @@ const createGizemScreen = document.getElementById("createGizemScreen");
 const gizemLobbyScreen = document.getElementById("gizemLobbyScreen");
 const gizemGameScreen = document.getElementById("gizemGameScreen");
 
+// ========================================
+// 💬 GİZEMLİ KARİYER CHAT
+// ========================================
+let gizemChat = {
+    open: false,
+    unread: 0,
+    messages: [],
+    maxMessages: 50
+};
+
+// ✨ 2-5 kişi için oyuncu ID'sine göre farklı renk paleti
+const GIZEM_CHAT_COLORS = ["#ff8a8a", "#7abfff", "#51cf66", "#ffd43b", "#c084fc"];
+
+function getGizemChatColor(pid) {
+    if (!pid) return "#adb5bd";
+    const idx = (pid - 1) % GIZEM_CHAT_COLORS.length;
+    return GIZEM_CHAT_COLORS[idx];
+}
+
+function showGizemChat() {
+    const c = document.getElementById("gizemChatContainer");
+    if (c) c.style.display = "block";
+}
+
+function hideGizemChat() {
+    const c = document.getElementById("gizemChatContainer");
+    if (c) c.style.display = "none";
+    closeGizemChatPanel();
+    gizemChat.messages = [];
+    gizemChat.unread = 0;
+    const box = document.getElementById("gizemChatMessages");
+    if (box) box.innerHTML = "";
+    clearGizemChatPopups();
+}
+
+function toggleGizemChatPanel() {
+    if (gizemChat.open) closeGizemChatPanel();
+    else openGizemChatPanel();
+}
+
+function openGizemChatPanel() {
+    gizemChat.open = true;
+    gizemChat.unread = 0;
+    const panel = document.getElementById("gizemChatPanel");
+    const badge = document.getElementById("gizemChatBadge");
+    if (panel) panel.style.setProperty("display", "flex", "important");
+    if (badge) badge.style.display = "none";
+    clearGizemChatPopups();
+    const box = document.getElementById("gizemChatMessages");
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    const input = document.getElementById("gizemChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+    setTimeout(() => {
+        document.addEventListener("mousedown", gizemChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function closeGizemChatPanel() {
+    gizemChat.open = false;
+    const panel = document.getElementById("gizemChatPanel");
+    if (panel) panel.style.display = "none";
+    document.removeEventListener("mousedown", gizemChatOutsideClickHandler, true);
+    const input = document.getElementById("gizemChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function gizemChatOutsideClickHandler(e) {
+    const c = document.getElementById("gizemChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    closeGizemChatPanel();
+}
+
+function sendGizemChatMessage() {
+    const input = document.getElementById("gizemChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || text.length > 100) return;
+    input.value = "";
+    send({ type: "gizem_chat_send", text: text });
+}
+
+function showGizemChatPopup(msg) {
+    if (gizemChat.open) return;
+    const stack = document.getElementById("gizemChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+    
+    const color = getGizemChatColor(msg.sender_id);
+    
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    popup.style.borderLeftColor = color;
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = color;
+    nameSpan.textContent = msg.sender_name;
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+    
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+    
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+    
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearGizemChatPopups() {
+    const stack = document.getElementById("gizemChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addGizemChatMessage(msg) {
+    gizemChat.messages.push(msg);
+    if (gizemChat.messages.length > gizemChat.maxMessages) gizemChat.messages.shift();
+    
+    const box = document.getElementById("gizemChatMessages");
+    if (!box) return;
+    
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = getGizemChatColor(msg.sender_id);
+    nameSpan.textContent = msg.sender_name + ":";
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + msg.text;
+    
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    box.appendChild(div);
+    
+    while (box.children.length > gizemChat.maxMessages) box.removeChild(box.firstChild);
+    
+    if (gizemChat.open) {
+        box.scrollTop = box.scrollHeight;
+    } else {
+        gizemChat.unread++;
+        const badge = document.getElementById("gizemChatBadge");
+        if (badge) {
+            badge.textContent = gizemChat.unread;
+            badge.style.display = "flex";
+            badge.style.animation = "none";
+            badge.offsetHeight;
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        showGizemChatPopup(msg);
+    }
+}
+
 const _prevShowScreenGizem = showScreen;
 showScreen = function(screenName) {
     _prevShowScreenGizem(screenName);
@@ -37,6 +203,12 @@ showScreen = function(screenName) {
     if (screenName === "createGizem") createGizemScreen.classList.remove("hidden");
     if (screenName === "gizemLobby") gizemLobbyScreen.classList.remove("hidden");
     if (screenName === "gizemGame") gizemGameScreen.classList.remove("hidden");
+    
+    // 💬 Gizemli Kariyer chat: sadece gizemLobby/gizemGame'de görünür
+    const gizemScreens = ["gizemLobby", "gizemGame"];
+    if (!gizemScreens.includes(screenName)) {
+        hideGizemChat();
+    }
 };
 
 const gizemCard = document.querySelector('[data-mod="gizemli_kariyer"]');
@@ -530,12 +702,14 @@ handleMessage = function(msg) {
         if (msg.total_rounds !== undefined) gizemData.totalRounds = msg.total_rounds;
         gizemData.inGame = true;
         inRoom = true;
+        showGizemChat();
         showScreen("gizemLobby");
         updateGizemLobby();
         return;
     }
 
     if (msg.type === "gizem_lobby_update") {
+        showGizemChat();
         gizemData.roomCode = msg.room_code;
         gizemData.players = msg.players;
         gizemData.turnSeconds = msg.turn_seconds || 60;
@@ -543,6 +717,30 @@ handleMessage = function(msg) {
         if (msg.max_players !== undefined) gizemData.maxPlayers = msg.max_players;
         if (msg.total_rounds !== undefined) gizemData.totalRounds = msg.total_rounds;
         updateGizemLobby();
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "gizem_chat_msg") {
+        addGizemChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            ts: msg.ts
+        });
+        return;
+    }
+    
+    if (msg.type === "gizem_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = gizemChat.open;
+            gizemChat.open = true;
+            msg.messages.forEach(m => addGizemChatMessage(m));
+            gizemChat.open = wasOpen;
+            gizemChat.unread = 0;
+            const badge = document.getElementById("gizemChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
 
@@ -745,3 +943,65 @@ handleMessage = function(msg) {
 
 document.getElementById("gizemGameOverBox").classList.add("hidden");
 document.getElementById("gizemPassConfirmBox").classList.add("hidden");
+
+// ========================================
+// 💬 GİZEMLİ KARİYER CHAT - Event'ler
+// ========================================
+setTimeout(() => {
+    const toggleBtn = document.getElementById("gizemChatToggleBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleGizemChatPanel);
+    
+    const closeBtn = document.getElementById("gizemChatCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeGizemChatPanel);
+    
+    const sendBtn = document.getElementById("gizemChatSendBtn");
+    if (sendBtn) sendBtn.addEventListener("click", sendGizemChatMessage);
+    
+    const input = document.getElementById("gizemChatInput");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendGizemChatMessage();
+                closeGizemChatPanel();
+                return;
+            }
+            e.stopPropagation();
+        });
+    }
+    
+    // T tuşu → chat aç + focus
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+        
+        const current = getCurrentScreen();
+        if (!["gizemLobby", "gizemGame"].includes(current)) return;
+        
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        
+        const container = document.getElementById("gizemChatContainer");
+        if (!container || container.style.display === "none") return;
+        
+        if (gizemChat.open) return;
+        
+        const anyPopup = document.querySelector(".overlay:not(.hidden)");
+        if (anyPopup) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        openGizemChatPanel();
+    }, true);
+    
+    // ESC ile chat kapat (öncelik)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (gizemChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeGizemChatPanel();
+        }
+    }, true);
+}, 200);

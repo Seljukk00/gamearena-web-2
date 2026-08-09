@@ -20,6 +20,172 @@ let memeData = {
 };
 
 // ========================================
+// 💬 MEME ARENA CHAT
+// ========================================
+let memeChat = {
+    open: false,
+    unread: 0,
+    messages: [],
+    maxMessages: 50
+};
+
+// ✨ 2-5 kişi için farklı renk paleti
+const MEME_CHAT_COLORS = ["#ff8a8a", "#7abfff", "#51cf66", "#ffd43b", "#c084fc"];
+
+function getMemeChatColor(pid) {
+    if (!pid) return "#adb5bd";
+    const idx = (pid - 1) % MEME_CHAT_COLORS.length;
+    return MEME_CHAT_COLORS[idx];
+}
+
+function showMemeChat() {
+    const c = document.getElementById("memeChatContainer");
+    if (c) c.style.display = "block";
+}
+
+function hideMemeChat() {
+    const c = document.getElementById("memeChatContainer");
+    if (c) c.style.display = "none";
+    closeMemeChatPanel();
+    memeChat.messages = [];
+    memeChat.unread = 0;
+    const box = document.getElementById("memeChatMessages");
+    if (box) box.innerHTML = "";
+    clearMemeChatPopups();
+}
+
+function toggleMemeChatPanel() {
+    if (memeChat.open) closeMemeChatPanel();
+    else openMemeChatPanel();
+}
+
+function openMemeChatPanel() {
+    memeChat.open = true;
+    memeChat.unread = 0;
+    const panel = document.getElementById("memeChatPanel");
+    const badge = document.getElementById("memeChatBadge");
+    if (panel) panel.style.setProperty("display", "flex", "important");
+    if (badge) badge.style.display = "none";
+    clearMemeChatPopups();
+    const box = document.getElementById("memeChatMessages");
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    const input = document.getElementById("memeChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+    setTimeout(() => {
+        document.addEventListener("mousedown", memeChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function closeMemeChatPanel() {
+    memeChat.open = false;
+    const panel = document.getElementById("memeChatPanel");
+    if (panel) panel.style.display = "none";
+    document.removeEventListener("mousedown", memeChatOutsideClickHandler, true);
+    const input = document.getElementById("memeChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function memeChatOutsideClickHandler(e) {
+    const c = document.getElementById("memeChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    closeMemeChatPanel();
+}
+
+function sendMemeChatMessage() {
+    const input = document.getElementById("memeChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || text.length > 100) return;
+    input.value = "";
+    send({ type: "meme_chat_send", text: text });
+}
+
+function showMemeChatPopup(msg) {
+    if (memeChat.open) return;
+    const stack = document.getElementById("memeChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+    
+    const color = getMemeChatColor(msg.sender_id);
+    
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    popup.style.borderLeftColor = color;
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = color;
+    nameSpan.textContent = msg.sender_name;
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+    
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+    
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+    
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearMemeChatPopups() {
+    const stack = document.getElementById("memeChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addMemeChatMessage(msg) {
+    memeChat.messages.push(msg);
+    if (memeChat.messages.length > memeChat.maxMessages) memeChat.messages.shift();
+    
+    const box = document.getElementById("memeChatMessages");
+    if (!box) return;
+    
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = getMemeChatColor(msg.sender_id);
+    nameSpan.textContent = msg.sender_name + ":";
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + msg.text;
+    
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    box.appendChild(div);
+    
+    while (box.children.length > memeChat.maxMessages) box.removeChild(box.firstChild);
+    
+    if (memeChat.open) {
+        box.scrollTop = box.scrollHeight;
+    } else {
+        memeChat.unread++;
+        const badge = document.getElementById("memeChatBadge");
+        if (badge) {
+            badge.textContent = memeChat.unread;
+            badge.style.display = "flex";
+            badge.style.animation = "none";
+            badge.offsetHeight;
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        showMemeChatPopup(msg);
+    }
+}
+
+// ========================================
 // EKRAN YÖNETİMİ (wrap)
 // ========================================
 const _prevShowScreenMeme = showScreen;
@@ -43,6 +209,12 @@ showScreen = function(screenName) {
     if (screenName === "memeGame") {
         const el = document.getElementById("memeGameScreen");
         if (el) el.classList.remove("hidden");
+    }
+    
+    // 💬 Meme Arena chat: sadece memeLobby/memeGame'de görünür
+    const memeScreens = ["memeLobby", "memeGame"];
+    if (!memeScreens.includes(screenName)) {
+        hideMemeChat();
     }
 };
 
@@ -68,11 +240,13 @@ function handleMemeMessage(msg) {
         memeData.maxPlayers = msg.max_players;
         inRoom = true;
         playerId = msg.player_id;
+        showMemeChat();
         showScreen("memeLobby");
         return;
     }
     
     if (msg.type === "meme_lobby_update") {
+        showMemeChat();
         memeData.roomCode = msg.room_code;
         memeData.players = msg.players;
         memeData.turnSeconds = msg.turn_seconds;
@@ -80,6 +254,30 @@ function handleMemeMessage(msg) {
         memeData.totalRounds = msg.total_rounds;
         memeData.maxPlayers = msg.max_players;
         updateMemeLobby();
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "meme_chat_msg") {
+        addMemeChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            ts: msg.ts
+        });
+        return;
+    }
+    
+    if (msg.type === "meme_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = memeChat.open;
+            memeChat.open = true;
+            msg.messages.forEach(m => addMemeChatMessage(m));
+            memeChat.open = wasOpen;
+            memeChat.unread = 0;
+            const badge = document.getElementById("memeChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
     
@@ -1109,6 +1307,74 @@ setTimeout(() => {
     if (settingsBtn) {
         settingsBtn.addEventListener("click", () => openMemeRoomSettings());
     }
+}, 200);
+
+// ========================================
+// 💬 MEME ARENA CHAT - Event'ler
+// ========================================
+setTimeout(() => {
+    const toggleBtn = document.getElementById("memeChatToggleBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleMemeChatPanel);
+    
+    const closeBtn = document.getElementById("memeChatCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeMemeChatPanel);
+    
+    const sendBtn = document.getElementById("memeChatSendBtn");
+    if (sendBtn) sendBtn.addEventListener("click", sendMemeChatMessage);
+    
+    const input = document.getElementById("memeChatInput");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendMemeChatMessage();
+                closeMemeChatPanel();
+                return;
+            }
+            e.stopPropagation();
+        });
+    }
+    
+    // T tuşu → chat aç + focus
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+        
+        const current = getCurrentScreen();
+        if (!["memeLobby", "memeGame"].includes(current)) return;
+        
+        // Input/textarea odaktaysa yoksay
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        
+        const container = document.getElementById("memeChatContainer");
+        if (!container || container.style.display === "none") return;
+        
+        if (memeChat.open) return;
+        
+        // Popup açıksa yoksay (özellikle Meme Arena'da custom durum popup ve zoom popup var)
+        const anyPopup = document.querySelector(".overlay:not(.hidden)");
+        if (anyPopup) return;
+        
+        // Zoom overlay açıksa yoksay
+        const zoomOverlay = document.getElementById("memeZoomOverlay");
+        if (zoomOverlay) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        openMemeChatPanel();
+    }, true);
+    
+    // ESC ile chat kapat (öncelik)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (memeChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeMemeChatPanel();
+        }
+    }, true);
 }, 200);
 
 console.log("Meme Arena JS yüklendi ✓");

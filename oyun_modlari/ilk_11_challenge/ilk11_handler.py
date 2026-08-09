@@ -402,7 +402,9 @@ async def handle_ilk11_message(
             "ilk11_teams": {1: {}, 2: {}},
             "ilk11_used": {1: set(), 2: set()},
             "ilk11_finished": {1: False, 2: False},
-            "ilk11_task": None
+            "ilk11_task": None,
+            "chat_history": [],
+            "chat_last_msg_time": {}
         }
 
         await safe_send(websocket, {
@@ -454,6 +456,14 @@ async def handle_ilk11_message(
             "player_id": 2,
             "turn_seconds": room.get("turn_seconds", ILK11_SURE)
         })
+        
+        # 💬 Chat geçmişini yeni katılana gönder
+        if room.get("chat_history"):
+            await safe_send(websocket, {
+                "type": "ilk11_chat_history",
+                "messages": room["chat_history"][-50:]
+            })
+        
         await send_ilk11_lobby_update(room, broadcast)
         return _handled(current_room_code, current_player_id)
 
@@ -652,6 +662,54 @@ async def handle_ilk11_message(
         
         await broadcast(room, {"type": "ilk11_back_to_lobby"})
         await send_ilk11_lobby_update(room, broadcast)
+        return _handled(current_room_code, current_player_id)
+
+    # ==========================================
+    # 💬 CHAT MESAJI GÖNDER
+    # ==========================================
+    if msg_type == "ilk11_chat_send":
+        if current_player_id not in room["players"]:
+            return _handled(current_room_code, current_player_id)
+        
+        import time as _time
+        text = (data.get("text") or "").strip()[:100]
+        if not text:
+            return _handled(current_room_code, current_player_id)
+        
+        # Spam kontrolü (saniyede max 3 mesaj)
+        now = _time.time()
+        if "chat_last_msg_time" not in room:
+            room["chat_last_msg_time"] = {}
+        last_times = room["chat_last_msg_time"].get(current_player_id, [])
+        last_times = [t for t in last_times if now - t < 1.0]
+        if len(last_times) >= 3:
+            return _handled(current_room_code, current_player_id)
+        last_times.append(now)
+        room["chat_last_msg_time"][current_player_id] = last_times
+        
+        sender_name = room["players"][current_player_id].get("name", f"P{current_player_id}")
+        
+        chat_msg = {
+            "sender_id": current_player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "ts": now
+        }
+        
+        if "chat_history" not in room:
+            room["chat_history"] = []
+        room["chat_history"].append(chat_msg)
+        if len(room["chat_history"]) > 50:
+            room["chat_history"] = room["chat_history"][-50:]
+        
+        await broadcast(room, {
+            "type": "ilk11_chat_msg",
+            "sender_id": current_player_id,
+            "sender_name": sender_name,
+            "text": text,
+            "ts": now
+        })
+        
         return _handled(current_room_code, current_player_id)
 
     return _handled(current_room_code, current_player_id)

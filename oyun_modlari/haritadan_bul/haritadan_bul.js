@@ -35,6 +35,172 @@ let haritaData = {
     panStartOffsetY: 0
 };
 
+// ========================================
+// 💬 HARİTADAN BUL CHAT
+// ========================================
+let haritaChat = {
+    open: false,
+    unread: 0,
+    messages: [],
+    maxMessages: 50
+};
+
+// ✨ 2-5 kişi için farklı renk paleti
+const HARITA_CHAT_COLORS = ["#ff8a8a", "#7abfff", "#51cf66", "#ffd43b", "#c084fc"];
+
+function getHaritaChatColor(pid) {
+    if (!pid) return "#adb5bd";
+    const idx = (pid - 1) % HARITA_CHAT_COLORS.length;
+    return HARITA_CHAT_COLORS[idx];
+}
+
+function showHaritaChat() {
+    const c = document.getElementById("haritaChatContainer");
+    if (c) c.style.display = "block";
+}
+
+function hideHaritaChat() {
+    const c = document.getElementById("haritaChatContainer");
+    if (c) c.style.display = "none";
+    closeHaritaChatPanel();
+    haritaChat.messages = [];
+    haritaChat.unread = 0;
+    const box = document.getElementById("haritaChatMessages");
+    if (box) box.innerHTML = "";
+    clearHaritaChatPopups();
+}
+
+function toggleHaritaChatPanel() {
+    if (haritaChat.open) closeHaritaChatPanel();
+    else openHaritaChatPanel();
+}
+
+function openHaritaChatPanel() {
+    haritaChat.open = true;
+    haritaChat.unread = 0;
+    const panel = document.getElementById("haritaChatPanel");
+    const badge = document.getElementById("haritaChatBadge");
+    if (panel) panel.style.setProperty("display", "flex", "important");
+    if (badge) badge.style.display = "none";
+    clearHaritaChatPopups();
+    const box = document.getElementById("haritaChatMessages");
+    if (box) setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    const input = document.getElementById("haritaChatInput");
+    if (input) setTimeout(() => input.focus(), 100);
+    setTimeout(() => {
+        document.addEventListener("mousedown", haritaChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function closeHaritaChatPanel() {
+    haritaChat.open = false;
+    const panel = document.getElementById("haritaChatPanel");
+    if (panel) panel.style.display = "none";
+    document.removeEventListener("mousedown", haritaChatOutsideClickHandler, true);
+    const input = document.getElementById("haritaChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function haritaChatOutsideClickHandler(e) {
+    const c = document.getElementById("haritaChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    closeHaritaChatPanel();
+}
+
+function sendHaritaChatMessage() {
+    const input = document.getElementById("haritaChatInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || text.length > 100) return;
+    input.value = "";
+    send({ type: "harita_chat_send", text: text });
+}
+
+function showHaritaChatPopup(msg) {
+    if (haritaChat.open) return;
+    const stack = document.getElementById("haritaChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+    
+    const color = getHaritaChatColor(msg.sender_id);
+    
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    popup.style.borderLeftColor = color;
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = color;
+    nameSpan.textContent = msg.sender_name;
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+    
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+    
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+    
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function clearHaritaChatPopups() {
+    const stack = document.getElementById("haritaChatPopupStack");
+    if (!stack) return;
+    stack.innerHTML = "";
+    stack.style.display = "none";
+}
+
+function addHaritaChatMessage(msg) {
+    haritaChat.messages.push(msg);
+    if (haritaChat.messages.length > haritaChat.maxMessages) haritaChat.messages.shift();
+    
+    const box = document.getElementById("haritaChatMessages");
+    if (!box) return;
+    
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+    
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = getHaritaChatColor(msg.sender_id);
+    nameSpan.textContent = msg.sender_name + ":";
+    
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + msg.text;
+    
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    box.appendChild(div);
+    
+    while (box.children.length > haritaChat.maxMessages) box.removeChild(box.firstChild);
+    
+    if (haritaChat.open) {
+        box.scrollTop = box.scrollHeight;
+    } else {
+        haritaChat.unread++;
+        const badge = document.getElementById("haritaChatBadge");
+        if (badge) {
+            badge.textContent = haritaChat.unread;
+            badge.style.display = "flex";
+            badge.style.animation = "none";
+            badge.offsetHeight;
+            badge.style.animation = "chatBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        }
+        showHaritaChatPopup(msg);
+    }
+}
+
 // ==========================================
 // SVG HARITA YÜKLEYİCİ
 // ==========================================
@@ -73,6 +239,12 @@ showScreen = function(screenName) {
     if (screenName === "createHarita") createHaritaScreen.classList.remove("hidden");
     if (screenName === "haritaLobby") haritaLobbyScreen.classList.remove("hidden");
     if (screenName === "haritaGame") haritaGameScreen.classList.remove("hidden");
+    
+    // 💬 Haritadan Bul chat: sadece haritaLobby/haritaGame'de görünür
+    const haritaScreens = ["haritaLobby", "haritaGame"];
+    if (!haritaScreens.includes(screenName)) {
+        hideHaritaChat();
+    }
 };
 
 // Mod kartına tıklama
@@ -863,12 +1035,14 @@ handleMessage = function(msg) {
         if (msg.total_rounds !== undefined) haritaData.totalRounds = msg.total_rounds;
         haritaData.inGame = true;
         inRoom = true;
+        showHaritaChat();
         showScreen("haritaLobby");
         updateHaritaLobby();
         return;
     }
     
     if (msg.type === "harita_lobby_update") {
+        showHaritaChat();
         haritaData.roomCode = msg.room_code;
         haritaData.players = msg.players;
         haritaData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 30;
@@ -876,6 +1050,30 @@ handleMessage = function(msg) {
         if (msg.max_players !== undefined) haritaData.maxPlayers = msg.max_players;
         if (msg.total_rounds !== undefined) haritaData.totalRounds = msg.total_rounds;
         updateHaritaLobby();
+        return;
+    }
+    
+    // 💬 CHAT mesajları
+    if (msg.type === "harita_chat_msg") {
+        addHaritaChatMessage({
+            sender_id: msg.sender_id,
+            sender_name: msg.sender_name,
+            text: msg.text,
+            ts: msg.ts
+        });
+        return;
+    }
+    
+    if (msg.type === "harita_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = haritaChat.open;
+            haritaChat.open = true;
+            msg.messages.forEach(m => addHaritaChatMessage(m));
+            haritaChat.open = wasOpen;
+            haritaChat.unread = 0;
+            const badge = document.getElementById("haritaChatBadge");
+            if (badge) badge.style.display = "none";
+        }
         return;
     }
     
@@ -1171,3 +1369,65 @@ handleMessage = function(msg) {
 // Başlangıçta popup'ları kapat
 document.getElementById("haritaGameOverBox").classList.add("hidden");
 document.getElementById("haritaConfirmBox").classList.add("hidden");
+
+// ========================================
+// 💬 HARİTADAN BUL CHAT - Event'ler
+// ========================================
+setTimeout(() => {
+    const toggleBtn = document.getElementById("haritaChatToggleBtn");
+    if (toggleBtn) toggleBtn.addEventListener("click", toggleHaritaChatPanel);
+    
+    const closeBtn = document.getElementById("haritaChatCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeHaritaChatPanel);
+    
+    const sendBtn = document.getElementById("haritaChatSendBtn");
+    if (sendBtn) sendBtn.addEventListener("click", sendHaritaChatMessage);
+    
+    const input = document.getElementById("haritaChatInput");
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                sendHaritaChatMessage();
+                closeHaritaChatPanel();
+                return;
+            }
+            e.stopPropagation();
+        });
+    }
+    
+    // T tuşu → chat aç + focus
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+        
+        const current = getCurrentScreen();
+        if (!["haritaLobby", "haritaGame"].includes(current)) return;
+        
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+        
+        const container = document.getElementById("haritaChatContainer");
+        if (!container || container.style.display === "none") return;
+        
+        if (haritaChat.open) return;
+        
+        const anyPopup = document.querySelector(".overlay:not(.hidden)");
+        if (anyPopup) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        openHaritaChatPanel();
+    }, true);
+    
+    // ESC ile chat kapat (öncelik)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (haritaChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeHaritaChatPanel();
+        }
+    }, true);
+}, 200);
