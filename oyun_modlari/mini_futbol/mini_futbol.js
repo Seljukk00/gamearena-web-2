@@ -25,7 +25,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 30,         // ✨ 60 FPS için 30ms buffer (smooth ama az lag)
+    interpDelay: 50,         // ✨ 30 FPS network için 50ms buffer (smooth)
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -2341,10 +2341,15 @@ function startMiniLocalPhysicsIfNeeded() {
 
     if (isHost) {
         console.log("[HOST-PHYSICS] Host fizik motoru kuruluyor...");
-        // ✨ 60 FPS network (titreme engeli)
+        // ✨ 60 FPS fizik + 30 FPS network (misafirde ağır hissetmesin)
+        miniData._netFrameCounter = 0;
         HP.onStateUpdate = (stateMsg) => {
             stateMsg._local = true;
             handleMiniMessage(stateMsg);
+
+            // Network'e her 2. frame'de gönder (60 → 30 FPS)
+            miniData._netFrameCounter = (miniData._netFrameCounter || 0) + 1;
+            if (miniData._netFrameCounter % 2 !== 0) return;
 
             const cleanState = Object.assign({}, stateMsg);
             delete cleanState._local;
