@@ -25,7 +25,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 10,         // ✨ 25 → 10ms (minimum gecikme)
+    interpDelay: 30,         // ✨ Rakip oyuncu render için 30ms buffer (top misafirde local)
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -1427,21 +1427,30 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // Top pozisyonu da yaklaştır
+            // Top pozisyonu → MİSAFİR: Yumuşak sync (top oyuncuya yapışmasın)
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 100) {
+                if (dist > 80) {
+                    // Çok uzak → snap
                     lgs.ball.x = sgs.ball.x;
                     lgs.ball.y = sgs.ball.y;
                     lgs.ball.vx = sgs.ball.vx || 0;
                     lgs.ball.vy = sgs.ball.vy || 0;
-                } else if (dist > 2) {
-                    lgs.ball.x += dx * 0.35;
-                    lgs.ball.y += dy * 0.35;
+                    if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
+                } else if (dist > 3) {
+                    // Ufak fark → yumuşakça çek
+                    lgs.ball.x += dx * 0.25;
+                    lgs.ball.y += dy * 0.25;
+                    // Hızı da yumuşak sync et
+                    const sVx = sgs.ball.vx || 0;
+                    const sVy = sgs.ball.vy || 0;
+                    lgs.ball.vx = lgs.ball.vx * 0.7 + sVx * 0.3;
+                    lgs.ball.vy = lgs.ball.vy * 0.7 + sVy * 0.3;
                 }
+                if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
             }
         }
         
@@ -3474,7 +3483,16 @@ function miniRender() {
         }
         
         // Top
-        const bSmooth = miniData.currentPositions.ball || state.ball;
+        // ✨ MİSAFİR → LOCAL HP topunu kullan (oyuncuya yapışma bug'ı olmaz)
+        let bSmooth;
+        if (miniData.playerId !== 1 && typeof HP !== 'undefined' && HP.running &&
+            HP.room && HP.room.gameState && HP.room.gameState.ball) {
+            // Misafir → local HP topu (server ile yumuşakça hizalı)
+            bSmooth = HP.room.gameState.ball;
+        } else {
+            // Host veya HP yoksa → interpolation
+            bSmooth = miniData.currentPositions.ball || state.ball;
+        }
         const b = {
             x: bSmooth.x,
             y: bSmooth.y,
