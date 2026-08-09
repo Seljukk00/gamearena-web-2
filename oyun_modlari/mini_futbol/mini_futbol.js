@@ -1428,21 +1428,26 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // Top pozisyonu → MİSAFİR: Sadece BÜYÜK farkta snap (titreme yok)
+            // ✨ Top pozisyonu → MİSAFİR HP topu render'da kullanılmıyor,
+            // sadece sunucudan gelen state ile snapshot interpolation devrede
+            // HP topunu yine de senkron tutalım (fizik hesabı için)
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 120) {
-                    // Ciddi ayrışma → snap (nadiren olur, örn: gol sonrası ışınlanma)
+                if (dist > 50) {
+                    // Büyük fark → snap (render zaten interpolation'dan çiziyor, sorun değil)
                     lgs.ball.x = sgs.ball.x;
                     lgs.ball.y = sgs.ball.y;
                     lgs.ball.vx = sgs.ball.vx || 0;
                     lgs.ball.vy = sgs.ball.vy || 0;
                     if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
+                } else {
+                    // Küçük fark → yumuşak lerp (arka planda senkron)
+                    lgs.ball.x += dx * 0.3;
+                    lgs.ball.y += dy * 0.3;
                 }
-                // Küçük farklarda HİÇ dokunma → local HP kendi fiziğini yapsın (titreme yok)
             }
         }
         
@@ -3313,23 +3318,19 @@ function miniRender() {
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
             // ✨ HOST: HP çalışıyorsa TÜM oyuncuları HP'den oku (top ile senkron)
-            // MİSAFİR: sadece kendi karakteri HP'den (input lag=0), rakip interpolation'dan
+            // MİSAFİR: HERKESİ interpolation'dan (top ile aynı zaman referansı - senkron)
             if (typeof HP !== 'undefined' && HP.running && 
                 HP.room && HP.room.gameState && HP.room.gameState.players &&
                 HP.room.gameState.players[pid]) {
                 const isHost = miniData.playerId === 1;
-                const isMyself = parseInt(pid) === miniData.playerId;
                 
                 if (isHost) {
-                    // Host TÜM oyuncuları kendi HP'sinden (otorite)
-                    const hpPlayer = HP.room.gameState.players[pid];
-                    smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
-                } else if (isMyself) {
-                    // Misafir SADECE kendini HP'den (input lag 0)
+                    // Host TÜM oyuncuları kendi HP'sinden (otorite, top ile senkron)
                     const hpPlayer = HP.room.gameState.players[pid];
                     smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
                 }
-                // Misafir + rakip → interpolation'dan (yukarıdaki smoothPos)
+                // Misafir → HERKES interpolation buffer'dan (top ile senkron)
+                // (isMyself kontrolü kaldırıldı - kendi karakter de gecikmeli çizilsin)
             }
             // ✨ Rakip oyuncular (misafir tarafında) → interpolation buffer'dan
             
@@ -3480,14 +3481,16 @@ function miniRender() {
         }
         
         // Top
-        // ✨ Karakter HP'den okunuyorsa TOP da HP'den okunmalı (aynı zaman referansı)
-        // Aksi halde: karakter anlık, top 80ms geçikmeli → içinden geçermiş gibi görünür
+        // ✨ HOST → kendi HP topundan (otorite)
+        // MİSAFİR → interpolation buffer'dan (server jitter yumuşatılır)
         let bSmooth;
-        if (typeof HP !== 'undefined' && HP.running &&
+        const _isHostBall = miniData.playerId === 1;
+        if (_isHostBall && typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // Hem host hem misafir → HP topu (misafir HP'si server ile reconciliation yapıyor)
+            // Host - HP topu
             bSmooth = HP.room.gameState.ball;
         } else {
+            // Misafir - snapshot interpolation (yumuşak)
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
