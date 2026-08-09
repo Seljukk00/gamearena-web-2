@@ -31,7 +31,7 @@ const HP = {  // Host Physics namespace
     PLAYER_FRICTION: 0.90,
     BALL_FRICTION: 0.985,
     COLLISION_FORCE: 0.3,
-    BALL_STICK_FACTOR: 0.85,
+    BALL_STICK_FACTOR: 1.0,
     FPS: 60,
     FRAME_TIME: 1.0 / 60,
     SPEED_PRESETS: {
@@ -940,6 +940,8 @@ const HP = {  // Host Physics namespace
                 break;  // Substep loop'undan çık
             }
             
+            // ✨ Substep içinde SADECE tunneling kontrolü (hızlı top içeri girmesin)
+            // Normal çarpışma aşağıdaki ana blokta yapılır (çakışma engeli)
             let hit = false;
             for (const pid in gs.players) {
                 const p = gs.players[pid];
@@ -948,20 +950,14 @@ const HP = {  // Host Physics namespace
                 let dist = Math.sqrt(dx * dx + dy * dy);
                 const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
                 if (dist < minDist) {
+                    // Sadece topu oyuncunun kenarına al, HIZLA OYNAMA
+                    // (ana çarpışma kodu hız transferini halledecek)
                     let nx, ny;
-                    if (dist < 0.1) {
-                        const sp = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                        if (sp > 0.1) { nx = -ball.vx / sp; ny = -ball.vy / sp; }
-                        else { nx = 1; ny = 0; }
-                        dist = 0.1;
-                    } else {
-                        nx = dx / dist;
-                        ny = dy / dist;
-                    }
+                    if (dist < 0.1) { nx = 1; ny = 0; }
+                    else { nx = dx / dist; ny = dy / dist; }
+                    // Sadece pozisyon düzelt (çakışmayı engelle)
                     ball.x = p.x + nx * minDist;
                     ball.y = p.y + ny * minDist;
-                    stepVx = 0;
-                    stepVy = 0;
                     hit = true;
                     break;
                 }
@@ -1351,25 +1347,32 @@ const HP = {  // Host Physics namespace
                 const nearWallX = (ball.x < this.BALL_RADIUS + 5 || ball.x > this.FIELD_WIDTH - this.BALL_RADIUS - 5) && !inGoalY;
                 const nearWallY = ball.y < this.BALL_RADIUS + 5 || ball.y > this.FIELD_HEIGHT - this.BALL_RADIUS - 5;
                 
+                const bs = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                
                 if (nearWallX || nearWallY) {
+                    // Duvar yanında → oyuncuyu geri it (topa dokunma)
                     p.x -= nx * overlap;
                     p.y -= ny * overlap;
                     
-                    // ✨ Düzeltme: Oyuncu dış alana çıkabiliyorsa, sınır kontrolü de dış alana göre olmalı
                     const R = this.PLAYER_RADIUS;
                     const M = this.PLAYER_OUT_MARGIN;
-                    
                     if (p.x - R < -M) p.x = -M + R;
                     if (p.x + R > this.FIELD_WIDTH + M) p.x = this.FIELD_WIDTH + M - R;
                     if (p.y - R < -M) p.y = -M + R;
                     if (p.y + R > this.FIELD_HEIGHT + M) p.y = this.FIELD_HEIGHT + M - R;
                 } else {
-                    // Top içeri (kaleye) itiliyor
-                    ball.x += nx * overlap;
-                    ball.y += ny * overlap;
+                    // ✨ Normal durum: TOP TAM OYUNCUNUN KENARINA YAPIŞIK
+                    // (overlap eklemek yerine kesin pozisyon set et - drift olmaz)
+                    if (bs > this.HARD_BALL_THRESHOLD) {
+                        // Sert top - normal itme (sekme için gerekli)
+                        ball.x += nx * overlap;
+                        ball.y += ny * overlap;
+                    } else {
+                        // Yavaş top (sürüş) - TAM YAPIŞIK
+                        ball.x = p.x + nx * (this.PLAYER_RADIUS + this.BALL_RADIUS);
+                        ball.y = p.y + ny * (this.PLAYER_RADIUS + this.BALL_RADIUS);
+                    }
                 }
-                
-                const bs = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
                 // ✨ Yapışma gücü (0-100 arası veya true/false)
                 let stickPower;
                 if (typeof this.settings.ballStick === "number") {
@@ -1691,42 +1694,33 @@ const HP = {  // Host Physics namespace
                     }
                 }
                 
-                // ✨ SIKIŞMA: 2+ oyuncu top'a çok yakın → topu iki oyuncunun ORTASINDAN ZIT yöne fırlat
+                // ✨ SIKIŞMA: SADECE 2+ oyuncu TAM üst üste bindiyse kaçış uygula
+                // (1v1'de veya sürüş sırasında tetiklenmesin)
                 if (playersNearBall.length >= 2) {
-                    // İki oyuncunun ortası
-                    const midX = playersNearBall.reduce((s, x) => s + x.p.x, 0) / playersNearBall.length;
-                    const midY = playersNearBall.reduce((s, x) => s + x.p.y, 0) / playersNearBall.length;
-                    
-                    // Oyuncuların ortalama yönü (mesela ikisi de yatay yan yanaysa dikey kaç)
-                    // İki oyuncu arasındaki vektör
-                    let escapeX = 0, escapeY = 0;
-                    if (playersNearBall.length === 2) {
+                    // Sadece TAM içine gömülmüş (dist < minDist) oyuncu sayısı 2+ ise
+                    const trulyOverlapping = playersNearBall.filter(
+                        n => n.dist < this.PLAYER_RADIUS + this.BALL_RADIUS
+                    );
+                    if (trulyOverlapping.length >= 2 && playersNearBall.length === 2) {
                         const p1 = playersNearBall[0].p;
                         const p2 = playersNearBall[1].p;
-                        // İki oyuncu arasındaki eksen
                         const axisX = p2.x - p1.x;
                         const axisY = p2.y - p1.y;
                         const axisLen = Math.sqrt(axisX * axisX + axisY * axisY);
                         if (axisLen > 0.1) {
-                            // Perpendicular (dik) yön → kaçış yönü
-                            escapeX = -axisY / axisLen;
-                            escapeY = axisX / axisLen;
-                            
-                            // Topun mevcut pozisyonuna göre hangi yöne (yukarı mı aşağı mı) kaçsın
+                            let escapeX = -axisY / axisLen;
+                            let escapeY = axisX / axisLen;
+                            const midX = (p1.x + p2.x) / 2;
+                            const midY = (p1.y + p2.y) / 2;
                             const midDX = ball.x - midX;
                             const midDY = ball.y - midY;
-                            const dotWithEscape = midDX * escapeX + midDY * escapeY;
-                            if (dotWithEscape < 0) {
+                            if (midDX * escapeX + midDY * escapeY < 0) {
                                 escapeX = -escapeX;
                                 escapeY = -escapeY;
                             }
-                            
-                            // Topu dik yönde biraz uzaklaştır
-                            ball.x += escapeX * 3;
-                            ball.y += escapeY * 3;
-                            // Ekstra teğet hız da ver
-                            ball.vx += escapeX * 2;
-                            ball.vy += escapeY * 2;
+                            // ✨ Sadece minimum kaçış (3→1, 2→0 yerine küçük teğet)
+                            ball.x += escapeX * 1;
+                            ball.y += escapeY * 1;
                             any = true;
                         }
                     }

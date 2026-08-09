@@ -2110,15 +2110,7 @@ function openMiniRoomSettings() {
                     {value: 999, label: "♾️ Sınırsız (Kural Devre Dışı)"}
                 ]
             },
-            {
-                id: "splitScreen",
-                label: "🎮 Split-Screen'e İzin Ver (Aynı PC'den 2+ Kişi)",
-                current: miniData.splitScreen ? "on" : "off",
-                options: [
-                    {value: "off", label: "❌ Reddet (Sadece Klavye)"},
-                    {value: "on", label: "✅ İzin Ver (Kontrol Ayarları'ndan Gamepad Ata)"}
-                ]
-            },
+            
             {
                 id: "allowPlase",
                 label: "🌀 Falso'ya İzin Ver (Plase Şutu)",
@@ -2238,7 +2230,7 @@ function openMiniRoomSettings() {
             const goalTarget = parseInt(values.goalTarget) || 3;
             const matchDuration = parseInt(values.matchDuration) || 180;
             const gameSpeed = values.gameSpeed || "normal";
-            const splitScreen = values.splitScreen === "on";
+           const splitScreen = miniData.splitScreen === true;
             
             // ✨ Tüm ayarları localStorage'a kaydet (oda oluşturma ekranıyla senkron)
             try {
@@ -3320,15 +3312,26 @@ function miniRender() {
             // ✨ Interpolated pozisyonu kullan
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            // ✨ MİSAFİR + kendi karakterim → LOCAL HP (0 input lag)
-            if (miniData.playerId !== 1 && parseInt(pid) === miniData.playerId &&
-                typeof HP !== 'undefined' && HP.running && 
+            // ✨ HOST: HP çalışıyorsa TÜM oyuncuları HP'den oku (top ile senkron)
+            // MİSAFİR: sadece kendi karakteri HP'den (input lag=0), rakip interpolation'dan
+            if (typeof HP !== 'undefined' && HP.running && 
                 HP.room && HP.room.gameState && HP.room.gameState.players &&
-                HP.room.gameState.players[miniData.playerId]) {
-                const hpMe = HP.room.gameState.players[miniData.playerId];
-                smoothPos = { x: hpMe.x, y: hpMe.y };
+                HP.room.gameState.players[pid]) {
+                const isHost = miniData.playerId === 1;
+                const isMyself = parseInt(pid) === miniData.playerId;
+                
+                if (isHost) {
+                    // Host TÜM oyuncuları kendi HP'sinden (otorite)
+                    const hpPlayer = HP.room.gameState.players[pid];
+                    smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
+                } else if (isMyself) {
+                    // Misafir SADECE kendini HP'den (input lag 0)
+                    const hpPlayer = HP.room.gameState.players[pid];
+                    smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
+                }
+                // Misafir + rakip → interpolation'dan (yukarıdaki smoothPos)
             }
-            // ✨ Rakip oyuncular → interpolation buffer'dan (yukarıdaki smoothPos zaten)
+            // ✨ Rakip oyuncular (misafir tarafında) → interpolation buffer'dan
             
             const p = { x: smoothPos.x, y: smoothPos.y };
             
@@ -3477,14 +3480,16 @@ function miniRender() {
         }
         
         // Top
-        // ✨ HEM host HEM misafir → local HP topundan (0 lag)
-        // Misafirin HP topu server ile reconciliation yapar (mini_state'te)
-        // Karakter de HP'den okunuyor → ikisi AYNI zaman referansında → senkron
+        // ✨ HOST → kendi HP topundan (otorite, gerçek pozisyon)
+        // MİSAFİR → server state / interpolation'dan (host authoritative)
         let bSmooth;
-        if (typeof HP !== 'undefined' && HP.running &&
+        const isHostForBall = miniData.playerId === 1;
+        if (isHostForBall && typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
+            // Host - kendi HP'si otorite
             bSmooth = HP.room.gameState.ball;
         } else {
+            // Misafir - interpolation buffer (host'tan gelen state)
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
