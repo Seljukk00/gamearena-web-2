@@ -3320,10 +3320,15 @@ function miniRender() {
             // ✨ Interpolated pozisyonu kullan
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            // ✨ TÜM oyuncular (kendim dahil) → interpolation buffer'dan çizilir
-            // Böylece top ile karakter AYNI zaman referansında olur → içine girmez
-            // (Kendim için input lag hissedilir ama görsel senkron olur, haxball tarzı)
-            // Yukarıdaki smoothPos zaten interpolation'dan geliyor, dokunma
+            // ✨ MİSAFİR + kendi karakterim → LOCAL HP (0 input lag)
+            if (miniData.playerId !== 1 && parseInt(pid) === miniData.playerId &&
+                typeof HP !== 'undefined' && HP.running && 
+                HP.room && HP.room.gameState && HP.room.gameState.players &&
+                HP.room.gameState.players[miniData.playerId]) {
+                const hpMe = HP.room.gameState.players[miniData.playerId];
+                smoothPos = { x: hpMe.x, y: hpMe.y };
+            }
+            // ✨ Rakip oyuncular → interpolation buffer'dan (yukarıdaki smoothPos zaten)
             
             const p = { x: smoothPos.x, y: smoothPos.y };
             
@@ -3472,10 +3477,11 @@ function miniRender() {
         }
         
         // Top
-        // ✨ HOST → HP'den (0 lag, kendi fiziği otoritedir)
-        // ✨ MİSAFİR → interpolation buffer'dan (top ile oyuncular AYNI zamanda çizilir)
+        // ✨ HEM host HEM misafir → local HP topundan (0 lag)
+        // Misafirin HP topu server ile reconciliation yapar (mini_state'te)
+        // Karakter de HP'den okunuyor → ikisi AYNI zaman referansında → senkron
         let bSmooth;
-        if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running &&
+        if (typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
             bSmooth = HP.room.gameState.ball;
         } else {
