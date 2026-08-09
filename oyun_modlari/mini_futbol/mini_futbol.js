@@ -1428,26 +1428,20 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // ✨ Top pozisyonu → MİSAFİR HP topu render'da kullanılmıyor,
-            // sadece sunucudan gelen state ile snapshot interpolation devrede
-            // HP topunu yine de senkron tutalım (fizik hesabı için)
+            // ✨ Top reconciliation - POZİSYON DOKUNMA (titreme yok)
+            // Sadece: (1) çok büyük farkta snap, (2) hızı yumuşak düzelt
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 50) {
-                    // Büyük fark → snap (render zaten interpolation'dan çiziyor, sorun değil)
-                    lgs.ball.x = sgs.ball.x;
-                    lgs.ball.y = sgs.ball.y;
-                    lgs.ball.vx = sgs.ball.vx || 0;
-                    lgs.ball.vy = sgs.ball.vy || 0;
-                    if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
-                } else {
-                    // Küçük fark → yumuşak lerp (arka planda senkron)
-                    lgs.ball.x += dx * 0.3;
-                    lgs.ball.y += dy * 0.3;
-                }
+                // ✨ HP topu → server ile senkron tut (render kullanmıyor ama fizik için lazım)
+                // Snap yap (görsel etki yok çünkü render interpolation'dan çiziyor)
+                lgs.ball.x = sgs.ball.x;
+                lgs.ball.y = sgs.ball.y;
+                lgs.ball.vx = sgs.ball.vx || 0;
+                lgs.ball.vy = sgs.ball.vy || 0;
+                if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
             }
         }
         
@@ -2894,6 +2888,14 @@ function miniKeyDown(e) {
         HP.setKey(targetPid, key, true);
     }
     
+    // ✨ Şut çektiysem misafirsen: uzun süre reconciliation'ı devre dışı bırak
+    // (server henüz şutu işlememişken snap olmasın + plase kavisi bozulmasın)
+    if (key === "kick" && miniData.playerId !== 1) {
+        miniData._recentKickTime = performance.now();
+        // Plase için after-touch süresi de var (200ms), 
+        // toplamda 1000ms güvenli
+    }
+    
     // Backend'e gönder
     const msg = { type: "mini_key", key: key, pressed: true };
     if (forPlayer === 2 && miniData.splitSlaveId) {
@@ -2981,6 +2983,8 @@ function miniRender() {
         miniAnimFrame = requestAnimationFrame(miniRender);
         return;
     }
+    
+    // (Sürekli top reconciliation kaldırıldı - artık interpolation buffer kullanılıyor)
     
     const ctx = canvas.getContext("2d");
     const cfg = miniData.fieldConfig;
@@ -3317,20 +3321,20 @@ function miniRender() {
             // ✨ Interpolated pozisyonu kullan
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            // ✨ HOST: HP çalışıyorsa TÜM oyuncuları HP'den oku (top ile senkron)
-            // MİSAFİR: HERKESİ interpolation'dan (top ile aynı zaman referansı - senkron)
+            // ✨ HOST: TÜM oyuncular HP'den (otorite)
+            // MİSAFİR: Kendi karakter HP'den (0 lag), rakip interpolation'dan
             if (typeof HP !== 'undefined' && HP.running && 
                 HP.room && HP.room.gameState && HP.room.gameState.players &&
                 HP.room.gameState.players[pid]) {
                 const isHost = miniData.playerId === 1;
+                const isMyself = parseInt(pid) === miniData.playerId;
                 
-                if (isHost) {
-                    // Host TÜM oyuncuları kendi HP'sinden (otorite, top ile senkron)
+                if (isHost || isMyself) {
+                    // Host tümü, misafir sadece kendini HP'den
                     const hpPlayer = HP.room.gameState.players[pid];
                     smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
                 }
-                // Misafir → HERKES interpolation buffer'dan (top ile senkron)
-                // (isMyself kontrolü kaldırıldı - kendi karakter de gecikmeli çizilsin)
+                // Misafir + rakip → interpolation
             }
             // ✨ Rakip oyuncular (misafir tarafında) → interpolation buffer'dan
             
@@ -3481,16 +3485,15 @@ function miniRender() {
         }
         
         // Top
-        // ✨ HOST → kendi HP topundan (otorite)
-        // MİSAFİR → interpolation buffer'dan (server jitter yumuşatılır)
+        // ✨ HOST → kendi HP topundan (otorite, 0 lag)
+        // MİSAFİR → interpolation buffer'dan (server'dan, 80ms delay, akıcı)
         let bSmooth;
-        const _isHostBall = miniData.playerId === 1;
-        if (_isHostBall && typeof HP !== 'undefined' && HP.running &&
+        const _isHostForBall = miniData.playerId === 1;
+        if (_isHostForBall && typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // Host - HP topu
             bSmooth = HP.room.gameState.ball;
         } else {
-            // Misafir - snapshot interpolation (yumuşak)
+            // Misafir → snapshot interpolation (yumuşak, gecikmeli ama titreme yok)
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
