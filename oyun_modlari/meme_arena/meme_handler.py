@@ -34,75 +34,37 @@ PHOTO_MEMLER = MEM_DATA["photos"]
 print(f"[MEME] Toplam mem: {len(TUM_MEMLER)} | GIF: {len(GIF_MEMLER)} | Foto: {len(PHOTO_MEMLER)}")
 
 
-def dagit_karisim(sayi=5):
-    """5 kart dağıt - GIF ve fotoğraf karışımı"""
+def dagit_karisim(sayi=5, haric_tut=None):
+    """
+    5 kart dağıt - TAMAMEN RASTGELE (GIF + foto karışık)
+    haric_tut: bu setteki kartlar dağıtılmaz (aynı oyunda tekrar önlemek için)
+    """
     if len(TUM_MEMLER) == 0:
         return []
     
-    # Eğer sadece bir tür varsa direkt onu döndür
-    if not GIF_MEMLER:
-        return random.sample(PHOTO_MEMLER, min(sayi, len(PHOTO_MEMLER)))
-    if not PHOTO_MEMLER:
-        return random.sample(GIF_MEMLER, min(sayi, len(GIF_MEMLER)))
+    if haric_tut is None:
+        haric_tut = set()
+    else:
+        haric_tut = set(haric_tut)
     
-    # Karışım oranı: %40 GIF, %60 foto (kaba)
-    gif_sayisi = min(2, len(GIF_MEMLER))  # en az 1-2 GIF olsun
-    foto_sayisi = sayi - gif_sayisi
+    # Kullanılabilir havuz
+    havuz = [m for m in TUM_MEMLER if m not in haric_tut]
     
-    if foto_sayisi > len(PHOTO_MEMLER):
-        foto_sayisi = len(PHOTO_MEMLER)
-        gif_sayisi = sayi - foto_sayisi
+    # Havuz yetersiz kaldıysa (uzun maç) → hariç tutmayı sıfırla
+    if len(havuz) < sayi:
+        print(f"[MEME] Havuz tükendi ({len(havuz)}/{sayi}), hariç tutma sıfırlanıyor")
+        havuz = list(TUM_MEMLER)
     
-    secilen_gifler = random.sample(GIF_MEMLER, min(gif_sayisi, len(GIF_MEMLER)))
-    secilen_fotolar = random.sample(PHOTO_MEMLER, min(foto_sayisi, len(PHOTO_MEMLER)))
+    # Havuz hala yetersizse (mem dosyası çok az) → var olanı dön
+    if len(havuz) <= sayi:
+        secilen = list(havuz)
+        random.shuffle(secilen)
+        return secilen
     
-    karisim = secilen_gifler + secilen_fotolar
-    random.shuffle(karisim)
-    return karisim
-
-
-def dagit_karisim_hafizali(seen_cards, sayi=5):
-    """Görülen kartları hariç tutar. Havuz biterse resetler."""
-    if len(TUM_MEMLER) == 0:
-        return [], seen_cards
-    
-    # Görülmemiş GIF ve fotoğrafları filtrele
-    yeni_gifler = [g for g in GIF_MEMLER if g not in seen_cards]
-    yeni_fotolar = [p for p in PHOTO_MEMLER if p not in seen_cards]
-    
-    toplam_yeni = len(yeni_gifler) + len(yeni_fotolar)
-    
-    # Havuz biterse resetle (tüm memler görüldü)
-    if toplam_yeni < sayi:
-        print(f"[MEME] Havuz bitti ({toplam_yeni}/{sayi}), reset yapılıyor")
-        seen_cards = set()
-        yeni_gifler = list(GIF_MEMLER)
-        yeni_fotolar = list(PHOTO_MEMLER)
-    
-    # Karışım: %40 GIF, %60 foto
-    gif_sayisi = min(2, len(yeni_gifler))
-    foto_sayisi = sayi - gif_sayisi
-    
-    if foto_sayisi > len(yeni_fotolar):
-        foto_sayisi = len(yeni_fotolar)
-        gif_sayisi = sayi - foto_sayisi
-    
-    if gif_sayisi > len(yeni_gifler):
-        gif_sayisi = len(yeni_gifler)
-        foto_sayisi = sayi - gif_sayisi
-    
-    secilen_gifler = random.sample(yeni_gifler, min(gif_sayisi, len(yeni_gifler)))
-    secilen_fotolar = random.sample(yeni_fotolar, min(foto_sayisi, len(yeni_fotolar)))
-    
-    karisim = secilen_gifler + secilen_fotolar
-    random.shuffle(karisim)
-    karisim = karisim[:sayi]
-    
-    # Seçilen kartları seen'e ekle
-    for c in karisim:
-        seen_cards.add(c)
-    
-    return karisim, seen_cards
+    # Tamamen rastgele 5 kart seç (GIF/foto ayrımı yok)
+    secilen = random.sample(havuz, sayi)
+    random.shuffle(secilen)
+    return secilen
 
 
 # ==========================================
@@ -177,7 +139,6 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             "used_durumlar": [],
             "player_cards": {},
             "player_selections": {},
-            "player_seen_cards": {},  # Oyuncu bazlı görülen kartlar
             "kicked_names": [],
             "chat_history": [],
             "chat_last_msg_time": {}
@@ -360,8 +321,10 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         print(f"[MEME START] Oyun başlatılıyor: {room_code}")
-        # ✨ Rematch: skorları ve tur sayısını sıfırla
+        # ✨ Rematch: skorları, tur sayısını ve kullanılmış kartları sıfırla
         room["current_round"] = 0
+        room["used_durumlar"] = []
+        room["player_used_cards"] = {}
         for pid in room["players"]:
             room["players"][pid]["score"] = 0
         await start_meme_round(room, safe_send, broadcast)
@@ -618,23 +581,19 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
         # Joker kullanıldı
         room["player_jokers"][player_id] = jokers - 1
         
-        # Hafızalı sistem: hem mevcut kartları hem de görülen tüm kartları hariç tut
+        # ✨ Mevcut kartlar + bu maçta önceden görülenler HARİÇ yeni kart dağıt
         eski_kartlar = set(room["player_cards"].get(player_id, []))
+        used_by_player = room["player_used_cards"].get(player_id, set())
+        haric_hepsi = eski_kartlar | used_by_player
         
-        if "player_seen_cards" not in room:
-            room["player_seen_cards"] = {}
-        if player_id not in room["player_seen_cards"]:
-            room["player_seen_cards"][player_id] = set()
+        print(f"[MEME SHUFFLE] Eski elde: {len(eski_kartlar)}, Bu maçta görülen: {len(used_by_player)}")
         
-        # Görülen kartlar + mevcut eldeki kartlar
-        yasakli = set(room["player_seen_cards"][player_id]) | eski_kartlar
+        new_cards = dagit_karisim(5, haric_tut=haric_hepsi)
         
-        new_cards, updated_seen = dagit_karisim_hafizali(yasakli, 5)
+        # Yeni kartları "kullanıldı" setine ekle
+        room["player_used_cards"][player_id] = used_by_player | set(new_cards)
         
-        # Yasaklıya sadece yeni gelenleri ekle (eski görülenler zaten seen'de)
-        room["player_seen_cards"][player_id] = set(room["player_seen_cards"][player_id]) | set(new_cards)
-        
-        print(f"[MEME SHUFFLE] Eski: {len(eski_kartlar)}, Yeni kartlar: {new_cards}")
+        print(f"[MEME SHUFFLE] Yeni kartlar: {new_cards}")
         
         room["player_cards"][player_id] = new_cards
         
@@ -671,9 +630,11 @@ async def handle_meme_message(msg_type, data, websocket, rooms, room_code, playe
             old_task.cancel()
         room["meme_task"] = None
         
-        # Phase lobiye çevir + skorları sıfırla
+        # Phase lobiye çevir + skorları ve kullanılmış kartları sıfırla
         room["phase"] = "lobby"
         room["current_round"] = 0
+        room["used_durumlar"] = []
+        room["player_used_cards"] = {}
         for pid in room["players"]:
             room["players"][pid]["score"] = 0
         
@@ -766,9 +727,9 @@ async def start_meme_round(room, safe_send, broadcast):
     if "used_durumlar" not in room:
         room["used_durumlar"] = []
     
-    # Oyuncu bazlı görülen kart havuzunu hazırla
-    if "player_seen_cards" not in room:
-        room["player_seen_cards"] = {}
+    # ✨ Her oyuncunun bu maçta gördüğü kartları takip et (tekrar önlemek için)
+    if "player_used_cards" not in room:
+        room["player_used_cards"] = {}
     
     for pid in room["players"].keys():
         # Her oyuncuya farklı bir durum ata
@@ -782,14 +743,14 @@ async def start_meme_round(room, safe_send, broadcast):
         room["used_durumlar"].append(durum)
         room["player_durum"][pid] = durum
         
-        # Bu oyuncunun daha önce gördüğü kartlar
-        if pid not in room["player_seen_cards"]:
-            room["player_seen_cards"][pid] = set()
-        seen = room["player_seen_cards"][pid]
+        # ✨ Bu oyuncunun daha önce gördüğü kartları hariç tut
+        used_by_player = room["player_used_cards"].get(pid, set())
+        cards = dagit_karisim(5, haric_tut=used_by_player)
         
-        # Kartları hafızalı dağıt
-        cards, updated_seen = dagit_karisim_hafizali(seen, 5)
-        room["player_seen_cards"][pid] = updated_seen
+        # Yeni gelen kartları "kullanıldı" listesine ekle
+        used_by_player = used_by_player | set(cards)
+        room["player_used_cards"][pid] = used_by_player
+        
         room["player_cards"][pid] = cards
         room["player_jokers"][pid] = 3
     

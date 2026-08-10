@@ -730,7 +730,8 @@ button:disabled {
 #haritaPlayersList,
 #gizemPlayersList,
 #ilk11PlayersList,
-#stadPlayersList {
+#stadPlayersList,
+#memePlayersList {
     list-style: none;
     padding: 0;
     text-align: center;
@@ -743,8 +744,9 @@ button:disabled {
 #haritaPlayersList li,
 #gizemPlayersList li,
 #ilk11PlayersList li,
-#stadPlayersList li {
-    margin: 8px auto;
+#stadPlayersList li,
+#memePlayersList li {
+    margin: 8px auto !important;
     padding: 10px 15px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
@@ -753,11 +755,13 @@ button:disabled {
     height: 48px;
     min-height: 48px;
     max-height: 48px;
-    max-width: 340px;
+    max-width: 340px !important;
+    width: 100%;
     overflow: hidden;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
+    text-align: center;
 }
 
 /* Ortak renkler - tüm modlar için */
@@ -767,7 +771,8 @@ button:disabled {
 #haritaPlayersList li.playerMine,
 #gizemPlayersList li.playerMine,
 #ilk11PlayersList li.playerMine,
-#stadPlayersList li.playerMine {
+#stadPlayersList li.playerMine,
+#memePlayersList li.playerMine {
     color: #51cf66;
     border: 1px solid rgba(81, 207, 102, 0.4);
 }
@@ -778,7 +783,8 @@ button:disabled {
 #haritaPlayersList li.playerOpp,
 #gizemPlayersList li.playerOpp,
 #ilk11PlayersList li.playerOpp,
-#stadPlayersList li.playerOpp {
+#stadPlayersList li.playerOpp,
+#memePlayersList li.playerOpp {
     color: #ff6b6b;
     border: 1px solid rgba(255, 107, 107, 0.4);
 }
