@@ -15,7 +15,7 @@ let ilk11Data = {
     oppFinished: false,
     timerInterval: null,
     timerSeconds: 120,
-    logItems: []
+    logItems: []	
 };
 
 const createIlk11Screen = document.getElementById("createIlk11Screen");
@@ -470,16 +470,16 @@ function updateIlk11Progress() {
 
 const ILK11_POSITIONS = {
     GK:  { name: "KALECİ",    x: 0.50, y: 0.88, type: "Kaleci"   },
-    LB:  { name: "SOL BEK",   x: 0.15, y: 0.68, type: "Defans"   },
-    CB1: { name: "STOPER",    x: 0.38, y: 0.73, type: "Defans"   },
-    CB2: { name: "STOPER",    x: 0.62, y: 0.73, type: "Defans"   },
-    RB:  { name: "SAĞ BEK",   x: 0.85, y: 0.68, type: "Defans"   },
-    CM1: { name: "ORTA SAHA", x: 0.22, y: 0.48, type: "OrtaSaha" },
-    CM2: { name: "ORTA SAHA", x: 0.50, y: 0.52, type: "OrtaSaha" },
-    CM3: { name: "ORTA SAHA", x: 0.78, y: 0.48, type: "OrtaSaha" },
-    LW:  { name: "SOL KANAT", x: 0.18, y: 0.22, type: "Forvet"   },
-    ST:  { name: "FORVET",    x: 0.50, y: 0.15, type: "Forvet"   },
-    RW:  { name: "SAĞ KANAT", x: 0.82, y: 0.22, type: "Forvet"   }
+    LB:  { name: "SOL BEK",   x: 0.14, y: 0.70, type: "Defans"   },
+    CB1: { name: "STOPER",    x: 0.37, y: 0.72, type: "Defans"   },
+    CB2: { name: "STOPER",    x: 0.63, y: 0.72, type: "Defans"   },
+    RB:  { name: "SAĞ BEK",   x: 0.86, y: 0.70, type: "Defans"   },
+    CM1: { name: "ORTA SAHA", x: 0.20, y: 0.47, type: "OrtaSaha" },
+    CM2: { name: "ORTA SAHA", x: 0.50, y: 0.50, type: "OrtaSaha" },
+    CM3: { name: "ORTA SAHA", x: 0.80, y: 0.47, type: "OrtaSaha" },
+    LW:  { name: "SOL KANAT", x: 0.16, y: 0.22, type: "Forvet"   },
+    ST:  { name: "FORVET",    x: 0.50, y: 0.13, type: "Forvet"   },
+    RW:  { name: "SAĞ KANAT", x: 0.84, y: 0.22, type: "Forvet"   }
 };
 
 function renderIlk11Field() {
@@ -515,9 +515,8 @@ function renderIlk11Field() {
 
             const nameDiv = document.createElement("div");
             nameDiv.className = "ilk11SlotName";
-            nameDiv.textContent = filled.name.length > 10
-                ? filled.name.substring(0, 10) + "…"
-                : filled.name;
+            nameDiv.textContent = filled.name;
+            nameDiv.title = filled.name;
 
             slot.appendChild(img);
             slot.appendChild(nameDiv);
@@ -664,9 +663,9 @@ function renderIlk11MiniField(containerId, teamData, borderColor) {
     container.innerHTML = "";
 
     const fw = container.offsetWidth || 400;
-    const fh = container.offsetHeight || 540;
-    const slotW = 75;
-    const slotH = 92;
+    const fh = container.offsetHeight || 600;
+    const slotW = 82;
+    const slotH = 110;
 
     teamData.forEach(player => {
         const posData = ILK11_POSITIONS[player.pos_id];
@@ -695,7 +694,8 @@ function renderIlk11MiniField(containerId, teamData, borderColor) {
 
             const nameDiv = document.createElement("div");
             nameDiv.className = "ilk11MiniName";
-            nameDiv.textContent = (player.name || "").substring(0, 10);
+            nameDiv.textContent = player.name || "";
+            nameDiv.title = player.name || "";
             slot.appendChild(nameDiv);
         } else {
             slot.style.opacity = "0.35";

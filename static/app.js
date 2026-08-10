@@ -616,20 +616,41 @@ function updateGuessModeButton() {
 }
 
 // ============ ELEMENASYON ============
+function getAliveFootballerCount() {
+    let count = 0;
+    for (let i = 0; i < eliminated.length; i++) {
+        if (!eliminated[i]) count++;
+    }
+    return count;
+}
+
 function applyElimination(questionIndex, answer) {
+    const beforeCount = getAliveFootballerCount();
+
     const q = questions[questionIndex];
     const key = q[1];
     const value = q[2];
+
     for (let i = 0; i < footballers.length; i++) {
         if (eliminated[i]) continue;
+
         const match = footballers[i][key] === value;
-        if (answer && !match) eliminated[i] = true;
-        else if (!answer && match) eliminated[i] = true;
+        if (answer && !match) {
+            eliminated[i] = true;
+        } else if (!answer && match) {
+            eliminated[i] = true;
+        }
     }
-    remaining[playerId] = eliminated.filter(x => !x).length;
+
+    const afterCount = getAliveFootballerCount();
+    const removedCount = Math.max(0, beforeCount - afterCount);
+
+    remaining[playerId] = afterCount;
     send({ type: "remaining_update", count: remaining[playerId] });
     renderGameGrid();
     updateTopBar();
+
+    return removedCount;
 }
 
 // ============ ONAY POPUP ============
@@ -744,8 +765,9 @@ answerNoBtn.onclick = () => {
 
 // ============ SOL ALT CEVAP BİLDİRİMİ ============
 let answerToastTimeout = null;
+let pendingAnswerToast = null;
 
-function showAnswerToast(answer, remainingCount) {
+function showAnswerToast(answer, removedCount) {
     const toast = document.getElementById("answerToast");
     const text = document.getElementById("answerToastText");
     if (!toast || !text) return;
@@ -755,10 +777,10 @@ function showAnswerToast(answer, remainingCount) {
     toast.classList.remove("hidden", "hiding", "yes", "no");
     if (answer) {
         toast.classList.add("yes");
-        text.textContent = `✅ EVET (kalan: ${remainingCount})`;
+        text.textContent = `✅ EVET (silinen: ${removedCount})`;
     } else {
         toast.classList.add("no");
-        text.textContent = `❌ HAYIR (kalan: ${remainingCount})`;
+        text.textContent = `❌ HAYIR (silinen: ${removedCount})`;
     }
 
     answerToastTimeout = setTimeout(() => {
@@ -912,6 +934,7 @@ function resetForNewRound() {
     gameOver = false;
     pendingAnswer = null;
     waitingForAnswer = false;
+    pendingAnswerToast = null;
     gameOverBox.classList.add("hidden");
     logBox.innerHTML = "";
     setMsg(gameMsg, "");
@@ -1330,9 +1353,15 @@ function handleMessage(msg) {
         hideAnswerPanel();
         const ansText = msg.answer ? "EVET" : "HAYIR";
         addLog(`Cevap gönderildi: ${ansText}${msg.auto ? " (otomatik)" : ""}`, "mine");
-        // Sol alt cevap bildirimi (kendi ekranımda göster)
-        const myRemaining = remaining[playerId] || 0;
-        showAnswerToast(msg.answer, myRemaining);
+
+        const otherId = getOtherPlayerId();
+        const beforeCount = Number.isInteger(remaining[otherId]) ? remaining[otherId] : 32;
+
+        pendingAnswerToast = {
+            answer: msg.answer,
+            player_id: otherId,
+            before_count: beforeCount
+        };
         return;
     }
 
@@ -1341,18 +1370,24 @@ function handleMessage(msg) {
         const ansText = msg.answer ? "EVET" : "HAYIR";
         addLog(`${qText} → ${ansText}${msg.auto ? " (otomatik)" : ""}`, "info");
         setMsg(gameMsg, `Cevap: ${ansText}`, msg.answer ? "#51cf66" : "#ff6b6b");
-        applyElimination(msg.question_index, msg.answer);
+
+        const removedCount = applyElimination(msg.question_index, msg.answer);
+
         waitingForAnswer = false;
         updateGuessModeButton();
-        // Sol alt cevap bildirimi
-        const myRemaining = remaining[playerId] || 0;
-        showAnswerToast(msg.answer, myRemaining);
+        showAnswerToast(msg.answer, removedCount);
         return;
     }
 
     if (msg.type === "remaining_update") {
         remaining[msg.player_id] = msg.count;
         updateTopBar();
+
+        if (pendingAnswerToast && pendingAnswerToast.player_id === msg.player_id) {
+            const removedCount = Math.max(0, pendingAnswerToast.before_count - msg.count);
+            showAnswerToast(pendingAnswerToast.answer, removedCount);
+            pendingAnswerToast = null;
+        }
         return;
     }
 

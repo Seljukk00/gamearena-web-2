@@ -13,9 +13,9 @@ POSITIONS = {
     'CB1': {'name': 'STOPER',     'x': 0.38, 'y': 0.73, 'type': 'Defans'},
     'CB2': {'name': 'STOPER',     'x': 0.62, 'y': 0.73, 'type': 'Defans'},
     'RB':  {'name': 'SAĞ BEK',    'x': 0.85, 'y': 0.68, 'type': 'Defans'},
-    'CM1': {'name': 'ORTA SAHA',  'x': 0.22, 'y': 0.48, 'type': 'OrtaSaha'},
-    'CM2': {'name': 'ORTA SAHA',  'x': 0.50, 'y': 0.52, 'type': 'OrtaSaha'},
-    'CM3': {'name': 'ORTA SAHA',  'x': 0.78, 'y': 0.48, 'type': 'OrtaSaha'},
+    'CM1': {'name': 'ORTA SAHA',  'x': 0.22, 'y': 0.48, 'type': 'Orta Saha'},
+    'CM2': {'name': 'ORTA SAHA',  'x': 0.50, 'y': 0.52, 'type': 'Orta Saha'},
+    'CM3': {'name': 'ORTA SAHA',  'x': 0.78, 'y': 0.48, 'type': 'Orta Saha'},
     'LW':  {'name': 'SOL KANAT',  'x': 0.18, 'y': 0.22, 'type': 'Forvet'},
     'ST':  {'name': 'FORVET',     'x': 0.50, 'y': 0.15, 'type': 'Forvet'},
     'RW':  {'name': 'SAĞ KANAT',  'x': 0.82, 'y': 0.22, 'type': 'Forvet'},
@@ -36,21 +36,37 @@ def get_other_player_id(pid):
     return 2 if pid == 1 else 1
 
 
+def normalize_position(pos):
+    pos = str(pos or "").strip().lower()
+
+    if pos in ["orta saha", "ortasaha"]:
+        return "Orta Saha"
+    if pos == "kaleci":
+        return "Kaleci"
+    if pos == "defans":
+        return "Defans"
+    if pos == "forvet":
+        return "Forvet"
+
+    return str(pos or "").strip()
+
+
 # ==========================================
 # RATING & KİMYA HESABI
 # ==========================================
 
 def calculate_rating(f, pos_type):
     rating = 55
-    f_pos = f.get('position', 'Forvet')
+    f_pos = normalize_position(f.get('position', 'Forvet'))
+    pos_type = normalize_position(pos_type)
 
     if f_pos == pos_type:
         rating += 25
-    elif pos_type == 'OrtaSaha' and f_pos in ['Defans', 'Forvet']:
+    elif pos_type == 'Orta Saha' and f_pos in ['Defans', 'Forvet']:
         rating += 10
-    elif pos_type == 'Defans' and f_pos == 'OrtaSaha':
+    elif pos_type == 'Defans' and f_pos == 'Orta Saha':
         rating += 14
-    elif pos_type == 'Forvet' and f_pos == 'OrtaSaha':
+    elif pos_type == 'Forvet' and f_pos == 'Orta Saha':
         rating += 12
     elif pos_type == 'Kaleci' and f_pos != 'Kaleci':
         rating -= 25
@@ -131,46 +147,63 @@ def calculate_total_score(team_indices):
 # ==========================================
 
 def get_options_for_position(pos_type, used_indices, count=5):
-    suitable = []
+    target_pos = normalize_position(pos_type)
+
+    exact_matches = []
+    secondary_matches = []
+
     for idx, f in enumerate(ALL_FOOTBALLERS):
         if idx in used_indices:
             continue
 
-        f_pos = f.get('position', 'Forvet')
-        match = 0
+        f_pos = normalize_position(f.get('position', 'Forvet'))
 
-        if f_pos == pos_type:
-            match = 100
-        elif pos_type == 'Kaleci':
-            if f_pos == 'Kaleci':
-                match = 100
-            else:
-                continue
-        elif pos_type == 'Defans' and f_pos == 'OrtaSaha':
-            match = 50
-        elif pos_type == 'OrtaSaha' and f_pos in ['Defans', 'Forvet']:
-            match = 40
-        elif pos_type == 'Forvet' and f_pos == 'OrtaSaha':
-            match = 45
-        else:
-            match = 10
+        # Öncelik: tam mevki eşleşmesi
+        if f_pos == target_pos:
+            exact_matches.append(idx)
+            continue
 
-        if match > 0:
-            suitable.append((idx, match))
+        # Yedek havuz: tam eşleşme yetmezse
+        if target_pos == 'Kaleci':
+            continue
+        elif target_pos == 'Defans' and f_pos == 'Orta Saha':
+            secondary_matches.append(idx)
+        elif target_pos == 'Orta Saha' and f_pos in ['Defans', 'Forvet']:
+            secondary_matches.append(idx)
+        elif target_pos == 'Forvet' and f_pos == 'Orta Saha':
+            secondary_matches.append(idx)
 
-    if not suitable:
-        suitable = [(i, 10) for i in range(len(ALL_FOOTBALLERS)) if i not in used_indices]
+    selected_indices = []
 
-    suitable.sort(key=lambda x: x[1], reverse=True)
-    top = suitable[:min(25, len(suitable))]
+    # Ana mantık: tüm doğru pozisyondakiler arasından rastgele seç
+    if exact_matches:
+        selected_indices.extend(
+            random.sample(exact_matches, min(count, len(exact_matches)))
+        )
 
-    if len(top) >= count:
-        selected = random.sample(top, count)
-    else:
-        selected = top
+    # Yetmezse yedek havuzdan tamamla
+    if len(selected_indices) < count and secondary_matches:
+        need = count - len(selected_indices)
+        selected_indices.extend(
+            random.sample(secondary_matches, min(need, len(secondary_matches)))
+        )
+
+    # Hâlâ yetmezse kalan herkesten tamamla
+    if len(selected_indices) < count:
+        fallback_pool = [
+            i for i in range(len(ALL_FOOTBALLERS))
+            if i not in used_indices and i not in selected_indices
+        ]
+        if fallback_pool:
+            need = count - len(selected_indices)
+            selected_indices.extend(
+                random.sample(fallback_pool, min(need, len(fallback_pool)))
+            )
+
+    random.shuffle(selected_indices)
 
     result = []
-    for idx, _ in selected:
+    for idx in selected_indices[:count]:
         f = ALL_FOOTBALLERS[idx]
         result.append({
             "index": idx,

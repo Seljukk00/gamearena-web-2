@@ -179,6 +179,16 @@ async def health():
     return {"status": "ok", "timestamp": time.time()}
 
 
+@app.head("/")
+async def head_root():
+    return {"status": "ok"}
+
+
+@app.head("/health")
+async def head_health():
+    return {"status": "ok"}
+
+
 # ==========================================
 # SELJUK ÖZEL İSİM DOĞRULAMA
 # ==========================================
