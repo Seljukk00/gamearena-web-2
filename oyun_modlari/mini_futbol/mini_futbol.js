@@ -723,6 +723,7 @@ function handleMiniMessage(msg) {
         
         // ✨ Render smoothing state'ini de temizle
         miniData._renderSmoothed = {};
+        miniData._ballRenderPos = null;
         
         // ✨ Ayrılan oyuncu varsa HP'den ve game_state'ten sil
         if (msg.removed_pid) {
@@ -1497,28 +1498,24 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // ✨ Top reconciliation - artık top da local HP timeline'ında yaşayacak
+            // ✨ Top HP reconciliation - render smoothing ayrı yapılacağı için burada agresif olabiliriz
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                const justKicked = miniData._recentKickTime && (performance.now() - miniData._recentKickTime) < 180;
                 
-                if (dist > 90) {
-                    // Çok büyük fark → snap
+                if (dist > 200) {
+                    // Çok büyük fark → snap (nadir)
                     lgs.ball.x = sgs.ball.x;
                     lgs.ball.y = sgs.ball.y;
-                } else if (!justKicked && dist > 6) {
-                    // Orta fark → belirgin ama yumuşak düzeltme
-                    lgs.ball.x += dx * 0.35;
-                    lgs.ball.y += dy * 0.35;
-                } else if (!justKicked && dist > 1.25) {
-                    // Küçük fark → hafif düzeltme
-                    lgs.ball.x += dx * 0.12;
-                    lgs.ball.y += dy * 0.12;
+                } else {
+                    // HP topunu server'a yaklaştır (görsel değil, sadece fizik state için)
+                    // Render smoothing zaten hepsini yumuşatacak
+                    lgs.ball.x += dx * 0.6;
+                    lgs.ball.y += dy * 0.6;
                 }
                 
-                // ✨ EN KRİTİK FIX: Host'tan gelen gerçek hızları kullan
+                // Host'tan gelen gerçek hızları kullan
                 if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
                 if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
                 if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
@@ -2961,6 +2958,7 @@ function stopMiniGame() {
     
     // ✨ Render smoothing state'ini temizle
     miniData._renderSmoothed = {};
+    miniData._ballRenderPos = null;
 }
 
 // ========================================
@@ -3648,11 +3646,45 @@ function miniRender() {
         }
         
         // Top
-        // ✨ Host + misafir topu aynı local HP timeline'ından çizer
+        // ✨ Host → HP'den direkt (0 lag, otorite)
+        // Misafir → HP'ye lerp ile yaklaşan smoothed pozisyon (jitter engeli)
         let bSmooth;
         if (typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            bSmooth = HP.room.gameState.ball;
+            const hpBall = HP.room.gameState.ball;
+            const isHostForBall = miniData.playerId === 1;
+            
+            if (isHostForBall) {
+                // Host → direkt HP'den
+                bSmooth = hpBall;
+            } else {
+                // Misafir → render smoothing
+                if (!miniData._ballRenderPos) {
+                    miniData._ballRenderPos = { x: hpBall.x, y: hpBall.y };
+                }
+                const rp = miniData._ballRenderPos;
+                const bdx = hpBall.x - rp.x;
+                const bdy = hpBall.y - rp.y;
+                const bdist = Math.sqrt(bdx*bdx + bdy*bdy);
+                
+                if (bdist > 100) {
+                    // Çok uzak → snap
+                    rp.x = hpBall.x;
+                    rp.y = hpBall.y;
+                } else {
+                    // Yumuşak yaklaşma (0.4 = akıcı ama gecikmesiz)
+                    rp.x += bdx * 0.4;
+                    rp.y += bdy * 0.4;
+                }
+                
+                bSmooth = {
+                    x: rp.x,
+                    y: rp.y,
+                    vx: hpBall.vx,
+                    vy: hpBall.vy,
+                    spin: hpBall.spin
+                };
+            }
         } else {
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
