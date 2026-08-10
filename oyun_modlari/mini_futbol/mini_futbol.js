@@ -1498,11 +1498,50 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // ✨ Top → server pozisyonuna direkt bağlı (HP simülasyonu bypass)
-            // Bu Haxball tarzı: top server'da otoriter, misafir sadece görüntüler
+            // ✨ Top reconciliation - top sürerken HP kazansın, uzaktayken server kazansın
             if (sgs.ball && lgs.ball) {
-                lgs.ball.x = sgs.ball.x;
-                lgs.ball.y = sgs.ball.y;
+                const dx = sgs.ball.x - lgs.ball.x;
+                const dy = sgs.ball.y - lgs.ball.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const nowMs = performance.now();
+                
+                // ✨ Ben topa yakın mıyım? (hysteresis ile)
+                let iAmNearBall = false;
+                const myLocalPlayer = lgs.players[miniData.playerId];
+                if (myLocalPlayer) {
+                    const pdx = lgs.ball.x - myLocalPlayer.x;
+                    const pdy = lgs.ball.y - myLocalPlayer.y;
+                    const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
+                    
+                    const wasNear = miniData._wasNearBall === true;
+                    const enterDist = 50;
+                    const exitDist = 90;
+                    
+                    if (wasNear) {
+                        iAmNearBall = pdist < exitDist;
+                    } else {
+                        iAmNearBall = pdist < enterDist;
+                    }
+                    miniData._wasNearBall = iAmNearBall;
+                }
+                
+                // ✨ Şut çektim mi? (kısa süre HP kazansın)
+                const justKicked = miniData._recentKickTime && (nowMs - miniData._recentKickTime) < 500;
+                
+                if (dist > 300) {
+                    // Çok büyük fark → snap
+                    lgs.ball.x = sgs.ball.x;
+                    lgs.ball.y = sgs.ball.y;
+                } else if (iAmNearBall || justKicked) {
+                    // ✨ Ben top sürüyorum veya az önce şut çektim → HP kazansın
+                    // Server pozisyonuna dokunma, kendi HP'm devam etsin
+                } else {
+                    // Top uzakta, ben sürmüyorum → server pozisyonuna hızlıca yaklaş
+                    lgs.ball.x += dx * 0.7;
+                    lgs.ball.y += dy * 0.7;
+                }
+                
+                // Hızları her zaman güncelle (server otoriter)
                 if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
                 if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
                 if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
