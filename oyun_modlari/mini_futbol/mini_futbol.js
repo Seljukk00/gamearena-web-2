@@ -3676,8 +3676,10 @@ function miniRender() {
         }
         
         // Top
-        // ✨ Host → HP'den direkt (0 lag, otorite)
-        // Misafir → HP'ye lerp + velocity extrapolation (Haxball tarzı akıcı)
+        // ✨ Host → HP'den direkt (otorite, 0 lag)
+        // Misafir → 3 mod:
+        //   a) Ben top sürüyorum veya az önce şut çektim → HP'den direkt (0 lag his)
+        //   b) Rakip top sürüyor / server otoriter → render smoothing
         let bSmooth;
         if (typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
@@ -3688,45 +3690,58 @@ function miniRender() {
                 // Host → direkt HP'den
                 bSmooth = hpBall;
             } else {
-                // Misafir → render smoothing + velocity extrapolation
-                if (!miniData._ballRenderPos) {
-                    miniData._ballRenderPos = { 
-                        x: hpBall.x, 
-                        y: hpBall.y,
-                        lastUpdate: performance.now()
+                // Misafir
+                const nowT = performance.now();
+                const justKicked = miniData._recentKickTime && (nowT - miniData._recentKickTime) < 500;
+                const iAmNearBall = miniData._wasNearBall === true;
+                
+                if (justKicked || iAmNearBall) {
+                    // ✨ Ben top sürüyorum veya şut çektim → HP'den direkt çiz (0 lag)
+                    bSmooth = hpBall;
+                    // Render smoothing pozisyonunu HP'ye sync tut (sonraki geçişte sıçrama olmasın)
+                    if (miniData._ballRenderPos) {
+                        miniData._ballRenderPos.x = hpBall.x;
+                        miniData._ballRenderPos.y = hpBall.y;
+                        miniData._ballRenderPos.lastUpdate = nowT;
+                    }
+                } else {
+                    // ✨ Rakip sürüyor / server otoriter → render smoothing
+                    if (!miniData._ballRenderPos) {
+                        miniData._ballRenderPos = { 
+                            x: hpBall.x, 
+                            y: hpBall.y,
+                            lastUpdate: nowT
+                        };
+                    }
+                    const rp = miniData._ballRenderPos;
+                    const dt = Math.min(0.1, (nowT - rp.lastUpdate) / 1000);
+                    rp.lastUpdate = nowT;
+                    
+                    // Velocity extrapolation
+                    const targetX = hpBall.x + (hpBall.vx || 0) * dt * 30;
+                    const targetY = hpBall.y + (hpBall.vy || 0) * dt * 30;
+                    
+                    const bdx = targetX - rp.x;
+                    const bdy = targetY - rp.y;
+                    const bdist = Math.sqrt(bdx*bdx + bdy*bdy);
+                    
+                    if (bdist > 150) {
+                        // Çok uzak → snap
+                        rp.x = hpBall.x;
+                        rp.y = hpBall.y;
+                    } else {
+                        rp.x += bdx * 0.55;
+                        rp.y += bdy * 0.55;
+                    }
+                    
+                    bSmooth = {
+                        x: rp.x,
+                        y: rp.y,
+                        vx: hpBall.vx,
+                        vy: hpBall.vy,
+                        spin: hpBall.spin
                     };
                 }
-                const rp = miniData._ballRenderPos;
-                const nowT = performance.now();
-                const dt = Math.min(0.1, (nowT - rp.lastUpdate) / 1000);
-                rp.lastUpdate = nowT;
-                
-                // ✨ Server pozisyonu + velocity extrapolation
-                // (topu velocity ile ileri taşı, lag hissi azalsın)
-                const targetX = hpBall.x + (hpBall.vx || 0) * dt * 30;
-                const targetY = hpBall.y + (hpBall.vy || 0) * dt * 30;
-                
-                const bdx = targetX - rp.x;
-                const bdy = targetY - rp.y;
-                const bdist = Math.sqrt(bdx*bdx + bdy*bdy);
-                
-                if (bdist > 150) {
-                    // Çok uzak → snap
-                    rp.x = hpBall.x;
-                    rp.y = hpBall.y;
-                } else {
-                    // Akıcı yaklaşma
-                    rp.x += bdx * 0.55;
-                    rp.y += bdy * 0.55;
-                }
-                
-                bSmooth = {
-                    x: rp.x,
-                    y: rp.y,
-                    vx: hpBall.vx,
-                    vy: hpBall.vy,
-                    spin: hpBall.spin
-                };
             }
         } else {
             bSmooth = miniData.currentPositions.ball || state.ball;
