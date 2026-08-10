@@ -1504,18 +1504,35 @@ function handleMiniMessage(msg) {
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 200) {
-                    // Çok büyük fark → snap (nadir)
+                // ✨ Kendi karakter topa yakın mı? (top sürüyorum demek)
+                // Yakınsa HP topuna dokunma, local prediction kazansın
+                let iAmNearBall = false;
+                const myLocalPlayer = lgs.players[miniData.playerId];
+                if (myLocalPlayer) {
+                    const pdx = lgs.ball.x - myLocalPlayer.x;
+                    const pdy = lgs.ball.y - myLocalPlayer.y;
+                    const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
+                    // Oyuncu + top yarıçapı + 20px tolerans
+                    if (pdist < 55) {
+                        iAmNearBall = true;
+                    }
+                }
+                
+                if (dist > 250) {
+                    // Çok büyük fark → snap
                     lgs.ball.x = sgs.ball.x;
                     lgs.ball.y = sgs.ball.y;
+                } else if (iAmNearBall) {
+                    // ✨ Topu ben sürüyorum → server'a çekme, local HP kazansın
+                    // (titreme engelinin en kritik kısmı)
+                    // Hız/spin yine de al ki fizik hesabı doğru olsun
                 } else {
-                    // HP topunu server'a yaklaştır (görsel değil, sadece fizik state için)
-                    // Render smoothing zaten hepsini yumuşatacak
+                    // Top uzakta, ben sürmüyorum → server'a hızlıca yaklaş
                     lgs.ball.x += dx * 0.6;
                     lgs.ball.y += dy * 0.6;
                 }
                 
-                // Host'tan gelen gerçek hızları kullan
+                // Host'tan gelen hızları kullan (top sürüyorken de gerekli)
                 if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
                 if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
                 if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
