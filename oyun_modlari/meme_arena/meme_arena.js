@@ -468,35 +468,16 @@ function updateMemeLobby() {
     const list = document.getElementById("memePlayersList");
     if (list) {
         list.innerHTML = "";
-        list.style.listStyle = "none";
-        list.style.padding = "0";
-        list.style.margin = "20px 0";
         
         memeData.players.forEach(p => {
             const li = document.createElement("li");
             li.classList.add("playerRow");
             
-            // INLINE STYLE (CSS override) - kesin görünsün
-            li.style.display = "flex";
-            li.style.alignItems = "center";
-            li.style.justifyContent = "space-between";
-            li.style.padding = "12px 18px";
-            li.style.margin = "8px 0";
-            li.style.borderRadius = "10px";
-            li.style.fontSize = "16px";
-            li.style.fontWeight = "600";
-            
-            // Renk (host: yeşil, misafir: kırmızı)
+            // Renk sınıfı (host: yeşil, misafir: kırmızı) — CSS'ten gelsin
             if (p.id === memeData.playerId) {
                 li.classList.add("playerMine");
-                li.style.background = "rgba(81, 207, 102, 0.15)";
-                li.style.border = "2px solid #51cf66";
-                li.style.color = "#51cf66";
             } else {
                 li.classList.add("playerOpp");
-                li.style.background = "rgba(255, 107, 107, 0.15)";
-                li.style.border = "2px solid #ff6b6b";
-                li.style.color = "#ff6b6b";
             }
             
             const nameCell = document.createElement("span");
@@ -508,18 +489,11 @@ function updateMemeLobby() {
             nameCell.textContent = p.id === memeData.playerId ? `${p.id}. ${p.name} (Sen)${crown}` : `${p.id}. ${p.name}${crown}`;
             li.appendChild(nameCell);
             
-            // Kick butonu
+            // Kick butonu (sağda, sadece host + rakip için)
             if (p.id !== memeData.playerId && memeData.playerId === 1) {
                 const kickBtn = document.createElement("button");
                 kickBtn.className = "kickBtnNew";
                 kickBtn.textContent = "Oyuncuyu At";
-                kickBtn.style.background = "#ff6b6b";
-                kickBtn.style.color = "#fff";
-                kickBtn.style.border = "none";
-                kickBtn.style.padding = "6px 14px";
-                kickBtn.style.borderRadius = "8px";
-                kickBtn.style.cursor = "pointer";
-                kickBtn.style.fontWeight = "bold";
                 kickBtn.onclick = () => openKickConfirm(p.id, p.name);
                 li.appendChild(kickBtn);
             }
@@ -630,6 +604,10 @@ function renderMemeGame() {
         const img = document.createElement("img");
         img.src = `/oyun_modlari/meme_arena/meme_kartlari/${cardFile}`;
         img.alt = "Meme";
+        img.loading = "eager";
+        img.decoding = "async";
+        img.style.imageRendering = "auto";
+        img.style.willChange = "transform";
         img.onerror = () => { img.style.display = "none"; };
         card.appendChild(img);
         
@@ -740,6 +718,9 @@ function showVotingCard(msg) {
     document.getElementById("memeVotingIndex").textContent = `${msg.current_index}/${msg.total_players}`;
     
     const img = document.getElementById("memeVotingImg");
+    img.loading = "eager";
+    img.decoding = "async";
+    img.style.willChange = "transform";
     img.src = `/oyun_modlari/meme_arena/meme_kartlari/${msg.card_file}`;
     
     const btnBar = document.getElementById("memeVoteButtons");
