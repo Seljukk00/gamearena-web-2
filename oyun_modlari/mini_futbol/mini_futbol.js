@@ -1498,41 +1498,53 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // ✨ Top HP reconciliation - render smoothing ayrı yapılacağı için burada agresif olabiliriz
+            // ✨ Top HP reconciliation
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
+                const nowMs = performance.now();
                 
-                // ✨ Kendi karakter topa yakın mı? (top sürüyorum demek)
-                // Yakınsa HP topuna dokunma, local prediction kazansın
+                // ✨ Kendi karakter topa yakın mı? (hysteresis ile - sınırda titreme olmasın)
                 let iAmNearBall = false;
                 const myLocalPlayer = lgs.players[miniData.playerId];
                 if (myLocalPlayer) {
                     const pdx = lgs.ball.x - myLocalPlayer.x;
                     const pdy = lgs.ball.y - myLocalPlayer.y;
                     const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
-                    // Oyuncu + top yarıçapı + 20px tolerans
-                    if (pdist < 55) {
-                        iAmNearBall = true;
+                    
+                    // Hysteresis: girme eşiği 55, çıkma eşiği 80
+                    // (yakınken kolay yakın kalır, uzaklaşınca yavaş çıkar)
+                    const wasNear = miniData._wasNearBall === true;
+                    const enterDist = 55;
+                    const exitDist = 80;
+                    
+                    if (wasNear) {
+                        iAmNearBall = pdist < exitDist;
+                    } else {
+                        iAmNearBall = pdist < enterDist;
                     }
+                    miniData._wasNearBall = iAmNearBall;
                 }
                 
-                if (dist > 250) {
+                // ✨ Şut çekilmiş mi? (şut sonrası kısa süre server correction'ı erteler)
+                const justKicked = miniData._recentKickTime && (nowMs - miniData._recentKickTime) < 400;
+                
+                if (dist > 300) {
                     // Çok büyük fark → snap
                     lgs.ball.x = sgs.ball.x;
                     lgs.ball.y = sgs.ball.y;
-                } else if (iAmNearBall) {
-                    // ✨ Topu ben sürüyorum → server'a çekme, local HP kazansın
-                    // (titreme engelinin en kritik kısmı)
-                    // Hız/spin yine de al ki fizik hesabı doğru olsun
+                } else if (iAmNearBall || justKicked) {
+                    // ✨ Topu ben sürüyorum VEYA az önce şut çektim
+                    // → server'a çekme, local HP kazansın
                 } else {
-                    // Top uzakta, ben sürmüyorum → server'a hızlıca yaklaş
-                    lgs.ball.x += dx * 0.6;
-                    lgs.ball.y += dy * 0.6;
+                    // Top uzakta ve ben sürmüyorum → server'a yaklaş
+                    // (daha yumuşak lerp - sıçrama olmasın)
+                    lgs.ball.x += dx * 0.25;
+                    lgs.ball.y += dy * 0.25;
                 }
                 
-                // Host'tan gelen hızları kullan (top sürüyorken de gerekli)
+                // Host'tan gelen hızları kullan
                 if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
                 if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
                 if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
@@ -2999,13 +3011,6 @@ function miniKeyDown(e) {
         if (el && !el.classList.contains("hidden")) {
             return;  // Popup açık, oyun kontrolüne izin verme
         }
-    }
-    
-    // ✨ Countdown sırasında hareket tuşları çalışmasın (titreme engeli)
-    // Sadece maç oynanırken tuş kabul et
-    const gs = miniData.gameState;
-    if (gs && gs.game_state === "countdown") {
-        return;
     }
     
     const result = getMiniKey(e);

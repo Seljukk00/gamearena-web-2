@@ -731,12 +731,13 @@ const HP = {  // Host Physics namespace
             if (timeUntilStart > 0) {
                 // Bu blok'tan çıkma → aşağıdaki fizik kodu çalışacak
             } else {
-                // ✨ Normal countdown (3-2-1) → fizik dursun + oyuncu hızlarını sıfırla
-                // Bu misafir tarafta titreme oluşmasını engeller
+                // ✨ Normal countdown (3-2-1) → sadece hızları sıfırla, tuşları KORU
+                // Böylece countdown bitince basılı tuş varsa otomatik hareket başlar
                 for (const pid in gs.players) {
                     const p = gs.players[pid];
                     p.vx = 0;
                     p.vy = 0;
+                    // NOT: keys temizlenmiyor - tuşa basılı tuttuysa countdown sonrası devam eder
                 }
                 return null;
             }
