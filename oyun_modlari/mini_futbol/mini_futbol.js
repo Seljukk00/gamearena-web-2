@@ -1498,14 +1498,17 @@ function handleMiniMessage(msg) {
                 }
             }
             
-            // ✨ Top reconciliation - top sürerken HP kazansın, uzaktayken server kazansın
+            // ✨ Top reconciliation - 3 durum:
+            //   a) Şut prediction aktif → HP tam kontrol, hıza dokunma
+            //   b) Ben top sürüyorum → HP pozisyon kontrol, hız güncelle
+            //   c) Uzakta / rakip sürüyor → server otoriter
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 const nowMs = performance.now();
                 
-                // ✨ Ben topa yakın mıyım? (hysteresis ile)
+                // Ben topa yakın mıyım? (hysteresis)
                 let iAmNearBall = false;
                 const myLocalPlayer = lgs.players[miniData.playerId];
                 if (myLocalPlayer) {
@@ -1514,37 +1517,52 @@ function handleMiniMessage(msg) {
                     const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
                     
                     const wasNear = miniData._wasNearBall === true;
-                    const enterDist = 50;
-                    const exitDist = 90;
-                    
                     if (wasNear) {
-                        iAmNearBall = pdist < exitDist;
+                        iAmNearBall = pdist < 90;
                     } else {
-                        iAmNearBall = pdist < enterDist;
+                        iAmNearBall = pdist < 50;
                     }
                     miniData._wasNearBall = iAmNearBall;
                 }
                 
-                // ✨ Şut çektim mi? (kısa süre HP kazansın)
-                const justKicked = miniData._recentKickTime && (nowMs - miniData._recentKickTime) < 500;
+                // ✨ Şut prediction aktif mi? (1.5 saniye)
+                const shotPredicting = miniData._shotPredictionUntil && 
+                                       nowMs < miniData._shotPredictionUntil;
                 
-                if (dist > 300) {
-                    // Çok büyük fark → snap
-                    lgs.ball.x = sgs.ball.x;
-                    lgs.ball.y = sgs.ball.y;
-                } else if (iAmNearBall || justKicked) {
-                    // ✨ Ben top sürüyorum veya az önce şut çektim → HP kazansın
-                    // Server pozisyonuna dokunma, kendi HP'm devam etsin
+                if (shotPredicting) {
+                    // ✨ ŞUT PREDICTION: HP tam kontrol
+                    // Server pozisyonuna DOKUNMA, hıza DOKUNMA, hiçbir şey dokunma
+                    // HP kendi başına topu simüle etsin
+                    // (Sadece extreme fark varsa snap)
+                    if (dist > 400) {
+                        lgs.ball.x = sgs.ball.x;
+                        lgs.ball.y = sgs.ball.y;
+                        if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
+                        if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
+                    }
+                    // Aksi halde HP'ye tamamen bırak
+                } else if (iAmNearBall) {
+                    // Top sürüyorum → HP pozisyon kontrol, hız server'dan
+                    if (dist > 300) {
+                        lgs.ball.x = sgs.ball.x;
+                        lgs.ball.y = sgs.ball.y;
+                    }
+                    if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
+                    if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
+                    if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
                 } else {
-                    // Top uzakta, ben sürmüyorum → server pozisyonuna hızlıca yaklaş
-                    lgs.ball.x += dx * 0.7;
-                    lgs.ball.y += dy * 0.7;
+                    // Uzakta / rakip sürüyor → server otoriter
+                    if (dist > 300) {
+                        lgs.ball.x = sgs.ball.x;
+                        lgs.ball.y = sgs.ball.y;
+                    } else {
+                        lgs.ball.x += dx * 0.7;
+                        lgs.ball.y += dy * 0.7;
+                    }
+                    if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
+                    if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
+                    if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
                 }
-                
-                // Hızları her zaman güncelle (server otoriter)
-                if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
-                if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
-                if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
             }
         }
         
@@ -3044,12 +3062,11 @@ function miniKeyDown(e) {
         HP.setKey(targetPid, key, true);
     }
     
-    // ✨ Şut çektiysem misafirsen: uzun süre reconciliation'ı devre dışı bırak
-    // (server henüz şutu işlememişken snap olmasın + plase kavisi bozulmasın)
+    // ✨ Şut çektiysem misafirsen: server correction'ı komple kes
+    // (client-side shot prediction - Haxball tarzı)
     if (key === "kick" && miniData.playerId !== 1) {
         miniData._recentKickTime = performance.now();
-        // Plase için after-touch süresi de var (200ms), 
-        // toplamda 1000ms güvenli
+        miniData._shotPredictionUntil = performance.now() + 1500;  // 1.5 saniye tam kontrol HP'de
     }
     
     // Backend'e gönder
@@ -3678,8 +3695,9 @@ function miniRender() {
         // Top
         // ✨ Host → HP'den direkt (otorite, 0 lag)
         // Misafir → 3 mod:
-        //   a) Ben top sürüyorum veya az önce şut çektim → HP'den direkt (0 lag his)
-        //   b) Rakip top sürüyor / server otoriter → render smoothing
+        //   a) Şut prediction aktif → HP'den DİREKT (smoothing YOK, tam anlık)
+        //   b) Ben top sürüyorum → HP'den direkt
+        //   c) Rakip sürüyor → render smoothing (yumuşak)
         let bSmooth;
         if (typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
@@ -3692,20 +3710,21 @@ function miniRender() {
             } else {
                 // Misafir
                 const nowT = performance.now();
-                const justKicked = miniData._recentKickTime && (nowT - miniData._recentKickTime) < 500;
+                const shotPredicting = miniData._shotPredictionUntil && 
+                                       nowT < miniData._shotPredictionUntil;
                 const iAmNearBall = miniData._wasNearBall === true;
                 
-                if (justKicked || iAmNearBall) {
-                    // ✨ Ben top sürüyorum veya şut çektim → HP'den direkt çiz (0 lag)
+                if (shotPredicting || iAmNearBall) {
+                    // ✨ Şut prediction veya top sürüyorum → HP'den DİREKT, smoothing YOK
                     bSmooth = hpBall;
-                    // Render smoothing pozisyonunu HP'ye sync tut (sonraki geçişte sıçrama olmasın)
+                    // Render smoothing pozisyonunu HP'ye sync (sonraki geçişte sıçrama olmasın)
                     if (miniData._ballRenderPos) {
                         miniData._ballRenderPos.x = hpBall.x;
                         miniData._ballRenderPos.y = hpBall.y;
                         miniData._ballRenderPos.lastUpdate = nowT;
                     }
                 } else {
-                    // ✨ Rakip sürüyor / server otoriter → render smoothing
+                    // ✨ Rakip sürüyor / uzak → render smoothing
                     if (!miniData._ballRenderPos) {
                         miniData._ballRenderPos = { 
                             x: hpBall.x, 
@@ -3717,7 +3736,6 @@ function miniRender() {
                     const dt = Math.min(0.1, (nowT - rp.lastUpdate) / 1000);
                     rp.lastUpdate = nowT;
                     
-                    // Velocity extrapolation
                     const targetX = hpBall.x + (hpBall.vx || 0) * dt * 30;
                     const targetY = hpBall.y + (hpBall.vy || 0) * dt * 30;
                     
@@ -3726,7 +3744,6 @@ function miniRender() {
                     const bdist = Math.sqrt(bdx*bdx + bdy*bdy);
                     
                     if (bdist > 150) {
-                        // Çok uzak → snap
                         rp.x = hpBall.x;
                         rp.y = hpBall.y;
                     } else {
