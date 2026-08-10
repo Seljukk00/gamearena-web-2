@@ -570,39 +570,45 @@ const HP = {  // Host Physics namespace
         const ballSpeed = Math.sqrt(gs.ball.vx * gs.ball.vx + gs.ball.vy * gs.ball.vy);
         const ballOnFire = ballSpeed > this.STRONG_KICK_THRESHOLD;
         
-        // State message
+        // State message (küçültülmüş - sadece gerekli alanlar)
         const stateMsg = {
             type: "mini_state",
             sprint: sprintInfo,
             stats: statsInfo,
-            silent_whistle: gs._silentWhistle === true,  // ✨ Düdük sessiz mi?
             players: {},
             ball: {
-                x: Math.round(gs.ball.x * 10) / 10,
-                y: Math.round(gs.ball.y * 10) / 10,
-                vx: Math.round(gs.ball.vx * 1000) / 1000,
-                vy: Math.round(gs.ball.vy * 1000) / 1000,
-                spin: Math.round((gs.ball.spin || 0) * 1000) / 1000,
-                on_fire: ballOnFire,
-                warning: ballWarning,
-                warning_team: ballWarningTeam,
+                x: Math.round(gs.ball.x),
+                y: Math.round(gs.ball.y),
+                vx: Math.round(gs.ball.vx * 100) / 100,
+                vy: Math.round(gs.ball.vy * 100) / 100,
+                spin: Math.round((gs.ball.spin || 0) * 100) / 100,
                 last_toucher: gs.last_ball_toucher
             },
             scores: { "1": gs.scores[1], "2": gs.scores[2] },
             time_left: Math.round(gs.time_left * 10) / 10,
-            kick_effects: gs.kick_effects,
-            hit_events: gs.hit_events || [],  // ✨
-            game_state: gs.state,
-            countdown: countdownValue,
-            goal_celebration: goalCelebration,
-            kickoff: kickoffInfo
+            game_state: gs.state
         };
+        
+        // Oyuncu pozisyonları (integer - yeterli hassasiyet)
         for (const pid in gs.players) {
             stateMsg.players[String(pid)] = {
-                x: Math.round(gs.players[pid].x * 10) / 10,
-                y: Math.round(gs.players[pid].y * 10) / 10
+                x: Math.round(gs.players[pid].x),
+                y: Math.round(gs.players[pid].y)
             };
         }
+        
+        // ✨ Opsiyonel alanlar - sadece varsa gönder
+        if (ballOnFire) stateMsg.ball.on_fire = true;
+        if (ballWarning) {
+            stateMsg.ball.warning = true;
+            stateMsg.ball.warning_team = ballWarningTeam;
+        }
+        if (gs._silentWhistle === true) stateMsg.silent_whistle = true;
+        if (countdownValue !== null) stateMsg.countdown = countdownValue;
+        if (goalCelebration) stateMsg.goal_celebration = goalCelebration;
+        if (kickoffInfo) stateMsg.kickoff = kickoffInfo;
+        if (gs.kick_effects && gs.kick_effects.length > 0) stateMsg.kick_effects = gs.kick_effects;
+        if (gs.hit_events && gs.hit_events.length > 0) stateMsg.hit_events = gs.hit_events;
         
         if (goalEvent) stateMsg.goal = goalEvent;
         

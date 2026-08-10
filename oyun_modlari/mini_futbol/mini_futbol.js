@@ -2467,15 +2467,26 @@ function startMiniLocalPhysicsIfNeeded() {
 
     if (isHost) {
         console.log("[HOST-PHYSICS] Host fizik motoru kuruluyor...");
-        // ✨ 30 FPS network - her 2. frame'de bir gönder
+        // ✨ Oyuncu sayısına göre broadcast frekansı
+        // 1v1-2v2: 30 Hz (her 2 frame'de bir)
+        // 3v3-4v4: 24 Hz (her 2-3 frame'de bir)
+        // 5v5: 20 Hz (her 3 frame'de bir)
+        const totalPlayers = miniData.players.length;
+        let netSkip = 2;  // default 30 Hz
+        if (totalPlayers >= 8) netSkip = 3;  // 4v4+ → 20 Hz
+        else if (totalPlayers >= 6) netSkip = 2;  // 3v3 → 30 Hz
+        
         miniData._netFrameCounter = 0;
+        miniData._netSkip = netSkip;
+        console.log(`[HOST-PHYSICS] Network frekansı: ${Math.round(60/netSkip)} Hz (${totalPlayers} oyuncu)`);
+        
         HP.onStateUpdate = (stateMsg) => {
             stateMsg._local = true;
             handleMiniMessage(stateMsg);
 
-            // Network'e her 2. frame'de gönder (60 → 30 FPS)
+            // Network throttle
             miniData._netFrameCounter = (miniData._netFrameCounter || 0) + 1;
-            if (miniData._netFrameCounter % 2 !== 0) return;
+            if (miniData._netFrameCounter % (miniData._netSkip || 2) !== 0) return;
 
             const cleanState = Object.assign({}, stateMsg);
             delete cleanState._local;
