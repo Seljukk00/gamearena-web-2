@@ -1560,11 +1560,18 @@ function handleMiniMessage(msg) {
                     if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
                     if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
                 } else if (iAmNearBall) {
-                    // Top sürüyorum
+                    // ✨ Top sürüyorum - pozisyonu ÇOK yumuşak server'a çek
+                    // (Anlık his kalır ama admin ile senkron kalır)
                     if (dist > 300) {
+                        // Extreme fark → snap
                         lgs.ball.x = sgs.ball.x;
                         lgs.ball.y = sgs.ball.y;
+                    } else if (dist > 15) {
+                        // Belirgin fark → hafif çek (titreme yapmaz)
+                        lgs.ball.x += dx * 0.08;
+                        lgs.ball.y += dy * 0.08;
                     }
+                    // 15px altında dokunma
                     if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
                     if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
                     if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
