@@ -549,6 +549,18 @@ function updateMemeLobby() {
         }
     }
     
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("memeChangeModeBtn");
+    if (changeModeBtn) {
+        if (memeData.playerId === 1) {
+            changeModeBtn.classList.remove("hidden");
+            changeModeBtn.style.setProperty("display", "inline-block", "important");
+        } else {
+            changeModeBtn.classList.add("hidden");
+            changeModeBtn.style.display = "none";
+        }
+    }
+    
     const lobbyMsg = document.getElementById("memeLobbyMsg");
     if (lobbyMsg) {
         if (memeData.players.length < 2) {
@@ -1306,6 +1318,16 @@ setTimeout(() => {
     const settingsBtn = document.getElementById("memeRoomSettingsBtn");
     if (settingsBtn) {
         settingsBtn.addEventListener("click", () => openMemeRoomSettings());
+    }
+    
+    // ✨ Mod Değiştir butonu
+    const _memeChangeModeBtn = document.getElementById("memeChangeModeBtn");
+    if (_memeChangeModeBtn) {
+        _memeChangeModeBtn.addEventListener("click", () => {
+            if (typeof openChangeModeModal === "function") {
+                openChangeModeModal();
+            }
+        });
     }
 }, 200);
 

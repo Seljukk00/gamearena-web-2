@@ -580,6 +580,9 @@ const HP = {  // Host Physics namespace
             ball: {
                 x: Math.round(gs.ball.x * 10) / 10,
                 y: Math.round(gs.ball.y * 10) / 10,
+                vx: Math.round(gs.ball.vx * 1000) / 1000,
+                vy: Math.round(gs.ball.vy * 1000) / 1000,
+                spin: Math.round((gs.ball.spin || 0) * 1000) / 1000,
                 on_fire: ballOnFire,
                 warning: ballWarning,
                 warning_team: ballWarningTeam,
@@ -728,7 +731,13 @@ const HP = {  // Host Physics namespace
             if (timeUntilStart > 0) {
                 // Bu blok'tan çıkma → aşağıdaki fizik kodu çalışacak
             } else {
-                // Normal countdown (3-2-1) → fizik dursun
+                // ✨ Normal countdown (3-2-1) → fizik dursun + oyuncu hızlarını sıfırla
+                // Bu misafir tarafta titreme oluşmasını engeller
+                for (const pid in gs.players) {
+                    const p = gs.players[pid];
+                    p.vx = 0;
+                    p.vy = 0;
+                }
                 return null;
             }
         }
@@ -762,12 +771,8 @@ const HP = {  // Host Physics namespace
             const p = gs.players[pid];
             const keys = p.keys;
             
-            // Delta hesap
+            // ✨ Fixed-step: her tick sabit 1/60 sn (worker jitter fiziği bozmasın)
             let delta = this.FRAME_TIME;
-            if (p.last_frame_time > 0) {
-                delta = now - p.last_frame_time;
-                if (delta > 0.1) delta = this.FRAME_TIME;
-            }
             p.last_frame_time = now;
             
             // Sprint

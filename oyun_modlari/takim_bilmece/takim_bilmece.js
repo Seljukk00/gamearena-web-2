@@ -211,7 +211,8 @@ document.getElementById("createTakimBtn").onclick = () => {
     myName = name;
     
     const difficulty = document.getElementById("takimDifficultySelect").value;
-    const turnSeconds = parseInt(document.getElementById("takimTurnSecondsSelect").value) || 60;
+    const _turnSecRaw = parseInt(document.getElementById("takimTurnSecondsSelect").value);
+    const turnSeconds = isNaN(_turnSecRaw) ? 60 : _turnSecRaw;
     const maxPlayers = parseInt(document.getElementById("takimMaxPlayersSelect").value) || 2;
     const totalQuestions = parseInt(document.getElementById("takimTotalQuestionsSelect").value) || 12;
     send({
@@ -231,6 +232,16 @@ document.getElementById("takimStartBtn").onclick = () => {
 document.getElementById("takimLobbyLeaveBtn").onclick = () => {
     window._showLeaveConfirmPopup();
 };
+
+// ✨ Mod Değiştir butonu
+const _takimChangeModeBtn = document.getElementById("takimChangeModeBtn");
+if (_takimChangeModeBtn) {
+    _takimChangeModeBtn.onclick = () => {
+        if (typeof openChangeModeModal === "function") {
+            openChangeModeModal();
+        }
+    };
+}
 
 // Oda Ayarları butonu
 document.getElementById("takimRoomSettingsBtn").onclick = () => {
@@ -281,15 +292,17 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
                     {value: 30, label: "30 saniye"},
                     {value: 45, label: "45 saniye"},
                     {value: 60, label: "60 saniye"},
-                    {value: 120, label: "120 saniye"}
+                    {value: 120, label: "120 saniye"},
+                    {value: 0, label: "♾️ Sınırsız"}
                 ]
             }
         ],
         onSave: (values) => {
+            const _ts = parseInt(values.turnSec);
             send({
                 type: "takim_update_settings",
                 difficulty: values.difficulty,
-                turn_seconds: parseInt(values.turnSec) || 60,
+                turn_seconds: isNaN(_ts) ? 60 : _ts,
                 max_players: parseInt(values.maxPlayers) || 2,
                 total_questions: parseInt(values.totalQ) || 12
             });
@@ -423,7 +436,8 @@ function updateTakimLobby() {
         klasik: "🎯 Klasik (Karışık)"
     };
     document.getElementById("takimLobbyDifficulty").textContent = diffNames[takimData.difficulty] || takimData.difficulty;
-    document.getElementById("takimLobbyTurnSeconds").textContent = takimData.turnSeconds || 60;
+    const _ts = takimData.turnSeconds;
+    document.getElementById("takimLobbyTurnSeconds").textContent = (_ts === 0) ? "♾️" : _ts;
     const _maxEl = document.getElementById("takimLobbyMaxPlayers");
     if (_maxEl) _maxEl.textContent = takimData.maxPlayers || 2;
     const _totEl = document.getElementById("takimLobbyTotalQuestions");
@@ -481,6 +495,13 @@ function updateTakimLobby() {
     if (settingsBtn) {
         if (takimData.playerId === 1) settingsBtn.classList.remove("hidden");
         else settingsBtn.classList.add("hidden");
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("takimChangeModeBtn");
+    if (changeModeBtn) {
+        if (takimData.playerId === 1) changeModeBtn.classList.remove("hidden");
+        else changeModeBtn.classList.add("hidden");
     }
 }
 
@@ -867,7 +888,9 @@ function renderTakimAll() {
 function startTakimTimer(seconds) {
     stopTakimTimer();
     takimData.timerSeconds = seconds;
+    takimData.timerUnlimited = (seconds === 0);  // ✨ Sınırsız mı?
     updateTakimTimerDisplay();
+    if (takimData.timerUnlimited) return;  // Sınırsızda geri sayım yok
     takimData.timerInterval = setInterval(() => {
         takimData.timerSeconds--;
         updateTakimTimerDisplay();
@@ -884,6 +907,11 @@ function stopTakimTimer() {
 
 function updateTakimTimerDisplay() {
     const el = document.getElementById("takimTimer");
+    if (takimData.timerUnlimited) {
+        el.textContent = "♾️";
+        el.classList.remove("warning", "danger");
+        return;
+    }
     el.textContent = takimData.timerSeconds + "s";
     el.classList.remove("warning", "danger");
     if (takimData.timerSeconds <= 10) el.classList.add("danger");
@@ -912,7 +940,7 @@ handleMessage = function(msg) {
         takimData.roomCode = msg.room_code;
         takimData.players = msg.players;
         takimData.difficulty = msg.difficulty || "klasik";
-        takimData.turnSeconds = msg.turn_seconds || 60;
+        takimData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 60;
         if (msg.max_players !== undefined) takimData.maxPlayers = msg.max_players;
         if (msg.total_questions !== undefined) takimData.totalQuestions = msg.total_questions;
         updateTakimLobby();

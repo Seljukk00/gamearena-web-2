@@ -129,6 +129,14 @@ def get_takim_team_data(room, question_no):
 async def takim_turn_timer(room, turn_id, question_no, broadcast):
     try:
         seconds = room.get("turn_seconds", 60)
+        
+        # ✨ Sınırsız süre (0) → timer çalışmasın, sonsuz bekle
+        if seconds == 0:
+            print(f"[TAKIM TIMER] Sınırsız süre - oyuncu {turn_id} beklemede")
+            # Sonsuz bekle - başka task iptal edecek
+            await asyncio.Event().wait()
+            return
+        
         await asyncio.sleep(seconds)
 
         if room.get("phase") != "playing":
@@ -348,7 +356,7 @@ async def handle_takim_message(
 
         try:
             takim_turn_seconds = int(turn_seconds_raw)
-            if takim_turn_seconds not in [15, 30, 45, 60, 120]:
+            if takim_turn_seconds not in [0, 15, 30, 45, 60, 120]:
                 takim_turn_seconds = 60
         except:
             takim_turn_seconds = 60
@@ -503,7 +511,7 @@ async def handle_takim_message(
 
         try:
             new_turn_sec = int(data.get("turn_seconds", room.get("turn_seconds", 60)))
-            if new_turn_sec not in [15, 30, 45, 60, 120]:
+            if new_turn_sec not in [0, 15, 30, 45, 60, 120]:
                 new_turn_sec = 60
         except:
             new_turn_sec = 60

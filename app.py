@@ -294,6 +294,163 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             # ==========================================
+            # ORTAK MOD DEĞİŞTİRME (tüm modlar için)
+            # ==========================================
+            if msg_type == "mod_change_room":
+                if not room_code or room_code not in rooms:
+                    continue
+                room = rooms[room_code]
+                # Sadece host değiştirebilir
+                if player_id != 1:
+                    await safe_send(websocket, {"type": "error", "message": "Sadece host modu değiştirebilir."})
+                    continue
+                # Sadece lobide iken değiştirilebilir
+                if room.get("phase") != "lobby":
+                    await safe_send(websocket, {"type": "error", "message": "Sadece lobide mod değiştirilebilir."})
+                    continue
+                
+                new_mode = data.get("new_mode", "").strip()
+                valid_modes = ["bil_bakalim", "takim_bilmece", "kim_milyoner", "haritadan_bul",
+                              "gizemli_kariyer", "ilk_11_challenge", "stadyum_tanima", "meme_arena",
+                              "mini_futbol"]
+                if new_mode not in valid_modes:
+                    await safe_send(websocket, {"type": "error", "message": "Geçersiz mod."})
+                    continue
+                
+                # Eski tasks'ları iptal et
+                for task_key in ["turn_task", "selection_task", "answer_task",
+                                 "takim_task", "ml_task", "ml_ai_generation_task",
+                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                 "meme_task", "mini_task"]:
+                    task = room.get(task_key)
+                    if task and not task.done():
+                        task.cancel()
+                
+                # KORUNACAKLAR: oyuncular, oda kodu, kicked_names, chat_history
+                preserved_players = room["players"]
+                preserved_code = room.get("code", room_code)
+                preserved_kicked = room.get("kicked_names", [])
+                preserved_chat = room.get("chat_history", [])
+                preserved_chat_time = room.get("chat_last_msg_time", {})
+                
+                # Odayı sıfırla ve yeni moda göre yeniden kur
+                new_room = {
+                    "code": preserved_code,
+                    "room_code": preserved_code,  # Mini Futbol için farklı key kullanır
+                    "mode": new_mode,
+                    "phase": "lobby",
+                    "players": preserved_players,
+                    "kicked_names": preserved_kicked,
+                    "chat_history": preserved_chat,
+                    "chat_last_msg_time": preserved_chat_time,
+                    "scores": {}
+                }
+                
+                # Her modun default ayarları
+                if new_mode == "bil_bakalim":
+                    new_room.update({
+                        "footballer_indices": [], "footballers": [], "selections": {},
+                        "remaining": {1: 32, 2: 32}, "turn": 1, "question_pack": [],
+                        "pending_question": None, "turn_seconds": 45, "guess_limit": 0,
+                        "guesses_left": {1: 0, 2: 0},
+                        "turn_task": None, "selection_task": None, "answer_task": None
+                    })
+                elif new_mode == "takim_bilmece":
+                    new_room.update({
+                        "difficulty": "kolay", "turn_seconds": 60, "max_players": 2,
+                        "total_questions": 12, "turn": 1, "takim_task": None
+                    })
+                elif new_mode == "kim_milyoner":
+                    new_room.update({
+                        "ml_max_players": 2, "ml_category": "futbol", "ml_difficulty": "karisik",
+                        "ml_total_questions": 12, "ml_turn_seconds": 60,
+                        "ml_task": None, "ml_ai_generation_task": None,
+                        "ml_current_player": 1, "ml_jokers": {}, "ml_player_q_idx": {}
+                    })
+                elif new_mode == "haritadan_bul":
+                    new_room.update({
+                        "max_players": 2, "total_rounds": 10, "difficulty": "karisik",
+                        "turn_seconds": 30, "turn": 1, "harita_task": None
+                    })
+                elif new_mode == "gizemli_kariyer":
+                    new_room.update({
+                        "max_players": 2, "total_rounds": 10, "difficulty": "karisik",
+                        "turn_seconds": 60, "turn": 1, "gizem_task": None,
+                        "gizem_round": 0, "gizem_answered": False,
+                        "gizem_used_indices": [], "gizem_hidden_indices": [],
+                        "gizem_current_q": None, "gizem_jokers": {},
+                        "gizem_history_indices": set(), "left_players": {}
+                    })
+                elif new_mode == "ilk_11_challenge":
+                    new_room.update({
+                        "turn_seconds": 120, "ilk11_task": None
+                    })
+                elif new_mode == "stadyum_tanima":
+                    new_room.update({
+                        "max_players": 2, "total_rounds": 10, "turn_seconds": 20,
+                        "stad_current_player": 1, "stad_task": None,
+                        "stad_jokers_left": {}, "stad_used_jokers": {}
+                    })
+                elif new_mode == "meme_arena":
+                    new_room.update({
+                        "max_players": 2, "total_rounds": 5,
+                        "turn_seconds": 45, "vote_seconds": 15, "meme_task": None
+                    })
+                elif new_mode == "mini_futbol":
+                    new_room.update({
+                        "max_players": 10, "player_count": 2,
+                        "goal_target": 3, "match_duration": 180,
+                        "game_speed": "normal", "red_team_name": "Kırmızı Takım",
+                        "blue_team_name": "Mavi Takım", "allow_plase": True,
+                        "ball_stick": True, "sprint_enabled": True,
+                        "kickoff_timeout": 10, "mini_task": None
+                    })
+                    # Mini Futbol'da tüm oyuncuları spectator yap
+                    for pid in new_room["players"]:
+                        new_room["players"][pid]["team"] = "spectator"
+                
+                rooms[room_code] = new_room
+                
+                # Herkese "mod değişti, yeni ekrana geç" mesajı gönder
+                # Her oyuncuya kendi player_id'sini ayrıca gönder
+                for pid, pdata in new_room["players"].items():
+                    await safe_send(pdata["ws"], {
+                        "type": "mod_changed",
+                        "new_mode": new_mode,
+                        "room_code": preserved_code,
+                        "player_id": pid
+                    })
+                
+                # Sonra yeni modun lobby update'ini gönder
+                try:
+                    if new_mode == "bil_bakalim":
+                        from oyun_modlari.bil_bakalim.bil_bakalim_handler import send_lobby_update as slu
+                    elif new_mode == "takim_bilmece":
+                        from oyun_modlari.takim_bilmece.takim_handler import send_takim_lobby_update as slu
+                    elif new_mode == "kim_milyoner":
+                        from oyun_modlari.kim_milyoner.milyoner_handler import send_ml_lobby_update as slu
+                    elif new_mode == "haritadan_bul":
+                        from oyun_modlari.haritadan_bul.harita_handler import send_harita_lobby_update as slu
+                    elif new_mode == "gizemli_kariyer":
+                        from oyun_modlari.gizemli_kariyer.gizem_handler import send_gizem_lobby_update as slu
+                    elif new_mode == "ilk_11_challenge":
+                        from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
+                    elif new_mode == "stadyum_tanima":
+                        from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
+                    elif new_mode == "meme_arena":
+                        from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
+                    elif new_mode == "mini_futbol":
+                        from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update as slu
+                    else:
+                        slu = None
+                    if slu:
+                        await slu(new_room, broadcast)
+                except Exception as e:
+                    print(f"[MOD CHANGE LOBBY UPDATE HATA] {e}")
+                
+                continue
+            
+            # ==========================================
             # ORTAK KICK BAN KONTROLÜ (tüm modlar için join)
             # ==========================================
             if msg_type in ["join_room", "takim_join_room", "ml_join_room", 
@@ -438,6 +595,35 @@ async def websocket_endpoint(websocket: WebSocket):
                     task = room.get(task_key)
                     if task and not task.done():
                         task.cancel()
+                rooms.pop(room_code, None)
+                return
+            
+            # ✨ HOST AYRILDIYSA - TÜM MODLAR için ortak akış
+            # (Mini Futbol hariç - onun kendi özel akışı var)
+            if player_id == 1 and room_mode != "mini_futbol":
+                print(f"[HOST LEFT] Host ayrıldı, oda kapatılıyor: {room_code} (mod: {room_mode})")
+                
+                # Tüm task'ları iptal et
+                for task_key in ["turn_task", "selection_task", "answer_task",
+                                 "takim_task", "ml_task", "ml_ai_generation_task",
+                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                 "meme_task", "mini_task"]:
+                    task = room.get(task_key)
+                    if task and not task.done():
+                        task.cancel()
+                
+                # Kalan tüm oyunculara "host ayrıldı, oda kapandı" mesajı gönder
+                for pid, pdata in list(room["players"].items()):
+                    try:
+                        await safe_send(pdata["ws"], {
+                            "type": "host_left_room",
+                            "message": f"Host ({left_name}) odayı kapattı.",
+                            "host_name": left_name
+                        })
+                    except Exception as e:
+                        print(f"[HOST LEFT SEND HATA] {e}")
+                
+                # Odayı sil
                 rooms.pop(room_code, None)
                 return
 

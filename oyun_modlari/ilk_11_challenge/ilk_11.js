@@ -243,6 +243,16 @@ document.getElementById("ilk11LobbyLeaveBtn").onclick = () => {
     window._showLeaveConfirmPopup();
 };
 
+// ✨ Mod Değiştir butonu
+const _ilk11ChangeModeBtn = document.getElementById("ilk11ChangeModeBtn");
+if (_ilk11ChangeModeBtn) {
+    _ilk11ChangeModeBtn.onclick = () => {
+        if (typeof openChangeModeModal === "function") {
+            openChangeModeModal();
+        }
+    };
+}
+
 // Oda Ayarları butonu
 document.getElementById("ilk11RoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
@@ -390,6 +400,13 @@ function updateIlk11Lobby() {
     if (settingsBtn) {
         if (ilk11Data.playerId === 1) settingsBtn.classList.remove("hidden");
         else settingsBtn.classList.add("hidden");
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("ilk11ChangeModeBtn");
+    if (changeModeBtn) {
+        if (ilk11Data.playerId === 1) changeModeBtn.classList.remove("hidden");
+        else changeModeBtn.classList.add("hidden");
     }
 }
 

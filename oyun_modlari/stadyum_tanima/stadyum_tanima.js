@@ -266,6 +266,16 @@ document.getElementById("stadLobbyLeaveBtn").onclick = () => {
     window._showLeaveConfirmPopup();
 };
 
+// ✨ Mod Değiştir butonu
+const _stadChangeModeBtn = document.getElementById("stadChangeModeBtn");
+if (_stadChangeModeBtn) {
+    _stadChangeModeBtn.onclick = () => {
+        if (typeof openChangeModeModal === "function") {
+            openChangeModeModal();
+        }
+    };
+}
+
 document.getElementById("stadRoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
         title: "Stadyum Tanıma - Oda Ayarları",
@@ -476,6 +486,13 @@ function updateStadLobby() {
     if (settingsBtn) {
         if (stadData.playerId === 1) settingsBtn.classList.remove("hidden");
         else settingsBtn.classList.add("hidden");
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("stadChangeModeBtn");
+    if (changeModeBtn) {
+        if (stadData.playerId === 1) changeModeBtn.classList.remove("hidden");
+        else changeModeBtn.classList.add("hidden");
     }
 }
 

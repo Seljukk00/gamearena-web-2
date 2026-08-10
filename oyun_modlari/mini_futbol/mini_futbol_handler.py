@@ -132,6 +132,7 @@ async def send_minifutbol_lobby_update(room, broadcast):
         "ball_stick": room.get("ball_stick", True),
         "sprint_enabled": room.get("sprint_enabled", True),
         "player_count": room.get("player_count", 2),
+        "spectator_count": room.get("spectator_count", 0),
         "kickoff_timeout": room.get("kickoff_timeout", 10),
         "field_width": _fd_lobby["width"],
         "field_height": _fd_lobby["height"],
@@ -1457,6 +1458,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if kickoff_timeout_init not in [5, 10, 15, 20, 30, 60, 999]:
             kickoff_timeout_init = 10
         
+        # ✨ İzleyici sayısı (0-5)
+        spectator_count_init = int(data.get("spectator_count", 0))
+        if spectator_count_init < 0: spectator_count_init = 0
+        if spectator_count_init > 5: spectator_count_init = 5
+        
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -1493,13 +1499,14 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "goal_target": goal_target,
             "match_duration": match_duration,
             "game_speed": game_speed,
-            "max_players": 10,
+            "max_players": player_count_init + spectator_count_init,
             "red_team_name": red_team_name_init,
             "blue_team_name": blue_team_name_init,
             "allow_plase": allow_plase_init,
             "ball_stick": ball_stick_init,
             "sprint_enabled": sprint_enabled_init,
             "player_count": player_count_init,
+            "spectator_count": spectator_count_init,
             "field_width": _fs_create["width"],
             "field_height": _fs_create["height"],
             "field_goal_width": _fs_create["goal_width"],
@@ -1702,6 +1709,24 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             new_kickoff_timeout = 10
         room["kickoff_timeout"] = new_kickoff_timeout
         
+        # ✨ İzleyici sayısı güncelle
+        new_spectator_count = int(data.get("spectator_count", room.get("spectator_count", 0)))
+        if new_spectator_count < 0: new_spectator_count = 0
+        if new_spectator_count > 5: new_spectator_count = 5
+        
+        # ✨ Şu anki spectator sayısı yeni limitin üstündeyse reddet
+        current_specs = sum(1 for p in room["players"].values() if p.get("team") == "spectator")
+        if current_specs > new_spectator_count:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": f"Şu an {current_specs} izleyici var, {new_spectator_count}'ye düşürülemez!"
+            })
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # ✨ Eski değer sakla (toast için)
+        old_spectator_count = room.get("spectator_count", 0)
+        room["spectator_count"] = new_spectator_count
+        
         # ✨ Oyuncu sayısı kontrol
         if new_player_count not in [2, 4, 6, 8, 10]:
             new_player_count = 2
@@ -1723,11 +1748,9 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         room["field_width"] = _fs_update["width"]
         room["field_height"] = _fs_update["height"]
         room["field_goal_width"] = _fs_update["goal_width"]
-        # ✨ Saha boyutlarını yeni player_count'a göre güncelle
-        _fs_update = get_field_size(new_player_count)
-        room["field_width"] = _fs_update["width"]
-        room["field_height"] = _fs_update["height"]
-        room["field_goal_width"] = _fs_update["goal_width"]
+        
+        # ✨ max_players = player_count + spectator_count (dinamik)
+        room["max_players"] = new_player_count + room.get("spectator_count", 0)
         
         # ✨ Gelişmiş açıksa özgür değer kabul et
         if advanced_enabled:
@@ -1853,6 +1876,14 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 kt_text = f"{new_kickoff_timeout} saniye"
             changes.append({
                 "msg": f"⏱️ Santra Süresi: {kt_text} olarak değiştirildi"
+            })
+        
+        # İzleyici sayısı
+        old_spectator_count = room.get("spectator_count", 0)  
+        if old_spectator_count != new_spectator_count:
+            spec_text = "İzleyici yok" if new_spectator_count == 0 else f"{new_spectator_count} izleyici"
+            changes.append({
+                "msg": f"👁️ İzleyici Sayısı: {spec_text} olarak değiştirildi"
             })
         
         
@@ -2347,20 +2378,27 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             })
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        # ✨ Toplam takım limiti kontrolü (player_count)
+        # ✨ Takım limiti kontrolü (her takım için ayrı: half_max)
         if new_team in ["red", "blue"]:
-            # Zaten takımdaysa mevcut sayıdan çıkart
-            was_in_team = room["players"][target_pid].get("team") in ["red", "blue"]
-            current_total = sum(1 for p in room["players"].values() if p.get("team") in ["red", "blue"])
-            new_total = current_total if was_in_team else (current_total + 1)
+            # Zaten bu takımdaysa mevcut sayıdan çıkart
+            was_already_in = room["players"][target_pid].get("team") == new_team
+            current_team_count = sum(1 for p in room["players"].values() if p.get("team") == new_team)
+            new_team_count = current_team_count if was_already_in else (current_team_count + 1)
             
             max_total = room.get("player_count", 2)
-            if new_total > max_total:
+            half_max = max_total // 2
+            
+            if new_team_count > half_max:
+                # ✨ Takım dolu - özel popup mesajı
+                team_name_tr = "Kırmızı Takım" if new_team == "red" else "Mavi Takım"
                 mode_labels = {2:"1v1", 4:"2v2", 6:"3v3", 8:"4v4", 10:"5v5"}
-                mode_label = mode_labels.get(max_total, f"{max_total//2}v{max_total//2}")
+                mode_label = mode_labels.get(max_total, f"{half_max}v{half_max}")
                 await safe_send(websocket, {
-                    "type": "error", 
-                    "message": f"Oda dolu! ({mode_label}, max {max_total} takım oyuncusu)"
+                    "type": "mini_team_full",
+                    "team": new_team,
+                    "team_name": team_name_tr,
+                    "max_per_team": half_max,
+                    "mode_label": mode_label
                 })
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
         

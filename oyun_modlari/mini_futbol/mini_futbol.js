@@ -10,6 +10,7 @@ let miniData = {
     matchDuration: 180,
     gameSpeed: "normal",
     playerCount: 2,  // ✨ Default 1v1
+    spectatorCount: 0,  // ✨ Default izleyici yok
     redTeamName: "Kırmızı Takım",
     blueTeamName: "Mavi Takım",
     splitScreen: false,
@@ -720,6 +721,9 @@ function handleMiniMessage(msg) {
         // ✨ Snapshot buffer'ı temizle (eski oyuncunun hayaleti kalmasın)
         miniData.snapshots = [];
         
+        // ✨ Render smoothing state'ini de temizle
+        miniData._renderSmoothed = {};
+        
         // ✨ Ayrılan oyuncu varsa HP'den ve game_state'ten sil
         if (msg.removed_pid) {
             const removedPid = msg.removed_pid;
@@ -868,11 +872,40 @@ function handleMiniMessage(msg) {
             const redYs = calcYs(redPids.length, HP.FIELD_HEIGHT);
             const blueYs = calcYs(bluePids.length, HP.FIELD_HEIGHT);
             
+            // ✨ YARDIMCI: Mevcut oyuncuların Y pozisyonlarına en uzak Y slot'unu bul
+            //           (üst üste binmesin)
+            function findBestYSlot(availableYs, existingYs) {
+                if (existingYs.length === 0) return availableYs[0];
+                // Her aday Y için, mevcut oyunculara en yakın mesafeyi bul
+                // → En uzak Y'yi tercih et
+                let bestY = availableYs[0];
+                let bestMinDist = -1;
+                for (const y of availableYs) {
+                    let minDist = Infinity;
+                    for (const ey of existingYs) {
+                        const d = Math.abs(y - ey);
+                        if (d < minDist) minDist = d;
+                    }
+                    if (minDist > bestMinDist) {
+                        bestMinDist = minDist;
+                        bestY = y;
+                    }
+                }
+                return bestY;
+            }
+            
+            // ✨ Kırmızı: mevcut oyuncuların Y pozisyonlarını topla
+            const existingRedYs = redPids
+                .filter(pid => gs.players[pid] && gs.players[pid].team === "red")
+                .map(pid => gs.players[pid].y);
+            
             // Kırmızı oyuncuları ekle/güncelle
             redPids.forEach((pid, i) => {
                 if (!gs.players[pid]) {
+                    // ✨ Yeni oyuncu → mevcut oyunculara en uzak Y slot'una koy
+                    const bestY = findBestYSlot(redYs, existingRedYs);
                     gs.players[pid] = {
-                        x: spawnOffset, y: redYs[i],
+                        x: spawnOffset, y: bestY,
                         vx: 0, vy: 0,
                         keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                         last_kick_time: 0,
@@ -880,13 +913,24 @@ function handleMiniMessage(msg) {
                         last_frame_time: 0,
                         team: "red"
                     };
-                    console.log(`[HP MULTI] Yeni kırmızı oyuncu ${pid} eklendi`);
+                    existingRedYs.push(bestY);  // Bir sonraki için hesaba kat
+                    console.log(`[HP MULTI] Yeni kırmızı ${pid} → Y=${bestY.toFixed(0)}`);
                 } else {
+                    // Mevcut oyuncu
+                    const oldTeam = gs.players[pid].team;
                     gs.players[pid].team = "red";
-                    // Pozisyonu güncelle (yeni takıma geldiyse)
-                    gs.players[pid].y = redYs[i];
+                    // Sadece TAKIM DEĞİŞTİYSE pozisyonu sıfırla
+                    if (oldTeam !== "red") {
+                        const bestY = findBestYSlot(redYs, existingRedYs);
+                        gs.players[pid].x = spawnOffset;
+                        gs.players[pid].y = bestY;
+                        gs.players[pid].vx = 0;
+                        gs.players[pid].vy = 0;
+                        existingRedYs.push(bestY);
+                        console.log(`[HP MULTI] Oyuncu ${pid} ${oldTeam} → red, Y=${bestY.toFixed(0)}`);
+                    }
+                    // Aynı takımdaysa yerinde kalsın
                 }
-                // room.players'a ekle (stats için)
                 if (!HP.room.players[pid]) {
                     HP.room.players[pid] = {
                         name: msg.players[String(pid)] || "P" + pid,
@@ -899,11 +943,18 @@ function handleMiniMessage(msg) {
                 }
             });
             
+            // ✨ Mavi: mevcut oyuncuların Y pozisyonlarını topla
+            const existingBlueYs = bluePids
+                .filter(pid => gs.players[pid] && gs.players[pid].team === "blue")
+                .map(pid => gs.players[pid].y);
+            
             // Mavi oyuncuları ekle/güncelle
             bluePids.forEach((pid, i) => {
                 if (!gs.players[pid]) {
+                    // ✨ Yeni oyuncu → boş slot'a koy
+                    const bestY = findBestYSlot(blueYs, existingBlueYs);
                     gs.players[pid] = {
-                        x: HP.FIELD_WIDTH - spawnOffset, y: blueYs[i],
+                        x: HP.FIELD_WIDTH - spawnOffset, y: bestY,
                         vx: 0, vy: 0,
                         keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                         last_kick_time: 0,
@@ -911,10 +962,20 @@ function handleMiniMessage(msg) {
                         last_frame_time: 0,
                         team: "blue"
                     };
-                    console.log(`[HP MULTI] Yeni mavi oyuncu ${pid} eklendi`);
+                    existingBlueYs.push(bestY);
+                    console.log(`[HP MULTI] Yeni mavi ${pid} → Y=${bestY.toFixed(0)}`);
                 } else {
+                    const oldTeam = gs.players[pid].team;
                     gs.players[pid].team = "blue";
-                    gs.players[pid].y = blueYs[i];
+                    if (oldTeam !== "blue") {
+                        const bestY = findBestYSlot(blueYs, existingBlueYs);
+                        gs.players[pid].x = HP.FIELD_WIDTH - spawnOffset;
+                        gs.players[pid].y = bestY;
+                        gs.players[pid].vx = 0;
+                        gs.players[pid].vy = 0;
+                        existingBlueYs.push(bestY);
+                        console.log(`[HP MULTI] Oyuncu ${pid} ${oldTeam} → blue, Y=${bestY.toFixed(0)}`);
+                    }
                 }
                 if (!HP.room.players[pid]) {
                     HP.room.players[pid] = {
@@ -1065,6 +1126,8 @@ function handleMiniMessage(msg) {
         miniData.sprintEnabled = msg.sprint_enabled !== false;
         // ✨ player_count her zaman güncelle (default 2)
         miniData.playerCount = msg.player_count || 2;
+        // ✨ İzleyici sayısı
+        if (msg.spectator_count !== undefined) miniData.spectatorCount = msg.spectator_count;
         // ✨ Santra süresi
         miniData.kickoffTimeout = msg.kickoff_timeout || 10;
         // ✨ Saha boyutları (backend'den gelir)
@@ -1087,6 +1150,7 @@ function handleMiniMessage(msg) {
         if (miniData.playerId === 1) {
             try {
                 localStorage.setItem("miniPlayerCount", String(miniData.playerCount));
+                localStorage.setItem("miniSpectatorCount", String(miniData.spectatorCount));
                 localStorage.setItem("miniCreateGoal", String(miniData.goalTarget));
                 localStorage.setItem("miniCreateDuration", String(miniData.matchDuration));
                 localStorage.setItem("miniCreateSpeed", miniData.gameSpeed);
@@ -1258,6 +1322,12 @@ function handleMiniMessage(msg) {
         return;
     }
     
+    // ✨ Takım dolu - özel popup
+    if (msg.type === "mini_team_full") {
+        showMiniTeamFullPopup(msg.team, msg.team_name, msg.max_per_team, msg.mode_label);
+        return;
+    }
+    
     // ✨ Host ayrıldı - kullanıcıyı katıl ekranına at
     if (msg.type === "mini_host_left") {
         console.log("[MINI] Host odadan ayrıldı");
@@ -1381,11 +1451,12 @@ function handleMiniMessage(msg) {
             const lgs = HP.room.gameState;
             const sgs = msg;
             
-            // Diğer oyuncuları sunucu pozisyonuna yumuşakça çek (titremesin)
+            // ✨ Rakip oyuncuları HP'ye çekme: sadece çok büyük farkta snap
+            // (Rakipler artık interpolation'dan çiziliyor, HP sadece fizik için)
             if (sgs.players && lgs.players) {
                 for (const pid in sgs.players) {
                     const pidInt = parseInt(pid);
-                    if (pidInt === miniData.playerId) continue;  // Kendim hariç
+                    if (pidInt === miniData.playerId) continue;
                     if (!lgs.players[pidInt]) continue;
                     
                     const sp = sgs.players[pid];
@@ -1394,19 +1465,16 @@ function handleMiniMessage(msg) {
                     const dy = sp.y - lp.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist > 100) {
-                        // Çok uzak → snap
+                    if (dist > 150) {
+                        // Çok uzak → snap (teleport / takım değişimi)
                         lp.x = sp.x;
                         lp.y = sp.y;
-                    } else if (dist > 5) {
-                        // Ufak drift → yumuşak
-                        lp.x += dx * 0.2;
-                        lp.y += dy * 0.2;
                     }
-                    // 5px altında hiç dokunma (titreme engeli)
+                    // Geri kalan farklar render'ı etkilemiyor
+                    // çünkü rakipler artık interpolation buffer'dan çiziliyor
                 }
                 
-                // ✨ Kendi karakterim: SADECE çok uzaksa hizala (misprediction düzeltmesi)
+                // ✨ Kendi karakterim: küçük farklarda çekiştirme yapma (titreme engeli)
                 const myPid = miniData.playerId;
                 if (sgs.players[myPid] && lgs.players[myPid]) {
                     const sme = sgs.players[myPid];
@@ -1415,33 +1483,45 @@ function handleMiniMessage(msg) {
                     const dy = sme.y - lme.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (dist > 80) {
-                        // Ciddi ayrışma → snap (nadiren olur)
+                    if (dist > 120) {
+                        // Ciddi ayrışma → snap
                         lme.x = sme.x;
                         lme.y = sme.y;
                         console.log("[RECONCILE] Kendi karakter snap edildi, fark:", dist.toFixed(1));
-                    } else if (dist > 15) {
-                        // Ufak drift → çok yavaş çek
-                        lme.x += dx * 0.1;
-                        lme.y += dy * 0.1;
+                    } else if (dist > 28) {
+                        // Orta fark → çok hafif düzelt
+                        lme.x += dx * 0.04;
+                        lme.y += dy * 0.04;
                     }
+                    // 28 px altına hiç dokunma → mikro jitter kesilsin
                 }
             }
             
-            // ✨ Top reconciliation - POZİSYON DOKUNMA (titreme yok)
-            // Sadece: (1) çok büyük farkta snap, (2) hızı yumuşak düzelt
+            // ✨ Top reconciliation - artık top da local HP timeline'ında yaşayacak
             if (sgs.ball && lgs.ball) {
                 const dx = sgs.ball.x - lgs.ball.x;
                 const dy = sgs.ball.y - lgs.ball.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
+                const justKicked = miniData._recentKickTime && (performance.now() - miniData._recentKickTime) < 180;
                 
-                // ✨ HP topu → server ile senkron tut (render kullanmıyor ama fizik için lazım)
-                // Snap yap (görsel etki yok çünkü render interpolation'dan çiziyor)
-                lgs.ball.x = sgs.ball.x;
-                lgs.ball.y = sgs.ball.y;
-                lgs.ball.vx = sgs.ball.vx || 0;
-                lgs.ball.vy = sgs.ball.vy || 0;
-                if (sgs.ball.spin !== undefined) lgs.ball.spin = sgs.ball.spin;
+                if (dist > 90) {
+                    // Çok büyük fark → snap
+                    lgs.ball.x = sgs.ball.x;
+                    lgs.ball.y = sgs.ball.y;
+                } else if (!justKicked && dist > 6) {
+                    // Orta fark → belirgin ama yumuşak düzeltme
+                    lgs.ball.x += dx * 0.35;
+                    lgs.ball.y += dy * 0.35;
+                } else if (!justKicked && dist > 1.25) {
+                    // Küçük fark → hafif düzeltme
+                    lgs.ball.x += dx * 0.12;
+                    lgs.ball.y += dy * 0.12;
+                }
+                
+                // ✨ EN KRİTİK FIX: Host'tan gelen gerçek hızları kullan
+                if (typeof sgs.ball.vx === "number") lgs.ball.vx = sgs.ball.vx;
+                if (typeof sgs.ball.vy === "number") lgs.ball.vy = sgs.ball.vy;
+                if (typeof sgs.ball.spin === "number") lgs.ball.spin = sgs.ball.spin;
             }
         }
         
@@ -1645,6 +1725,18 @@ function updateMiniLobby() {
         settingsBtn.style.setProperty("display", "inline-block", "important");
         settingsBtn.style.background = "#6741d9";
         settingsBtn.textContent = "⚙️ Oda Ayarları";
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("miniChangeModeBtn");
+    if (changeModeBtn) {
+        if (miniData.playerId === 1) {
+            changeModeBtn.classList.remove("hidden");
+            changeModeBtn.style.setProperty("display", "inline-block", "important");
+        } else {
+            changeModeBtn.classList.add("hidden");
+            changeModeBtn.style.display = "none";
+        }
     }
     
     // Takım ismi düzenleme butonları (sadece host)
@@ -2058,6 +2150,19 @@ function openMiniRoomSettings() {
                 ]
             },
             {
+                id: "spectatorCount",
+                label: "👁️ İzleyici Sayısı",
+                current: miniData.spectatorCount || 0,
+                options: [
+                    {value: 0, label: "İzleyici yok"},
+                    {value: 1, label: "1 İzleyici"},
+                    {value: 2, label: "2 İzleyici"},
+                    {value: 3, label: "3 İzleyici"},
+                    {value: 4, label: "4 İzleyici"},
+                    {value: 5, label: "5 İzleyici"}
+                ]
+            },
+            {
                 id: "goalTarget",
                 label: "⚽ Kazanma Skoru",
                 current: miniData.goalTarget || 3,
@@ -2274,6 +2379,7 @@ function openMiniRoomSettings() {
                 ball_stick: ballStick,
                 sprint_enabled: sprintEnabled,
                 player_count: parseInt(values.playerCount) || 2,
+                spectator_count: parseInt(values.spectatorCount) || 0,
                 kickoff_timeout: kickoffTimeout,  // ✨ Santra süresi
                 advanced_enabled: advancedEnabled
             };
@@ -2852,6 +2958,9 @@ function stopMiniGame() {
     miniData.predictionActive = false;
     miniData.predictedSelf = null;
     miniData.predictedKeys = {up:false, down:false, left:false, right:false, sprint:false};
+    
+    // ✨ Render smoothing state'ini temizle
+    miniData._renderSmoothed = {};
 }
 
 // ========================================
@@ -2875,6 +2984,13 @@ function miniKeyDown(e) {
         if (el && !el.classList.contains("hidden")) {
             return;  // Popup açık, oyun kontrolüne izin verme
         }
+    }
+    
+    // ✨ Countdown sırasında hareket tuşları çalışmasın (titreme engeli)
+    // Sadece maç oynanırken tuş kabul et
+    const gs = miniData.gameState;
+    if (gs && gs.game_state === "countdown") {
+        return;
     }
     
     const result = getMiniKey(e);
@@ -3333,22 +3449,46 @@ function miniRender() {
             // ✨ Interpolated pozisyonu kullan
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            // ✨ HOST: TÜM oyuncular HP'den (otorite)
-            // MİSAFİR: Kendi karakter HP'den (0 lag), rakip interpolation'dan
+            // ✨ Herkes HP'den → top ve tüm oyuncular aynı timeline'da
+            // Rakipler için render smoothing yap (HP pozisyonuna yumuşak yaklaş)
             if (typeof HP !== 'undefined' && HP.running && 
                 HP.room && HP.room.gameState && HP.room.gameState.players &&
                 HP.room.gameState.players[pid]) {
                 const isHost = miniData.playerId === 1;
                 const isMyself = parseInt(pid) === miniData.playerId;
+                const hpPlayer = HP.room.gameState.players[pid];
                 
                 if (isHost || isMyself) {
-                    // Host tümü, misafir sadece kendini HP'den
-                    const hpPlayer = HP.room.gameState.players[pid];
+                    // Host veya kendi karakter → HP'den direkt (0 lag)
                     smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
+                } else {
+                    // ✨ Rakip → HP'den render smoothing ile
+                    if (!miniData._renderSmoothed) miniData._renderSmoothed = {};
+                    const key = "rp" + pid;
+                    let rs = miniData._renderSmoothed[key];
+                    
+                    if (!rs) {
+                        // İlk frame → HP pozisyonundan başla
+                        rs = { x: hpPlayer.x, y: hpPlayer.y };
+                        miniData._renderSmoothed[key] = rs;
+                    } else {
+                        const rdx = hpPlayer.x - rs.x;
+                        const rdy = hpPlayer.y - rs.y;
+                        const rdist = Math.sqrt(rdx*rdx + rdy*rdy);
+                        
+                        if (rdist > 80) {
+                            // Çok uzak → snap
+                            rs.x = hpPlayer.x;
+                            rs.y = hpPlayer.y;
+                        } else {
+                            // Yumuşak yaklaşma (0.35 = hızlı ama titremesiz)
+                            rs.x += rdx * 0.35;
+                            rs.y += rdy * 0.35;
+                        }
+                    }
+                    smoothPos = { x: rs.x, y: rs.y };
                 }
-                // Misafir + rakip → interpolation
             }
-            // ✨ Rakip oyuncular (misafir tarafında) → interpolation buffer'dan
             
             const p = { x: smoothPos.x, y: smoothPos.y };
             
@@ -3508,15 +3648,12 @@ function miniRender() {
         }
         
         // Top
-        // ✨ HOST → kendi HP topundan (otorite, 0 lag)
-        // MİSAFİR → interpolation buffer'dan (server'dan, 80ms delay, akıcı)
+        // ✨ Host + misafir topu aynı local HP timeline'ından çizer
         let bSmooth;
-        const _isHostForBall = miniData.playerId === 1;
-        if (_isHostForBall && typeof HP !== 'undefined' && HP.running &&
+        if (typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
             bSmooth = HP.room.gameState.ball;
         } else {
-            // Misafir → snapshot interpolation (yumuşak, gecikmeli ama titreme yok)
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
@@ -3913,13 +4050,24 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     ctx.shadowBlur = 35;
     
     if (isOwnGoal) {
-        // Kendi kalesine → hepsi KIRMIZI
+        // Kendi kalesine → hepsi KIRMIZI (uyarı rengi)
         ctx.shadowColor = "#ff3333";
         ctx.fillStyle = "#ff6b6b";
     } else {
-        // Normal → sarı (klasik gol)
-        ctx.shadowColor = "#ffd43b";
-        ctx.fillStyle = "#ffd43b";
+        // ✨ Gol atan takımın rengine göre
+        if (scorerTeamId === 1) {
+            // Kırmızı takım gol attı
+            ctx.shadowColor = "#ff6b6b";
+            ctx.fillStyle = "#ff6b6b";
+        } else if (scorerTeamId === 2) {
+            // Mavi takım gol attı
+            ctx.shadowColor = "#4dabf7";
+            ctx.fillStyle = "#4dabf7";
+        } else {
+            // Fallback → sarı
+            ctx.shadowColor = "#ffd43b";
+            ctx.fillStyle = "#ffd43b";
+        }
     }
     ctx.fillText("⚽ GOOOL!", 0, goolY);
     
@@ -4377,6 +4525,7 @@ setTimeout(() => {
                 const savedStick = localStorage.getItem("miniBallStick");
                 const savedSprintEn = localStorage.getItem("miniSprintEnabled");
                 const savedPc = localStorage.getItem("miniPlayerCount");
+                const savedSpec = localStorage.getItem("miniSpectatorCount");
                 const savedKt = localStorage.getItem("miniKickoffTimeout");
                 
                 if (savedGoal && goalEl) {
@@ -4404,6 +4553,13 @@ setTimeout(() => {
                 if (savedPc && pcEl) {
                     const opt = [...pcEl.options].find(o => o.value === savedPc);
                     if (opt) pcEl.value = savedPc;
+                }
+                if (savedSpec) {
+                    const specEl = document.getElementById("miniSpectatorCountSelect");
+                    if (specEl) {
+                        const opt = [...specEl.options].find(o => o.value === savedSpec);
+                        if (opt) specEl.value = savedSpec;
+                    }
                 }
                 if (savedKt) {
                     const ktEl = document.getElementById("miniKickoffTimeoutSelect");
@@ -4485,6 +4641,10 @@ setTimeout(() => {
             const playerCountEl = document.getElementById("miniPlayerCountSelect");
             const playerCount = playerCountEl ? parseInt(playerCountEl.value) : 2;
             
+            // ✨ İzleyici sayısı (0-5)
+            const specCountEl = document.getElementById("miniSpectatorCountSelect");
+            const spectatorCount = specCountEl ? parseInt(specCountEl.value) : 0;
+            
             // ✨ Gelişmiş ayarlar slider değerleri (varsa)
             let advancedValues = null;
             if (advancedEnabled) {
@@ -4562,6 +4722,7 @@ setTimeout(() => {
                 ball_stick: ballStick,
                 sprint_enabled: sprintEnabled,
                 player_count: playerCount,
+                spectator_count: spectatorCount,
                 kickoff_timeout: savedKickoffTimeout,  // ✨ Santra süresi
                 red_team_name: savedRedName,
                 blue_team_name: savedBlueName,
@@ -4569,8 +4730,11 @@ setTimeout(() => {
             };
             if (advancedValues) payload.advanced = advancedValues;
             
-            // ✨ localStorage'a player_count
-            try { localStorage.setItem("miniPlayerCount", String(playerCount)); } catch(e) {}
+            // ✨ localStorage'a player_count + spectator_count
+            try { 
+                localStorage.setItem("miniPlayerCount", String(playerCount));
+                localStorage.setItem("miniSpectatorCount", String(spectatorCount));
+            } catch(e) {}
             
             send(payload);
         };
@@ -4603,6 +4767,16 @@ setTimeout(() => {
     const settingsBtn = document.getElementById("miniRoomSettingsBtn");
     if (settingsBtn) {
         settingsBtn.addEventListener("click", () => openMiniRoomSettings());
+    }
+    
+    // ✨ Mod Değiştir butonu
+    const _miniChangeModeBtn = document.getElementById("miniChangeModeBtn");
+    if (_miniChangeModeBtn) {
+        _miniChangeModeBtn.addEventListener("click", () => {
+            if (typeof openChangeModeModal === "function") {
+                openChangeModeModal();
+            }
+        });
     }
     
     // ✨ Kontrol Ayarları butonu (lobby)
@@ -6339,6 +6513,45 @@ function openMiniKickConfirm(targetId, targetName) {
     };
     
     document.getElementById("miniKickNoBtn").onclick = () => {
+        overlay.remove();
+    };
+}
+
+// ========================================
+// MODERN POPUP - Takım Dolu Uyarısı
+// ========================================
+function showMiniTeamFullPopup(team, teamName, maxPerTeam, modeLabel) {
+    const existing = document.getElementById("miniTeamFullBox");
+    if (existing) existing.remove();
+    
+    const isRed = team === "red";
+    const teamColor = isRed ? "#ff6b6b" : "#4dabf7";
+    const teamGlow = isRed ? "rgba(255,107,107,0.4)" : "rgba(77,171,247,0.4)";
+    const teamEmoji = isRed ? "🔴" : "🔵";
+    
+    const overlay = document.createElement("div");
+    overlay.id = "miniTeamFullBox";
+    overlay.className = "overlay";
+    overlay.innerHTML = `
+        <div class="overlayCard" style="max-width:450px; border:2px solid ${teamColor}; 
+                                         box-shadow: 0 0 40px ${teamGlow};">
+            <div style="font-size:70px; margin:10px 0;">${teamEmoji}</div>
+            <h2 style="color:${teamColor}; margin:10px 0 15px 0;">Takım Dolu!</h2>
+            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.6;">
+                <b style="color:${teamColor};">${teamName}</b> dolu.<br>
+                <span style="font-size:13px;">
+                    Bu oda <b style="color:#ffd43b;">${modeLabel}</b> modunda,<br>
+                    her takımda en fazla <b style="color:#ffd43b;">${maxPerTeam} oyuncu</b> olabilir.
+                </span>
+            </p>
+            <div class="confirmButtons">
+                <button id="miniTeamFullOkBtn" class="bigBtn greenBtn">Anladım</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    document.getElementById("miniTeamFullOkBtn").onclick = () => {
         overlay.remove();
     };
 }

@@ -264,6 +264,16 @@ document.getElementById("gizemLobbyLeaveBtn").onclick = () => {
     window._showLeaveConfirmPopup();
 };
 
+// ✨ Mod Değiştir butonu
+const _gizemChangeModeBtn = document.getElementById("gizemChangeModeBtn");
+if (_gizemChangeModeBtn) {
+    _gizemChangeModeBtn.onclick = () => {
+        if (typeof openChangeModeModal === "function") {
+            openChangeModeModal();
+        }
+    };
+}
+
 document.getElementById("gizemRoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
         title: "Gizemli Kariyer - Oda Ayarları",
@@ -495,6 +505,13 @@ function updateGizemLobby() {
     if (settingsBtn) {
         if (gizemData.playerId === 1) settingsBtn.classList.remove("hidden");
         else settingsBtn.classList.add("hidden");
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("gizemChangeModeBtn");
+    if (changeModeBtn) {
+        if (gizemData.playerId === 1) changeModeBtn.classList.remove("hidden");
+        else changeModeBtn.classList.add("hidden");
     }
 }
 

@@ -619,6 +619,16 @@ document.getElementById("mlStartBtn").onclick = () => {
 };
 document.getElementById("mlLobbyLeaveBtn").onclick = () => { window._showLeaveConfirmPopup(); };
 
+// ✨ Mod Değiştir butonu
+const _mlChangeModeBtn = document.getElementById("mlChangeModeBtn");
+if (_mlChangeModeBtn) {
+    _mlChangeModeBtn.onclick = () => {
+        if (typeof openChangeModeModal === "function") {
+            openChangeModeModal();
+        }
+    };
+}
+
 // Oda Ayarları butonu
 document.getElementById("mlRoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
@@ -874,6 +884,13 @@ function updateMlLobby() {
     if (settingsBtn) {
         if (mlData.playerId === 1) settingsBtn.classList.remove("hidden");
         else settingsBtn.classList.add("hidden");
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("mlChangeModeBtn");
+    if (changeModeBtn) {
+        if (mlData.playerId === 1) changeModeBtn.classList.remove("hidden");
+        else changeModeBtn.classList.add("hidden");
     }
 }
 

@@ -444,6 +444,7 @@
             <div class="centerBox">
                 <button id="haritaStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="haritaRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="haritaChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="haritaLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="haritaLobbyMsg" class="msg"></p>
@@ -659,6 +660,7 @@
             <div class="centerBox">
                 <button id="gizemStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="gizemRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="gizemChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="gizemLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="gizemLobbyMsg" class="msg"></p>
@@ -806,6 +808,7 @@
                         <option value="45">45 saniye</option>
                         <option value="60" selected>60 saniye</option>
                         <option value="120">120 saniye</option>
+                        <option value="0">♾️ Sınırsız</option>
                     </select>
                 </label>
             </div>
@@ -896,6 +899,7 @@
             <div class="centerBox">
                 <button id="startBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="roomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="changeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="lobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="lobbyMsg" class="msg"></p>
@@ -930,6 +934,7 @@
             <div class="centerBox">
                 <button id="mlStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="mlRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="mlChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="mlLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="mlLobbyMsg" class="msg"></p>
@@ -960,6 +965,7 @@
             <div class="centerBox">
                 <button id="takimStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="takimRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="takimChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="takimLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="takimLobbyMsg" class="msg"></p>
@@ -1251,6 +1257,7 @@
             <div class="centerBox">
                 <button id="ilk11StartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="ilk11RoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="ilk11ChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="ilk11LobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="ilk11LobbyMsg" class="msg"></p>
@@ -1450,6 +1457,7 @@
             <div class="centerBox">
                 <button id="stadStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="stadRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="stadChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="stadLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="stadLobbyMsg" class="msg"></p>
@@ -1643,6 +1651,7 @@
             <div class="centerBox">
                 <button id="memeStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
                 <button id="memeRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="memeChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="memeLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
             <p id="memeLobbyMsg" class="msg"></p>
@@ -1759,6 +1768,18 @@
                             <option value="6">3v3</option>
                             <option value="8">4v4</option>
                             <option value="10">5v5</option>
+                        </select>
+                    </div>
+                    
+                    <div class="miniCreateField">
+                        <label>👁️ İzleyici Sayısı:</label>
+                        <select id="miniSpectatorCountSelect">
+                            <option value="0" selected>İzleyici yok</option>
+                            <option value="1">1 İzleyici</option>
+                            <option value="2">2 İzleyici</option>
+                            <option value="3">3 İzleyici</option>
+                            <option value="4">4 İzleyici</option>
+                            <option value="5">5 İzleyici</option>
                         </select>
                     </div>
                     
@@ -2006,6 +2027,7 @@
                 <button id="miniRejoinGameBtn" class="bigBtn greenBtn hidden" style="background:#0ca678;">🎮 Oyuna Katıl</button>
                 <button id="miniRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
                 <button id="miniControlSettingsBtn" class="bigBtn" style="background:#0ca678;">⚙️ Ayarlar</button>
+                <button id="miniChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
                 <button id="miniResetNamesBtn" class="bigBtn" style="background:#495057; display:none;">🔄 Takım İsimlerini Sıfırla</button>
                 <button id="miniLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
             </div>
@@ -2692,6 +2714,43 @@
 
     <!-- KONFETI -->
     <canvas id="confetti"></canvas>
+
+    <!-- ✨ MOD DEĞİŞTİR POPUP -->
+    <div id="changeModeModal" class="overlay hidden" style="z-index:99999; align-items:center;">
+        <div class="overlayCard" style="max-width:1400px; width:95%; padding:20px 25px;
+             max-height:90vh; display:flex; flex-direction:column; overflow:hidden;
+             box-sizing:border-box; margin:auto;">
+            
+            <!-- Başlık (sabit üst) -->
+            <div style="display:flex; justify-content:space-between; align-items:center; 
+                        margin-bottom:10px; flex-shrink:0;">
+                <h2 style="color:#ffd43b; margin:0;">🔄 Mod Değiştir</h2>
+                <button id="changeModeCloseBtn" style="background:transparent; border:none; color:#fff; 
+                        font-size:28px; cursor:pointer; padding:0 10px;" title="Kapat">✕</button>
+            </div>
+            <p style="color:#adb5bd; font-size:14px; margin:0 0 15px 0; flex-shrink:0;">
+                Yeni bir mod seç. <b>Oyuncular ve oda kodu aynı kalır</b>, sadece oyun modu değişir.
+            </p>
+            
+            <!-- Mod grid (scroll'lu orta alan) -->
+            <div id="changeModeGrid" class="mod-grid" 
+                 style="overflow-y:auto; overflow-x:hidden; padding-right:8px;
+                        flex:1 1 auto; min-height:0;
+                        display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:15px;">
+                <!-- 9 mod kartı JS ile doldurulacak -->
+            </div>
+            
+            <!-- Butonlar (sabit alt) -->
+            <div style="display:flex; gap:10px; margin-top:15px; justify-content:center;
+                        flex-shrink:0; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1);">
+                <button id="changeModeConfirmBtn" class="bigBtn greenBtn" disabled 
+                        style="opacity:0.5; cursor:not-allowed;">
+                    ✅ Seçilen Moda Geç
+                </button>
+                <button id="changeModeCancelBtn" class="bigBtn redBtn">İptal</button>
+            </div>
+        </div>
+    </div>
 
     <!-- YASAL DISCLAIMER FOOTER -->
     <footer class="siteFooter">

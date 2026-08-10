@@ -302,6 +302,16 @@ document.getElementById("haritaLobbyLeaveBtn").onclick = () => {
     window._showLeaveConfirmPopup();
 };
 
+// ✨ Mod Değiştir butonu
+const _haritaChangeModeBtn = document.getElementById("haritaChangeModeBtn");
+if (_haritaChangeModeBtn) {
+    _haritaChangeModeBtn.onclick = () => {
+        if (typeof openChangeModeModal === "function") {
+            openChangeModeModal();
+        }
+    };
+}
+
 // Oda Ayarları butonu
 document.getElementById("haritaRoomSettingsBtn").onclick = () => {
     window.openRoomSettingsGeneric({
@@ -756,6 +766,13 @@ function updateHaritaLobby() {
     if (settingsBtn) {
         if (haritaData.playerId === 1) settingsBtn.classList.remove("hidden");
         else settingsBtn.classList.add("hidden");
+    }
+    
+    // ✨ Mod Değiştir butonu - sadece host görsün
+    const changeModeBtn = document.getElementById("haritaChangeModeBtn");
+    if (changeModeBtn) {
+        if (haritaData.playerId === 1) changeModeBtn.classList.remove("hidden");
+        else changeModeBtn.classList.add("hidden");
     }
 }
 
