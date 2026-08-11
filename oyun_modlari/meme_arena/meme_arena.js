@@ -20,6 +20,73 @@ let memeData = {
 };
 
 // ========================================
+// KART PRELOAD SİSTEMİ (arka planda kartları yükle)
+// ========================================
+let memePreload = {
+    started: false,
+    total: 0,
+    loaded: 0,
+    failed: 0,
+    complete: false,
+    cache: []  // preloaded Image elementleri (browser cache için tutulur)
+};
+
+function startMemePreload(cardList) {
+    if (memePreload.started) return;
+    if (!cardList || cardList.length === 0) return;
+    
+    memePreload.started = true;
+    memePreload.total = cardList.length;
+    memePreload.loaded = 0;
+    memePreload.failed = 0;
+    memePreload.complete = false;
+    memePreload.cache = [];
+    
+    console.log(`[MEME PRELOAD] Başladı: ${cardList.length} kart yüklenecek`);
+    updateMemePreloadStatus();
+    
+    // Paralel yükleme (browser çoklu istekleri destekler)
+    cardList.forEach(cardFile => {
+        const img = new Image();
+        img.onload = () => {
+            memePreload.loaded++;
+            updateMemePreloadStatus();
+        };
+        img.onerror = () => {
+            memePreload.failed++;
+            memePreload.loaded++;  // failed de sayılsın (progress ilerlemesi için)
+            updateMemePreloadStatus();
+        };
+        img.src = `/oyun_modlari/meme_arena/meme_kartlari/${cardFile}`;
+        memePreload.cache.push(img);  // GC'ye kaybolmasın (browser cache'te tutulsun)
+    });
+}
+
+function updateMemePreloadStatus() {
+    const total = memePreload.total;
+    const loaded = memePreload.loaded;
+    if (total === 0) return;
+    
+    const pct = Math.round((loaded / total) * 100);
+    
+    // Tamamlandı mı?
+    if (loaded >= total && !memePreload.complete) {
+        memePreload.complete = true;
+        console.log(`[MEME PRELOAD] ✅ Tamamlandı! Yüklenen: ${loaded - memePreload.failed}/${total}`);
+    }
+    
+    // Lobby'deki preload mesajını güncelle
+    const el = document.getElementById("memePreloadStatus");
+    if (el) {
+        if (memePreload.complete) {
+            el.innerHTML = `<span style="color:#51cf66;">✅ Kartlar hazır (${loaded - memePreload.failed}/${total})</span>`;
+        } else {
+            el.innerHTML = `<span style="color:#ffd43b;">🎨 Kartlar yükleniyor... <span style="background:rgba(255,212,59,0.2); padding:2px 10px; border-radius:12px; font-family:monospace; font-weight:bold;">%${pct}</span></span>`;
+        }
+    }
+}
+
+// ========================================
 // 💬 MEME ARENA CHAT
 // ========================================
 let memeChat = {
@@ -253,6 +320,12 @@ function handleMemeMessage(msg) {
         memeData.voteSeconds = msg.vote_seconds;
         memeData.totalRounds = msg.total_rounds;
         memeData.maxPlayers = msg.max_players;
+        
+        // ✨ Tüm kart isimlerini backend'den al → arka planda preload başlat
+        if (msg.all_cards && Array.isArray(msg.all_cards)) {
+            startMemePreload(msg.all_cards);
+        }
+        
         updateMemeLobby();
         return;
     }

@@ -87,7 +87,8 @@ async def send_meme_lobby_update(room, broadcast):
         "turn_seconds": room.get("turn_seconds", 45),
         "vote_seconds": room.get("vote_seconds", 15),
         "total_rounds": room.get("total_rounds", 5),
-        "max_players": room.get("max_players", 2)
+        "max_players": room.get("max_players", 2),
+        "all_cards": TUM_MEMLER  # ✨ Tüm kart isimleri (preload için)
     }
     await broadcast(room, msg)
 
