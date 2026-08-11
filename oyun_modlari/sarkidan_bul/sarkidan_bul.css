@@ -1,0 +1,721 @@
+/* ==========================================
+   ŞARKIDAN BUL - STYLES
+   ========================================== */
+
+/* Bilgi kutusu (oda oluştur ekranı) */
+.sarkiInfoBox {
+    background: rgba(155, 89, 182, 0.1);
+    border: 2px solid #9b59b6;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 500px;
+    color: #ced4da;
+}
+
+.sarkiInfoBox h3 {
+    color: #c084fc;
+    margin: 0 0 10px 0;
+    font-size: 20px;
+}
+
+.sarkiInfoBox p {
+    margin: 5px 0;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ==========================================
+   OYUN EKRANI - ÜST BAR
+   ========================================== */
+
+#sarkiGameScreen {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.sarkiTopBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(155, 89, 182, 0.15), rgba(74, 144, 226, 0.15));
+    padding: 15px 25px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    color: #fff;
+    border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.sarkiRoundInfo {
+    font-size: 20px;
+    color: #ffd43b;
+    font-weight: bold;
+}
+
+.sarkiTimerBig {
+    font-size: 48px;
+    color: #51cf66;
+    font-weight: bold;
+    text-shadow: 0 0 15px rgba(81, 207, 102, 0.5);
+    font-family: 'Courier New', monospace;
+}
+
+.sarkiTimerBig.warning {
+    color: #ff6b6b;
+    text-shadow: 0 0 15px rgba(255, 107, 107, 0.7);
+    animation: sarkiPulse 0.6s ease-in-out infinite;
+}
+
+@keyframes sarkiPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.sarkiPhaseInfo {
+    font-size: 18px;
+    color: #adb5bd;
+    font-weight: bold;
+}
+
+/* ==========================================
+   OYUN EKRANI - ANA GRID
+   ========================================== */
+
+.sarkiMainLayout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 25px;
+    margin: 20px 0;
+}
+
+/* ==========================================
+   SOL: ŞARKI KAPAK + AUDIO
+   ========================================== */
+
+.sarkiSongBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+    border-radius: 20px;
+    padding: 25px;
+    border: 2px solid rgba(192, 132, 252, 0.3);
+    box-shadow: 0 8px 30px rgba(155, 89, 182, 0.2);
+}
+
+.sarkiCoverWrap {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin-bottom: 20px;
+}
+
+.sarkiCoverImg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6),
+                0 0 0 8px rgba(192, 132, 252, 0.15),
+                0 0 0 4px rgba(192, 132, 252, 0.3);
+    animation: sarkiRotate 20s linear infinite;
+    border: 3px solid #c084fc;
+    /* ✨ Yazılar hiç okunmasın - hafif blur + kontrast düşük + biraz karart */
+    filter: blur(4px) contrast(0.6) brightness(0.7);
+    transition: filter 0.5s;
+    /* ✨ Sağ tık, drag, seçme engelle */
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+}
+
+/* Kapak wrapper'a sağ tık engelle */
+.sarkiCoverWrap {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ✨ Doğru cevap belli olunca kapak TAM NET görünsün */
+.sarkiCoverImg.reveal {
+    filter: none !important;
+}
+
+/* Tur sonucu geldiğinde kapak netleşir (opsiyonel efekt) */
+.sarkiCoverImg.reveal {
+    filter: blur(0) brightness(1);
+}
+
+@keyframes sarkiRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.sarkiCoverOverlay {
+    display: none !important;
+}
+
+@keyframes sarkiPulseCenter {
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(1);
+        box-shadow: 0 0 20px rgba(255, 212, 59, 0.6);
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.15);
+        box-shadow: 0 0 40px rgba(255, 212, 59, 0.9);
+    }
+}
+
+.sarkiSoundIcon {
+    font-size: 40px;
+    animation: sarkiWave 1s ease-in-out infinite;
+}
+
+@keyframes sarkiWave {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.sarkiSongStatus {
+    color: #ffd43b;
+    font-size: 15px;
+    text-align: center;
+    margin: 10px 0 0 0;
+    font-weight: bold;
+    min-height: 22px;
+}
+
+/* ✨ Büyük süre sayacı (kapak altında) */
+.sarkiBigTimer {
+    font-size: 56px;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px 0 5px 0;
+    font-family: 'Courier New', monospace;
+    line-height: 1;
+    text-shadow: 0 0 20px currentColor;
+    transition: all 0.2s;
+}
+
+.sarkiBigTimer.listening {
+    color: #51cf66;
+    text-shadow: 0 0 25px rgba(81, 207, 102, 0.7);
+}
+
+.sarkiBigTimer.answering {
+    color: #4dabf7;
+    text-shadow: 0 0 25px rgba(77, 171, 247, 0.7);
+}
+
+.sarkiBigTimer.warning {
+    color: #ff6b6b !important;
+    text-shadow: 0 0 25px rgba(255, 107, 107, 0.8) !important;
+    animation: sarkiBigTimerPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes sarkiBigTimerPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+/* ✨ Progress bar (kalan süre çubuğu) */
+.sarkiProgressWrap {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 15px 0 5px 0;
+    border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.sarkiProgressFill {
+    height: 100%;
+    background: linear-gradient(90deg, #51cf66, #ffd43b, #ff6b6b);
+    background-size: 100% 100%;
+    width: 100%;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(81, 207, 102, 0.5);
+}
+
+/* ==========================================
+   SAĞ: ŞIKLAR + SKORBORD
+   ========================================== */
+
+.sarkiRightPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.sarkiOptions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    position: relative;
+    transition: opacity 0.3s;
+}
+
+.sarkiOptions.locked {
+    opacity: 0.85;
+    pointer-events: none;
+    /* filter: blur kaldırıldı - şıklar net görünsün */
+}
+
+.sarkiOptions.locked .sarkiOptBtn {
+    cursor: not-allowed;
+}
+
+.sarkiOptBtn {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: #fff;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    padding: 18px 15px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    min-height: 80px;
+}
+
+.sarkiOptBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #334155, #1e293b);
+    border-color: #c084fc;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(192, 132, 252, 0.3);
+}
+
+.sarkiOptBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.sarkiOptBtn .optLetter {
+    font-size: 24px;
+    font-weight: bold;
+    color: #c084fc;
+    min-width: 35px;
+    flex-shrink: 0;
+}
+
+.sarkiOptBtn .optContent {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.sarkiOptBtn .optTitle {
+    font-size: 15px;
+    color: #fff;
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sarkiOptBtn .optArtist {
+    font-size: 12px;
+    color: #94a3b8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* SEÇİLDİ - Grimsi (sonuç gelene kadar) */
+.sarkiOptBtn.selected {
+    border-color: #868e96;
+    background: linear-gradient(135deg, #495057, #343a40);
+    box-shadow: 0 0 15px rgba(134, 142, 150, 0.4);
+}
+
+.sarkiOptBtn.selected .optLetter {
+    color: #ced4da;
+}
+
+/* DOĞRU */
+.sarkiOptBtn.correct {
+    border-color: #51cf66;
+    background: linear-gradient(135deg, #14532d, #052e16);
+    box-shadow: 0 0 20px rgba(81, 207, 102, 0.7);
+    animation: sarkiCorrectPulse 0.6s ease-out;
+}
+
+.sarkiOptBtn.correct .optLetter {
+    color: #51cf66;
+}
+
+@keyframes sarkiCorrectPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* YANLIŞ */
+.sarkiOptBtn.wrong {
+    border-color: #ff6b6b;
+    background: linear-gradient(135deg, #7f1d1d, #450a0a);
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.5);
+    animation: sarkiWrongShake 0.4s ease-in-out;
+}
+
+.sarkiOptBtn.wrong .optLetter {
+    color: #ff6b6b;
+}
+
+@keyframes sarkiWrongShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}
+
+/* ==========================================
+   SKORBOARD (SAĞ PANEL ALTI)
+   ========================================== */
+
+.sarkiScoreboard {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(192, 132, 252, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+    max-height: none;
+    overflow-y: visible;
+}
+
+.sarkiScoreboardList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sarkiScoreRow {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.sarkiScoreRow.me {
+    background: rgba(81, 207, 102, 0.15);
+    border-left: 3px solid #51cf66;
+}
+
+.sarkiScoreRow .scoreMedal {
+    font-size: 20px;
+    text-align: center;
+}
+
+.sarkiScoreRow .scoreName {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sarkiScoreRow .scoreTotal {
+    color: #ffd43b;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    min-width: 45px;
+    text-align: right;
+}
+
+/* ✨ Negatif puan → kırmızı */
+.sarkiScoreRow .scoreTotal.negative {
+    color: #ff6b6b;
+    text-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+}
+
+/* ✨ Sıfır puan → gri */
+.sarkiScoreRow .scoreTotal.zero {
+    color: #adb5bd;
+}
+
+.sarkiStatus {
+    text-align: center;
+    font-size: 16px;
+    margin: 15px 0;
+    color: #ffd43b;
+    font-weight: bold;
+    min-height: 22px;
+}
+
+/* ==========================================
+   TUR SONU POPUP
+   ========================================== */
+
+.sarkiCorrectSongBox {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    background: rgba(81, 207, 102, 0.1);
+    border: 2px solid #51cf66;
+    padding: 15px;
+    border-radius: 12px;
+    margin: 15px 0;
+}
+
+.sarkiCorrectSongBox img {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #51cf66;
+}
+
+.sarkiCorrectInfo {
+    flex: 1;
+    text-align: left;
+}
+
+.sarkiRoundResultList {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.sarkiResultRow {
+    display: grid;
+    grid-template-columns: 30px 1fr auto auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.sarkiResultRow .resName {
+    font-weight: 600;
+    text-align: left;
+}
+
+.sarkiResultRow .resName.me {
+    color: #51cf66;
+}
+
+.sarkiResultRow .resMedal {
+    font-size: 18px;
+}
+
+.sarkiResultRow .resStatus {
+    color: #adb5bd;
+    font-size: 13px;
+    min-width: 55px;
+    text-align: right;
+}
+
+.sarkiResultRow .resPoints {
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    min-width: 40px;
+    text-align: right;
+}
+
+.sarkiResultRow .resTotal {
+    color: #ffd43b;
+    font-weight: bold;
+    min-width: 45px;
+    text-align: right;
+}
+
+/* ==========================================
+   OYUN SONU LİSTESİ
+   ========================================== */
+
+.sarkiGameOverList {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.sarkiFinalRow {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 15px;
+    align-items: center;
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    color: #fff;
+    font-size: 16px;
+}
+
+.sarkiFinalRow.me {
+    background: linear-gradient(135deg, rgba(81, 207, 102, 0.2), rgba(81, 207, 102, 0.1));
+    border-left: 4px solid #51cf66;
+    transform: scale(1.02);
+}
+
+.sarkiFinalRow .scoreMedal {
+    font-size: 22px;
+    text-align: center;
+}
+
+.sarkiFinalRow .scoreName {
+    font-weight: 600;
+}
+
+.sarkiFinalRow .scoreTotal {
+    color: #ffd43b;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+/* ==========================================
+   SIRA GEÇİŞ OVERLAY (Haritadan Bul tarzı - büyük ekran ortası)
+   ========================================== */
+
+.sarkiBigOverlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    pointer-events: none;
+    animation: sarkiBigOverlayIn 0.5s ease-out;
+}
+
+.sarkiBigOverlay.hidden {
+    display: none !important;
+}
+
+#sarkiBigOverlayText {
+    font-size: 90px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-shadow: 
+        0 0 30px currentColor,
+        0 0 60px currentColor,
+        4px 4px 10px rgba(0, 0, 0, 0.7);
+    padding: 20px 60px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 25px;
+    border: 4px solid currentColor;
+    box-shadow: 0 0 50px currentColor;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.sarkiBigOverlay.mine #sarkiBigOverlayText {
+    color: #51cf66;
+}
+
+.sarkiBigOverlay.other #sarkiBigOverlayText {
+    color: #ff6b6b;
+}
+
+@keyframes sarkiBigOverlayIn {
+    0% {
+        transform: translate(-50%, -50%) scale(0.3);
+        opacity: 0;
+    }
+    60% {
+        transform: translate(-50%, -50%) scale(1.15);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Mobil */
+@media (max-width: 600px) {
+    #sarkiBigOverlayText {
+        font-size: 44px;
+        padding: 15px 30px;
+        letter-spacing: 2px;
+    }
+}
+
+/* ==========================================
+   LOBBY BEKLEME MESAJI
+   ========================================== */
+
+/* Havuz hazırlanırken sarı animasyonlu */
+.sarkiPulseMsg {
+    animation: sarkiPulseMsgAnim 1.5s ease-in-out infinite;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+@keyframes sarkiPulseMsgAnim {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.03); }
+}
+
+/* Misafir "Host bekleniyor" mesajı - kırmızı yanıp söner */
+.sarkiWaitHostMsg {
+    animation: sarkiWaitHostAnim 1.2s ease-in-out infinite;
+    font-weight: bold;
+    font-size: 16px;
+    text-shadow: 0 0 12px rgba(255, 107, 107, 0.6);
+}
+
+@keyframes sarkiWaitHostAnim {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+        text-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+    }
+    50% { 
+        opacity: 0.75; 
+        transform: scale(1.04);
+        text-shadow: 0 0 20px rgba(255, 107, 107, 0.9);
+    }
+}
+
+/* ==========================================
+   MOBIL
+   ========================================== */
+
+@media (max-width: 900px) {
+    .sarkiMainLayout {
+        grid-template-columns: 1fr;
+    }
+    
+    .sarkiOptions {
+        grid-template-columns: 1fr;
+    }
+    
+    .sarkiCoverWrap {
+        width: 220px;
+        height: 220px;
+    }
+    
+    .sarkiTimerBig {
+        font-size: 36px;
+    }
+    
+    .sarkiTopBar {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    .sarkiRoundInfo,
+    .sarkiPhaseInfo {
+        font-size: 15px;
+    }
+}

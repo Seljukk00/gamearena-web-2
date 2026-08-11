@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/oyun_modlari/ilk_11_challenge/ilk_11.css">
     <link rel="stylesheet" href="/oyun_modlari/stadyum_tanima/stadyum_tanima.css">
     <link rel="stylesheet" href="/oyun_modlari/meme_arena/meme_arena.css">
+    <link rel="stylesheet" href="/oyun_modlari/sarkidan_bul/sarkidan_bul.css">
     <link rel="stylesheet" href="/oyun_modlari/mini_futbol/mini_futbol.css">
     <script src="/static/app.js" defer></script>
     <script src="/oyun_modlari/kim_milyoner/kim_milyoner.js" defer></script>
@@ -21,6 +22,7 @@
     <script src="/oyun_modlari/ilk_11_challenge/ilk_11.js" defer></script>
     <script src="/oyun_modlari/stadyum_tanima/stadyum_tanima.js" defer></script>
     <script src="/oyun_modlari/meme_arena/meme_arena.js" defer></script>
+    <script src="/oyun_modlari/sarkidan_bul/sarkidan_bul.js" defer></script>
     <script src="/oyun_modlari/mini_futbol/mini_futbol_host_physics.js" defer></script>
     <script src="/oyun_modlari/mini_futbol/mini_futbol.js" defer></script>
     <!-- Google AdSense -->
@@ -160,6 +162,14 @@
                     <div class="mod-info">
                         <h3>🎭 Meme Arena</h3>
                         <p>Duruma en uygun memi seç, oy topla!</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="sarkidan_bul">
+                    <img src="/mod_resimleri/sarkidan_bul.png" alt="Şarkıdan Bul" onerror="this.style.display='none'">
+                    <div class="mod-info">
+                        <h3>🎵 Şarkıdan Bul</h3>
+                        <p>Şarkıyı dinle, sanatçıyı ve adını bul!</p>
                     </div>
                 </div>
 
@@ -1746,6 +1756,263 @@
             </div>
         </div>
 
+        <!-- ==========================================
+             ŞARKIDAN BUL - ODA OLUŞTUR
+             ========================================== -->
+        <section id="createSarkiScreen" class="panel hidden">
+            <h2 class="mainTitle">🎵 Şarkıdan Bul</h2>
+
+            <div class="centerBox">
+                <input id="createSarkiNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    👥 Oyuncu Sayısı:
+                    <select id="sarkiMaxPlayersSelect">
+                        <option value="2" selected>2 Oyuncu</option>
+                        <option value="3">3 Oyuncu</option>
+                        <option value="4">4 Oyuncu</option>
+                        <option value="5">5 Oyuncu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🌐 Şarkı Dili:
+                    <select id="sarkiDilSelect">
+                        <option value="tr">🇹🇷 Türkçe</option>
+                        <option value="yabanci">🌍 Yabancı</option>
+                        <option value="karisik" selected>🎭 Karışık</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🔢 Şarkı Sayısı:
+                    <select id="sarkiTotalSongsSelect">
+                        <option value="5">5 Şarkı (Kısa)</option>
+                        <option value="10" selected>10 Şarkı (Klasik)</option>
+                        <option value="15">15 Şarkı</option>
+                        <option value="20">20 Şarkı (Uzun)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🎧 Şarkı Süresi:
+                    <select id="sarkiSongDurationSelect">
+                        <option value="5">5 saniye (Zor)</option>
+                        <option value="10" selected>10 saniye</option>
+                        <option value="15">15 saniye</option>
+                        <option value="20">20 saniye (Kolay)</option>
+                        <option value="30">30 saniye (Çok Kolay)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    ⏱️ Cevap Süresi:
+                    <select id="sarkiAnswerDurationSelect">
+                        <option value="5">5 saniye (Hızlı)</option>
+                        <option value="10" selected>10 saniye</option>
+                        <option value="15">15 saniye</option>
+                        <option value="20">20 saniye</option>
+                        <option value="30">30 saniye (Rahat)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="sarkiInfoBox">
+                <h3>🎵 Nasıl Oynanır?</h3>
+                <p>Bir şarkı çalar, <b style="color:#51cf66">4 şıktan</b> doğru olanı seç</p>
+                <p>Doğru cevap: <b style="color:#51cf66">+10 puan</b></p>
+                <p>İlk 3 saniyede bilirsen: <b style="color:#ffd43b">+15 puan (bonus)</b></p>
+                <p>Yanlış cevap veya süre bitti: <b style="color:#ff6b6b">-3 puan</b></p>
+                <p>En çok puan alan <b style="color:#ffd43b">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createSarkiBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createSarkiBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createSarkiMsg" class="msg"></p>
+        </section>
+
+        <!-- ==========================================
+             ŞARKIDAN BUL - LOBBY
+             ========================================== -->
+        <section id="sarkiLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">🎵 Şarkıdan Bul - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="sarkiRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
+                <button class="eyeToggleBtn" id="sarkiRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="sarkiCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="sarkiInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="sarkiInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="sarkiInviteLinkHint" class="copyHint"></span>
+            </div>
+            <ul id="sarkiPlayersList"></ul>
+            <div class="lobbyInfo" style="flex-wrap:wrap; justify-content:center;">
+                <span>👥 <span id="sarkiLobbyMaxPlayers">2</span> Oyuncu</span>
+                <span style="margin-left: 15px;">🌐 Dil: <span id="sarkiLobbyDil">Karışık</span></span>
+                <span style="margin-left: 15px;">🔢 Şarkı: <span id="sarkiLobbyTotalSongs">10</span></span>
+                <span style="margin-left: 15px;">🎧 Şarkı Süresi: <span id="sarkiLobbySongDuration">10</span>s</span>
+                <span style="margin-left: 15px;">⏱️ Cevap Süresi: <span id="sarkiLobbyAnswerDuration">10</span>s</span>
+            </div>
+            <div class="centerBox">
+                <button id="sarkiStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="sarkiRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="sarkiChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
+                <button id="sarkiLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="sarkiLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- ==========================================
+             ŞARKIDAN BUL - SIRA GEÇİŞ OVERLAY (Haritadan Bul tarzı)
+             ========================================== -->
+        <div id="sarkiBigOverlay" class="sarkiBigOverlay hidden">
+            <div id="sarkiBigOverlayText">SIRA SENDE!</div>
+        </div>
+
+        <!-- ==========================================
+             ŞARKIDAN BUL - OYUN EKRANI
+             ========================================== -->
+        <section id="sarkiGameScreen" class="hidden">
+            <div class="sarkiTopBar">
+                <div class="sarkiRoundInfo" id="sarkiRoundInfo">Şarkı 1/10</div>
+                <div class="sarkiTimerBig" id="sarkiTimer">10</div>
+                <div class="sarkiPhaseInfo" id="sarkiPhaseInfo">🎧 Dinliyorsun...</div>
+            </div>
+
+            <div class="sarkiMainLayout">
+                <!-- SOL: Şarkı görsel + player -->
+                <div class="sarkiSongBox">
+                    <div class="sarkiCoverWrap">
+                        <img id="sarkiCoverImg" class="sarkiCoverImg" src="" alt="Album">
+                        <div class="sarkiCoverOverlay" id="sarkiCoverOverlay">
+                            <div class="sarkiSoundIcon">🎵</div>
+                        </div>
+                    </div>
+                    <audio id="sarkiAudio" preload="auto"></audio>
+                    <div id="sarkiBigTimer" class="sarkiBigTimer listening">--</div>
+                    <div class="sarkiProgressWrap">
+                        <div id="sarkiProgressFill" class="sarkiProgressFill"></div>
+                    </div>
+                    <p id="sarkiSongStatus" class="sarkiSongStatus">🎧 Şarkıyı dinle...</p>
+                </div>
+
+                <!-- SAĞ: Şıklar + skorbord -->
+                <div class="sarkiRightPanel">
+                    <div class="sarkiOptions" id="sarkiOptionsBox">
+                        <button class="sarkiOptBtn" data-index="0">
+                            <span class="optLetter">A)</span>
+                            <span class="optContent">
+                                <span class="optTitle">---</span>
+                                <span class="optArtist">---</span>
+                            </span>
+                        </button>
+                        <button class="sarkiOptBtn" data-index="1">
+                            <span class="optLetter">B)</span>
+                            <span class="optContent">
+                                <span class="optTitle">---</span>
+                                <span class="optArtist">---</span>
+                            </span>
+                        </button>
+                        <button class="sarkiOptBtn" data-index="2">
+                            <span class="optLetter">C)</span>
+                            <span class="optContent">
+                                <span class="optTitle">---</span>
+                                <span class="optArtist">---</span>
+                            </span>
+                        </button>
+                        <button class="sarkiOptBtn" data-index="3">
+                            <span class="optLetter">D)</span>
+                            <span class="optContent">
+                                <span class="optTitle">---</span>
+                                <span class="optArtist">---</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="sarkiScoreboard" id="sarkiScoreboardPanel">
+                        <h3 style="color:gold; margin:0 0 10px 0; text-align:center; font-size:16px;">🏆 SKOR</h3>
+                        <ol id="sarkiScoreboardList" class="sarkiScoreboardList"></ol>
+                    </div>
+                </div>
+            </div>
+
+            <p id="sarkiStatusMsg" class="sarkiStatus"></p>
+
+            <div class="centerBox">
+                <button id="sarkiBackBtn" class="bigBtn">← Menüye Dön</button>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             ŞARKIDAN BUL - TUR SONU POPUP
+             ========================================== -->
+        <div id="sarkiRoundResultBox" class="overlay hidden">
+            <div class="overlayCard" style="max-width:550px;">
+                <h2 id="sarkiRoundResultTitle" style="color:#ffd43b;">📊 Tur Sonucu</h2>
+                
+                <!-- ✨ Sıradaki oyuncunun sonucu (büyük) -->
+                <div id="sarkiTurnResultBox" style="border:2px solid #51cf66; border-radius:12px; padding:15px; margin:15px 0; text-align:center; display:none;"></div>
+                
+                <div class="sarkiCorrectSongBox">
+                    <img id="sarkiCorrectCover" src="" alt="">
+                    <div class="sarkiCorrectInfo">
+                        <div style="color:#adb5bd; font-size:12px;">DOĞRU CEVAP</div>
+                        <div id="sarkiCorrectTitle" style="color:#51cf66; font-size:18px; font-weight:bold;">---</div>
+                        <div id="sarkiCorrectArtist" style="color:#fff; font-size:15px;">---</div>
+                    </div>
+                </div>
+                <ol id="sarkiRoundResultList" class="sarkiRoundResultList"></ol>
+                <p style="color:#adb5bd; margin-top:15px;">Bir sonraki tur <b style="color:#ffd43b">5 saniye</b> sonra başlıyor...</p>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             ŞARKIDAN BUL - OYUN SONU
+             ========================================== -->
+        <div id="sarkiGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="sarkiGameOverTitle"></h1>
+                <p id="sarkiGameOverText" style="font-size:22px; margin:15px 0;"></p>
+
+                <ol id="sarkiGameOverList" class="sarkiGameOverList"></ol>
+
+                <div class="ad-container" style="max-width:400px; margin: 15px auto;">
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-1324481943948742"
+                         data-ad-slot="8484507556"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                    <script>
+                         (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+                </div>
+
+                <div class="confirmButtons">
+                    <button id="sarkiRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="sarkiBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
+                    <button id="sarkiBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
+
         <!-- MİNİ FUTBOL - ODA OLUŞTUR -->
         <section id="createMiniScreen" class="panel hidden">
             <h2 class="mainTitle">⚽ Mini Futbol</h2>
@@ -2512,7 +2779,29 @@
         </div>
     </div>
 
-     <!-- MEME ARENA CHAT POPUP STACK -->
+     <!-- ŞARKIDAN BUL CHAT POPUP STACK -->
+    <div id="sarkiChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
+
+    <!-- ŞARKIDAN BUL CHAT -->
+    <div id="sarkiChatContainer" class="miniChatContainer" style="display:none;">
+        <button id="sarkiChatToggleBtn" class="miniChatToggleBtn">
+            💬
+            <span id="sarkiChatBadge" class="miniChatBadge" style="display:none;">0</span>
+        </button>
+        <div id="sarkiChatPanel" class="miniChatPanel" style="display:none;">
+            <div class="miniChatHeader">
+                <span>💬 Sohbet</span>
+                <button id="sarkiChatCloseBtn" class="miniChatCloseBtn">✕</button>
+            </div>
+            <div id="sarkiChatMessages" class="miniChatMessages"></div>
+            <div class="miniChatInputRow">
+                <input type="text" id="sarkiChatInput" class="miniChatInput" placeholder="Mesaj yaz..." maxlength="100" autocomplete="off">
+                <button id="sarkiChatSendBtn" class="miniChatSendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MEME ARENA CHAT POPUP STACK -->
     <div id="memeChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
 
     <!-- MEME ARENA CHAT -->

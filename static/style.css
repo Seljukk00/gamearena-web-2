@@ -731,7 +731,8 @@ button:disabled {
 #gizemPlayersList,
 #ilk11PlayersList,
 #stadPlayersList,
-#memePlayersList {
+#memePlayersList,
+#sarkiPlayersList {
     list-style: none;
     padding: 0;
     text-align: center;
@@ -745,7 +746,8 @@ button:disabled {
 #gizemPlayersList li,
 #ilk11PlayersList li,
 #stadPlayersList li,
-#memePlayersList li {
+#memePlayersList li,
+#sarkiPlayersList li {
     margin: 8px auto !important;
     padding: 10px 15px;
     background: rgba(255, 255, 255, 0.05);
@@ -772,7 +774,8 @@ button:disabled {
 #gizemPlayersList li.playerMine,
 #ilk11PlayersList li.playerMine,
 #stadPlayersList li.playerMine,
-#memePlayersList li.playerMine {
+#memePlayersList li.playerMine,
+#sarkiPlayersList li.playerMine {
     color: #51cf66;
     border: 1px solid rgba(81, 207, 102, 0.4);
 }
@@ -784,7 +787,8 @@ button:disabled {
 #gizemPlayersList li.playerOpp,
 #ilk11PlayersList li.playerOpp,
 #stadPlayersList li.playerOpp,
-#memePlayersList li.playerOpp {
+#memePlayersList li.playerOpp,
+#sarkiPlayersList li.playerOpp {
     color: #ff6b6b;
     border: 1px solid rgba(255, 107, 107, 0.4);
 }
