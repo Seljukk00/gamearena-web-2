@@ -25,6 +25,7 @@ from oyun_modlari.stadyum_tanima.stadyum_handler import handle_stadyum_message
 from oyun_modlari.meme_arena.meme_handler import handle_meme_message
 from oyun_modlari.sarkidan_bul.sarki_handler import handle_sarki_message
 from oyun_modlari.mini_futbol.mini_futbol_handler import handle_mini_message
+from oyun_modlari.jokerli_satranc.satranc_handler import handle_jokerli_satranc_message
 
 app = FastAPI()
 
@@ -99,6 +100,33 @@ def check_rate_limit(ip, history_dict, max_per_minute=60, action="request"):
 
 
 # ==========================================
+# STATIC CACHE MIDDLEWARE
+# Görselleri, ses dosyalarını uzun süre cache'le
+# ==========================================
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+class StaticCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        
+        # Görseller, ses, font gibi dosyalar için uzun cache
+        static_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg',
+                       '.mp3', '.wav', '.ogg', '.woff', '.woff2', '.ttf', '.ico')
+        if path.endswith(static_exts):
+            # 30 gün cache (dosyalar değişmez genelde)
+            response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+        # HTML, JS, CSS için kısa cache (değişebilir)
+        elif path.endswith(('.html', '.js', '.css')):
+            response.headers["Cache-Control"] = "public, max-age=300"  # 5 dakika
+        
+        return response
+
+app.add_middleware(StaticCacheMiddleware)
+
+
+# ==========================================
 # STATIC MOUNTS
 # ==========================================
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -109,6 +137,7 @@ app.mount("/ml_assets", StaticFiles(directory="oyun_modlari/kim_milyoner/assets"
 app.mount("/harita_assets", StaticFiles(directory="oyun_modlari/haritadan_bul"), name="harita_assets")
 app.mount("/stadyum_images", StaticFiles(directory="oyun_modlari/stadyum_tanima/images"), name="stadyum_images")
 app.mount("/takim_logolari", StaticFiles(directory="oyun_modlari/gizemli_kariyer/takim_logolari"), name="takim_logolari")
+app.mount("/satranc_vendor", StaticFiles(directory="oyun_modlari/jokerli_satranc/vendor"), name="satranc_vendor")
 
 
 # ==========================================
@@ -298,6 +327,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                     from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                                 elif room_mode == "mini_futbol":
                                     from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update as slu
+                                elif room_mode == "jokerli_satranc":
+                                    from oyun_modlari.jokerli_satranc.satranc_handler import send_jokerli_satranc_lobby_update as slu
                                 else:
                                     slu = None
                                 if slu:
@@ -325,7 +356,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 new_mode = data.get("new_mode", "").strip()
                 valid_modes = ["bil_bakalim", "takim_bilmece", "kim_milyoner", "haritadan_bul",
                               "gizemli_kariyer", "ilk_11_challenge", "stadyum_tanima", "meme_arena",
-                              "sarkidan_bul", "mini_futbol"]
+                              "sarkidan_bul", "mini_futbol", "jokerli_satranc"]
                 if new_mode not in valid_modes:
                     await safe_send(websocket, {"type": "error", "message": "Geçersiz mod."})
                     continue
@@ -424,6 +455,23 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Oyuncuların skorlarını sıfırla
                     for pid in new_room["players"]:
                         new_room["players"][pid]["score"] = 0
+                elif new_mode == "jokerli_satranc":
+                    new_room.update({
+                        "satranc_time_mode": "blitz",
+                        "satranc_joker_count": 3,
+                        "satranc_pick_mode": "karisik",
+                        "satranc_pick_seconds": 60,
+                        "satranc_game": None,
+                        "satranc_turn": None,
+                        "satranc_white": None,
+                        "satranc_black": None,
+                        "satranc_jokers": {},
+                        "satranc_used_jokers": {},
+                        "satranc_clocks": {},
+                        "satranc_task": None,
+                        "satranc_clock_task": None,
+                        "satranc_selection_task": None,
+                    })
                 elif new_mode == "mini_futbol":
                     new_room.update({
                         "max_players": 10, "player_count": 2,
@@ -471,6 +519,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                     elif new_mode == "mini_futbol":
                         from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update as slu
+                    elif new_mode == "jokerli_satranc":
+                        from oyun_modlari.jokerli_satranc.satranc_handler import send_jokerli_satranc_lobby_update as slu
                     else:
                         slu = None
                     if slu:
@@ -496,7 +546,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if msg_type in ["join_room", "takim_join_room", "ml_join_room", 
                            "harita_join_room", "gizem_join_room", 
                            "ilk11_join_room", "stad_join_room", "meme_join_room",
-                           "sarki_join_room", "mini_join_room"]:
+                           "sarki_join_room", "mini_join_room", "satranc_join_room"]:
                 join_code = (data.get("room_code") or "").strip().upper()
                 join_name = (data.get("name") or "").strip()
                 if join_code in rooms:
@@ -611,6 +661,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 player_id = mini_result["player_id"]
                 continue
 
+            # --- Jokerli Satranç ---
+            satranc_result = await handle_jokerli_satranc_message(
+                msg_type=msg_type, data=data, websocket=websocket,
+                rooms=rooms, room_code=room_code, player_id=player_id,
+                make_room_code=make_room_code, safe_send=safe_send, broadcast=broadcast
+            )
+            if satranc_result["handled"]:
+                room_code = satranc_result["room_code"]
+                player_id = satranc_result["player_id"]
+                continue
+
             # --- Bil Bakalım (en son, çünkü query_room_mode ve join_room burada) ---
             bil_result = await handle_bil_bakalim_message(
                 msg_type=msg_type, data=data, websocket=websocket,
@@ -642,7 +703,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task"]:
+                                 "meme_task", "sarki_task", "mini_task",
+                                 "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
                         task.cancel()
@@ -658,7 +720,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task"]:
+                                 "meme_task", "sarki_task", "mini_task",
+                                 "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
                         task.cancel()
@@ -1076,7 +1139,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     for task_key in ["turn_task", "selection_task", "answer_task",
                                      "takim_task", "ml_task",
                                      "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                     "meme_task", "sarki_task"]:
+                                     "meme_task", "sarki_task",
+                                     "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                         task = room.get(task_key)
                         if task and not task.done():
                             task.cancel()
@@ -1113,6 +1177,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
                         elif room_mode == "sarkidan_bul":
                             from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
+                        elif room_mode == "jokerli_satranc":
+                            from oyun_modlari.jokerli_satranc.satranc_handler import send_jokerli_satranc_lobby_update as slu
                         else:
                             slu = None
                         if slu:
@@ -1132,7 +1198,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task"]:
+                                 "meme_task", "sarki_task", "mini_task",
+                                 "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
                         task.cancel()
@@ -1178,6 +1245,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     await slu(room, broadcast)
                 elif room_mode == "mini_futbol":
                     from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update as slu
+                    await slu(room, broadcast)
+                elif room_mode == "jokerli_satranc":
+                    from oyun_modlari.jokerli_satranc.satranc_handler import send_jokerli_satranc_lobby_update as slu
                     await slu(room, broadcast)
             except Exception as e:
                 print(f"[LOBBY UPDATE HATA] {e}")

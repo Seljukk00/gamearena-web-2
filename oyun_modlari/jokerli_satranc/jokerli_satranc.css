@@ -1,0 +1,2443 @@
+/* ==========================================
+   ♟️ JOKERLİ SATRANÇ - Stil
+   ========================================== */
+
+/* Üst Bar */
+.satrancTopBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 2px solid #2c3e50;
+    margin-bottom: 15px;
+}
+
+.satrancTopLeft, .satrancTopRight {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+}
+
+.satrancTopRight {
+    align-items: flex-end;
+}
+
+.satrancTopCenter {
+    text-align: center;
+    flex: 1;
+}
+
+.satrancPlayerName {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.satrancClock {
+    font-size: 22px;
+    font-weight: bold;
+    font-family: monospace;
+    color: #ffd43b;
+    background: rgba(0,0,0,0.4);
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid #3b4c63;
+    display: inline-block;
+}
+
+.satrancTurnInfo {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd43b;
+    margin-bottom: 4px;
+}
+
+.satrancStatusMsg {
+    font-size: 14px;
+    color: #adb5bd;
+}
+
+/* Ana Layout */
+.satrancMainLayout {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0 15px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.satrancSidePanel {
+    width: 180px;
+    min-width: 140px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #2c3e50;
+}
+
+.satrancBoardContainer {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.satrancBoardActions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 620px;
+}
+
+.satrancBoardActions .bigBtn {
+    padding: 10px 22px;
+    font-size: 15px;
+    min-width: 160px;
+}
+
+/* Tahta boyutu */
+.satrancBoard {
+    width: 480px !important;
+    height: 480px !important;
+}
+
+/* Highlight - hamle geçmişi (from/to) TAMAMEN KAPALI - kare rengine dokunma */
+.highlight-from,
+.highlight-to {
+    box-shadow: none !important;
+}
+
+.highlight-legal {
+    background: rgba(81, 207, 102, 0.4) !important;
+    border-radius: 50%;
+}
+
+.highlight-check {
+    background: rgba(255, 60, 60, 0.6) !important;
+}
+
+/* Terfi Popup */
+.satrancPromotionBox {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1e2e;
+    border: 2px solid #ffd43b;
+    border-radius: 12px;
+    padding: 20px;
+    z-index: 100;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(255,212,59,0.5);
+}
+
+.satrancPromoOptions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.satrancPromoBtn {
+    background: #2c3e50;
+    color: #fff;
+    border: 2px solid #ffd43b;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.satrancPromoBtn:hover {
+    background: #ffd43b;
+    color: #1a1e2e;
+}
+
+/* Joker Listesi */
+.satrancJokerList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.satrancJokerCard {
+    background: rgba(103,65,217,0.2);
+    border: 1px solid #6741d9;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #c084fc;
+}
+
+.satrancJokerCard:hover {
+    background: rgba(103,65,217,0.4);
+    transform: scale(1.02);
+}
+
+.satrancJokerCard.used {
+    opacity: 0.4;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+/* Alt Bar - Hamle Geçmişi */
+.satrancBottomBar {
+    max-width: 1200px;
+    margin: 10px auto 0 auto;
+    padding: 0 15px;
+}
+
+.satrancMoveHistory {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    border: 1px solid #2c3e50;
+    min-height: 36px;
+    align-items: center;
+    scrollbar-width: thin;
+}
+
+.satrancMoveChip {
+    background: rgba(255,255,255,0.08);
+    color: #dee2e6;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: monospace;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.satrancMoveNum {
+    color: #6c757d;
+    font-size: 12px;
+    font-family: monospace;
+    margin-right: 2px;
+    white-space: nowrap;
+}
+
+/* Mobil */
+@media (max-width: 800px) {
+    .satrancMainLayout {
+        flex-direction: column;
+        align-items: center;
+    }
+    .satrancSidePanel {
+        width: 100%;
+        max-width: 480px;
+    }
+    .satrancBoard {
+        width: 320px !important;
+        height: 320px !important;
+    }
+    .satrancTopBar {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* ==========================================
+   JOKER SEÇİM EKRANI
+   ========================================== */
+
+.satrancJsTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 2px solid #6741d9;
+    margin-bottom: 15px;
+}
+
+.satrancJsInfo {
+    color: #c084fc;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+/* KARIŞIK MOD */
+.satrancJsRandomBox {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 30px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 15px;
+    border: 1px solid #2c3e50;
+}
+
+.satrancJsRandomCards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+.satrancJsRandomCards .satrancJokerCard {
+    animation: cardDrop 0.5s ease-out;
+    animation-fill-mode: both;
+}
+
+.satrancJsRandomCards .satrancJokerCard:nth-child(1) { animation-delay: 0.1s; }
+.satrancJsRandomCards .satrancJokerCard:nth-child(2) { animation-delay: 0.3s; }
+.satrancJsRandomCards .satrancJokerCard:nth-child(3) { animation-delay: 0.5s; }
+.satrancJsRandomCards .satrancJokerCard:nth-child(4) { animation-delay: 0.7s; }
+.satrancJsRandomCards .satrancJokerCard:nth-child(5) { animation-delay: 0.9s; }
+.satrancJsRandomCards .satrancJokerCard:nth-child(6) { animation-delay: 1.1s; }
+
+@keyframes cardDrop {
+    0% { opacity: 0; transform: translateY(-30px) rotate(-10deg); }
+    100% { opacity: 1; transform: translateY(0) rotate(0); }
+}
+
+/* MANUEL MOD */
+.satrancJsManualBox {
+    display: flex;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+    align-items: flex-start;
+}
+
+.satrancJsLeftPanel {
+    width: 280px;
+    min-width: 280px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 15px;
+    border: 2px solid #6741d9;
+    position: sticky;
+    top: 15px;
+}
+
+.satrancJsRightPanel {
+    flex: 1;
+    background: rgba(0,0,0,0.2);
+    border-radius: 12px;
+    padding: 15px;
+    border: 1px solid #2c3e50;
+}
+
+.satrancJsSlots {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 200px;
+    margin-top: 10px;
+}
+
+.satrancJsSlotEmpty {
+    background: rgba(255,255,255,0.05);
+    border: 2px dashed #495057;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    color: #6c757d;
+    font-size: 13px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.satrancJsSlotFilled {
+    background: rgba(103,65,217,0.3);
+    border: 2px solid #6741d9;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slotFill 0.3s ease-out;
+}
+
+@keyframes slotFill {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.satrancJsSlotIcon {
+    font-size: 22px;
+}
+
+.satrancJsSlotName {
+    flex: 1;
+    color: #c084fc;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.satrancJsSlotRemove {
+    background: transparent;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 6px;
+    transition: all 0.15s;
+}
+
+.satrancJsSlotRemove:hover {
+    color: #fff;
+    background: #ff6b6b;
+    border-radius: 5px;
+}
+
+.satrancJsOppStatus {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(255,107,107,0.1);
+    border: 1px solid #ff6b6b;
+    border-radius: 8px;
+}
+
+/* Havuz kartları */
+.satrancJsPool {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.satrancJokerCard {
+    background: linear-gradient(135deg, rgba(103,65,217,0.15), rgba(103,65,217,0.05));
+    border: 2px solid #6741d9;
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #dee2e6;
+    position: relative;
+    min-height: 100px;
+}
+
+.satrancJokerCard:hover {
+    background: linear-gradient(135deg, rgba(103,65,217,0.35), rgba(103,65,217,0.15));
+    border-color: #c084fc;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(192,132,252,0.3);
+}
+
+.satrancJokerCard.selected {
+    background: linear-gradient(135deg, rgba(81,207,102,0.3), rgba(81,207,102,0.1));
+    border-color: #51cf66;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.satrancJokerCard.selected::after {
+    content: "✓";
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    color: #51cf66;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.satrancJokerCard.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ✨ Süresiz modda kapalı joker */
+.satrancJokerCard.satrancJokerDisabled {
+    opacity: 0.45;
+    cursor: not-allowed !important;
+    filter: grayscale(85%);
+    position: relative;
+    background: linear-gradient(135deg, rgba(80, 80, 80, 0.2), rgba(40, 40, 40, 0.15)) !important;
+    border-color: #6c757d !important;
+}
+
+.satrancJokerCard.satrancJokerDisabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    background: linear-gradient(135deg, rgba(80, 80, 80, 0.25), rgba(40, 40, 40, 0.15)) !important;
+}
+
+.satrancJcDisabledBadge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: linear-gradient(135deg, #495057, #343a40);
+    color: #ffd43b;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px solid #ffd43b;
+    z-index: 5;
+    letter-spacing: 0.3px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.satrancJcIcon {
+    font-size: 26px;
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+.satrancJcName {
+    font-size: 14px;
+    font-weight: bold;
+    color: #c084fc;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.satrancJcCategory {
+    font-size: 10px;
+    text-align: center;
+    color: #ffd43b;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.satrancJcDesc {
+    font-size: 11px;
+    color: #adb5bd;
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* Kategori renkleri */
+.satrancJokerCard[data-category="klasik"] { border-color: #51cf66; }
+.satrancJokerCard[data-category="kaos"] { border-color: #ffa94d; }
+.satrancJokerCard[data-category="bilgi"] { border-color: #4dabf7; }
+.satrancJokerCard[data-category="ozel"] { border-color: #ffd43b; }
+.satrancJokerCard[data-category="ekstra"] { border-color: #c084fc; }
+.satrancJokerCard[data-category="carkifelek"] { border-color: #ff6b6b; }
+
+/* Timer */
+#satrancJsTimer {
+    color: #ffd43b;
+    font-family: monospace;
+    font-size: 18px;
+}
+#satrancJsTimer.warning { color: #ffa94d; }
+#satrancJsTimer.danger { color: #ff6b6b; animation: timerPulse 0.5s infinite; }
+
+@keyframes timerPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Mobil */
+@media (max-width: 800px) {
+    .satrancJsManualBox {
+        flex-direction: column;
+    }
+    .satrancJsLeftPanel {
+        width: 100%;
+        min-width: 0;
+        position: static;
+    }
+}
+
+/* ==========================================
+   OYUN İÇİ JOKER KARTLARI
+   ========================================== */
+
+.satrancJokerGameCard {
+    min-height: 70px;
+    padding: 8px;
+    margin-bottom: 6px;
+}
+
+.satrancJokerGameCard .satrancJcIcon {
+    font-size: 22px;
+    margin-bottom: 3px;
+}
+
+.satrancJokerGameCard .satrancJcName {
+    font-size: 12px;
+    margin-bottom: 0;
+}
+
+.satrancJokerGameCard:hover {
+    cursor: pointer;
+    transform: scale(1.05);
+}
+
+.satrancJokerHiddenCard {
+    background: rgba(255,107,107,0.1);
+    border-color: #ff6b6b !important;
+    cursor: default;
+    opacity: 0.7;
+}
+
+.satrancJokerHiddenCard:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.satrancJokerHiddenCard .satrancJcName {
+    color: #ff6b6b;
+}
+
+/* Kullanılmış joker */
+.satrancJokerGameCard.used {
+    opacity: 0.35;
+    cursor: not-allowed !important;
+    filter: grayscale(80%);
+    text-decoration: line-through;
+}
+
+.satrancJokerGameCard.used:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* ==========================================
+   JOKER EFEKT GÖRSELLERİ
+   ========================================== */
+
+.effect-shielded {
+    box-shadow: inset 0 0 0 4px rgba(77,171,247,0.9), inset 0 0 25px 5px rgba(77,171,247,0.5) !important;
+    animation: shieldPulse 2s infinite;
+    position: relative;
+}
+.effect-shielded::after {
+    content: "🛡️";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 14px;
+    z-index: 15;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+}
+@keyframes shieldPulse {
+    0%, 100% { box-shadow: inset 0 0 0 4px rgba(77,171,247,0.9), inset 0 0 25px 5px rgba(77,171,247,0.5); }
+    50% { box-shadow: inset 0 0 0 4px rgba(77,171,247,1), inset 0 0 35px 7px rgba(77,171,247,0.7); }
+}
+
+.effect-frozen {
+    position: relative;
+    box-shadow: 
+        inset 0 0 0 3px rgba(120, 220, 255, 0.9),
+        inset 0 0 30px 8px rgba(180, 240, 255, 0.6) !important;
+    animation: frozenShimmer 2s ease-in-out infinite;
+}
+
+.effect-frozen::after {
+    content: "❄️";
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    font-size: 16px;
+    z-index: 15;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+    animation: frozenIconBob 2s ease-in-out infinite;
+}
+
+.effect-frozen img {
+    filter: hue-rotate(180deg) brightness(0.85) saturate(1.3) drop-shadow(0 0 4px rgba(150,220,255,0.8)) !important;
+}
+
+@keyframes frozenShimmer {
+    0%, 100% { 
+        box-shadow: 
+            inset 0 0 0 3px rgba(120, 220, 255, 0.9),
+            inset 0 0 30px 8px rgba(180, 240, 255, 0.6);
+    }
+    50% { 
+        box-shadow: 
+            inset 0 0 0 3px rgba(180, 240, 255, 1),
+            inset 0 0 40px 12px rgba(220, 250, 255, 0.8);
+    }
+}
+
+@keyframes frozenIconBob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-2px) rotate(-10deg); }
+}
+
+/* effect-invisible (eski) - artık pasif, kare/taş etkilenmesin */
+.effect-invisible { }
+.effect-invisible img { }
+
+/* Joker kare seçim modu banner'ı */
+.satrancJokerBanner {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #6741d9, #c084fc);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(103,65,217,0.5);
+    z-index: 9999;
+    text-align: center;
+    animation: bannerSlideDown 0.4s ease-out;
+    min-width: 300px;
+    border: 2px solid #ffd43b;
+}
+
+@keyframes bannerSlideDown {
+    from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.satrancJbTitle {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #ffd43b;
+}
+
+.satrancJbHint {
+    font-size: 15px;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.satrancJbCancel {
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 6px;
+    font-style: italic;
+}
+
+.effect-locked {
+    box-shadow: inset 0 0 20px 3px rgba(255,193,7,0.7) !important;
+    animation: lockedPulse 2.5s infinite;
+}
+@keyframes lockedPulse {
+    0%, 100% { box-shadow: inset 0 0 20px 3px rgba(255,193,7,0.7); }
+    50% { box-shadow: inset 0 0 30px 5px rgba(255,152,0,1); }
+}
+
+/* ==========================================
+   RULET OVERLAY
+   ========================================== */
+.satrancRuletOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.85);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: ruletFadeIn 0.3s ease-out;
+}
+
+@keyframes ruletFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.satrancRuletBox {
+    background: linear-gradient(135deg, #1a1e2e, #2c3e50);
+    border: 3px solid #ffd43b;
+    border-radius: 20px;
+    padding: 40px 50px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(255,212,59,0.5);
+    min-width: 400px;
+    max-width: 600px;
+}
+
+.satrancRuletSpinner {
+    font-size: 80px;
+    animation: ruletSpin 1.5s ease-out;
+    display: inline-block;
+    margin: 15px 0;
+}
+
+@keyframes ruletSpin {
+    0% { transform: rotate(0deg) scale(0.5); opacity: 0; }
+    50% { transform: rotate(720deg) scale(1.2); opacity: 1; }
+    100% { transform: rotate(1080deg) scale(1); opacity: 1; }
+}
+
+.satrancRuletResult {
+    animation: ruletResultShow 0.5s ease-out 1s both;
+}
+
+@keyframes ruletResultShow {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================
+   BOMBA PATLAMA ANİMASYONU
+   ========================================== */
+
+/* Bomba patlaması - küçük ve sade */
+.satrancBombaExplosion {
+    position: fixed;
+    font-size: 55px;
+    z-index: 999998;
+    transform: translate(-50%, -50%) scale(0);
+    animation: bombaExplode 0.6s ease-out forwards;
+    pointer-events: none;
+    filter: drop-shadow(0 0 15px rgba(255, 120, 0, 0.8));
+}
+
+@keyframes bombaExplode {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    40% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0;
+    }
+}
+
+.bombaFlash {
+    animation: bombaSquareFlash 0.6s ease-out;
+}
+
+@keyframes bombaSquareFlash {
+    0% { box-shadow: inset 0 0 0 rgba(255,100,0,0); }
+    40% { box-shadow: inset 0 0 25px 4px rgba(255,140,0,0.8); }
+    100% { box-shadow: inset 0 0 0 rgba(255,100,0,0); }
+}
+
+/* ==========================================
+   JOKER HEDEFLENEBİLİR KARELER
+   ========================================== */
+
+.joker-targetable {
+    cursor: pointer !important;
+    box-shadow: inset 0 0 0 3px rgba(81, 207, 102, 0.85) !important;
+    animation: targetablePulse 1.5s infinite;
+}
+
+@keyframes targetablePulse {
+    0%, 100% { box-shadow: inset 0 0 0 3px rgba(81, 207, 102, 0.85); }
+    50% { box-shadow: inset 0 0 0 3px rgba(81, 207, 102, 1), 0 0 15px rgba(81, 207, 102, 0.5); }
+}
+
+.joker-targetable::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20%;
+    height: 20%;
+    background: rgba(81, 207, 102, 0.5);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Hedeflenebilir değil - taşları soluk */
+.satrancBoard.jokerMode .square-55d63:not(.joker-targetable) {
+    opacity: 0.6;
+    filter: grayscale(40%);
+}
+
+/* ==========================================
+   ÇARKIFELEK ANİMASYONU
+   ========================================== */
+.satrancCarkOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.9);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: carkFadeIn 0.4s ease-out;
+}
+
+@keyframes carkFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.satrancCarkBox {
+    background: linear-gradient(135deg, #1a1e2e, #2c3e50);
+    border: 3px solid #ffd43b;
+    border-radius: 20px;
+    padding: 30px 40px;
+    text-align: center;
+    box-shadow: 0 0 80px rgba(255,212,59,0.6);
+    max-width: 500px;
+}
+
+.satrancCarkWrap {
+    position: relative;
+    display: inline-block;
+    margin: 15px 0;
+}
+
+.satrancCarkPointer {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 40px;
+    color: #ff6b6b;
+    z-index: 10;
+    text-shadow: 0 0 10px rgba(255,107,107,0.8);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+#satrancCarkSvg {
+    filter: drop-shadow(0 0 20px rgba(255,212,59,0.4));
+}
+
+/* ==========================================
+   MODERN POPUP SİSTEMİ
+   ========================================== */
+
+.satrancModalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease-out;
+    padding: 20px;
+}
+
+.satrancModalOverlay.show {
+    opacity: 1;
+}
+
+.satrancModalCard {
+    background: linear-gradient(145deg, #1e2a3d, #2c3e50);
+    border: 2px solid #6741d9;
+    border-radius: 20px;
+    padding: 30px 35px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(103, 65, 217, 0.4),
+        0 0 60px rgba(103, 65, 217, 0.3);
+    transform: scale(0.85) translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 85vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.satrancModalOverlay.show .satrancModalCard {
+    transform: scale(1) translateY(0);
+}
+
+/* Renk varyasyonları */
+.satrancModalCard.joker {
+    border-color: #c084fc;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.7),
+        0 0 60px rgba(192, 132, 252, 0.4);
+}
+
+.satrancModalCard.danger {
+    border-color: #ff6b6b;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.7),
+        0 0 60px rgba(255, 107, 107, 0.4);
+}
+
+.satrancModalCard.success {
+    border-color: #51cf66;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.7),
+        0 0 60px rgba(81, 207, 102, 0.4);
+}
+
+.satrancModalCard.info {
+    border-color: #4dabf7;
+}
+
+.satrancModalIcon {
+    font-size: 64px;
+    line-height: 1;
+    margin-bottom: 15px;
+    display: inline-block;
+    animation: modalIconBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+@keyframes modalIconBounce {
+    0% { transform: scale(0) rotate(-180deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.satrancModalTitle {
+    color: #ffd43b;
+    font-size: 26px;
+    margin: 0 0 8px 0;
+    font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.satrancModalSubtitle {
+    color: #c084fc;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    padding: 4px 12px;
+    background: rgba(192, 132, 252, 0.15);
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.satrancModalMsg {
+    color: #dee2e6;
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 15px 0;
+    padding: 0 10px;
+}
+
+.satrancModalDetail {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+    margin: 15px 0;
+    color: #adb5bd;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+}
+
+.satrancModalButtons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+
+.satrancModalBtn {
+    padding: 12px 28px;
+    border-radius: 12px;
+    border: none;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: white;
+    min-width: 130px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.satrancModalBtn.single {
+    min-width: 180px;
+}
+
+.satrancModalBtn.satrancModalYes {
+    background: linear-gradient(135deg, #51cf66, #40c057);
+}
+
+.satrancModalBtn.satrancModalYes:hover {
+    background: linear-gradient(135deg, #40c057, #37b24d);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(81, 207, 102, 0.4);
+}
+
+.satrancModalBtn.satrancModalNo {
+    background: linear-gradient(135deg, #495057, #343a40);
+}
+
+.satrancModalBtn.satrancModalNo:hover {
+    background: linear-gradient(135deg, #ff6b6b, #fa5252);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(255, 107, 107, 0.4);
+}
+
+/* Danger card - ana butonu kırmızı yap */
+.satrancModalCard.danger .satrancModalBtn.satrancModalYes {
+    background: linear-gradient(135deg, #ff6b6b, #fa5252);
+}
+
+.satrancModalCard.danger .satrancModalBtn.satrancModalYes:hover {
+    background: linear-gradient(135deg, #fa5252, #f03e3e);
+    box-shadow: 0 6px 16px rgba(255, 107, 107, 0.5);
+}
+
+/* Choice grid (Taş Dönüştür için) */
+.satrancChoiceGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.satrancChoiceBtn {
+    background: linear-gradient(145deg, rgba(103, 65, 217, 0.2), rgba(103, 65, 217, 0.1));
+    border: 2px solid #6741d9;
+    border-radius: 12px;
+    padding: 15px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: white;
+}
+
+.satrancChoiceBtn:hover {
+    background: linear-gradient(145deg, rgba(192, 132, 252, 0.3), rgba(103, 65, 217, 0.2));
+    border-color: #c084fc;
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 8px 16px rgba(192, 132, 252, 0.3);
+}
+
+.satrancChoiceIcon {
+    font-size: 36px;
+    line-height: 1;
+    color: #ffd43b;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.satrancChoiceLabel {
+    font-size: 13px;
+    font-weight: bold;
+    color: #dee2e6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Revealed jokers list (Joker Gör) */
+.satrancRevealedList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.revealed-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border-left: 3px solid #51cf66;
+}
+
+.revealed-item.used {
+    opacity: 0.5;
+    border-left-color: #6c757d;
+    text-decoration: line-through;
+}
+
+.revealed-icon {
+    font-size: 22px;
+}
+
+.revealed-name {
+    flex: 1;
+    color: #dee2e6;
+    font-weight: 600;
+    text-align: left;
+}
+
+.revealed-active {
+    color: #51cf66;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.revealed-used {
+    color: #6c757d;
+    font-size: 11px;
+    font-style: italic;
+}
+
+/* Mobil */
+@media (max-width: 600px) {
+    .satrancModalCard {
+        padding: 25px 20px;
+    }
+    .satrancModalIcon {
+        font-size: 50px;
+    }
+    .satrancModalTitle {
+        font-size: 22px;
+    }
+    .satrancModalButtons {
+        flex-direction: column;
+    }
+    .satrancModalBtn {
+        width: 100%;
+    }
+}
+
+/* ==========================================
+   SATRANÇ LOBBY - YEŞİL KUTU (dar boyut)
+   ========================================== */
+
+#satrancLobbyScreen.panel {
+    max-width: 1500px !important;
+    width: 90% !important;
+    margin: 20px auto !important;
+    border: 2px solid #37b96b !important;
+    border-radius: 16px !important;
+    background: rgba(20, 30, 45, 0.85) !important;
+    padding: 25px 35px !important;
+    box-shadow: 
+        0 20px 60px rgba(0,0,0,0.5),
+        0 0 30px rgba(55, 185, 107, 0.15) !important;
+}
+
+#satrancLobbyScreen .mainTitle {
+    color: #51cf66;
+    font-size: 30px;
+    margin-bottom: 25px;
+    text-shadow: 0 2px 8px rgba(81,207,102,0.3);
+}
+
+#satrancLobbyScreen .roomCodeBox {
+    margin: 15px auto;
+    max-width: 500px;
+}
+
+#satrancLobbyScreen .inviteLinkBox {
+    margin: 12px auto;
+    max-width: 100%;
+    padding: 15px 20px;
+    background: rgba(45, 65, 90, 0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(77, 171, 247, 0.3);
+}
+
+#satrancLobbyScreen ul#satrancPlayersList {
+    list-style: none;
+    padding: 0;
+    max-width: 600px;
+    margin: 20px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#satrancLobbyScreen ul#satrancPlayersList li.playerRow {
+    padding: 12px 18px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: 2px solid;
+    background: rgba(0,0,0,0.25);
+    transition: all 0.2s;
+}
+
+#satrancLobbyScreen ul#satrancPlayersList li.playerMine {
+    border-color: #51cf66;
+    color: #51cf66;
+    background: rgba(81,207,102,0.08);
+}
+
+#satrancLobbyScreen ul#satrancPlayersList li.playerOpp {
+    border-color: #ff6b6b;
+    color: #ff8a8a;
+    background: rgba(255,107,107,0.08);
+}
+
+#satrancLobbyScreen .lobbyInfo {
+    max-width: 100%;
+    margin: 20px auto 15px auto;
+    padding: 12px 18px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    font-size: 15px;
+    color: #dee2e6;
+}
+
+#satrancLobbyScreen .lobbyInfo span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    padding: 4px 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+}
+
+#satrancLobbyScreen .lobbyInfo span span {
+    background: transparent;
+    padding: 0;
+    color: #ffd43b;
+    font-weight: bold;
+}
+
+#satrancLobbyScreen .centerBox {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px auto;
+    max-width: 100%;
+}
+
+#satrancLobbyScreen #satrancLobbyMsg {
+    text-align: center;
+    font-size: 15px;
+    margin: 15px 0 5px 0;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+#satrancLobbyScreen .kickBtnNew {
+    background: linear-gradient(135deg, #e03131, #c92a2a);
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    transition: all 0.2s;
+    margin-left: auto;
+}
+
+#satrancLobbyScreen .kickBtnNew:hover {
+    background: linear-gradient(135deg, #c92a2a, #a51616);
+    transform: scale(1.05);
+}
+
+/* Mobil */
+@media (max-width: 768px) {
+    #satrancLobbyScreen.panel {
+        padding: 20px 15px !important;
+    }
+    #satrancLobbyScreen .lobbyInfo {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* ==========================================
+   SIRA BENDE DEĞİLKEN JOKER SOLUK
+   ========================================== */
+
+.satrancJokerGameCard.not-my-turn {
+    opacity: 0.35 !important;
+    filter: grayscale(70%) blur(0.3px);
+    cursor: not-allowed !important;
+    transform: none !important;
+    position: relative;
+}
+
+.satrancJokerGameCard.not-my-turn::after {
+    content: "🔒";
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    font-size: 14px;
+    opacity: 0.9;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+}
+
+.satrancJokerGameCard.not-my-turn:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    background: linear-gradient(135deg, rgba(103,65,217,0.15), rgba(103,65,217,0.05)) !important;
+}
+
+/* ==========================================
+   TIKLAMA İLE TAŞ SEÇME
+   ========================================== */
+
+/* Seçili taşın karesi - net vurgu */
+.square-selected {
+    background: rgba(255, 210, 0, 0.65) !important;
+    box-shadow: inset 0 0 0 4px #ffd43b !important;
+    animation: selectedPulse 1.5s infinite;
+}
+
+@keyframes selectedPulse {
+    0%, 100% { box-shadow: inset 0 0 0 4px #ffd43b; }
+    50% { box-shadow: inset 0 0 0 4px #fab005, 0 0 20px rgba(255,212,59,0.6); }
+}
+
+/* Legal hamle noktaları - daha net gösterge */
+.highlight-legal {
+    position: relative;
+}
+
+.highlight-legal::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30%;
+    height: 30%;
+    background: rgba(81, 207, 102, 0.55);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: legalDotFade 0.25s ease-out;
+}
+
+/* Legal hamle üzerinde rakip taş varsa - halka */
+.highlight-legal:has(img)::before {
+    width: 90%;
+    height: 90%;
+    background: transparent;
+    border: 4px solid rgba(255, 107, 107, 0.7);
+    border-radius: 50%;
+}
+
+@keyframes legalDotFade {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ==========================================
+   OYUN EKRANI - 3 SÜTUN LAYOUT (v2)
+   ========================================== */
+
+/* Üstteki sıra bilgi barı */
+.satrancTurnBar {
+    text-align: center;
+    padding: 12px 20px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 12px;
+    margin: 15px auto;
+    max-width: 500px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.satrancTurnBar .satrancTurnInfo {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffd43b;
+    margin-bottom: 3px;
+}
+
+.satrancTurnBar .satrancStatusMsg {
+    font-size: 13px;
+    color: #adb5bd;
+}
+
+/* Ana layout - 5 sütun (dış captured + panel + tahta + panel + dış captured) */
+.satrancMainLayout {
+    display: grid !important;
+    grid-template-columns: 160px 240px 620px 240px 160px !important;
+    gap: 15px !important;
+    max-width: 1600px !important;
+    margin: 0 auto !important;
+    padding: 0 15px !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+}
+
+@media (max-width: 1500px) {
+    .satrancMainLayout {
+        grid-template-columns: 130px 220px 560px 220px 130px !important;
+        gap: 10px !important;
+    }
+}
+
+@media (max-width: 1300px) {
+    .satrancMainLayout {
+        grid-template-columns: 110px 200px 500px 200px 110px !important;
+    }
+    .satrancBoard {
+        max-width: 500px !important;
+    }
+}
+
+/* Yan paneller (sen/rakip) */
+.satrancSidePanel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 240px !important;
+    min-width: 240px !important;
+}
+
+/* Oyuncu başlığı (isim + saat) */
+.satrancPlayerHeader {
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 12px 15px;
+    border: 2px solid;
+    text-align: center;
+}
+
+.satrancMyHeader {
+    border-color: #51cf66;
+    background: linear-gradient(135deg, rgba(81,207,102,0.15), rgba(0,0,0,0.3));
+}
+
+.satrancOppHeader {
+    border-color: #ff6b6b;
+    background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(0,0,0,0.3));
+}
+
+.satrancPlayerHeader .satrancPlayerName {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.satrancMyHeader .satrancPlayerName { color: #51cf66; }
+.satrancOppHeader .satrancPlayerName { color: #ff8a8a; }
+
+.satrancPlayerHeader .satrancClock {
+    font-size: 26px !important;
+    font-weight: bold;
+    font-family: monospace;
+    color: #ffd43b !important;
+    background: rgba(0,0,0,0.5) !important;
+    padding: 8px 15px !important;
+    border-radius: 10px !important;
+    border: 1px solid #3b4c63 !important;
+    display: inline-block;
+    letter-spacing: 2px;
+}
+
+/* ==========================================
+   DIŞ CAPTURED SÜTUNLARI (tahta yanları)
+   ========================================== */
+.satrancCapturedColumn {
+    width: 160px;
+    min-width: 160px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 12px;
+    padding: 12px 10px;
+    border: 1px solid #2c3e50;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.satrancMyCapturedCol {
+    border: 2px solid #51cf66;
+    background: linear-gradient(135deg, rgba(81, 207, 102, 0.45), rgba(64, 192, 87, 0.28)) !important;
+    box-shadow: 0 0 20px rgba(81, 207, 102, 0.35), inset 0 0 15px rgba(81, 207, 102, 0.15);
+}
+
+.satrancOppCapturedCol {
+    border: 2px solid #ff6b6b;
+    background: linear-gradient(135deg, rgba(255, 76, 76, 0.50), rgba(201, 42, 42, 0.35)) !important;
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.4), inset 0 0 15px rgba(255, 107, 107, 0.18);
+}
+
+.satrancMyCapturedCol .satrancCapturedTitle {
+    background: rgba(0, 0, 0, 0.5);
+    color: #b2f2bb !important;
+    text-shadow: 0 0 8px rgba(81, 207, 102, 0.6);
+}
+
+.satrancOppCapturedCol .satrancCapturedTitle {
+    background: rgba(0, 0, 0, 0.5);
+    color: #ffc9c9 !important;
+    text-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
+}
+
+.satrancCapturedTitle {
+    color: #ffd43b;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 8px;
+    width: 100%;
+}
+
+.satrancMyCapturedCol .satrancCapturedTitle {
+    color: #51cf66;
+}
+
+.satrancOppCapturedCol .satrancCapturedTitle {
+    color: #ff8a8a;
+}
+
+.satrancCapturedPieces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    padding: 6px;
+    min-height: 60px;
+}
+
+.satrancCapturedPieces img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+    transition: transform 0.15s ease;
+}
+
+.satrancCapturedPieces img:hover {
+    transform: scale(1.15);
+}
+
+.satrancCapturedDiff {
+    display: none !important;
+}
+
+/* Kutunun en altındaki toplam sayaç */
+.satrancCapturedTotal {
+    margin-top: auto;
+    width: 100%;
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: #dee2e6;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
+    padding: 6px 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.satrancCapturedTotal span {
+    display: inline-block;
+    min-width: 20px;
+    color: #ffd43b;
+    font-size: 15px;
+    font-family: monospace;
+    margin-left: 4px;
+    text-shadow: 0 0 6px rgba(255, 212, 59, 0.4);
+}
+
+.satrancMyCapturedCol .satrancCapturedTotal {
+    border-color: rgba(81, 207, 102, 0.5);
+    color: #b2f2bb;
+}
+
+.satrancOppCapturedCol .satrancCapturedTotal {
+    border-color: rgba(255, 107, 107, 0.5);
+    color: #ffc9c9;
+}
+
+@media (max-width: 1200px) {
+    .satrancCapturedColumn {
+        width: 120px;
+        min-width: 120px;
+    }
+    .satrancCapturedPieces img {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+@media (max-width: 900px) {
+    .satrancCapturedColumn {
+        width: 100%;
+        min-width: 0;
+        min-height: 80px;
+        flex-direction: row;
+        justify-content: center;
+    }
+    .satrancCapturedPieces {
+        min-height: 40px;
+    }
+    .satrancCapturedPieces img {
+        width: 26px;
+        height: 26px;
+    }
+}
+
+/* Joker panel kutusu */
+.satrancJokerPanelBox {
+    background: rgba(0,0,0,0.25);
+    border-radius: 12px;
+    padding: 12px 10px;
+    border: 1px solid #2c3e50;
+    min-height: 200px;
+}
+
+.satrancJokerPanelTitle {
+    color: #ffd43b;
+    margin: 0 0 12px 0;
+    text-align: center;
+    font-size: 15px;
+}
+
+.satrancJokerPanelTitle.satrancOppJokerTitle {
+    color: #ff8a8a;
+}
+
+/* Rakip joker kartları da bizimkiyle aynı boyutta */
+#satrancOppJokers .satrancJokerCard {
+    min-height: 70px !important;
+    padding: 8px !important;
+    margin-bottom: 6px !important;
+}
+
+#satrancOppJokers .satrancJokerCard .satrancJcIcon {
+    font-size: 22px;
+    margin-bottom: 3px;
+}
+
+#satrancOppJokers .satrancJokerCard .satrancJcName {
+    font-size: 12px;
+}
+
+/* Tahtayı büyült */
+.satrancBoard {
+    width: 100% !important;
+    max-width: 620px !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+}
+
+.satrancBoardContainer {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* Mobil - dikey stack */
+@media (max-width: 900px) {
+    .satrancMainLayout {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .satrancSidePanel {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .satrancBoard {
+        max-width: 100% !important;
+    }
+    .satrancCapturedColumn {
+        order: 99;
+    }
+}
+
+/* ==========================================
+   TAŞ ANİMASYON Z-INDEX FIX
+   ========================================== */
+
+/* Board container: z-index kontexti + animasyon sırasında taş dışa taşabilsin */
+#satrancBoard {
+    position: relative !important;
+    z-index: 10 !important;
+    overflow: visible !important;
+}
+
+.satrancBoardContainer {
+    position: relative;
+    z-index: 5;
+    overflow: visible !important;
+}
+
+/* Kareler en altta */
+#satrancBoard .square-55d63 {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Sabit taşlar (kareye yerleşmiş) - karelerin üstünde */
+#satrancBoard .piece-417db {
+    position: absolute !important;
+    z-index: 5 !important;
+}
+
+/* Chessboard.js animasyon sırasında body'ye eklenen hareketli taş */
+body > img.piece-417db {
+    z-index: 99999 !important;
+    pointer-events: none;
+}
+
+/* ✨ Görünmez taş animasyon sırasında da silik kalsın */
+body > img.piece-417db.animatingInvisible {
+    opacity: 0.3 !important;
+}
+
+/* Notasyon (a-h, 1-8) - karelerin üstünde ama taşın altında */
+#satrancBoard .notation-322f9 {
+    z-index: 2 !important;
+    pointer-events: none;
+}
+
+/* ==========================================
+   GÖRÜNMEZ JOKER STİLLERİ
+   ========================================== */
+
+/* Kendi görünmez taşımız - kare rengine dokunma, sadece taş %30 opacity */
+#satrancBoard .effect-invisible,
+#satrancBoard .effect-invisible.highlight-from,
+#satrancBoard .effect-invisible.highlight-to,
+#satrancBoard .effect-invisible.square-selected,
+#satrancBoard .effect-invisible.joker-targetable {
+    position: relative !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+#satrancBoard .effect-invisible img,
+#satrancBoard .effect-invisible.highlight-from img,
+#satrancBoard .effect-invisible.highlight-to img {
+    opacity: 0.3 !important;
+    filter: none !important;
+}
+
+/* Kare üzerinde kalan tur badge */
+.invisibleTurnBadge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    background: linear-gradient(135deg, #6741d9, #c084fc);
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    z-index: 15;
+    pointer-events: none;
+    animation: badgePulse 2s infinite;
+    border: 1.5px solid #ffd43b;
+}
+
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 2px 6px rgba(103,65,217,0.6); }
+    50% { transform: scale(1.15); box-shadow: 0 2px 12px rgba(192,132,252,0.9); }
+}
+
+/* Görünmez aktifken kart */
+.satrancJokerGameCard.gorunmezActive {
+    opacity: 1 !important;
+    filter: none !important;
+    text-decoration: none !important;
+    border-color: #c084fc !important;
+    background: linear-gradient(135deg, rgba(103,65,217,0.35), rgba(192,132,252,0.15)) !important;
+    animation: gorunmezCardPulse 2s infinite;
+}
+
+@keyframes gorunmezCardPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(192,132,252,0.4); }
+    50% { box-shadow: 0 0 18px rgba(192,132,252,0.9); }
+}
+
+/* Kartın üst yazısı: soluk "Görünmez" */
+.satrancJcTopBadge {
+    font-size: 10px;
+    font-weight: bold;
+    color: rgba(192,132,252,0.6);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 2px;
+    opacity: 0.7;
+    text-shadow: 0 0 6px rgba(192,132,252,0.4);
+}
+
+/* Kartın alt yazısı: kalan tur (deprecated) */
+.satrancJcBottomBadge {
+    font-size: 10px;
+    color: #ffd43b;
+    text-align: center;
+    margin-top: 4px;
+    font-weight: bold;
+    background: rgba(0,0,0,0.4);
+    padding: 2px 6px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+}
+
+/* ✨ Şarj çubukları - sağ üst köşe */
+.satrancJcCharge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 5;
+}
+
+.chargeBar {
+    width: 4px;
+    height: 8px;
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+.chargeBar.filled {
+    background: linear-gradient(180deg, #c084fc, #6741d9);
+    box-shadow: 0 0 6px rgba(192,132,252,0.8);
+    animation: chargeBarPulse 1.5s infinite;
+}
+
+.chargeBar.empty {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: none;
+}
+
+@keyframes chargeBarPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Kart için relative pozisyon */
+.satrancJokerGameCard {
+    position: relative;
+}
+
+/* Puf efekti (görünmez ol/geri gel animasyonu) */
+.satrancInvisiblePuf {
+    position: fixed;
+    font-size: 40px;
+    z-index: 999999;
+    transform: translate(-50%, -50%) scale(0);
+    animation: pufAnimation 1s ease-out forwards;
+    pointer-events: none;
+    filter: drop-shadow(0 0 15px rgba(192,132,252,0.9));
+}
+
+@keyframes pufAnimation {
+    0% {
+        transform: translate(-50%, -50%) scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    30% {
+        transform: translate(-50%, -50%) scale(1.4) rotate(180deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.2) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* ==========================================
+   TAHTADA GÖRÜNMEZ TAŞ ÜZERİNDE ŞARJ ÇUBUKLARI
+   ========================================== */
+
+.squareInvisibleCharge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.squareChargeBar {
+    width: 5px;
+    height: 9px;
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+.squareChargeBar.filled {
+    background: linear-gradient(180deg, #c084fc, #6741d9);
+    box-shadow: 0 0 6px rgba(192,132,252,0.9);
+    animation: chargeBarPulse 1.5s infinite;
+}
+
+/* Kalan tura göre renk (5=yeşil, 4=sarı, 3=turuncu, 2=mor, 1=kırmızı) */
+.squareInvisibleCharge.charge-5 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #69db7c, #2f9e44);
+    box-shadow: 0 0 6px rgba(105,219,124,0.9);
+}
+.squareInvisibleCharge.charge-4 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ffe066, #f59f00);
+    box-shadow: 0 0 6px rgba(255,224,102,0.9);
+}
+.squareInvisibleCharge.charge-3 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ffa94d, #e8590c);
+    box-shadow: 0 0 6px rgba(255,169,77,0.9);
+}
+.squareInvisibleCharge.charge-2 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #c084fc, #6741d9);
+    box-shadow: 0 0 6px rgba(192,132,252,0.9);
+}
+.squareInvisibleCharge.charge-1 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ff8787, #c92a2a);
+    box-shadow: 0 0 8px rgba(255,135,135,1);
+    animation: chargeBarPulse 0.6s infinite;
+}
+
+.squareChargeBar.empty {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: none;
+}
+
+/* ==========================================
+   GÖRÜNMEZ YEME HALKASI (rakibin görünmez taşı burada)
+   ========================================== */
+
+/* Kırmızı halka - yeme göstergesi (taş görünmüyor ama halka var) */
+.highlight-legal.invisible-capture::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90% !important;
+    height: 90% !important;
+    background: transparent !important;
+    border: 4px solid rgba(255, 107, 107, 0.85) !important;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: legalDotFade 0.25s ease-out;
+}
+
+/* ==========================================
+   KALKAN ŞARJ ÇUBUKLARI (mavi tonlar)
+   ========================================== */
+
+.squareShieldCharge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.squareShieldCharge .squareChargeBar.filled {
+    background: linear-gradient(180deg, #74c0fc, #1971c2);
+    box-shadow: 0 0 6px rgba(116,192,252,0.9);
+    animation: chargeBarPulse 1.5s infinite;
+}
+
+/* Kalkan kalan turuna göre renk (4=mavi güçlü, 3=mavi, 2=sarı, 1=kırmızı) */
+.squareShieldCharge.shieldCharge-4 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #a5d8ff, #339af0);
+    box-shadow: 0 0 8px rgba(165,216,255,1);
+}
+.squareShieldCharge.shieldCharge-3 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #74c0fc, #1971c2);
+    box-shadow: 0 0 6px rgba(116,192,252,0.9);
+}
+.squareShieldCharge.shieldCharge-2 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ffe066, #f59f00);
+    box-shadow: 0 0 6px rgba(255,224,102,0.9);
+}
+.squareShieldCharge.shieldCharge-1 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ff8787, #c92a2a);
+    box-shadow: 0 0 8px rgba(255,135,135,1);
+    animation: chargeBarPulse 0.6s infinite;
+}
+
+/* Kart aktif göstergesi (kalkan) */
+.satrancJokerGameCard.kalkanActive {
+    opacity: 1 !important;
+    filter: none !important;
+    text-decoration: none !important;
+    border-color: #4dabf7 !important;
+    background: linear-gradient(135deg, rgba(77,171,247,0.35), rgba(116,192,252,0.15)) !important;
+    animation: kalkanCardPulse 2s infinite;
+}
+
+@keyframes kalkanCardPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(77,171,247,0.4); }
+    50% { box-shadow: 0 0 18px rgba(77,171,247,0.9); }
+}
+
+.satrancJcTopBadge.kalkanBadge {
+    color: rgba(77,171,247,0.9);
+    text-shadow: 0 0 6px rgba(77,171,247,0.6);
+}
+
+/* ==========================================
+   JOKER İPTAL BUTONU (sol alt sabit)
+   ========================================== */
+
+.satrancJokerCancelBtn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    background: linear-gradient(135deg, #ff6b6b, #c92a2a);
+    color: white;
+    border: 2px solid rgba(255,255,255,0.3);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.5);
+    animation: cancelBtnPulse 1.5s ease-in-out infinite alternate;
+    transition: all 0.2s;
+}
+
+.satrancJokerCancelBtn:hover {
+    background: linear-gradient(135deg, #fa5252, #e03131);
+    transform: scale(1.03);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.8);
+}
+
+@keyframes cancelBtnPulse {
+    from { box-shadow: 0 4px 15px rgba(255, 107, 107, 0.5); }
+    to { box-shadow: 0 4px 25px rgba(255, 107, 107, 0.9); }
+}
+
+/* ==========================================
+   DONDUR ŞARJ ÇUBUKLARI (buz mavisi)
+   ========================================== */
+
+.squareFrozenCharge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.squareFrozenCharge .squareChargeBar.filled {
+    background: linear-gradient(180deg, #a5d8ff, #339af0);
+    box-shadow: 0 0 6px rgba(165,216,255,0.9);
+    animation: chargeBarPulse 1.5s infinite;
+}
+
+.squareFrozenCharge.frozenCharge-2 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #a5d8ff, #339af0);
+    box-shadow: 0 0 6px rgba(165,216,255,0.9);
+}
+.squareFrozenCharge.frozenCharge-1 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ff8787, #c92a2a);
+    box-shadow: 0 0 8px rgba(255,135,135,1);
+    animation: chargeBarPulse 0.6s infinite;
+}
+
+/* Kart aktif (dondur) */
+.satrancJokerGameCard.dondurActive {
+    opacity: 1 !important;
+    filter: none !important;
+    text-decoration: none !important;
+    border-color: #74c0fc !important;
+    background: linear-gradient(135deg, rgba(116,192,252,0.35), rgba(165,216,255,0.15)) !important;
+    animation: dondurCardPulse 2s infinite;
+}
+
+@keyframes dondurCardPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(116,192,252,0.4); }
+    50% { box-shadow: 0 0 18px rgba(116,192,252,0.9); }
+}
+
+.satrancJcTopBadge.dondurBadge {
+    color: rgba(165,216,255,0.95);
+    text-shadow: 0 0 6px rgba(116,192,252,0.6);
+}
+
+/* ==========================================
+   AJAN EFEKT
+   ========================================== */
+
+/* Sol üstte emoji (görünmez ve ajan için) */
+.ajanSquareEmoji,
+.invisibleSquareEmoji {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 16px;
+    z-index: 20;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+    animation: emojiFloat 2s ease-in-out infinite;
+}
+
+@keyframes emojiFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+
+/* Sağ üstte ajan şarj çubukları (mor tonları) */
+.squareAjanCharge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.squareAjanCharge .squareChargeBar.filled {
+    background: linear-gradient(180deg, #c084fc, #6741d9);
+    box-shadow: 0 0 6px rgba(192,132,252,0.9);
+    animation: chargeBarPulse 1.5s infinite;
+}
+
+/* Kalan tura göre renk */
+.squareAjanCharge.ajanCharge-6 .squareChargeBar.filled,
+.squareAjanCharge.ajanCharge-5 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #d0bfff, #7048e8);
+    box-shadow: 0 0 8px rgba(208,191,255,0.9);
+}
+.squareAjanCharge.ajanCharge-4 .squareChargeBar.filled,
+.squareAjanCharge.ajanCharge-3 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #c084fc, #6741d9);
+    box-shadow: 0 0 6px rgba(192,132,252,0.9);
+}
+.squareAjanCharge.ajanCharge-2 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ffa94d, #e8590c);
+    box-shadow: 0 0 6px rgba(255,169,77,0.9);
+}
+.squareAjanCharge.ajanCharge-1 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ff8787, #c92a2a);
+    box-shadow: 0 0 8px rgba(255,135,135,1);
+    animation: chargeBarPulse 0.6s infinite;
+}
+
+/* Kart aktif (ajan) */
+.satrancJokerGameCard.ajanActive {
+    opacity: 1 !important;
+    filter: none !important;
+    text-decoration: none !important;
+    border-color: #c084fc !important;
+    background: linear-gradient(135deg, rgba(103,65,217,0.35), rgba(192,132,252,0.15)) !important;
+    animation: ajanCardPulse 2s infinite;
+}
+
+@keyframes ajanCardPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(103,65,217,0.4); }
+    50% { box-shadow: 0 0 18px rgba(192,132,252,0.9); }
+}
+
+.satrancJcTopBadge.ajanBadge {
+    color: rgba(192,132,252,0.9);
+    text-shadow: 0 0 6px rgba(103,65,217,0.6);
+}
+
+/* ==========================================
+   PROMOSYON POPUP (yenilen taşlardan seç)
+   ========================================== */
+
+.satrancPromoOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.satrancPromoOverlay.show {
+    opacity: 1;
+}
+
+.satrancPromoBox {
+    background: linear-gradient(145deg, #1e2a3d, #2c3e50);
+    border: 3px solid #ffd43b;
+    border-radius: 20px;
+    padding: 30px 40px;
+    max-width: 550px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 
+        0 25px 50px rgba(0,0,0,0.7),
+        0 0 60px rgba(255,212,59,0.4);
+    transform: scale(0.85) translateY(20px);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.satrancPromoOverlay.show .satrancPromoBox {
+    transform: scale(1) translateY(0);
+}
+
+.satrancPromoIcon {
+    font-size: 60px;
+    margin-bottom: 10px;
+    animation: promoIconBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes promoIconBounce {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.15) rotate(-8deg); }
+}
+
+.satrancPromoTitle {
+    color: #ffd43b;
+    font-size: 26px;
+    margin: 0 0 10px 0;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.satrancPromoDesc {
+    color: #dee2e6;
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 10px 0 25px 0;
+}
+
+.satrancPromoPieces {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.satrancPromoPiece {
+    background: linear-gradient(145deg, rgba(103,65,217,0.2), rgba(103,65,217,0.05));
+    border: 3px solid #6741d9;
+    border-radius: 14px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 100px;
+    position: relative;
+}
+
+.satrancPromoPiece:hover {
+    background: linear-gradient(145deg, rgba(192,132,252,0.35), rgba(103,65,217,0.2));
+    border-color: #c084fc;
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 25px rgba(192,132,252,0.4);
+}
+
+.satrancPromoPiece img {
+    width: 60px;
+    height: 60px;
+    display: block;
+    margin: 0 auto 8px auto;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    transition: transform 0.2s;
+}
+
+.satrancPromoPiece:hover img {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.satrancPromoName {
+    color: #dee2e6;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.satrancPromoCount {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #ff6b6b, #c92a2a);
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 2px solid #1e2a3d;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.satrancPromoHint {
+    color: #adb5bd;
+    font-size: 12px;
+    margin-top: 15px;
+    font-style: italic;
+}
+
+/* ==========================================
+   PROMOSYON - SADE FADE ANİMASYONU
+   ========================================== */
+.satrancPromoFade img {
+    animation: satrancPromoPieceFade 0.7s ease-out;
+}
+
+@keyframes satrancPromoPieceFade {
+    0% {
+        opacity: 0.2;
+        transform: scale(0.6);
+        filter: drop-shadow(0 0 8px rgba(255, 212, 59, 0.7));
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.12);
+        filter: drop-shadow(0 0 6px rgba(255, 212, 59, 0.5));
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: none;
+    }
+}
+
+/* ==========================================
+   JOKER GÖR - REVEALED AMA KULLANILMAMIŞ
+   ========================================== */
+
+.satrancJokerGameCard.revealed-visible {
+    border: 2px solid rgba(81, 207, 102, 0.7) !important;
+    background: linear-gradient(135deg, rgba(81,207,102,0.12), rgba(81,207,102,0.04)) !important;
+    opacity: 1 !important;
+    text-decoration: none !important;
+    filter: none !important;
+}
+
+.satrancJokerGameCard.revealed-visible .satrancJcName {
+    text-decoration: none !important;
+    color: #51cf66 !important;
+}
+
+.satrancJokerGameCard.revealed-visible .satrancJcIcon {
+    filter: drop-shadow(0 0 6px rgba(81,207,102,0.6));
+}

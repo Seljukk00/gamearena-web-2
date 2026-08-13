@@ -138,7 +138,8 @@ window.addEventListener("beforeunload", (e) => {
                           "stadGame", "stadLobby",
                           "memeGame", "memeLobby",
                           "sarkiGame", "sarkiLobby",
-                          "miniGame", "miniLobby"];
+                          "miniGame", "miniLobby",
+                          "satrancGame", "satrancLobby"];
     
     if (gameScreens.includes(current)) {
         e.preventDefault();
@@ -1175,7 +1176,8 @@ function handleMessage(msg) {
                     "stadyum_tanima": "🏟️ Stadyum Tanıma",
                     "meme_arena": "🎭 Meme Arena",
                     "sarkidan_bul": "🎵 Şarkıdan Bul",
-                    "mini_futbol": "⚽ Mini Futbol"
+                    "mini_futbol": "⚽ Mini Futbol",
+                    "jokerli_satranc": "♟️ Jokerli Satranç"
                 };
                 const displayName = modeDisplayNames[msg.mode] || msg.mode_name || msg.mode;
                 infoBox.textContent = displayName;
@@ -1214,6 +1216,8 @@ function handleMessage(msg) {
             send({ type: "sarki_join_room", name: name, room_code: code });
         } else if (msg.mode === "mini_futbol") {
             send({ type: "mini_join_room", name: name, room_code: code });
+        } else if (msg.mode === "jokerli_satranc") {
+            send({ type: "satranc_join_room", name: name, room_code: code });
         } else {
             send({ type: "join_room", name: name, room_code: code });
         }
@@ -1483,6 +1487,7 @@ function handleMessage(msg) {
         else if (current.includes("ilk11")) showScreen("ilk11Lobby");
         else if (current.includes("stad")) showScreen("stadLobby");
         else if (current.includes("meme")) showScreen("memeLobby");
+        else if (current.includes("satranc")) showScreen("satrancLobby");
         else showScreen("lobby");  // Bil Bakalım
         
         return;
@@ -1965,7 +1970,9 @@ function getCurrentScreen() {
         "sarkiGame": "sarkiGameScreen",
         "createMini": "createMiniScreen",
         "miniLobby": "miniLobbyScreen",
-        "miniGame": "miniGameScreen"
+        "miniGame": "miniGameScreen",
+        "satrancLobby": "satrancLobbyScreen",
+        "satrancGame": "satrancGameScreen"
     };
     
     for (const [key, id] of Object.entries(screens)) {
@@ -2119,6 +2126,7 @@ function _isCurrentHost() {
     if (typeof memeData !== "undefined" && memeData.playerId === 1) return true;
     if (typeof window._sarkiIsHostRef === "function" && window._sarkiIsHostRef()) return true;
     if (typeof miniData !== "undefined" && miniData.playerId === 1) return true;
+    if (typeof satrancData !== "undefined" && satrancData.playerId === 1) return true;
     return false;
 }
 
@@ -2134,6 +2142,7 @@ function _getCurrentModePrefix() {
     if (current.startsWith("meme")) return "meme";
     if (current.startsWith("sarki")) return "sarki";
     if (current.startsWith("mini")) return "mini";
+    if (current.startsWith("satranc")) return "satranc";
     return null;  // Bil Bakalım
 }
 
@@ -2330,7 +2339,7 @@ document.addEventListener("keydown", (e) => {
     // ✨ Lobby ekranlarında ESC → direkt ayrılma onayı
     const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby",
                           "gizemLobby", "ilk11Lobby", "stadLobby",
-                          "memeLobby", "sarkiLobby", "miniLobby"];
+                          "memeLobby", "sarkiLobby", "miniLobby", "satrancLobby"];
     if (lobbyScreens.includes(current)) {
         window._showLeaveConfirmPopup();
         return;
@@ -2345,7 +2354,8 @@ document.addEventListener("keydown", (e) => {
                           "ilk11Game",
                           "stadGame",
                           "memeGame",
-                          "sarkiGame"];
+                          "sarkiGame",
+                          "satrancGame"];
     
     if (gameScreens.includes(current)) {
         showEscPopup();
@@ -3255,7 +3265,8 @@ const ALL_MODES = [
     { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.png", desc: "Stadyumu gör, 4 şık arasından bul" },
     { id: "meme_arena", name: "🎭 Meme Arena", img: "/mod_resimleri/meme_arena.png", desc: "Duruma en uygun memi seç, oy topla!" },
     { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.png", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!" },
-    { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.png", desc: "1v1'den 5v5'e gerçek zamanlı futbol!" }
+    { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.png", desc: "1v1'den 5v5'e gerçek zamanlı futbol!" },
+    { id: "jokerli_satranc", name: "♟️ Jokerli Satranç", img: "/mod_resimleri/jokerli_satranc.png", desc: "26 jokerle klasik satrancı alt üst et!" }
 ];
 
 let _selectedNewMode = null;
@@ -3274,6 +3285,7 @@ function getCurrentMode() {
     if (current.startsWith("meme")) return "meme_arena";
     if (current.startsWith("sarki")) return "sarkidan_bul";
     if (current.startsWith("mini")) return "mini_futbol";
+    if (current.startsWith("satranc")) return "jokerli_satranc";
     return null;
 }
 
@@ -3379,7 +3391,8 @@ const _allChangeModeBtnIds = [
     "stadChangeModeBtn",
     "memeChangeModeBtn",
     "sarkiChangeModeBtn",
-    "miniChangeModeBtn"
+    "miniChangeModeBtn",
+    "satrancChangeModeBtn"
 ];
 _allChangeModeBtnIds.forEach(id => {
     const btn = document.getElementById(id);
@@ -3441,6 +3454,7 @@ handleMessage = function(msg) {
         try { if (typeof stadData !== "undefined") { stadData.playerId = null; stadData.roomCode = ""; stadData.inGame = false; } } catch(e) {}
         try { if (typeof memeData !== "undefined") { memeData.playerId = null; memeData.roomCode = ""; memeData.inGame = false; } } catch(e) {}
         try { if (typeof miniData !== "undefined") { miniData.playerId = null; miniData.roomCode = ""; miniData.players = []; miniData.gameState = null; } } catch(e) {}
+        try { if (typeof satrancData !== "undefined") { satrancData.playerId = null; satrancData.roomCode = ""; } } catch(e) {}
         
         // WS yenile
         if (ws) {
@@ -3546,6 +3560,10 @@ handleMessage = function(msg) {
             miniData.playerId = msg.player_id;
             miniData.roomCode = msg.room_code;
         }
+        if (msg.new_mode === "jokerli_satranc" && typeof satrancData !== "undefined") {
+            satrancData.playerId = msg.player_id;
+            satrancData.roomCode = msg.room_code;
+        }
         
         // Yeni modun lobi ekranına geç
         const modeToScreen = {
@@ -3558,7 +3576,8 @@ handleMessage = function(msg) {
             "stadyum_tanima": "stadLobby",
             "meme_arena": "memeLobby",
             "sarkidan_bul": "sarkiLobby",
-            "mini_futbol": "miniLobby"
+            "mini_futbol": "miniLobby",
+            "jokerli_satranc": "satrancLobby"
         };
         const newScreen = modeToScreen[msg.new_mode];
         if (newScreen) {
@@ -3575,7 +3594,8 @@ handleMessage = function(msg) {
             "stadyum_tanima": "Stadyum Tanıma",
             "meme_arena": "🎭 Meme Arena",
             "sarkidan_bul": "🎵 Şarkıdan Bul",
-            "mini_futbol": "⚽ Mini Futbol"
+            "mini_futbol": "⚽ Mini Futbol",
+            "jokerli_satranc": "♟️ Jokerli Satranç"
         };
         showToast("🔄 Mod Değişti", `Yeni mod: ${modeNames[msg.new_mode] || msg.new_mode}`, null, "success");
         return;

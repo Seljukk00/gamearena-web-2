@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/oyun_modlari/meme_arena/meme_arena.css">
     <link rel="stylesheet" href="/oyun_modlari/sarkidan_bul/sarkidan_bul.css">
     <link rel="stylesheet" href="/oyun_modlari/mini_futbol/mini_futbol.css">
+    <link rel="stylesheet" href="/oyun_modlari/jokerli_satranc/jokerli_satranc.css">
     <script src="/static/app.js" defer></script>
     <script src="/oyun_modlari/kim_milyoner/kim_milyoner.js" defer></script>
     <script src="/oyun_modlari/takim_bilmece/takim_bilmece.js" defer></script>
@@ -25,6 +26,11 @@
     <script src="/oyun_modlari/sarkidan_bul/sarkidan_bul.js" defer></script>
     <script src="/oyun_modlari/mini_futbol/mini_futbol_host_physics.js" defer></script>
     <script src="/oyun_modlari/mini_futbol/mini_futbol.js" defer></script>
+    <link rel="stylesheet" href="/satranc_vendor/chessboard-1.0.0.min.css">
+    <script src="/satranc_vendor/jquery-3.7.1.min.js"></script>
+    <script src="/satranc_vendor/chess.min.js"></script>
+    <script src="/satranc_vendor/chessboard-1.0.0.min.js"></script>
+    <script src="/oyun_modlari/jokerli_satranc/jokerli_satranc.js" defer></script>
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1324481943948742" crossorigin="anonymous"></script>
     <!-- Cloudflare Turnstile -->
@@ -97,7 +103,7 @@
 
         <!-- MOD SEÇİM EKRANI -->
         <section id="modSelectScreen" class="panel hidden">
-            <h2 class="mainTitle">🎮 Mod Seç</h2>
+            <h2 class="mainTitle">Mod Seç</h2>
             <p style="text-align:center; color:#adb5bd; margin-bottom:10px;">Oynamak istediğin modu seç</p>
             <div class="mod-grid">
 
@@ -178,6 +184,14 @@
                     <div class="mod-info">
                         <h3>⚽ Mini Futbol</h3>
                         <p>1v1'den 5v5'e gerçek zamanlı futbol!</p>
+                    </div>
+                </div>
+
+                <div class="mod-card" data-mod="jokerli_satranc">
+                    <img src="/mod_resimleri/jokerli_satranc.png" alt="Jokerli Satranç" onerror="this.style.display='none'">
+                    <div class="mod-info">
+                        <h3>♟️ Jokerli Satranç</h3>
+                        <p>26 jokerle klasik satrancı alt üst et!</p>
                     </div>
                 </div>
 
@@ -2538,6 +2552,250 @@
             </div>
         </div>
 
+        <!-- ==========================================
+             JOKERLİ SATRANÇ - ODA OLUŞTUR
+             ========================================== -->
+        <section id="createSatrancScreen" class="panel hidden">
+            <h2 class="mainTitle">♟️ Jokerli Satranç</h2>
+
+            <div class="centerBox">
+                <input id="createSatrancNameInput" type="text" placeholder="Adını yaz" maxlength="15">
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    ⏱️ Süre Modu:
+                    <select id="satrancTimeModeSelect">
+                        <option value="bullet">⚡ 1 Dakika</option>
+                        <option value="blitz" selected>🔥 3 Dakika</option>
+                        <option value="rapid">🏃 10 Dakika</option>
+                        <option value="klasik">🎩 30 Dakika</option>
+                        <option value="suresiz">♾️ Süresiz</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🃏 Joker Sayısı (Kişi Başı):
+                    <select id="satrancJokerCountSelect">
+                        <option value="1">1 Joker</option>
+                        <option value="2">2 Joker</option>
+                        <option value="3" selected>3 Joker</option>
+                        <option value="4">4 Joker</option>
+                        <option value="5">5 Joker</option>
+                        <option value="6">6 Joker</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🎴 Joker Seçim Modu:
+                    <select id="satrancPickModeSelect">
+                        <option value="karisik" selected>🎲 Karışık (Rastgele)</option>
+                        <option value="manuel">📋 Manuel (Kendin Seç)</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox" id="satrancPickSecondsBox">
+                <label class="timerLabel">
+                    ⏳ Joker Seçim Süresi:
+                    <select id="satrancPickSecondsSelect">
+                        <option value="30">30 saniye</option>
+                        <option value="60" selected>60 saniye</option>
+                        <option value="90">90 saniye</option>
+                        <option value="120">120 saniye</option>
+                        <option value="180">3 dakika</option>
+                        <option value="300">5 dakika</option>
+                        <option value="0">♾️ Sınırsız</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="ilk11InfoBox">
+                <h3>♟️ Nasıl Oynanır?</h3>
+                <p>Klasik satranç kuralları + <b style="color:#ffd43b">26 özel joker!</b></p>
+                <p>Her oyuncuya <b style="color:#51cf66">1-6 joker</b> dağıtılır</p>
+                <p>Jokerler: Bomba 💣, Işınlanma 🔮, Dondurma 🧊, Çarkıfelek 🎡 ve daha fazlası!</p>
+                <p>Şah mat yapan veya süreyi kazanan <b style="color:#51cf66">KAZANIR!</b></p>
+            </div>
+
+            <div class="row">
+                <button id="createSatrancBtn" class="bigBtn greenBtn">Oda Oluştur</button>
+                <button id="createSatrancBackBtn" class="bigBtn">← Geri</button>
+            </div>
+
+            <p id="createSatrancMsg" class="msg"></p>
+        </section>
+
+        <!-- ==========================================
+             JOKERLİ SATRANÇ - LOBBY
+             ========================================== -->
+        <section id="satrancLobbyScreen" class="panel hidden">
+            <h2 class="mainTitle">♟️ Jokerli Satranç - Lobby</h2>
+            <div class="roomCodeBox">
+                <span class="roomCodeLabel">Oda Kodu:</span>
+                <span id="satrancRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
+                <button class="eyeToggleBtn" id="satrancRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="satrancCopyHint" class="copyHint"></span>
+            </div>
+            <div class="inviteLinkBox">
+                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
+                <span id="satrancInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
+                <button class="eyeToggleBtn" id="satrancInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
+                <span id="satrancInviteLinkHint" class="copyHint"></span>
+            </div>
+            <ul id="satrancPlayersList"></ul>
+            <div class="lobbyInfo">
+                <span>⏱️ <span id="satrancLobbyTimeMode">Blitz</span></span>
+                <span style="margin-left: 15px;">🃏 Joker: <span id="satrancLobbyJokerCount">3</span></span>
+                <span style="margin-left: 15px;">🎴 Seçim: <span id="satrancLobbyPickMode">Karışık</span></span>
+                <span style="margin-left: 15px;">⏳ Seçim Süresi: <span id="satrancLobbyPickSeconds">60</span>s</span>
+            </div>
+            <div class="centerBox">
+                <button id="satrancStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
+                <button id="satrancRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
+                <button id="satrancChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
+                <button id="satrancLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
+            </div>
+            <p id="satrancLobbyMsg" class="msg"></p>
+        </section>
+
+        <!-- ==========================================
+             JOKERLİ SATRANÇ - JOKER SEÇİM EKRANI
+             ========================================== -->
+        <section id="satrancJokerSelectScreen" class="hidden">
+            <div class="satrancJsTop">
+                <h2 style="color:#ffd43b; margin:0;">🃏 Joker Seçim</h2>
+                <div class="satrancJsInfo">
+                    <span id="satrancJsMode">🎲 Karışık</span>
+                    <span style="margin-left:15px;">🃏 <span id="satrancJsCount">3</span> joker</span>
+                    <span style="margin-left:15px;">⏳ <span id="satrancJsTimer">60</span>s</span>
+                </div>
+            </div>
+
+            <!-- KARIŞIK MOD: sadece jokerleri göster -->
+            <div id="satrancJsRandomBox" class="satrancJsRandomBox hidden">
+                <h3 style="color:#51cf66; text-align:center;">🎲 Sana dağıtılan jokerler:</h3>
+                <div id="satrancJsRandomCards" class="satrancJsRandomCards"></div>
+                <p style="text-align:center; color:#adb5bd; margin-top:15px;">
+                    Oyun başlıyor... <span id="satrancJsCountdown" style="color:#ffd43b;">3</span>
+                </p>
+            </div>
+
+            <!-- MANUEL MOD: kart havuzu + slotlar -->
+            <div id="satrancJsManualBox" class="satrancJsManualBox hidden">
+                <div class="satrancJsLeftPanel">
+                    <h3 style="color:#ffd43b; text-align:center;">🎴 Seçtiklerin</h3>
+                    <div id="satrancJsSlots" class="satrancJsSlots"></div>
+                    <div id="satrancJsOppStatus" class="satrancJsOppStatus">
+                        <p style="color:#adb5bd; text-align:center; margin:0;">
+                            Rakip: <span id="satrancJsOppProgress">0/3</span>
+                        </p>
+                    </div>
+                    <button id="satrancJsConfirmBtn" class="bigBtn greenBtn" style="width:100%; margin-top:15px;" disabled>
+                        ✅ TAMAMLA
+                    </button>
+                </div>
+
+                <div class="satrancJsRightPanel">
+                    <h3 style="color:#ffd43b; text-align:center; margin:0 0 10px 0;">🃏 Joker Havuzu (26)</h3>
+                    <div id="satrancJsPool" class="satrancJsPool"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             JOKERLİ SATRANÇ - OYUN EKRANI (3 SÜTUN)
+             ========================================== -->
+        <section id="satrancGameScreen" class="hidden">
+            <!-- Sıra bilgisi üstte, ortada -->
+            <div class="satrancTurnBar">
+                <div id="satrancTurnInfo" class="satrancTurnInfo">♟️ Jokerli Satranç</div>
+                <div id="satrancStatusMsg" class="satrancStatusMsg"></div>
+            </div>
+
+            <!-- Ana 5 Sütun Layout -->
+            <div class="satrancMainLayout">
+                <!-- EN SOL: Benim yediğim taşlar -->
+                <div class="satrancCapturedColumn satrancMyCapturedCol">
+                    <div class="satrancCapturedTitle">Yenilen Taşlar</div>
+                    <div id="satrancMyCaptured" class="satrancCapturedPieces"></div>
+                    <div class="satrancCapturedTotal">
+                        Toplam Yenilen Taş: <span id="satrancMyCapturedTotal">0</span>
+                    </div>
+                </div>
+
+                <!-- SOL: Sen (isim + saat + jokerler) -->
+                <div class="satrancSidePanel satrancMyPanel" id="satrancMyPanel">
+                    <div class="satrancPlayerHeader satrancMyHeader">
+                        <div id="satrancP1Clock" class="satrancClock">--:--</div>
+                        <div id="satrancP1Name" class="satrancPlayerName">---</div>
+                    </div>
+                    <div class="satrancJokerPanelBox" id="satrancMyJokerPanel">
+                        <h3 class="satrancJokerPanelTitle">🃏 Jokerlerim</h3>
+                        <div id="satrancMyJokers" class="satrancJokerList"></div>
+                    </div>
+                </div>
+
+                <!-- ORTA: Tahta -->
+                <div class="satrancBoardContainer">
+                    <div id="satrancBoard" class="satrancBoard"></div>
+                    <div id="satrancPromotionBox" class="satrancPromotionBox hidden">
+                        <h3 style="color:#ffd43b;">Piyon Terfisi</h3>
+                        <div class="satrancPromoOptions">
+                            <button class="satrancPromoBtn" data-piece="q">♛ Vezir</button>
+                            <button class="satrancPromoBtn" data-piece="r">♜ Kale</button>
+                            <button class="satrancPromoBtn" data-piece="b">♝ Fil</button>
+                            <button class="satrancPromoBtn" data-piece="n">♞ At</button>
+                        </div>
+                    </div>
+                    <div class="satrancBoardActions">
+                        <button id="satrancBackBtn" class="bigBtn">← Menüye Dön</button>
+                        <button id="satrancResignBtn" class="bigBtn redBtn">🏳️ Terk Et</button>
+                    </div>
+                </div>
+
+                <!-- SAĞ: Rakip (isim + saat + jokerler) -->
+                <div class="satrancSidePanel satrancOppPanel" id="satrancOppPanel">
+                    <div class="satrancPlayerHeader satrancOppHeader">
+                        <div id="satrancP2Clock" class="satrancClock">--:--</div>
+                        <div id="satrancP2Name" class="satrancPlayerName">---</div>
+                    </div>
+                    <div class="satrancJokerPanelBox" id="satrancOppJokerPanel">
+                        <h3 class="satrancJokerPanelTitle satrancOppJokerTitle">🃏 Rakip Jokerleri</h3>
+                        <div id="satrancOppJokers" class="satrancJokerList"></div>
+                    </div>
+                </div>
+
+                <!-- EN SAĞ: Rakibin benden yediği taşlar -->
+                <div class="satrancCapturedColumn satrancOppCapturedCol">
+                    <div class="satrancCapturedTitle">Kaybedilen Taşlar</div>
+                    <div id="satrancOppCaptured" class="satrancCapturedPieces"></div>
+                    <div class="satrancCapturedTotal">
+                        Toplam Kaybedilen Taş: <span id="satrancOppCapturedTotal">0</span>
+                    </div>
+                </div>
+
+            </section>
+
+        <!-- ==========================================
+             JOKERLİ SATRANÇ - OYUN SONU (placeholder)
+             ========================================== -->
+        <div id="satrancGameOverBox" class="overlay hidden">
+            <div class="overlayCard">
+                <h1 id="satrancGameOverTitle">♟️ Oyun Bitti!</h1>
+                <p id="satrancGameOverText" style="font-size:22px; margin:15px 0;"></p>
+                <div class="confirmButtons">
+                    <button id="satrancRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
+                    <button id="satrancBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
+                    <button id="satrancBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
+                </div>
+            </div>
+        </div>
+
         <!-- SEÇİM EKRANI -->
         <section id="selectScreen" class="hidden">
             <div class="panel">
@@ -2974,6 +3232,28 @@
             <div class="miniChatInputRow">
                 <input type="text" id="bilChatInput" class="miniChatInput" placeholder="Mesaj Yaz..." maxlength="100" autocomplete="off">
                 <button id="bilChatSendBtn" class="miniChatSendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JOKERLİ SATRANÇ CHAT POPUP STACK -->
+    <div id="satrancChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
+
+    <!-- JOKERLİ SATRANÇ CHAT -->
+    <div id="satrancChatContainer" class="miniChatContainer" style="display:none;">
+        <button id="satrancChatToggleBtn" class="miniChatToggleBtn">
+            💬
+            <span id="satrancChatBadge" class="miniChatBadge" style="display:none;">0</span>
+        </button>
+        <div id="satrancChatPanel" class="miniChatPanel" style="display:none;">
+            <div class="miniChatHeader">
+                <span>💬 Sohbet</span>
+                <button id="satrancChatCloseBtn" class="miniChatCloseBtn">✕</button>
+            </div>
+            <div id="satrancChatMessages" class="miniChatMessages"></div>
+            <div class="miniChatInputRow">
+                <input type="text" id="satrancChatInput" class="miniChatInput" placeholder="Mesaj yaz..." maxlength="100" autocomplete="off">
+                <button id="satrancChatSendBtn" class="miniChatSendBtn">➤</button>
             </div>
         </div>
     </div>

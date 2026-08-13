@@ -1,4 +1,4 @@
-🎮 GameArena Web - Proje Devam Promptu (v6 - Güncel)
+🎮 GameArena Web - Proje Devam Promptu (v9 - Güncel + Satranç Polish)
 📋 PROJE ÖZETİ
 Bu, çoklu mod destekleyen online multiplayer futbol bilgi/tahmin + real-time oyun web sitesidir.
 
@@ -10,298 +10,252 @@ Web Projesi: C:\Users\Seljuk\Desktop\GameArena_Web\
 text
 
 GameArena_Web/
-│
-├── app.py                    ← ANA BACKEND
-│   • FastAPI + WebSocket endpoint
-│   • Rate limiting + IP banning
-│   • CORS middleware
-│   • Static mounts (takim_logolari dahil)
-│   • WebSocket → handler'lara yönlendirme
-│   • Ortak kick handler
-│   • Mini Futbol için özel disconnect (oda kapanmaz)
-│   • Mod değiştirme (mod_change_room)
-│   • Seljuk şifre doğrulama (/verify-seljuk)
-│
+├── app.py
 ├── requirements.txt
-├── runtime.txt              ← Python 3.11.9
+├── runtime.txt
 ├── render.yaml
-├── .env                     ← GİZLİ (GEMINI_API_KEY + TURNSTILE_SECRET + SELJUK_PASSWORD)
+├── .env (GEMINI_API_KEY + TURNSTILE_SECRET + SELJUK_PASSWORD)
 ├── .gitignore
 ├── venv/
-├── batlar/                  ← test_lokal.bat, guncelle_ve_gonder.bat vs.
-│
+├── batlar/
 ├── static/
-│   ├── index.html           ← TÜM ekranlar (9 mod kartı, lobby, game, popup'lar)
-│   ├── style.css            ← ORTAK stiller
-│   ├── app.js               ← ORTAK JS + Bil Bakalım + openRoomSettingsGeneric
-│   │                          + mod değiştir popup + Seljuk şifre popup
-│   └── images/              ← 250+ futbolcu .webp
-│
-├── mod_resimleri/           ← 9 mod kartı görseli
-│
+│   ├── index.html
+│   ├── style.css
+│   ├── app.js
+│   └── images/
+├── mod_resimleri/
 └── oyun_modlari/
     ├── __init__.py
-    │
     ├── bil_bakalim/
-    │   ├── __init__.py
-    │   ├── bil_bakalim_handler.py
-    │   ├── footballers.py
-    │   └── questions.py
-    │
     ├── takim_bilmece/
-    │   ├── __init__.py
-    │   ├── takim_handler.py
-    │   ├── teams.py
-    │   ├── takim_bilmece.js
-    │   ├── takim_bilmece.css
-    │   └── flags/            ← 60+ ülke bayrağı (.png, TR isimler)
-    │       • almanya.png, brezilya.png, costa_rica.png vs.
-    │
     ├── kim_milyoner/
-    │   ├── __init__.py
-    │   ├── milyoner_handler.py
-    │   ├── ai_soru_uretici.py  ← Gemini AI
-    │   ├── questions.py
-    │   ├── kim_milyoner.js
-    │   ├── kim_milyoner.css
-    │   └── assets/           ← correct.mp3, wrong.mp3, question.WAV, menu.mp3
-    │
     ├── haritadan_bul/
-    │   ├── __init__.py
-    │   ├── harita_handler.py
-    │   ├── harita_data.py
-    │   ├── haritadan_bul.js
-    │   ├── haritadan_bul.css
-    │   ├── world.svg         ← Dünya haritası SVG
-    │   └── flags/            ← 250+ ISO ülke bayrağı (.svg, tr.svg, us.svg vs.)
-    │
     ├── gizemli_kariyer/
-    │   ├── __init__.py
-    │   ├── gizem_handler.py
-    │   ├── futbolcular.py
-    │   ├── takimlar.py
-    │   ├── gizemli_kariyer.js
-    │   ├── gizemli_kariyer.css
-    │   └── takim_logolari/   ← 280+ takım logosu (.png, lokal)
-    │       • barcelona.png, real_madrid.png, fenerbahce.png vs.
-    │
     ├── ilk_11_challenge/
-    │   ├── __init__.py
-    │   ├── ilk11_handler.py
-    │   ├── ilk_11.js
-    │   └── ilk_11.css
-    │
     ├── stadyum_tanima/
-    │   ├── __init__.py
-    │   ├── stadyum_handler.py
-    │   ├── stadyum.py
-    │   ├── stadyumlar.py
-    │   ├── stadyum_tanima.js
-    │   ├── stadyum_tanima.css
-    │   └── images/           ← 20+ stadyum foto (ali_sami_yen.jpg, camp_nou.webp vs.)
-    │
     ├── meme_arena/
-    │   ├── __init__.py
-    │   ├── meme_handler.py
-    │   ├── durumlar.py
-    │   ├── meme_arena.js
-    │   ├── meme_arena.css
-    │   └── meme_kartlari/    ← 100+ mem (mem_001.png, mem_055.gif vs.)
-    │
-    └── mini_futbol/          ← ⚽ Mini Futbol (Haxball tarzı real-time)
-        ├── __init__.py
-        ├── mini_futbol_handler.py     ← Backend WS handler (host mode)
-        ├── mini_futbol.js              ← Frontend render + kontroller
-        ├── mini_futbol_host_physics.js ← HP fizik motoru (host tarayıcı)
-        ├── mini_futbol_ticker.js       ← Web Worker (arka plan tick)
-        ├── mini_futbol.css
-        └── sounds/           ← 13 ses dosyası
-            • kick_1.wav, kick_2.wav
-            • fire_kick_1/2/3.wav
-            • goal_1/2/3.wav
-            • wall_hit_1/2.wav
-            • post_hit.wav
-            • whistle.wav, whistle2.wav
-🎯 9 MOD - TÜMÜ AKTİF ✅
-Bil Bakalım - 32 futbolcu, soru-cevap
-Takım Bilmece - 12 soru, 4 zorluk, 4 joker (0/Sınırsız süre destekli)
-Kim Milyoner - AI (Gemini), 12 soru, 3 joker (Turnstile korumalı)
-Haritadan Bul - 10 tur, zoom+pan
-Gizemli Kariyer - 10 tur, 6 şık (lokal takım logoları)
-İlk 11 Challenge - 4-3-3, Rating + Kimya
-Stadyum Tanıma - 10 tur, 4 şık, 3 joker
-Meme Arena - Durum kartı + mem kartı, oy verme
-Mini Futbol - Haxball tarzı, 1v1-5v5 + izleyici desteği
+    ├── sarkidan_bul/
+    ├── mini_futbol/
+    └── jokerli_satranc/
+        ├── satranc_handler.py    (~2500 satır)
+        ├── jokerler.py
+        ├── jokerli_satranc.js
+        ├── jokerli_satranc.css
+        └── vendor/
+🎯 11 MOD - TÜMÜ AKTİF ✅
+Bil Bakalım
+Takım Bilmece
+Kim Milyoner (Turnstile)
+Haritadan Bul
+Gizemli Kariyer
+İlk 11 Challenge
+Stadyum Tanıma
+Meme Arena
+🎵 Şarkıdan Bul (Deezer)
+Mini Futbol (Haxball tarzı)
+♟️ Jokerli Satranç (26 joker + polish v9)
+♟️ JOKERLİ SATRANÇ - v9 GÜNCEL DURUM
+✅ v9'DA EKLENEN / DÜZELTİLEN
+İki Hamle Jokeri: Artık aynı taşla 2 hamle (ilk hamle A taşı, ikinci de aynı A taşı olmak zorunda). Kopya board üstünde legal hesaplanıyor.
+Hakkını Bana Ver (eski Zaman Durdur): İki hamle hakkı, taş fark etmez.
+Zamanı Durdur (yeni): Sadece o tur saati akmaz, sonraki tur normale döner (satranc_clock_frozen_turn dict).
+Kalkan: Rakip kalkanlı taşa yeme hamlesi hiç gösterilmez, saldırı backend'de de reddedilir.
+Joker Gör: Popup KAPATILDI, artık sağ panelde kalıcı açık (yeşil kenarlıklı revealed-visible class).
+Vezire Yükselt / Taş Dönüştür / Rakip Taş Yerleştir / Bomba / Ajan: Bunlar artık hamle sayılır, kullanınca sıra rakibe geçer + animasyonlu dönüşüm.
+Vezire Yükselt → adı "Vezire Yükseltme"'den "Vezire Yükselt"'e kısaltıldı.
+Ajan Jokeri: Yeniden yazıldı - kendi taşını seçer, görsel olarak rakip renge boyanır ama kontrol kendisinde kalır. Rakip için de FEN'de fake renkli gönderilir. 6 tur limit, sadece ajan taşı hareket edince sayaç -1. Sağ üstte 6 dişli şarj, sol üstte 🕵️ emoji, kart üzerinde "KALAN TUR: X" badge (ajanActive class).
+Görünmez Jokeri: Karesinin sol üstünde 🧙 emoji eklendi (ajan ile aynı sistem).
+Önce Başla: Alan beyaz olur, oyun başlarken üstü çizik (kullanıldı) olarak işaretlenir, listeden silinmez.
+Piyon Promosyon (v9 YENİ): Klasik showPromotionBox yerine, artık yenilen taşlardan seçim popup'ı. Backend satranc_captured_pieces dict'inde her oyuncunun yediği taşları tutar. Piyon 8/1. sıraya varınca satranc_promotion_needed mesajı gönderilir, frontend showCapturedPromotionPopup özel UI ile taş görselleri gösterir. Hiç yenilen taş yoksa otomatik Vezir. Backend UCI 4 karakter geldiğinde piyon+son sıra ise otomatik "q" ekler.
+🐛 v9'DA HÂLÂ AÇIK BUG'LAR
+Ajan taşı hareket ederken flash: Body'ye taşınan img chessboard.js'in kendi src'sini alıyor, override interval eklendi ama flash tam çözülmedi.
+Rakip hamle yapınca ajan taşı flash: Tüm ajan karelerini override interval ile 900ms boyunca zorluyoruz ama yine kısa flash olabilir.
+Görünmez taş hamle sonrası rakipte belli oluyor — sahiplik taşındı ama frontend'de eski kare hâlâ arka plan koyu gösterebilir.
+Tahta animasyonu z-index taş kare arkasına düşme (moveSpeed=500ms iken).
+26 JOKER STATE'LERİ (satranc_handler.py room state)
+text
+
+satranc_shielded: {square: turns_left}
+satranc_frozen: {square: turns_left}
+satranc_invisible: {square: turns_left}
+satranc_invisible_owners: {square: pid}
+satranc_locked: {square: turns_left}
+satranc_ajan_disguised: {square: {"color": "w"|"b", "turns": 6, "owner": pid}}
+satranc_extra_move: {pid: bool} (Hakkını Bana Ver)
+satranc_same_piece_double: {pid: {"active": bool, "required_from": str|None}} (İki Hamle)
+satranc_hizli_kacis: {pid: bool}
+satranc_clock_frozen_turn: {pid: bool} (Zamanı Durdur)
+satranc_yansima: {pid: bool}
+satranc_sansur: {pid: turns_left}
+satranc_captured_pieces: {pid: [{"type": "q", "color": "w"}, ...]}
+satranc_pending_promotion: None | {"pid": X, "from": "a7", "to": "a8"}
+26 JOKER (Güncel İsimler)
+⏰ Zaman Çal
+🔄 Geri Al
+🔀 Pas Ver
+🎁 Karşılıklı Ekstra Joker
+👁️ Joker Gör (sağ panelde kalıcı)
+👑 Vezire Yükselt (hamle sayılır, animasyonlu)
+🛡️ Kalkan (yeme engelli)
+🧊 Dondur
+🔮 Işınlanma
+💣 Bomba (hamle sayılır)
+🎭 Klon
+🧙 Görünmez (sol üstte 🧙 emoji)
+🃏 Taş Dönüştür (hamle sayılır)
+🎯 Rakip Taş Yerleştir (hamle sayılır)
+🌀 Yer Değiştir
+⚔️ İki Hamle (aynı taşla 2 kez)
+⛓️ Kilitle
+🕵️ Ajan (görsel sahte renk, 6 tur, kontrol sende)
+🌪️ Hızlı Kaçış
+✋ Hakkını Bana Ver (eski Zaman Durdur - ekstra hamle)
+🛑 Zamanı Durdur (yeni - saat 1 tur akmaz)
+🎬 Önce Başla (beyaz olur, üstü çizik)
+🎰 Rulet
+🌀 Yansıma
+💀 Joker Hırsızlığı
+⛔ Sansür
+🎡 Çarkıfelek
+⬜ HENÜZ YAPILMAYAN
+Ajan flash tam fix (hem kendi hamle hem rakip hamle sonrası)
+Vezire Yükseltme + Işınlanma ekstra polish animasyonları
+Işınlanma animasyonu
+Joker aktifken sol altta "İptal Et" butonu polish
+Süresiz modda Zaman Çal jokerini seçim ekranında disable
+Önce Başla → Zar / Taş-Kağıt-Makas seçim ekranı
+Dondurulmuş taş rakipte tıklanmasın
+Yansıma tam mantığı (şu an sadece buffer)
+Promosyon sonrası animasyonlu dönüşüm (Vezire Yükseltme'deki gibi)
 🔄 MOD DEĞİŞTİRME SİSTEMİ ✅
-Her lobide "🔄 Mod Değiştir" butonu (sadece host görür)
-Popup'ta 9 mod kartı, aktif mod yeşil çerçeveli
-Bir mod seçilince: oda kodu + oyuncular + chat geçmişi korunur, sadece mod değişir
-Backend: mod_change_room mesajı
-Frontend: openChangeModeModal() fonksiyonu
-⚽ MİNİ FUTBOL - GÜNCEL DETAYLAR
-TEMEL:
-Saha boyutları: oyuncu sayısına göre değişir (1v1: 1000x500, 5v5: 1800x900)
-Kaleler: Haxball tarzı (2 daire direk + kavisli file)
-Fizik: 60 FPS HOST tarayıcısında (HP fizik motoru)
-Network: 30 FPS (her 2. frame gönderilir)
-Kontroller: WASD + Space/Num0 şut + Shift sprint
-Gamepad desteği (PS4/Xbox: Sol Stick + X/Kare + R2)
-FİZİK:
-BALL_STICK_FACTOR = 1.0 (top tam yapışık sürülür)
-Hızlı top sekmesi (HARD_BALL_THRESHOLD=6.0)
-Top max hızı 18 (gelişmiş ayarlarda değişir)
-Duvar sekmesi (WALL_BOUNCE=0.55)
-Direk çarpışması (top + oyuncu)
-Oyuncu-oyuncu elastik çarpışma
-Oyuncu 55 px saha dışına çıkabilir
-SPRINT SİSTEMİ (Enerji bazlı):
-Max 100 enerji, 3 sn'de biter, 6 sn'de dolar
-Sarı halka göstergesi
-Sprint sırasında şut %30 daha güçlü
-Gol sonrası %100'e reset
-ŞUT SİSTEMİ:
-Basılı tutma = tek şut (makro engeli)
-Enerji oranında parlama efekti
-Sprint şut alev efekti (kırmızı/mavi)
-Köşe şutu: top duvarda sıkışırsa ters yöne fırlar
-PLASE (FALSO):
-Şut anında YÖNLÜ tuşa basılırsa plase (Space + W/S/A/D dik)
-Normal şuttan %75 güçte (gelişmişte ayarlanabilir)
-Kavis (spin) verilir, top kıvrılarak gider
-After-touch: 0.2 sn boyunca yön tuşuyla kavis yönü değişebilir
-Koşarak plase = %35 daha hızlı + %30 daha fazla kavis
-Duvar/direk/oyuncuya çarpınca spin azalır
-GOL SİSTEMİ:
-Top tamamen çizgiyi geçmeli
-Kendi kalesine gol algılama + özel gösterim
-"GOOOL!" yazısı takım rengine göre (kırmızı/mavi/OG'da kırmızı)
-"Golü Atan: X" + "Asist: Y" (varsa)
-4 sn kutlama (fizik devam eder)
-SANTRA SİSTEMİ:
-3-2-1 geri sayım
-Gol atan takım: santra çemberinin karşı kenarına giremez
-Gol yiyen takım: kendi yarısı + çemberin karşı kenarına kadar
-10 sn kuralı (ayarlanabilir): otomatik pas gol atana
-Top uyarı rengi: hangi takıma gidecekse o renkte yanıp söner
-LOBBY (3 sütun):
-Kırmızı Takım | İzleyiciler | Mavi Takım
-Drag & Drop ile oyuncu taşıma (host)
-Kick butonu (❌ sadece host)
-Takım isimleri değiştirilebilir (✏️ sağ tık)
-Takım isimleri localStorage'a kaydedilir
-ODA AYARLARI:
-Oyuncu Sayısı: 1v1, 2v2, 3v3, 4v4, 5v5
-İzleyici Sayısı: İzleyici yok / 1-5 (max_players = player_count + spectator_count)
-Kazanma Skoru: 1/3/5/7/10/15/20/30/Sınırsız
-Maç Süresi: 1dk - 120dk / Sınırsız
-Oyun Hızı: Yavaş/Normal/Hızlı
-Santra Süresi: 5/10/15/20/30/60/Sınırsız
-Falso: Açık/Kapalı
-Top Kontrolü (Sürüş): Açık/Kapalı
-Sprint: Açık/Kapalı
-GELİŞMİŞ AYARLAR: Şut gücü, sprint bonusu, plase gücü, kavis, after-touch, top max hız, sprint çarpanı, sprint süresi, top yapışma yüzdesi (hepsi slider)
-GAMEPAD DESTEĞİ:
-Otomatik algılama
-⚙️ Ayarlar popup'ından etkinleştir/kapat
-Titreşim ayarları (kick, firekick, wall, post, goal, whistle % ayarı)
-Test butonları (3 sn süreli)
-TAB SCOREBOARD:
-TAB basılı tutarken açık
-3 sütun: Kırmızı | İzleyiciler | Mavi
-Her oyuncu için: İsim + Gol + Asist + Pas + Kurtarış + Ping
-Yarı saydam arka plan (görünürlük ayarlanabilir %0-100)
-PAUSE SİSTEMİ:
-ESC: Host tam pause lobby popup
-Kullanıcı ESC: Özel menü (Lobiye Dön / Ayarlar / Oda Ayarları / Ana Menü)
-P: Hızlı pause (3-2-1 ile devam) - sadece host
-İSİM SİSTEMİ:
-Kendi ismine sağ tık → değiştir (modern popup)
-Aynı isim engellenir (backend + frontend uyarı)
-"Seljuk" / "seljuk" ismi korumalı (şifre gerekir - .env içindeki SELJUK_PASSWORD)
-3 yanlış şifre → 1 saat lokal kilit
-Seljuk oynayınca ay-yıldız karakter içinde görünür 🇹🇷
-Şut çekince ay-yıldız parlar
-PİNG SİSTEMİ:
-Her 3 sn'de bir ping/pong
-Lobby, pause popup ve scoreboard'da görünür
-Renk kodu: <80ms yeşil, <200ms sarı, >=200ms kırmızı
-DİĞER:
-Süre HUD'da yukarı yuvarlanır
-Sınırsız süre: ♾️ görünür
-Kullanıcı ayrılınca oda KAPANMAZ
-Host ayrılınca oda kapanır
-Kullanıcı geri katılabilir (oyun içindeyse izleyici olur)
-Client-side prediction (host: 0 lag, misafir: kendi karakter 0 lag)
-Snapshot interpolation (rakip + top 80ms buffer)
-🎭 MEME ARENA - DETAYLAR
-Her oyuncuya FARKLI durum dağıtılır
-Oyuncular kendi durumunu ✏️ yazabilir veya 🔄 yenileyebilir
-5 mem kartı dağıtılır (100+ GIF + PNG + JPG)
-Kart değiştir jokeri (3 hak, aynı kart gelmez)
-Büyüteç: Sağ alt 🔍 + sağ tık ile büyüt
-Oy verme: Sırayla, 🔥+2 / 👌+1 / 🥀-1
-AFK cezası: Kart seçmezse -3 puan
-Skor tablosu: Geri sayımlı (5-4-3-2-1)
-🌍 HARİTA DETAYLARI
-world.svg dünya haritası
-250+ ISO 3166-1 alpha-2 kod bayrağı (tr.svg, us.svg, de.svg vs.)
+Her lobide "🔄 Mod Değiştir" (sadece host)
+11 mod kartı popup, aktif yeşil çerçeveli
+Oda kodu + oyuncular + chat geçmişi korunur
+Şarkıdan Bul'a geçince backend prefetch başlatır
+🎵 ŞARKIDAN BUL (Değişmedi)
+Deezer, 100+ TR + 100+ yabancı sanatçı, sıralı oyuncu, prefetch
+
+⚽ MİNİ FUTBOL (Değişmedi)
+Haxball tarzı, 60 FPS host fizik, WASD + Space + Shift, sprint sistemi
+
 ⚠️ ÖNEMLİ TEKNİK NOTLAR
-JS Wrap Sistemi: Her mod kendi JS dosyasında showScreen ve handleMessage'ı wrap eder
-Ortak Oda Kodu Helper: window.setupRoomCodeAndLink({...})
-Ortak Oda Ayarları: window.openRoomSettingsGeneric({..., advancedFields, readonly, onSave})
-Ortak Mod Değiştir: window.openChangeModeModal()
-Gemini AI: google-genai paketi, Model: gemini-flash-lite-latest
-Turnstile: Site Key: 0x4AAAAAAEBYi6PHf6n7Q2Pn
-Ortak Kick: app.py'de tüm modlar için tek handler
-Mini Futbol Ping: Ayrı sistem, sadece bu modda
-Falsy Bug Uyarısı: x || default yerine isNaN(x) ? default : x kullan (süre 0 için)
+JS Wrap Sistemi
+Her mod kendi JS'de showScreen ve handleMessage'ı wrap eder
+Satranç: satrancData global, _prevShowScreenSatranc/_prevHandleSatranc wrap
+Modern Popup
+satrancConfirm({...}), satrancInfo({...}), satrancChoice({...})
+Ayrıca özel Promosyon popup: showCapturedPromotionPopup(from, to, capturedPieces)
+Satranç Board
+chessboard.js config: draggable: false, moveSpeed: 500
+Tıklama: $(boardEl).on("click.satrancMove", ".square-55d63", ...)
+Her hamlede her oyuncuya kendi görüşüne göre FEN (Görünmez + Ajan için)
+get_effect_state_for_player(room, pid) → rakip görünmez/ajan taşları filtreler
+Rakibe ajan taşı fake renkli FEN gönderilir (backend set_piece_at ile)
+Ajan Görsel Override
+applyAjanDisguiseVisuals(effects) her board update sonrası çağrılır
+Body'ye taşınan animasyon img'i override edilmeye çalışılır (interval 20ms, 900ms boyunca)
+#satrancBoard'daki tüm ajan kareleri sürekli sahte src ile zorlanır
+Diğer
+Gemini AI: google-genai, gemini-flash-lite-latest
+Turnstile Site Key: 0x4AAAAAAEBYi6PHf6n7Q2Pn
+Deezer API: Public
+Static Cache: 30 gün (StaticCacheMiddleware)
+Falsy Bug: x || default yerine isNaN(x) ? default : x (süre 0)
+Satranç Vendor Mount: /satranc_vendor
 🔒 GÜVENLİK
 IP rate limiting (oda:5/dk, katıl:15/dk, WS:20/dk)
 Otomatik 10 dk BAN
 sanitize_string, is_valid_room_code
 Cloudflare Turnstile (Kim Milyoner)
-kicked_names listesi (aynı odaya tekrar giremez)
-Seljuk şifre: .env'den okunur, 3 yanlış → 1 saat lokal kilit
+kicked_names listesi
+Seljuk şifre: .env'den, 3 yanlış → 1 saat lokal kilit
 🎯 ÇALIŞMA KURALLARI
 BUL ve DEĞİŞTİR formatı kullan (tam dosya yerine)
-Adım adım ilerle, küçük parçalar
+Adım adım, küçük parçalar
 Türkçe, samimi dil
 Kullanıcı test etmeden GitHub'a atma
 F12 Console + CMD log ile sorun çöz
 Kullanıcı Windows + Notepad++, kod yazmıyor
 .env ASLA GitHub'a
-Turnstile keys biliyor, tekrar sorma
-Uzun kod bloğu yerine küçük değişiklikler
 Emin olmadan büyük değişiklik yapma
 Kod görmeden kesin çözüm sunma - dosyayı iste önce
 EKLE değil, BUL ve DEĞİŞTİR (yanlış girinti/duplicate önlemek için)
-Bir kere test edilmemiş kodu tekrar tekrar değiştirme, önce test iste
-Hata verirse F12 Console + CMD çıktısını iste
+Bir kere test edilmemiş kodu tekrar tekrar değiştirme
+Hata verirse F12 + CMD çıktısı iste
 Frontend'de x || default bug'ına dikkat (0 falsy)
+BUL/DEĞİŞTİR blokları sadece kendi bloğunda olacak, mesaj içinde blok blok satırlar yazma
+Uzun kod verirken 2. parça beklemek
+Kullanıcı "bekle" derse gerçekten bekle
 🎬 YEREL ÇALIŞTIRMA
-batlar/test_lokal.bat çift tıkla → http://127.0.0.1:8000
+batlar/test_lokal.bat → http://127.0.0.1:8000
 
 📌 YAPILACAKLAR LİSTESİ
-⬜ Top tunneling (içinden geçme) fix - CCD iyileştirme
-⬜ Top oyuncuya arkadan yaklaşırken anlık ışınlanma
-⬜ Oyun içi chat sistemi ✅ (yapıldı)
-⬜ 2v2 / 3v3 / 4v4 / 5v5 gerçek multi-player fizik senkronizasyonu
+Jokerli Satranç (öncelik)
+⬜ Ajan taş hareket ederken flash tam fix
+⬜ Ajan rakip hamle yapınca flash tam fix
+⬜ Promosyon sonrası animasyonlu dönüşüm
+⬜ Görünmez taş hamle sonrası rakipte belli olma
+⬜ Tahta animasyonu z-index
+⬜ Alt hamle geçmişi barını kaldır
+⬜ Işınlanma animasyonu
+⬜ Joker aktifken sol altta "İptal Et" polish
+⬜ Süresiz modda Zaman Çal disable
+⬜ Önce Başla → Zar / Taş-Kağıt-Makas
+⬜ Dondurulmuş taş rakipte tıklanmasın
+⬜ Yansıma tam mantığı
+⬜ Zamanı Durdur edge case'ler
+Mini Futbol
+⬜ Top tunneling fix (CCD)
+⬜ 2v2/3v3/4v4/5v5 gerçek multi-player fizik senkronizasyonu
+Genel
 ⬜ Mobil optimizasyon
 ⬜ Domain + Cloudflare
-✅ Haxball tarzı oda içinde mod değiştirme (yapıldı)
-✅ İzleyici sayısı ayarı (yapıldı)
-✅ Takım Bilmece sınırsız süre (yapıldı)
-✅ Seljuk özel isim koruması + ay-yıldız (yapıldı)
-✅ Gizemli Kariyer lokal takım logoları (yapıldı)
+⬜ PWA
+Yeni Modlar
+⬜ 🎮 Tetris Multiplayer
+⬜ 🎡 Çarkıfelek (klasik TV show)
+✅ TAMAMLANANLAR
+11 mod tamamı
+Jokerli Satranç (26 joker + polish v9)
+Haxball tarzı mod değiştirme
+Şarkıdan Bul (Deezer, prefetch, cache)
+İzleyici sayısı (Mini Futbol)
+Sınırsız süre (Takım Bilmece)
+Seljuk özel isim koruması
+Gizemli Kariyer lokal logolar
+Meme Arena preload
+Static cache middleware
+Chat sistemi (tüm modlar)
+İki Hamle aynı taşla
+Hakkını Bana Ver + Zamanı Durdur ayrı jokerler
+Joker Gör kalıcı panel
+Ajan sahte renk sistemi
+Piyon promosyon yenilen taş menüsü
 🎯 SEN NE YAPACAKSIN?
 Selamla, hazır olduğunu belirt
 Ne istediğini sor
-Klasör yapısını biliyor gibi davran (yukarıdaki tam yapı elinde)
+Klasör yapısını biliyor gibi davran
 Kod isteğinde BUL ve DEĞİŞTİR formatı
 Kullanıcı Windows + Notepad++, basit anlat
 Test etmeden push isteme
-Türkçe, samimi dil kullan
+Türkçe, samimi dil
 Kodu görmeden kesin çözüm önerme - dosyayı iste
 Kod değişikliği verirken önce plan sun, sonra kod ver
-Büyük iş ise adımlara böl (Adım 1, Adım 2 gibi)
-Tüm kodları BUL/DEĞİŞTİR olarak vereceksin, ekleme yaparken de altına BUL/DEĞİŞTİR ile
+Büyük iş ise adımlara böl
+Tüm kodları BUL/DEĞİŞTİR olarak vereceksin
+Kullanıcı "bekle" derse gerçekten bekle, kod verme
+Uzun kod paylaşımı yaparsa "2. parça bekle" de
+ŞU AN AKTİF PLAN: Jokerli Satranç bug fix + polish (Ajan flash, promosyon animasyonu, kalan liste)
+
+📋 v9 Değişen/Eklenen Ana Şeyler
+✅ İki Hamle = aynı taşla 2 kez
+✅ Hakkını Bana Ver = yeni joker (eski Zaman Durdur ID'siyle)
+✅ Zamanı Durdur = yeni joker (saat 1 tur akmaz)
+✅ Joker Gör = kalıcı sağ panel
+✅ Ajan = tamamen yeniden yazıldı (görsel sahte renk, 6 tur, kontrol sende)
+✅ Görünmez + Ajan = sol üstte emoji, sağ üstte şarj dişli
+✅ Önce Başla = üstü çizik gelir, silinmez
+✅ Kalkan = yeme hamlesi hiç gösterilmez
+✅ Vezire Yükselt / Taş Dönüştür / Rakip Taş Yerleştir / Bomba / Ajan = hamle sayılır
+✅ Piyon Promosyon = yenilen taşlardan seç
+✅ Backend UCI otomatik "q" ekler (piyon+son sıra)
