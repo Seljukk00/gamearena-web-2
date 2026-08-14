@@ -3290,7 +3290,7 @@ const ALL_MODES = [
     { id: "gizemli_kariyer", name: "Gizemli Kariyer", img: "/mod_resimleri/gizemli_kariyer.png", desc: "Kariyerden futbolcuyu bul" },
     { id: "haritadan_bul", name: "Haritadan Bul", img: "/mod_resimleri/haritadan_bul.png", desc: "Ülkeyi haritada göster" },
     { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.png", desc: "Stadyumu gör, 4 şık arasından bul" },
-    { id: "meme_arena", name: "🎭 Meme Arena", img: "/mod_resimleri/meme_arena.png", desc: "Duruma en uygun memi seç, oy topla!" },
+    
     { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.png", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!" },
     { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.png", desc: "1v1'den 5v5'e gerçek zamanlı futbol!" },
     { id: "jokerli_satranc", name: "♟️ Jokerli Satranç", img: "/mod_resimleri/jokerli_satranc.png", desc: "26 jokerle klasik satrancı alt üst et!" }

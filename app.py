@@ -22,7 +22,7 @@ from oyun_modlari.kim_milyoner.milyoner_handler import handle_milyoner_message
 from oyun_modlari.takim_bilmece.takim_handler import handle_takim_message
 from oyun_modlari.ilk_11_challenge.ilk11_handler import handle_ilk11_message
 from oyun_modlari.stadyum_tanima.stadyum_handler import handle_stadyum_message
-from oyun_modlari.meme_arena.meme_handler import handle_meme_message
+
 from oyun_modlari.sarkidan_bul.sarki_handler import handle_sarki_message
 from oyun_modlari.mini_futbol.mini_futbol_handler import handle_mini_message
 from oyun_modlari.jokerli_satranc.satranc_handler import handle_jokerli_satranc_message
@@ -679,16 +679,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 player_id = stad_result["player_id"]
                 continue
 
-            # --- Meme Arena ---
-            meme_result = await handle_meme_message(
-                msg_type=msg_type, data=data, websocket=websocket,
-                rooms=rooms, room_code=room_code, player_id=player_id,
-                make_room_code=make_room_code, safe_send=safe_send, broadcast=broadcast
-            )
-            if meme_result["handled"]:
-                room_code = meme_result["room_code"]
-                player_id = meme_result["player_id"]
-                continue
+            
 
             # --- Şarkıdan Bul ---
             sarki_result = await handle_sarki_message(
