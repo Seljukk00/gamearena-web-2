@@ -138,6 +138,7 @@ app.mount("/harita_assets", StaticFiles(directory="oyun_modlari/haritadan_bul"),
 app.mount("/stadyum_images", StaticFiles(directory="oyun_modlari/stadyum_tanima/images"), name="stadyum_images")
 app.mount("/takim_logolari", StaticFiles(directory="oyun_modlari/gizemli_kariyer/takim_logolari"), name="takim_logolari")
 app.mount("/satranc_vendor", StaticFiles(directory="oyun_modlari/jokerli_satranc/vendor"), name="satranc_vendor")
+app.mount("/satranc_sounds", StaticFiles(directory="oyun_modlari/jokerli_satranc/sounds"), name="satranc_sounds")
 
 
 # ==========================================
@@ -271,6 +272,56 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type")
+
+            # ==========================================
+            # ORTAK CHAT HANDLER (tüm modlar için)
+            # ==========================================
+            if msg_type == "bil_chat_send":
+                if not room_code or room_code not in rooms:
+                    continue
+                room = rooms[room_code]
+                if player_id not in room.get("players", {}):
+                    continue
+
+                text = str(data.get("text", "")).strip()
+                if not text:
+                    continue
+                if len(text) > 100:
+                    text = text[:100]
+
+                # Basit rate limit (kişi başı 3 saniyede max 1 mesaj)
+                chat_time = room.setdefault("chat_last_msg_time", {})
+                now_ts = time.time()
+                last_ts = chat_time.get(player_id, 0)
+                if now_ts - last_ts < 1.0:
+                    continue  # spam engel
+                chat_time[player_id] = now_ts
+
+                sender_name = room["players"][player_id]["name"]
+
+                chat_msg = {
+                    "type": "bil_chat_msg",
+                    "sender_id": player_id,
+                    "sender_name": sender_name,
+                    "text": text,
+                    "ts": now_ts
+                }
+
+                # Herkese broadcast
+                await broadcast(room, chat_msg)
+
+                # Chat geçmişine ekle (max 50)
+                history = room.setdefault("chat_history", [])
+                history.append({
+                    "sender_id": player_id,
+                    "sender_name": sender_name,
+                    "text": text,
+                    "ts": now_ts
+                })
+                if len(history) > 50:
+                    history.pop(0)
+
+                continue
 
             # ==========================================
             # ORTAK KICK HANDLER (tüm modlar için)

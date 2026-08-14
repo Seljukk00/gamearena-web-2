@@ -188,7 +188,6 @@
 .satrancJokerCard.used {
     opacity: 0.4;
     cursor: not-allowed;
-    text-decoration: line-through;
 }
 
 /* Alt Bar - Hamle Geçmişi */
@@ -601,12 +600,16 @@
     opacity: 0.35;
     cursor: not-allowed !important;
     filter: grayscale(80%);
-    text-decoration: line-through;
 }
 
 .satrancJokerGameCard.used:hover {
     transform: none !important;
     box-shadow: none !important;
+}
+
+.satrancJokerGameCard.used .satrancJcName,
+.satrancJokerGameCard.used .satrancJcIcon {
+    text-decoration: none !important;
 }
 
 /* ==========================================
@@ -1205,55 +1208,57 @@
 }
 
 /* ==========================================
-   SATRANÇ LOBBY - YEŞİL KUTU (dar boyut)
+   SATRANÇ LOBBY - Bil Bakalım / Takım Bilmece Tarzı
    ========================================== */
 
 #satrancLobbyScreen.panel {
-    max-width: 1500px !important;
-    width: 90% !important;
+    max-width: 1700px !important;
+    width: 95% !important;
     margin: 20px auto !important;
-    border: 2px solid #37b96b !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 16px !important;
-    background: rgba(20, 30, 45, 0.85) !important;
-    padding: 25px 35px !important;
-    box-shadow: 
-        0 20px 60px rgba(0,0,0,0.5),
-        0 0 30px rgba(55, 185, 107, 0.15) !important;
+    background: rgba(30, 42, 60, 0.6) !important;
+    padding: 30px 40px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
 }
 
 #satrancLobbyScreen .mainTitle {
     color: #51cf66;
-    font-size: 30px;
+    font-size: 28px;
     margin-bottom: 25px;
     text-shadow: 0 2px 8px rgba(81,207,102,0.3);
+    text-align: center;
 }
 
 #satrancLobbyScreen .roomCodeBox {
     margin: 15px auto;
-    max-width: 500px;
+    max-width: 600px;
+    text-align: center;
 }
 
 #satrancLobbyScreen .inviteLinkBox {
     margin: 12px auto;
     max-width: 100%;
-    padding: 15px 20px;
+    padding: 18px 25px;
     background: rgba(45, 65, 90, 0.4);
     border-radius: 12px;
     border: 1px solid rgba(77, 171, 247, 0.3);
+    text-align: center;
 }
 
+/* Oyuncu listesi - dar, ortalı, tek satır */
 #satrancLobbyScreen ul#satrancPlayersList {
     list-style: none;
     padding: 0;
-    max-width: 600px;
-    margin: 20px auto;
+    max-width: 500px;
+    margin: 25px auto;
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
 #satrancLobbyScreen ul#satrancPlayersList li.playerRow {
-    padding: 12px 18px;
+    padding: 14px 22px;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -1268,27 +1273,26 @@
 #satrancLobbyScreen ul#satrancPlayersList li.playerMine {
     border-color: #51cf66;
     color: #51cf66;
-    background: rgba(81,207,102,0.08);
+    background: rgba(81, 207, 102, 0.08);
 }
 
 #satrancLobbyScreen ul#satrancPlayersList li.playerOpp {
     border-color: #ff6b6b;
     color: #ff8a8a;
-    background: rgba(255,107,107,0.08);
+    background: rgba(255, 107, 107, 0.08);
 }
 
 #satrancLobbyScreen .lobbyInfo {
     max-width: 100%;
-    margin: 20px auto 15px auto;
-    padding: 12px 18px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
+    margin: 20px auto 20px auto;
+    padding: 14px 20px;
+    background: transparent;
+    border: none;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 25px;
     font-size: 15px;
     color: #dee2e6;
 }
@@ -1298,9 +1302,9 @@
     align-items: center;
     gap: 6px;
     margin: 0 !important;
-    padding: 4px 12px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
 }
 
 #satrancLobbyScreen .lobbyInfo span span {
@@ -1310,21 +1314,30 @@
     font-weight: bold;
 }
 
+/* Butonlar - ortalı, renkli, büyük */
 #satrancLobbyScreen .centerBox {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     justify-content: center;
-    margin: 20px auto;
+    margin: 25px auto 15px auto;
     max-width: 100%;
+}
+
+#satrancLobbyScreen .centerBox .bigBtn {
+    padding: 14px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 10px;
+    min-width: 170px;
 }
 
 #satrancLobbyScreen #satrancLobbyMsg {
     text-align: center;
     font-size: 15px;
     margin: 15px 0 5px 0;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 8px;
+    font-weight: bold;
 }
 
 #satrancLobbyScreen .kickBtnNew {
@@ -1349,10 +1362,14 @@
 @media (max-width: 768px) {
     #satrancLobbyScreen.panel {
         padding: 20px 15px !important;
+        width: 100% !important;
     }
     #satrancLobbyScreen .lobbyInfo {
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
+    }
+    #satrancLobbyScreen .centerBox .bigBtn {
+        min-width: 100%;
     }
 }
 
@@ -1980,7 +1997,7 @@ body > img.piece-417db.animatingInvisible {
 
 .squareChargeBar {
     width: 5px;
-    height: 9px;
+    height: 6px;
     border-radius: 2px;
     transition: all 0.3s;
 }
@@ -1991,27 +2008,30 @@ body > img.piece-417db.animatingInvisible {
     animation: chargeBarPulse 1.5s infinite;
 }
 
-/* Kalan tura göre renk (5=yeşil, 4=sarı, 3=turuncu, 2=mor, 1=kırmızı) */
+/* Kalan tura göre renk (8-5=yeşil, 4=turuncu, 3=sarı, 2=kırmızı, 1=kıpkırmızı) */
+.squareInvisibleCharge.charge-8 .squareChargeBar.filled,
+.squareInvisibleCharge.charge-7 .squareChargeBar.filled,
+.squareInvisibleCharge.charge-6 .squareChargeBar.filled,
 .squareInvisibleCharge.charge-5 .squareChargeBar.filled {
     background: linear-gradient(180deg, #69db7c, #2f9e44);
     box-shadow: 0 0 6px rgba(105,219,124,0.9);
 }
 .squareInvisibleCharge.charge-4 .squareChargeBar.filled {
-    background: linear-gradient(180deg, #ffe066, #f59f00);
-    box-shadow: 0 0 6px rgba(255,224,102,0.9);
-}
-.squareInvisibleCharge.charge-3 .squareChargeBar.filled {
     background: linear-gradient(180deg, #ffa94d, #e8590c);
     box-shadow: 0 0 6px rgba(255,169,77,0.9);
 }
+.squareInvisibleCharge.charge-3 .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ffe066, #f59f00);
+    box-shadow: 0 0 6px rgba(255,224,102,0.9);
+}
 .squareInvisibleCharge.charge-2 .squareChargeBar.filled {
-    background: linear-gradient(180deg, #c084fc, #6741d9);
-    box-shadow: 0 0 6px rgba(192,132,252,0.9);
+    background: linear-gradient(180deg, #ff8787, #e03131);
+    box-shadow: 0 0 6px rgba(255,135,135,0.9);
 }
 .squareInvisibleCharge.charge-1 .squareChargeBar.filled {
-    background: linear-gradient(180deg, #ff8787, #c92a2a);
-    box-shadow: 0 0 8px rgba(255,135,135,1);
-    animation: chargeBarPulse 0.6s infinite;
+    background: linear-gradient(180deg, #ff5252, #a61a1a);
+    box-shadow: 0 0 10px rgba(255,60,60,1);
+    animation: chargeBarPulse 0.5s infinite;
 }
 
 .squareChargeBar.empty {
@@ -2440,4 +2460,471 @@ body > img.piece-417db.animatingInvisible {
 
 .satrancJokerGameCard.revealed-visible .satrancJcIcon {
     filter: drop-shadow(0 0 6px rgba(81,207,102,0.6));
+}
+
+/* ==========================================
+   HEDİYE KUTUSU ANİMASYONU
+   ========================================== */
+.satrancGiftOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(6px);
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.satrancGiftOverlay.show {
+    opacity: 1;
+}
+
+.satrancGiftBox {
+    text-align: center;
+    padding: 30px;
+}
+
+.satrancGiftTitle {
+    color: #ffd43b;
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 30px;
+    text-shadow: 0 0 20px rgba(255, 212, 59, 0.6);
+    animation: giftTitlePulse 2s ease-in-out infinite;
+}
+
+@keyframes giftTitlePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.satrancGiftBoxWrapper {
+    position: relative;
+    width: 240px;
+    height: 240px;
+    margin: 0 auto;
+}
+
+.satrancGiftBoxBottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 160px;
+    background: linear-gradient(135deg, #d0343e, #a11b26);
+    border-radius: 8px;
+    box-shadow: 
+        inset 0 -6px 12px rgba(0,0,0,0.35),
+        0 15px 35px rgba(255, 30, 60, 0.55);
+    z-index: 2;
+    overflow: hidden;
+}
+
+.satrancGiftRibbonV {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 32px;
+    margin-left: -16px;
+    background: linear-gradient(180deg, #ffd43b, #f59f00);
+    box-shadow: 0 0 12px rgba(255, 212, 59, 0.5);
+}
+
+.satrancGiftRibbonH {
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%;
+    height: 32px;
+    margin-top: -16px;
+    background: linear-gradient(90deg, #ffd43b, #f59f00);
+    box-shadow: 0 0 12px rgba(255, 212, 59, 0.5);
+}
+
+.satrancGiftBoxLid {
+    position: absolute;
+    top: 0;
+    left: -8px;
+    right: -8px;
+    height: 52px;
+    background: linear-gradient(135deg, #e63946, #b3242e);
+    border-radius: 8px;
+    box-shadow: 
+        inset 0 3px 6px rgba(255,255,255,0.15),
+        0 5px 15px rgba(0,0,0,0.4);
+    z-index: 5;
+    transform-origin: bottom center;
+    transition: transform 0.7s cubic-bezier(0.5, -0.5, 0.5, 1.5), opacity 0.5s;
+}
+
+.satrancGiftBowLeft,
+.satrancGiftBowRight {
+    position: absolute;
+    top: -25px;
+    width: 45px;
+    height: 45px;
+    background: radial-gradient(circle at 30% 40%, #ffe066, #f59f00);
+    border-radius: 50% 50% 50% 10%;
+    z-index: 6;
+}
+
+.satrancGiftBowLeft {
+    left: 50%;
+    margin-left: -50px;
+    transform: rotate(-30deg);
+}
+
+.satrancGiftBowRight {
+    left: 50%;
+    margin-left: 5px;
+    transform: rotate(30deg);
+}
+
+.satrancGiftBowKnot {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    margin-left: -12px;
+    width: 24px;
+    height: 24px;
+    background: radial-gradient(circle at 30% 30%, #ffe066, #d68f00);
+    border-radius: 50%;
+    z-index: 7;
+    box-shadow: 0 0 12px rgba(255, 212, 59, 0.8);
+}
+
+/* Kart */
+.satrancGiftCard {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    width: 160px;
+    min-height: 200px;
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 0;
+    background: linear-gradient(135deg, rgba(103,65,217,0.4), rgba(103,65,217,0.15));
+    border: 3px solid #c084fc;
+    border-radius: 14px;
+    padding: 18px 12px;
+    z-index: 10;
+    box-shadow: 
+        0 15px 40px rgba(192,132,252,0.7),
+        0 0 60px rgba(192,132,252,0.4);
+    transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                opacity 0.6s ease,
+                top 1s ease-out;
+    color: white;
+    text-align: center;
+}
+
+.satrancGiftCard .satrancJcIcon {
+    font-size: 38px;
+    margin-bottom: 8px;
+}
+
+.satrancGiftCard .satrancJcName {
+    font-size: 15px;
+    font-weight: bold;
+    color: #c084fc;
+    margin-bottom: 4px;
+}
+
+.satrancGiftCard .satrancJcCategory {
+    font-size: 10px;
+    color: #ffd43b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.satrancGiftCard .satrancJcDesc {
+    font-size: 11px;
+    color: #dee2e6;
+    line-height: 1.3;
+}
+
+/* Kıvılcımlar */
+.satrancGiftSparkles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+    z-index: 15;
+}
+
+.satrancGiftSparkles::before,
+.satrancGiftSparkles::after {
+    content: "✨";
+    position: absolute;
+    font-size: 32px;
+    animation: sparkleFly 1.5s ease-out infinite;
+}
+
+.satrancGiftSparkles::before {
+    top: 30%;
+    left: 20%;
+    animation-delay: 0s;
+}
+
+.satrancGiftSparkles::after {
+    top: 40%;
+    right: 20%;
+    animation-delay: 0.4s;
+}
+
+@keyframes sparkleFly {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.3) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-40px) scale(1.2) rotate(180deg);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-80px) scale(0.5) rotate(360deg);
+    }
+}
+
+/* Aşamalar */
+.satrancGiftOverlay.opening .satrancGiftBoxLid {
+    transform: translateY(-40px) rotate(-45deg);
+    opacity: 0.7;
+}
+
+.satrancGiftOverlay.opening .satrancGiftBowLeft,
+.satrancGiftOverlay.opening .satrancGiftBowRight,
+.satrancGiftOverlay.opening .satrancGiftBowKnot {
+    transform: translateY(-60px) scale(0.5);
+    opacity: 0;
+    transition: all 0.5s ease-out;
+}
+
+.satrancGiftOverlay.opening .satrancGiftSparkles {
+    opacity: 1;
+}
+
+.satrancGiftOverlay.revealing .satrancGiftCard {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(360deg);
+}
+
+.satrancGiftOverlay.floating .satrancGiftCard {
+    top: 30%;
+    transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
+}
+
+.satrancGiftHint {
+    margin-top: 30px;
+    color: #adb5bd;
+    font-size: 13px;
+    font-style: italic;
+    animation: giftHintFade 3s ease-in-out infinite;
+}
+
+@keyframes giftHintFade {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* ==========================================
+   SANSÜR - Joker kartı kilit stili
+   ========================================== */
+.satrancJokerGameCard.sansurluCard {
+    opacity: 0.4 !important;
+    filter: grayscale(90%) blur(0.3px);
+    cursor: not-allowed !important;
+    transform: none !important;
+    position: relative;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), rgba(120, 30, 30, 0.1)) !important;
+    border-color: #ff6b6b !important;
+}
+
+.satrancJokerGameCard.sansurluCard::before {
+    content: "⛔";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px;
+    z-index: 20;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.9));
+    pointer-events: none;
+    animation: sansurPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sansurPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+    50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+
+.satrancJokerGameCard.sansurluCard:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(120, 30, 30, 0.1)) !important;
+}
+
+/* ==========================================
+   İYİLEŞTİR MENÜSÜ
+   ========================================== */
+.satrancIyilestirList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.satrancIyilestirItem {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(103,65,217,0.2), rgba(103,65,217,0.05));
+    border: 2px solid #6741d9;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    text-align: left;
+    width: 100%;
+}
+
+.satrancIyilestirItem:hover {
+    background: linear-gradient(135deg, rgba(192,132,252,0.35), rgba(103,65,217,0.2));
+    border-color: #c084fc;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(192,132,252,0.4);
+}
+
+.satrancIyilestirIcon {
+    font-size: 36px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+    flex-shrink: 0;
+}
+
+.satrancIyilestirInfo {
+    flex: 1;
+}
+
+.satrancIyilestirLabel {
+    font-size: 15px;
+    font-weight: bold;
+    color: #c084fc;
+    margin-bottom: 4px;
+}
+
+.satrancIyilestirTurns {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.satrancIyilestirTurns .curTurns {
+    color: #adb5bd;
+}
+
+.satrancIyilestirTurns .arrow {
+    color: #ffd43b;
+    font-weight: bold;
+}
+
+.satrancIyilestirTurns .boostedTurns {
+    color: #51cf66;
+    font-weight: bold;
+    text-shadow: 0 0 6px rgba(81,207,102,0.4);
+}
+
+.satrancIyilestirPlus {
+    background: linear-gradient(135deg, #51cf66, #2f9e44);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(81,207,102,0.4);
+    flex-shrink: 0;
+}
+
+/* ==========================================
+   TAŞIMI GERİ VER MENÜSÜ
+   ========================================== */
+.satrancTasimiPieces {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.satrancTasimiPiece {
+    background: linear-gradient(145deg, rgba(103,65,217,0.2), rgba(103,65,217,0.05));
+    border: 3px solid #6741d9;
+    border-radius: 14px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 100px;
+    position: relative;
+    text-align: center;
+}
+
+.satrancTasimiPiece:hover {
+    background: linear-gradient(145deg, rgba(192,132,252,0.35), rgba(103,65,217,0.2));
+    border-color: #c084fc;
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 10px 22px rgba(192,132,252,0.4);
+}
+
+.satrancTasimiPiece img {
+    width: 55px;
+    height: 55px;
+    display: block;
+    margin: 0 auto 8px auto;
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+    transition: transform 0.2s;
+}
+
+.satrancTasimiPiece:hover img {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.satrancTasimiName {
+    color: #dee2e6;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.satrancTasimiCount {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #51cf66, #2f9e44);
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 2px solid #1e2a3d;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+/* ==========================================
+   YANSIMA HASAR POPUP ANİMASYONU
+   ========================================== */
+@keyframes yansimaDamageIconShake {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-15deg) scale(1.1); }
+    50% { transform: rotate(15deg) scale(1.2); }
+    75% { transform: rotate(-10deg) scale(1.1); }
 }

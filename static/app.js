@@ -976,6 +976,28 @@ function openKickConfirm(targetId, targetName) {
     noBtn.onclick = closeBox;
 }
 
+// ============ CHAT BİLDİRİM SESİ (Ortak) ============
+let _chatNotifyAudio = null;
+function _playChatNotifySound() {
+    try {
+        if (!_chatNotifyAudio) {
+            _chatNotifyAudio = new Audio("/static/sounds/chat_notify.mp3");
+            _chatNotifyAudio.preload = "auto";
+        }
+        // Global ses seviyesini al
+        const volumeSlider = document.getElementById("mlVolumeRange");
+        let volume = 0.5;
+        if (volumeSlider) {
+            volume = parseFloat(volumeSlider.value) / 100;
+        }
+        if (volume <= 0) return;
+        
+        const sound = _chatNotifyAudio.cloneNode();
+        sound.volume = Math.min(1, Math.max(0, volume));
+        sound.play().catch(() => {});
+    } catch (e) {}
+}
+
 // ============ 💬 BİL BAKALIM CHAT ============
 function showBilChat() {
     const c = document.getElementById("bilChatContainer");
@@ -1084,6 +1106,11 @@ function clearBilChatPopups() {
 }
 
 function addBilChatMessage(msg) {
+    // ✨ Bildirim sesi - sadece rakip yazınca çal
+    if (msg.sender_id !== playerId) {
+        try { _playChatNotifySound(); } catch(e) {}
+    }
+
     bilChat.messages.push(msg);
     if (bilChat.messages.length > bilChat.maxMessages) bilChat.messages.shift();
     

@@ -119,6 +119,15 @@ JOKERS = [
         "implemented": True
     },
     {
+        "id": "tasimi_geri_ver",
+        "name": "Taşımı Geri Ver",
+        "icon": "♻️",
+        "category": "kaos",
+        "desc": "Rakibin senden yediği taşlardan birini seç, kendi piyon satırına geri gelsin.",
+        "phase": "your_turn",
+        "implemented": True
+    },
+    {
         "id": "zaman_cal",
         "name": "Zaman Çal",
         "icon": "⏰",
@@ -235,6 +244,24 @@ JOKERS = [
         "icon": "🌀",
         "category": "ekstra",
         "desc": "Rakibin sonraki joker etkisi kendisine döner.",
+        "phase": "your_turn",
+        "implemented": True
+    },
+    {
+        "id": "iyilestir",
+        "name": "İyileştir",
+        "icon": "🔧",
+        "category": "ekstra",
+        "desc": "Aktif bir jokerinin süresine 3 tur daha ekler (Kalkan, Dondur, Görünmez, Ajan, Kilitle, Sansür).",
+        "phase": "your_turn",
+        "implemented": True
+    },
+    {
+        "id": "ekstra_sure",
+        "name": "Ekstra Süre",
+        "icon": "⏱️",
+        "category": "ekstra",
+        "desc": "Kendi saatine 2 dakika (120 saniye) ekler.",
         "phase": "your_turn",
         "implemented": True
     },

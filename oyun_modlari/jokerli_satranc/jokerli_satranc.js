@@ -38,9 +38,67 @@ let satrancData = {
     shieldedDetails: {}, // {square: kalan_tur} - kalkanlı taşlar
     frozenDetails: {}, // {square: kalan_tur} - dondurulmuş taşlar
     ajanDisguised: {}, // {square: "w"|"b"} - sadece görsel sahte renk
+    mySansurLeft: 0,  // Kendi sansür kalan tur sayım
+    oppSansurLeft: 0, // Rakibin sansür kalan tur sayısı
 };
 
 let _satrancRoomHelper = null;
+
+// ==========================================
+// SES SİSTEMİ
+// ==========================================
+const SATRANC_SOUNDS = {
+    carkifelek: "/satranc_sounds/carkifelek.wav",
+    tas_hareket: "/satranc_sounds/tas_hareket.wav",
+    tas_yeme: "/satranc_sounds/tas_yeme.wav",
+    bomba: "/satranc_sounds/bomba.wav",
+    oyun_baslangic: "/satranc_sounds/oyun_baslangic.wav",
+    oyun_bitti: "/satranc_sounds/oyun_bitti.wav",
+    isinlanma: "/satranc_sounds/isinlanma.wav",
+    sah: "/satranc_sounds/sah.wav",
+    joker_secildi: "/satranc_sounds/joker_secildi.mp3",
+    joker_iptal: "/satranc_sounds/joker_iptal.mp3",
+    joker_onay: "/satranc_sounds/joker_onay.mp3",
+    kalkan_1: "/satranc_sounds/kalkan_1.mp3",
+    kalkan_2: "/satranc_sounds/kalkan_2.mp3",
+    kilit: "/satranc_sounds/kilit.mp3",
+    geri_al: "/satranc_sounds/geri_al.mp3",
+};
+
+// Ses cache (aynı ses üst üste çalabilsin)
+const _satrancSoundCache = {};
+Object.keys(SATRANC_SOUNDS).forEach(key => {
+    _satrancSoundCache[key] = new Audio(SATRANC_SOUNDS[key]);
+    _satrancSoundCache[key].preload = "auto";
+});
+
+function playSatrancSound(soundName) {
+    try {
+        const original = _satrancSoundCache[soundName];
+        if (!original) {
+            console.warn(`[SATRANC SES] ${soundName} bulunamadı`);
+            return;
+        }
+
+        // Global ses seviyesini al (sağ alttaki hoparlör slider'ı)
+        const volumeSlider = document.getElementById("mlVolumeRange");
+        let volume = 0.5;
+        if (volumeSlider) {
+            volume = parseFloat(volumeSlider.value) / 100;
+        }
+
+        if (volume <= 0) return;  // Ses kapalıysa çalma
+
+        // Clone kullan - aynı ses üst üste çalabilsin
+        const sound = original.cloneNode();
+        sound.volume = Math.min(1, Math.max(0, volume));
+        sound.play().catch(err => {
+            console.warn(`[SATRANC SES] ${soundName} oynatılamadı:`, err.message);
+        });
+    } catch (e) {
+        console.warn("[SATRANC SES HATA]", e);
+    }
+}
 
 // ==========================================
 // YARDIMCI: Saniyeyi MM:SS'e çevir
@@ -65,7 +123,7 @@ function renderJokerCard(joker, container, mode) {
     // ✨ Süresiz modda saat jokerleri devre dışı
     const isTimeMode = satrancData.jokerSelectTimeMode || satrancData.timeMode || "blitz";
     const isTimeless = isTimeMode === "suresiz";
-    const isClockJoker = (joker.id === "zaman_cal" || joker.id === "zamani_durdur");
+    const isClockJoker = (joker.id === "zaman_cal" || joker.id === "zamani_durdur" || joker.id === "ekstra_sure");
     const isDisabled = isTimeless && isClockJoker;
 
     let disabledBadge = "";
@@ -112,6 +170,8 @@ function renderJokerCard(joker, container, mode) {
                 return;
             }
 
+            // ✨ Seçildi sesi
+            playSatrancSound("joker_secildi");
             send({ type: "satranc_select_joker", joker_id: joker.id });
         };
     }
@@ -134,6 +194,8 @@ function renderJokerSlots(selected, totalNeeded) {
             <button class="satrancJsSlotRemove" title="Kaldır">✕</button>
         `;
         slot.querySelector(".satrancJsSlotRemove").onclick = () => {
+            // ✨ İptal sesi
+            playSatrancSound("joker_iptal");
             send({ type: "satranc_remove_joker", joker_id: joker.id });
         };
         slotsEl.appendChild(slot);
@@ -299,15 +361,36 @@ function renderMyJokers() {
 
     const usedIds = new Set(satrancData.usedJokers || []);
     const myTurn = isMyTurn();
+    const sansurLeft = satrancData.mySansurLeft || 0;
+    const iAmSansurlu = sansurLeft > 0;
 
-    // Panel başlığına sıra bilgisi ekle
+    // Panel başlığına sıra + sansür bilgisi ekle
     const panelHeader = document.querySelector("#satrancMyJokerPanel h3");
     if (panelHeader) {
-        if (myTurn) {
-            panelHeader.innerHTML = "🃏 Jokerlerim <span style='color:#51cf66; font-size:12px;'>(AKTİF)</span>";
+        let baseTitle = "🃏 Jokerlerim";
+        if (iAmSansurlu) {
+            baseTitle += ` <span style='color:#ff6b6b; font-size:12px;'>(SANSÜRLÜ)</span>`;
+        } else if (myTurn) {
+            baseTitle += ` <span style='color:#51cf66; font-size:12px;'>(AKTİF)</span>`;
         } else {
-            panelHeader.innerHTML = "🃏 Jokerlerim <span style='color:#ff6b6b; font-size:12px;'>(SIRA RAKİPTE)</span>";
+            baseTitle += ` <span style='color:#ff6b6b; font-size:12px;'>(SIRA RAKİPTE)</span>`;
         }
+        // Sansür kalan tur bilgisi
+        if (iAmSansurlu) {
+            baseTitle += `<div style='color:#ffa94d; font-size:11px; font-weight:normal; margin-top:4px; padding:4px 8px; background:rgba(255,107,107,0.15); border-radius:6px; border:1px solid #ff6b6b;'>⛔ Sansür bitmesine: <b>${sansurLeft} tur</b></div>`;
+        }
+        panelHeader.innerHTML = baseTitle;
+    }
+
+    // ✨ Rakip panel başlığına rakip sansür bilgisi
+    const oppPanelHeader = document.querySelector("#satrancOppJokerPanel h3");
+    if (oppPanelHeader) {
+        const oppSansur = satrancData.oppSansurLeft || 0;
+        let oppBaseTitle = "🃏 Rakip Jokerleri";
+        if (oppSansur > 0) {
+            oppBaseTitle += `<div style='color:#51cf66; font-size:11px; font-weight:normal; margin-top:4px; padding:4px 8px; background:rgba(81,207,102,0.15); border-radius:6px; border:1px solid #51cf66;'>⛔ Rakip sansürlü: <b>${oppSansur} tur</b></div>`;
+        }
+        oppPanelHeader.innerHTML = oppBaseTitle;
     }
 
     satrancData.myJokers.forEach(joker => {
@@ -319,8 +402,13 @@ function renderMyJokers() {
         const isUsed = usedIds.has(joker.id);
         if (isUsed) card.classList.add("used");
 
+        // ✨ Sansürlü isek tüm kartlar kilitli
+        if (!isUsed && iAmSansurlu) {
+            card.classList.add("sansurluCard");
+            card.title = `⛔ Sansürlüsün! ${sansurLeft} tur daha joker kullanamazsın.`;
+        }
         // ✨ Sıra bende değilse joker soluk
-        if (!isUsed && !myTurn) {
+        else if (!isUsed && !myTurn) {
             card.classList.add("not-my-turn");
             card.title = "⏳ Sıra rakipte, jokerlerini kullanamazsın";
         } else if (isUsed) {
@@ -389,9 +477,13 @@ function renderMyJokers() {
             <div class="satrancJcName">${joker.name}</div>
         `;
 
-        // ✨ Sadece kullanılmamış VE sıra bendeyken tıklanabilir
-        if (!isUsed && myTurn) {
+        // ✨ Sadece kullanılmamış VE sıra bendeyken VE sansürsüzken tıklanabilir
+        if (!isUsed && myTurn && !iAmSansurlu) {
             card.onclick = () => tryUseJoker(joker);
+        } else if (!isUsed && iAmSansurlu) {
+            card.onclick = () => {
+                showToast("⛔ Sansürlüsün!", `${sansurLeft} tur daha joker kullanamazsın.`, null, "warning");
+            };
         } else if (!isUsed && !myTurn) {
             card.onclick = () => {
                 showToast("⏳ Sıra Sende Değil", "Rakip oynuyor, bekle.", null, "warning");
@@ -423,6 +515,12 @@ function tryUseJoker(joker) {
         return;
     }
 
+    // ✨ Joker seçildi sesi
+    playSatrancSound("joker_secildi");
+
+    // ✨ Joker açılırken önceki taş seçimini + highlight'ları temizle
+    clearSquareSelection();
+
     // Özel: Taş Dönüştür
     if (SPECIAL_TARGET_JOKERS.includes(joker.id)) {
         startTasDonusturFlow(joker);
@@ -445,7 +543,12 @@ function tryUseJoker(joker) {
         yesText: "🃏 Kullan",
         noText: "İptal"
     }).then(ok => {
-        if (ok) send({ type: "satranc_use_joker", joker_id: joker.id });
+        if (ok) {
+            playSatrancSound("joker_onay");
+            send({ type: "satranc_use_joker", joker_id: joker.id });
+        } else {
+            playSatrancSound("joker_iptal");
+        }
     });
 }
 
@@ -479,12 +582,14 @@ function startTasDonusturFlow(joker) {
                 cancelSquareSelectMode();
                 return;
             }
+            playSatrancSound("joker_onay");
             send({
                 type: "satranc_use_joker_target",
                 joker_id: joker.id,
                 target1: square,
                 piece_type: type
             });
+            satrancPendingJoker = null;
             cancelSquareSelectMode();
         });
     });
@@ -533,30 +638,47 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
 
     switch (jokerId) {
         case "bomba":
-            // Sadece şah OLMAYAN taş (kendi veya rakip)
-            return piece && piece.type !== "k";
+            // Sadece RAKİP taş (şah hariç, kendi taş hariç)
+            return piece && piece.type !== "k" && piece.color !== myColor;
         case "vezire_yukselt":
             // Sadece kendi piyon
             return piece && piece.color === myColor && piece.type === "p";
         case "kalkan":
-        case "gorunmez":
             // Kendi taş (şah dahil)
             return piece && piece.color === myColor;
+        case "gorunmez":
+            // Kendi taş - ama zaten ajansa engelle
+            if (!piece || piece.color !== myColor) return false;
+            if (satrancData.ajanDisguised && satrancData.ajanDisguised[square]) return false;
+            return true;
         case "dondur":
         case "kilitle":
             // Rakip taş (şah hariç)
             return piece && piece.color !== myColor && piece.type !== "k";
         case "ajan":
-            // Kendi taş (şah hariç)
-            return piece && piece.color === myColor && piece.type !== "k";
+            // Kendi taş (şah hariç) - ama zaten görünmezse engelle
+            if (!piece || piece.color !== myColor || piece.type === "k") return false;
+            if (satrancData.invisibleDetails && satrancData.invisibleDetails[square]) return false;
+            return true;
         case "isinlan":
             if (phase === 1) return piece && piece.color === myColor;
             // Phase 2: boş kare
             return !piece;
         case "klon":
             if (phase === 1) return piece && piece.color === myColor && piece.type !== "k";
-            // Phase 2: boş komşu kare
-            return !piece;
+            // Phase 2: SADECE prevTarget'ın boş komşu karesi
+            if (piece) return false;
+            if (!prevTarget) return false;
+            if (typeof squareNeighbors !== "function") {
+                // Helper yoksa manuel hesapla
+                const files = "abcdefgh";
+                const pf = files.indexOf(prevTarget[0]);
+                const pr = parseInt(prevTarget[1]);
+                const cf = files.indexOf(square[0]);
+                const cr = parseInt(square[1]);
+                return Math.abs(pf - cf) <= 1 && Math.abs(pr - cr) <= 1 && !(pf === cf && pr === cr);
+            }
+            return squareNeighbors(prevTarget).includes(square);
         case "rakip_tas_yerlestir":
             if (phase === 1) return piece && piece.color !== myColor && piece.type !== "k";
             return !piece;
@@ -610,6 +732,16 @@ function handleSquareSelectClick(square) {
     if (!satrancPendingJoker) return;
     const jokerId = satrancPendingJoker.joker.id;
 
+    // ✨ Çift efekt engeli (görünmez ↔ ajan)
+    if (jokerId === "ajan" && satrancData.invisibleDetails && satrancData.invisibleDetails[square]) {
+        showToast("⚠️ Çift Efekt Yasak", "Bu taş zaten Görünmez. Önce görünmez süresi bitsin.", null, "warning");
+        return;
+    }
+    if (jokerId === "gorunmez" && satrancData.ajanDisguised && satrancData.ajanDisguised[square]) {
+        showToast("⚠️ Çift Efekt Yasak", "Bu taş zaten Ajan. Önce ajan süresi bitsin.", null, "warning");
+        return;
+    }
+
     // Tek hedefli
     if (SINGLE_TARGET_JOKERS.includes(jokerId)) {
         // ✨ Hedef karedeki taşın adını al
@@ -638,11 +770,14 @@ function handleSquareSelectClick(square) {
             noText: "İptal"
         }).then(ok => {
             if (ok) {
+                playSatrancSound("joker_onay");
                 send({
                     type: "satranc_use_joker_target",
                     joker_id: jokerId,
                     target1: square
                 });
+                // İptal sesi çalmasın diye pending'i temizleyip cancel çağır
+                satrancPendingJoker = null;
                 cancelSquareSelectMode();
             }
         });
@@ -677,12 +812,14 @@ function handleSquareSelectClick(square) {
                 noText: "İptal"
             }).then(ok => {
                 if (ok) {
+                    playSatrancSound("joker_onay");
                     send({
                         type: "satranc_use_joker_target",
                         joker_id: jokerId,
                         target1: target1,
                         target2: square
                     });
+                    satrancPendingJoker = null;
                     cancelSquareSelectMode();
                 }
             });
@@ -702,6 +839,10 @@ function jokerCancelKeyHandler(e) {
 }
 
 function cancelSquareSelectMode() {
+    // ✨ Aktif bir joker seçimindeyse iptal sesi çal
+    if (satrancPendingJoker) {
+        try { playSatrancSound("joker_iptal"); } catch(e) {}
+    }
     satrancPendingJoker = null;
     hideJokerTargetBanner();
     hideJokerCancelButton();
@@ -965,6 +1106,252 @@ function satrancChoice(options) {
 }
 
 // ==========================================
+// YANSIMA HASAR POPUP
+// ==========================================
+function showYansimaDamagePopup(jokerName, jokerIcon, message) {
+    let overlay = document.createElement("div");
+    overlay.className = "satrancModalOverlay";
+
+    overlay.innerHTML = `
+        <div class="satrancModalCard danger" style="max-width:500px;">
+            <div class="satrancModalIcon" style="font-size:80px; animation: yansimaDamageIconShake 0.6s ease-in-out;">🌀</div>
+            <h2 class="satrancModalTitle" style="color:#ff6b6b;">YANSIMA!</h2>
+            <div class="satrancModalSubtitle" style="color:#ffa94d; background:rgba(255,107,107,0.15); border:1px solid #ff6b6b;">
+                ${jokerIcon} ${jokerName}
+            </div>
+            <p class="satrancModalMsg" style="font-size:17px; line-height:1.5;">
+                ${message}
+            </p>
+            <div class="satrancModalButtons">
+                <button class="satrancModalBtn satrancModalYes single">✅ Tamam</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add("show"), 10);
+
+    const close = () => {
+        overlay.classList.remove("show");
+        setTimeout(() => overlay.remove(), 250);
+    };
+
+    overlay.querySelector(".satrancModalYes").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    // ESC ile kapat
+    const escHandler = (e) => {
+        if (e.key === "Escape") {
+            close();
+            document.removeEventListener("keydown", escHandler);
+        }
+    };
+    document.addEventListener("keydown", escHandler);
+
+    // Ses
+    try { playSatrancSound("isinlanma"); } catch (e) {}
+}
+
+// ==========================================
+// HEDİYE KUTUSU ANİMASYONU
+// ==========================================
+function showGiftBoxAnimation(joker) {
+    let overlay = document.getElementById("satrancGiftOverlay");
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement("div");
+    overlay.id = "satrancGiftOverlay";
+    overlay.className = "satrancGiftOverlay";
+    document.body.appendChild(overlay);
+
+    const category = (joker && joker.category) || "ekstra";
+
+    overlay.innerHTML = `
+        <div class="satrancGiftBox">
+            <div class="satrancGiftTitle">🎁 KARŞILIKLI EKSTRA JOKER</div>
+            <div class="satrancGiftBoxWrapper">
+                <div class="satrancGiftBoxLid">
+                    <div class="satrancGiftBowLeft"></div>
+                    <div class="satrancGiftBowRight"></div>
+                    <div class="satrancGiftBowKnot"></div>
+                </div>
+                <div class="satrancGiftBoxBottom">
+                    <div class="satrancGiftRibbonV"></div>
+                    <div class="satrancGiftRibbonH"></div>
+                </div>
+                <div class="satrancGiftSparkles"></div>
+                <div class="satrancGiftCard" data-category="${category}">
+                    <div class="satrancJcIcon">${joker.icon || "🃏"}</div>
+                    <div class="satrancJcName">${joker.name || "Yeni Joker"}</div>
+                    <div class="satrancJcCategory">${joker.category || ""}</div>
+                    <div class="satrancJcDesc">${joker.desc || ""}</div>
+                </div>
+            </div>
+            <div class="satrancGiftHint">Kart havaya yükselirken izle...</div>
+        </div>
+    `;
+
+    // Animasyon başlat
+    setTimeout(() => overlay.classList.add("show"), 50);
+    setTimeout(() => overlay.classList.add("opening"), 900);   // Kutu açılıyor
+    setTimeout(() => overlay.classList.add("revealing"), 1600); // Kart çıkıyor
+    setTimeout(() => overlay.classList.add("floating"), 2600);  // Kart yukarı süzülüyor
+
+    // Kapat
+    setTimeout(() => {
+        overlay.classList.remove("show");
+        setTimeout(() => overlay.remove(), 400);
+    }, 4500);
+}
+
+// ==========================================
+// TAŞIMI GERİ VER MENÜSÜ
+// ==========================================
+function showTasimiGeriMenu(lostPieces) {
+    const overlay = document.createElement("div");
+    overlay.className = "satrancModalOverlay";
+
+    // Grupla
+    const grouped = {};
+    lostPieces.forEach(p => {
+        if (p.type === "k") return;
+        grouped[p.type] = (grouped[p.type] || 0) + 1;
+    });
+
+    const myColor = satrancData.myColor || "w";
+    const typeMap = { q: "Q", r: "R", b: "B", n: "N", p: "P" };
+    const pieceNames = { q: "Vezir", r: "Kale", b: "Fil", n: "At", p: "Piyon" };
+
+    let piecesHtml = "";
+    Object.keys(grouped).forEach(type => {
+        const pieceCode = myColor + typeMap[type];
+        const count = grouped[type];
+        piecesHtml += `
+            <div class="satrancTasimiPiece" data-piece="${type}">
+                <img src="/satranc_vendor/img/chesspieces/wikipedia/${pieceCode}.png" alt="${type}">
+                <div class="satrancTasimiName">${pieceNames[type]}</div>
+                <div class="satrancTasimiCount">×${count}</div>
+            </div>
+        `;
+    });
+
+    overlay.innerHTML = `
+        <div class="satrancModalCard joker">
+            <div class="satrancModalIcon">♻️</div>
+            <h2 class="satrancModalTitle">Taşımı Geri Ver</h2>
+            <p class="satrancModalMsg">
+                Rakibin senden yediği taşlar. Birini seç, piyon satırına geri gelecek.
+            </p>
+            <div class="satrancTasimiPieces">${piecesHtml}</div>
+            <div class="satrancModalButtons">
+                <button class="satrancModalBtn satrancModalNo single">❌ İptal</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add("show"), 10);
+
+    const close = () => {
+        overlay.classList.remove("show");
+        setTimeout(() => overlay.remove(), 250);
+    };
+
+    overlay.querySelectorAll(".satrancTasimiPiece").forEach(el => {
+        el.onclick = () => {
+            const chosen = el.dataset.piece;
+            close();
+            send({
+                type: "satranc_use_joker",
+                joker_id: "tasimi_geri_ver",
+                piece_type: chosen,
+            });
+        };
+    });
+
+    overlay.querySelector(".satrancModalNo").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    const escHandler = (e) => {
+        if (e.key === "Escape") {
+            close();
+            document.removeEventListener("keydown", escHandler);
+        }
+    };
+    document.addEventListener("keydown", escHandler);
+}
+
+// ==========================================
+// İYİLEŞTİR MENÜSÜ
+// ==========================================
+function showIyilestirMenu(activeList) {
+    let overlay = document.createElement("div");
+    overlay.className = "satrancModalOverlay";
+
+    let itemsHtml = "";
+    activeList.forEach(item => {
+        itemsHtml += `
+            <button class="satrancIyilestirItem" data-effect-id="${item.id}">
+                <div class="satrancIyilestirIcon">${item.icon}</div>
+                <div class="satrancIyilestirInfo">
+                    <div class="satrancIyilestirLabel">${item.label}</div>
+                    <div class="satrancIyilestirTurns">
+                        <span class="curTurns">${item.current} tur</span>
+                        <span class="arrow">→</span>
+                        <span class="boostedTurns">${item.boosted} tur</span>
+                    </div>
+                </div>
+                <div class="satrancIyilestirPlus">+3</div>
+            </button>
+        `;
+    });
+
+    overlay.innerHTML = `
+        <div class="satrancModalCard joker">
+            <div class="satrancModalIcon">🔧</div>
+            <h2 class="satrancModalTitle">İyileştir</h2>
+            <div class="satrancModalSubtitle">+3 Tur Ekleme</div>
+            <p class="satrancModalMsg">Hangi aktif jokerine 3 tur eklemek istiyorsun?</p>
+            <div class="satrancIyilestirList">${itemsHtml}</div>
+            <div class="satrancModalButtons">
+                <button class="satrancModalBtn satrancModalNo single">❌ İptal</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add("show"), 10);
+
+    const close = () => {
+        overlay.classList.remove("show");
+        setTimeout(() => overlay.remove(), 250);
+    };
+
+    overlay.querySelectorAll(".satrancIyilestirItem").forEach(btn => {
+        btn.onclick = () => {
+            const effectId = btn.dataset.effectId;
+            close();
+            send({
+                type: "satranc_use_joker",
+                joker_id: "iyilestir",
+                target_effect: effectId,
+            });
+        };
+    });
+
+    overlay.querySelector(".satrancModalNo").onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+
+    const escHandler = (e) => {
+        if (e.key === "Escape") {
+            close();
+            document.removeEventListener("keydown", escHandler);
+        }
+    };
+    document.addEventListener("keydown", escHandler);
+}
+
+// ==========================================
 // RULET ANİMASYONU
 // ==========================================
 function showRuletAnimation(msg) {
@@ -1123,13 +1510,11 @@ function playPieceTransformAnimation(square, label, icon) {
 }
 
 // ✨ Görünmez taş YENİLDİ - 3 kez yanıp sön, sonra kaybol
-function playInvisibleRevealKillAnimation(square, onDone) {
+function playInvisibleRevealKillAnimation(square, onDone, pieceType, pieceColor) {
     const boardEl = document.getElementById("satrancBoard");
     if (!boardEl) { if (onDone) onDone(); return; }
     const squareEl = boardEl.querySelector(`.square-${square}`);
     if (!squareEl) { if (onDone) onDone(); return; }
-    const pieceImg = squareEl.querySelector("img");
-    if (!pieceImg) { if (onDone) onDone(); return; }
 
     // 🧙 Puf: "Yakalandın!"
     const puf = document.createElement("div");
@@ -1140,8 +1525,28 @@ function playInvisibleRevealKillAnimation(square, onDone) {
     puf.style.top = (rect.top + rect.height / 2) + "px";
     document.body.appendChild(puf);
 
+    // ✨ Yiyen taraf için: taş orada olmayabilir (backend gizlemişti) → geçici olarak yerleştir
+    let pieceImg = squareEl.querySelector("img");
+    let createdTempImg = false;
+    if (!pieceImg && pieceType && pieceColor) {
+        const typeMap = { p: "P", r: "R", n: "N", b: "B", q: "Q", k: "K" };
+        const pieceCode = `${pieceColor}${typeMap[pieceType] || "P"}`;
+        pieceImg = document.createElement("img");
+        pieceImg.className = "piece-417db";
+        pieceImg.src = `/satranc_vendor/img/chesspieces/wikipedia/${pieceCode}.png`;
+        pieceImg.style.position = "absolute";
+        pieceImg.style.top = "0";
+        pieceImg.style.left = "0";
+        pieceImg.style.width = "100%";
+        pieceImg.style.height = "100%";
+        pieceImg.style.zIndex = "99";
+        squareEl.appendChild(pieceImg);
+        createdTempImg = true;
+    }
+
+    if (!pieceImg) { if (puf.parentNode) puf.remove(); if (onDone) onDone(); return; }
+
     // Taş şu an %30 opacity gösteriliyor (sahibi için) veya hiç görünmüyordu (rakibe göre)
-    // Rakip için: taşı önce görünür yap
     pieceImg.style.transition = "opacity 0.2s ease";
     pieceImg.style.opacity = "1";
 
@@ -1157,6 +1562,8 @@ function playInvisibleRevealKillAnimation(square, onDone) {
             pieceImg.style.transform = "scale(0.5)";
             setTimeout(() => {
                 if (puf.parentNode) puf.remove();
+                // Geçici oluşturulan img'i sil (board update onu ezmesin)
+                if (createdTempImg && pieceImg.parentNode) pieceImg.remove();
                 if (onDone) onDone();
             }, 400);
             return;
@@ -1334,6 +1741,58 @@ function showMiniCarkifelek(msg) {
     setTimeout(() => {
         if (overlay && overlay.parentNode) overlay.remove();
     }, 5500);
+}
+
+// ==========================================
+// YER DEĞİŞTİR ANİMASYONU (2 taş yer değişiyor)
+// ==========================================
+function _animateYerDegistir(sq1, sq2) {
+    const boardEl = document.getElementById("satrancBoard");
+    if (!boardEl) return;
+    const $sq1 = $(`#satrancBoard .square-${sq1}`);
+    const $sq2 = $(`#satrancBoard .square-${sq2}`);
+    if (!$sq1.length || !$sq2.length) return;
+
+    const $img1 = $sq1.find("img").first();
+    const $img2 = $sq2.find("img").first();
+    if (!$img1.length || !$img2.length) return;
+
+    const rect1 = $sq1[0].getBoundingClientRect();
+    const rect2 = $sq2[0].getBoundingClientRect();
+
+    // Delta: hedefe gitmek için ne kadar hareket
+    const dx = rect2.left - rect1.left;
+    const dy = rect2.top - rect1.top;
+
+    // İki taşa geçici transform + transition ver
+    $img1.css({
+        "transition": "transform 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55), filter 0.3s",
+        "transform": `translate(${dx}px, ${dy}px) scale(1.15)`,
+        "filter": "drop-shadow(0 0 12px rgba(192,132,252,0.9))",
+        "z-index": "9999",
+        "position": "relative"
+    });
+    $img2.css({
+        "transition": "transform 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55), filter 0.3s",
+        "transform": `translate(${-dx}px, ${-dy}px) scale(1.15)`,
+        "filter": "drop-shadow(0 0 12px rgba(255,212,59,0.9))",
+        "z-index": "9998",
+        "position": "relative"
+    });
+
+    // Puf efekti (ortada)
+    const midX = (rect1.left + rect2.left) / 2 + rect1.width / 2;
+    const midY = (rect1.top + rect2.top) / 2 + rect1.height / 2;
+    const puf = document.createElement("div");
+    puf.className = "satrancInvisiblePuf";
+    puf.textContent = "🌀";
+    puf.style.left = midX + "px";
+    puf.style.top = midY + "px";
+    document.body.appendChild(puf);
+    setTimeout(() => puf.remove(), 900);
+
+    // Işınlanma sesi
+    try { playSatrancSound("isinlanma"); } catch(e) {}
 }
 
 // ==========================================
@@ -1947,10 +2406,10 @@ function updateSatrancBoard(boardState, lastMove, effects) {
                 $sq.removeClass("highlight-from highlight-to");
                 // ✨ Taşa direkt inline opacity ver (class binmezse bile çalışsın)
                 $sq.find("img").css("opacity", "0.3");
-                // ✨ Sağ üste şarj çubukları (max 5 diş, kalan tur kadar dolu)
+                // ✨ Sağ üste şarj çubukları (max 8 diş, kalan tur kadar dolu)
                 const turnsLeft = (effects.invisible_details || {})[sq] || 0;
-                const maxTurns = 5;
-                const colorClass = `charge-${turnsLeft}`;
+                const maxTurns = 8;
+                const colorClass = `charge-${Math.min(turnsLeft, 8)}`;
                 let bars = "";
                 for (let i = 0; i < maxTurns; i++) {
                     const filled = i < turnsLeft ? "filled" : "empty";
@@ -2328,6 +2787,230 @@ let satrancChat = { open: false, unread: 0, messages: [], maxMessages: 50 };
 function showSatrancChat() {
     const c = document.getElementById("satrancChatContainer");
     if (c) c.style.display = "block";
+    // ✨ Chat butonlarına event bağla (bir kere)
+    _setupSatrancChatEvents();
+}
+
+function _addSatrancChatMessage(msg) {
+    const messagesEl = document.getElementById("satrancChatMessages");
+    if (!messagesEl) return;
+
+    const senderName = msg.sender_name || "?";
+    // Bil Bakalım backend'i "text" alanı kullanıyor
+    const text = msg.text || msg.message || "";
+    const isMe = msg.sender_id === satrancData.playerId;
+
+    // ✨ Rakip yazdıysa bildirim sesi (app.js'deki genel fonksiyon)
+    if (!isMe && typeof _playChatNotifySound === "function") {
+        _playChatNotifySound();
+    }
+
+    const div = document.createElement("div");
+    div.className = "miniChatMsg";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "chatName";
+    nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+    nameSpan.textContent = senderName + ":";
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "chatText";
+    textSpan.textContent = " " + text;
+
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    satrancChat.messages.push({name: senderName, text: text, isMe: isMe});
+    if (satrancChat.messages.length > satrancChat.maxMessages) {
+        satrancChat.messages.shift();
+    }
+
+    // Kapalıysa unread sayacı arttır + popup göster
+    if (!satrancChat.open && !isMe) {
+        satrancChat.unread++;
+        const badge = document.getElementById("satrancChatBadge");
+        if (badge) {
+            badge.textContent = satrancChat.unread;
+            badge.style.display = "flex";
+        }
+        // ✨ Popup baloncuğu göster
+        _showSatrancChatPopup({
+            sender_id: msg.sender_id,
+            sender_name: senderName,
+            text: text
+        });
+    }
+}
+
+function _showSatrancChatPopup(msg) {
+    if (satrancChat.open) return;
+    const stack = document.getElementById("satrancChatPopupStack");
+    if (!stack) return;
+    stack.style.display = "flex";
+
+    const popup = document.createElement("div");
+    popup.className = "miniChatPopup";
+    if (msg.sender_id === 1) popup.classList.add("teamRed");
+    else popup.classList.add("teamBlue");
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "miniChatPopupName";
+    nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+    nameSpan.textContent = msg.sender_name;
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "miniChatPopupText";
+    textSpan.textContent = msg.text;
+
+    popup.appendChild(nameSpan);
+    popup.appendChild(textSpan);
+    stack.appendChild(popup);
+
+    // Max 5 baloncuk göster
+    while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+
+    // 3 saniye sonra kaybol
+    setTimeout(() => {
+        popup.classList.add("leaving");
+        setTimeout(() => {
+            if (popup.parentNode) popup.parentNode.removeChild(popup);
+            if (stack.children.length === 0) stack.style.display = "none";
+        }, 350);
+    }, 3000);
+}
+
+function _openSatrancChatPanel() {
+    const panel = document.getElementById("satrancChatPanel");
+    const badge = document.getElementById("satrancChatBadge");
+    const input = document.getElementById("satrancChatInput");
+    if (!panel) return;
+    panel.style.display = "flex";
+    if (badge) {
+        badge.style.display = "none";
+        badge.textContent = "0";
+        satrancChat.unread = 0;
+    }
+    satrancChat.open = true;
+    // Popup baloncuklarını temizle
+    const stack = document.getElementById("satrancChatPopupStack");
+    if (stack) {
+        stack.innerHTML = "";
+        stack.style.display = "none";
+    }
+    setTimeout(() => {
+        if (input) input.focus();
+    }, 100);
+    // Dışarı tıklayınca kapansın
+    setTimeout(() => {
+        document.addEventListener("mousedown", _satrancChatOutsideClickHandler, true);
+    }, 100);
+}
+
+function _closeSatrancChatPanel() {
+    const panel = document.getElementById("satrancChatPanel");
+    if (panel) panel.style.display = "none";
+    satrancChat.open = false;
+    document.removeEventListener("mousedown", _satrancChatOutsideClickHandler, true);
+    const input = document.getElementById("satrancChatInput");
+    if (input && input.value) input.value = "";
+}
+
+function _toggleSatrancChatPanel() {
+    if (satrancChat.open) _closeSatrancChatPanel();
+    else _openSatrancChatPanel();
+}
+
+function _satrancChatOutsideClickHandler(e) {
+    const c = document.getElementById("satrancChatContainer");
+    if (!c) return;
+    if (c.contains(e.target)) return;
+    _closeSatrancChatPanel();
+}
+
+function _setupSatrancChatEvents() {
+    if (window._satrancChatEventsBound) return;
+    window._satrancChatEventsBound = true;
+
+    const toggleBtn = document.getElementById("satrancChatToggleBtn");
+    const closeBtn = document.getElementById("satrancChatCloseBtn");
+    const input = document.getElementById("satrancChatInput");
+    const sendBtn = document.getElementById("satrancChatSendBtn");
+
+    // Butona tıklayınca aç/kapat
+    if (toggleBtn) {
+        toggleBtn.onclick = () => _toggleSatrancChatPanel();
+    }
+
+    // ✕ butonu kapat
+    if (closeBtn) {
+        closeBtn.onclick = () => _closeSatrancChatPanel();
+    }
+
+    const doSend = () => {
+        if (!input) return;
+        const text = input.value.trim();
+        if (!text || text.length > 100) return;
+        send({ type: "bil_chat_send", text: text });
+        input.value = "";
+    };
+
+    if (sendBtn) sendBtn.onclick = doSend;
+
+    if (input) {
+        input.onkeydown = (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                doSend();
+                _closeSatrancChatPanel();  // ✨ Mesaj gönder + kapat
+                return;
+            }
+            // Diğer tuşlar propagate etmesin (T tuşu vs.)
+            e.stopPropagation();
+        };
+    }
+
+    // ✨ T tuşu → chat aç
+    document.addEventListener("keydown", (e) => {
+        const k = e.key.toLowerCase();
+        if (k !== "t") return;
+
+        // Satranç ekranında olmalı
+        if (typeof getCurrentScreen === "function") {
+            const cur = getCurrentScreen();
+            if (cur !== "satrancGame" && cur !== "satrancLobby" && cur !== "satrancJokerSelect") return;
+        }
+
+        // Input/textarea odaktaysa yoksay
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+
+        // Chat container görünmüyorsa yoksay
+        const container = document.getElementById("satrancChatContainer");
+        if (!container || container.style.display === "none") return;
+
+        // Zaten açıksa yoksay
+        if (satrancChat.open) return;
+
+        // Popup açıksa yoksay (ESC popup, joker popup vs.)
+        const anyPopup = document.querySelector(".overlay:not(.hidden), .satrancModalOverlay.show");
+        if (anyPopup) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        _openSatrancChatPanel();
+    }, true);
+
+    // ✨ ESC ile chat kapat (öncelikli)
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (satrancChat.open) {
+            e.preventDefault();
+            e.stopPropagation();
+            _closeSatrancChatPanel();
+        }
+    }, true);
 }
 
 function hideSatrancChat() {
@@ -2378,6 +3061,24 @@ showScreen = function(name) {
 // ==========================================
 const _prevHandleSatranc = handleMessage;
 handleMessage = function(msg) {
+
+    // ✨ Satranç aktifken Bil Bakalım chat mesajını yakala (aynı backend sistemi)
+    if (satrancData.inGame && msg.type === "bil_chat_msg") {
+        _addSatrancChatMessage(msg);
+        return;  // Bil Bakalım'a gitmesin, sadece satranç panelinde göster
+    }
+    if (satrancData.inGame && msg.type === "bil_chat_history") {
+        if (msg.messages && Array.isArray(msg.messages)) {
+            const wasOpen = satrancChat.open;
+            satrancChat.open = true;
+            msg.messages.forEach(m => _addSatrancChatMessage(m));
+            satrancChat.open = wasOpen;
+            satrancChat.unread = 0;
+            const badge = document.getElementById("satrancChatBadge");
+            if (badge) badge.style.display = "none";
+        }
+        return;
+    }
 
     if (msg.type === "satranc_room_created") {
         satrancData.playerId = msg.player_id;
@@ -2538,6 +3239,10 @@ handleMessage = function(msg) {
         showToast("♟️ Oyun Başladı!", 
             msg.my_color === "w" ? "Sen Beyazsın - İlk hamle sende!" : "Sen Siyahsın - Rakip başlıyor",
             null, "success");
+
+        // ✨ Oyun başlangıç sesi
+        playSatrancSound("oyun_baslangic");
+
         return;
     }
 
@@ -2546,6 +3251,8 @@ handleMessage = function(msg) {
         if (msg.invisible_revealed_kill) {
             const killSquare = msg.invisible_revealed_kill.square;
             const isVictim = (msg.invisible_revealed_kill.owner_id === satrancData.playerId);
+            const revealPieceType = msg.invisible_revealed_kill.piece_type;
+            const revealPieceColor = msg.invisible_revealed_kill.piece_color;
 
             // ✨ Sahip için: taşı önce görünür yap ki animasyon yakalayabilsin
             if (isVictim) {
@@ -2554,6 +3261,9 @@ handleMessage = function(msg) {
                 $sq.removeClass("effect-invisible");
                 $sq.find(".squareInvisibleCharge").remove();
             }
+
+            // Ses efekti
+            try { playSatrancSound("tas_yeme"); } catch (e) {}
 
             playInvisibleRevealKillAnimation(
                 killSquare,
@@ -2568,15 +3278,48 @@ handleMessage = function(msg) {
                         const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
                         renderCapturedPieces(msg.captured_pieces[myPid] || [], msg.captured_pieces[oppPid] || []);
                     }
-                }
+                },
+                revealPieceType,
+                revealPieceColor
             );
             return;
         }
+        // ✨ Sansür state güncelle (renderMyJokers'tan ÖNCE)
+        if (msg.sansur_state) {
+            const myPidS = String(satrancData.playerId);
+            const oppPidS = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
+            satrancData.mySansurLeft = msg.sansur_state[myPidS] || 0;
+            satrancData.oppSansurLeft = msg.sansur_state[oppPidS] || 0;
+        }
+
         updateSatrancBoard(msg.board, msg.last_move, msg.effects);
         if (msg.san_move) addMoveToHistory(msg.san_move);
         renderClocks(msg.clocks || {});
         updateTurnInfo(msg.board);
         renderMyJokers();  // ✨ Sıra değişti, jokerleri yenile
+
+        // ✨ Ses efekti: san_move içinde 'x' varsa taş yeme, yoksa hareket
+        if (msg.san_move) {
+            if (msg.san_move.includes("x")) {
+                playSatrancSound("tas_yeme");
+            } else {
+                playSatrancSound("tas_hareket");
+            }
+        }
+
+        // ✨ Şah sesi (san_move'da + veya # varsa)
+        // + = şah, # = şah mat (mat için ayrıca oyun_bitti çalacak)
+        if (msg.san_move && (msg.san_move.includes("+") || msg.san_move.includes("#"))) {
+            // Şah mat ise sadece oyun_bitti çalsın, şah sesini ekleme
+            if (!msg.san_move.includes("#")) {
+                setTimeout(() => playSatrancSound("sah"), 300);
+            }
+        }
+        // Ekstra kontrol: board.is_check ama san yoksa (joker sonrası vs.)
+        else if (msg.board && msg.board.is_check && !msg.board.is_checkmate) {
+            setTimeout(() => playSatrancSound("sah"), 300);
+        }
+
         if (msg.captured_pieces) {
             const myPid = String(satrancData.playerId);
             const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
@@ -2600,7 +3343,14 @@ handleMessage = function(msg) {
     // ✨ Çarkıfelek çark döndü
     if (msg.type === "satranc_carkifelek_spin") {
         showCarkifelekAnimation(msg);
+        playSatrancSound("carkifelek");
         return;
+    }
+
+    // ✨ Mini Çarkıfelek de çark sesi çalsın
+    if (msg.type === "satranc_mini_carkifelek") {
+        playSatrancSound("carkifelek");
+        // (showMiniCarkifelek zaten aşağıda çağrılıyor)
     }
 
     // ✨ Mini Çarkıfelek (Taş katliamı için)
@@ -2622,6 +3372,13 @@ handleMessage = function(msg) {
         satrancData.moveHistory = [];
         stopSatrancClock();
         cancelSquareSelectMode();
+
+        // ✨ Açık popupları kapat
+        const gameOverBox = document.getElementById("satrancGameOverBox");
+        if (gameOverBox) gameOverBox.classList.add("hidden");
+        const promoOverlay = document.getElementById("satrancPromoOverlay");
+        if (promoOverlay) promoOverlay.remove();
+
         showToast("🏠 Lobiye Döndü", msg.message || "Oyun sonlandırıldı.", null, "info");
         showScreen("satrancLobby");
         updateSatrancLobby();
@@ -2680,12 +3437,36 @@ handleMessage = function(msg) {
         return;
     }
 
+    // ✨ Yansıma tetiklendi (kısa toast)
+    if (msg.type === "satranc_yansima_triggered") {
+        const title = msg.is_attacker ? "🌀 YANSIMA!" : "🌀 Yansıttın!";
+        const toastType = msg.is_attacker ? "danger" : "success";
+        showToast(title, msg.message, null, toastType);
+        try { playSatrancSound("isinlanma"); } catch (e) {}
+        return;
+    }
+
+    // ✨ Yansıma hasar popup (büyük - Tamam butonlu)
+    if (msg.type === "satranc_yansima_damage_popup") {
+        showYansimaDamagePopup(
+            msg.joker_name || "?",
+            msg.joker_icon || "🃏",
+            msg.message || "Rakip Yansıma kullandığı için jokerin sana zarar verdi!"
+        );
+        return;
+    }
+
     // ✨ Yeni joker kazandın (Karşılıklı Ekstra Joker / Joker Hırsızlığı)
     if (msg.type === "satranc_new_joker_gained") {
         if (msg.new_joker) {
             if (!satrancData.myJokers) satrancData.myJokers = [];
             satrancData.myJokers.push(msg.new_joker);
             renderMyJokers();
+
+            // ✨ Karşılıklı Ekstra kaynağıysa hediye kutusu animasyonu
+            if (msg.source === "karsilikli_ekstra") {
+                showGiftBoxAnimation(msg.new_joker);
+            }
         }
         showToast("🎁 Yeni Joker!", msg.message, null, "success");
         return;
@@ -2743,6 +3524,50 @@ handleMessage = function(msg) {
 
     // ✨ Joker kullanıldı bildirimi
     if (msg.type === "satranc_joker_used") {
+        // ✨ Işınlanma sesi (Işınlanma + Yer Değiştir + Rakip Taş Yerleştir)
+        if (msg.joker_id === "isinlan" || msg.joker_id === "yer_degistir" || msg.joker_id === "rakip_tas_yerlestir") {
+            playSatrancSound("isinlanma");
+        }
+
+        // ✨ Kalkan sesi - 2 sesten rastgele biri (%50 şans)
+        if (msg.joker_id === "kalkan") {
+            const randomKalkan = Math.random() < 0.5 ? "kalkan_1" : "kalkan_2";
+            playSatrancSound(randomKalkan);
+        }
+
+        // ✨ Kilit sesi
+        if (msg.joker_id === "kilitle") {
+            playSatrancSound("kilit");
+        }
+
+        // ✨ Geri Al sesi
+        if (msg.joker_id === "geri_al") {
+            playSatrancSound("geri_al");
+        }
+
+        // ✨ Kalkan sesi - 2 sesten rastgele biri (%50 şans)
+        if (msg.joker_id === "kalkan") {
+            const randomKalkan = Math.random() < 0.5 ? "kalkan_1" : "kalkan_2";
+            playSatrancSound(randomKalkan);
+        }
+
+        // ✨ Kilit sesi
+        if (msg.joker_id === "kilitle") {
+            playSatrancSound("kilit");
+        }
+
+        // ✨ Geri Al sesi
+        if (msg.joker_id === "geri_al") {
+            playSatrancSound("geri_al");
+        }
+
+        // ✨ Sansür state güncelle
+        if (msg.sansur_state) {
+            const myPidS = String(satrancData.playerId);
+            const oppPidS = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
+            satrancData.mySansurLeft = msg.sansur_state[myPidS] || 0;
+            satrancData.oppSansurLeft = msg.sansur_state[oppPidS] || 0;
+        }
         // Kendi kullandıysam kullanılan listesine ekle
         if (msg.user_id === satrancData.playerId) {
             if (!satrancData.usedJokers) satrancData.usedJokers = [];
@@ -2784,6 +3609,7 @@ handleMessage = function(msg) {
         // ✨ Bomba animasyonu (board güncellemesinden ÖNCE)
         if (msg.joker_id === "bomba" && msg.explosion_square) {
             playExplosionAnimation(msg.explosion_square);
+            playSatrancSound("bomba");
         }
 
         // ✨ Görünmez animasyonu + anında effect class'ı ekle
@@ -2805,10 +3631,10 @@ handleMessage = function(msg) {
                 }
                 satrancData.lastInvisibleSquares = [msg.target];
 
-                // ✨ Sağ üste şarj çubukları HEMEN göster
+                // ✨ Sağ üste şarj çubukları HEMEN göster (max 8 diş)
                 const turnsLeft = (msg.effects && msg.effects.invisible_details) ? (msg.effects.invisible_details[msg.target] || 5) : 5;
-                const maxTurns = 5;
-                const colorClass = `charge-${turnsLeft}`;
+                const maxTurns = 8;
+                const colorClass = `charge-${Math.min(turnsLeft, 8)}`;
                 let bars = "";
                 for (let i = 0; i < maxTurns; i++) {
                     const filled = i < turnsLeft ? "filled" : "empty";
@@ -2879,6 +3705,38 @@ handleMessage = function(msg) {
                 }, 600);
             }
             renderMyJokers();
+        }
+
+        // ✨ Yer Değiştir animasyonu - iki taş yer değişirken
+        if (msg.joker_id === "yer_degistir" && msg.board) {
+            // last_move'dan target1/target2 tespit et - message'dan al
+            const matchRes = (msg.message || "").match(/\(([a-h][1-8])\s*↔\s*([a-h][1-8])\)/);
+            if (matchRes) {
+                const sq1 = matchRes[1];
+                const sq2 = matchRes[2];
+                _animateYerDegistir(sq1, sq2);
+                // Board güncellemesini animasyon sonrasına ertele
+                satrancData.legalMoves = [];
+                setTimeout(() => {
+                    if (msg.board) {
+                        updateSatrancBoard(msg.board, null, msg.effects);
+                        updateTurnInfo(msg.board);
+                        renderMyJokers();
+                        if (msg.captured_pieces) {
+                            const myPid = String(satrancData.playerId);
+                            const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
+                            renderCapturedPieces(msg.captured_pieces[myPid] || [], msg.captured_pieces[oppPid] || []);
+                        }
+                    }
+                    showToast(
+                        `${msg.joker_icon} ${msg.joker_name}`,
+                        msg.message,
+                        null,
+                        msg.user_id === satrancData.playerId ? "success" : "warning"
+                    );
+                }, 800);
+                return;  // Diğer akışa gitmesin
+            }
         }
 
         // ✨ Dondur uygulandı - anında görsel (herkes için)
@@ -3005,6 +3863,18 @@ handleMessage = function(msg) {
         return;
     }
 
+    // ✨ İyileştir menüsü
+    if (msg.type === "satranc_iyilestir_menu") {
+        showIyilestirMenu(msg.active_effects || []);
+        return;
+    }
+
+    // ✨ Taşımı Geri Ver menüsü
+    if (msg.type === "satranc_tasimi_geri_menu") {
+        showTasimiGeriMenu(msg.lost_pieces || []);
+        return;
+    }
+
     if (msg.type === "satranc_your_turn") {
         satrancData.legalMoves = msg.legal_moves || [];
         satrancData.invisibleCaptureSquares = msg.invisible_capture_squares || [];
@@ -3028,6 +3898,7 @@ handleMessage = function(msg) {
 
     if (msg.type === "satranc_game_over") {
         showSatrancGameOver(msg);
+        playSatrancSound("oyun_bitti");
         return;
     }
 
@@ -3171,7 +4042,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("satrancGameOverBox").classList.add("hidden");
             stopSatrancClock();
             if (satrancData.playerId === 1) {
-                send({ type: "satranc_rematch" });
+                // ✨ Host → broadcast et, herkes lobiye dönsün
+                send({ type: "satranc_back_to_lobby" });
             } else {
                 showScreen("satrancLobby");
                 updateSatrancLobby();
@@ -3206,7 +4078,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // ✨ Joker seçim confirm butonu
     const confirmBtn = document.getElementById("satrancJsConfirmBtn");
     if (confirmBtn) {
-        confirmBtn.onclick = () => send({ type: "satranc_confirm_jokers" });
+        confirmBtn.onclick = () => {
+            playSatrancSound("joker_onay");
+            send({ type: "satranc_confirm_jokers" });
+        };
     }
 });
 

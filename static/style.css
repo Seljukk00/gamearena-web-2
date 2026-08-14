@@ -2351,3 +2351,69 @@ body > .container {
     width: 95% !important;
     padding: 30px 40px !important;
 }
+
+/* ==========================================
+   MOD DEĞİŞTİR POPUP - Kart Boyut Fix
+   ========================================== */
+#changeModeGrid.mod-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+    gap: 12px !important;
+    padding-bottom: 10px !important;
+}
+
+#changeModeGrid .mod-card {
+    min-height: 240px !important;
+    padding-bottom: 15px !important;
+    display: flex;
+    flex-direction: column;
+}
+
+#changeModeGrid .mod-card img {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 8px 8px 0 0;
+    flex-shrink: 0;
+}
+
+#changeModeGrid .mod-card .mod-info {
+    padding: 10px 8px 5px 8px;
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#changeModeGrid .mod-card .mod-info h3 {
+    font-size: 14px;
+    margin: 0 0 5px 0;
+    line-height: 1.2;
+    color: #51cf66;
+}
+
+#changeModeGrid .mod-card .mod-info p {
+    font-size: 11px;
+    color: #adb5bd;
+    margin: 0;
+    line-height: 1.3;
+}
+
+/* Küçük ekran */
+@media (max-width: 900px) {
+    #changeModeGrid.mod-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+    }
+    #changeModeGrid .mod-card {
+        min-height: 210px !important;
+    }
+    #changeModeGrid .mod-card img {
+        height: 110px;
+    }
+}
+
+@media (max-width: 600px) {
+    #changeModeGrid.mod-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
