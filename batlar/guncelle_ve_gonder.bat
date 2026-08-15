@@ -107,7 +107,7 @@ echo Render otomatik olarak yeni deploy baslatacak.
 echo Site 2-3 dakika icinde guncellenecek.
 echo.
 echo Kontrol icin:
-echo   Site: https://gamearena-web-fvvz.onrender.com/
+echo   Site: https://gamearena-web-rnd8.onrender.com
 echo   GitHub: https://github.com/Seljukk00/gamearena-web-2
 echo   Render: https://dashboard.render.com
 echo.
