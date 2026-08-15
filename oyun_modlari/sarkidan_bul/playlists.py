@@ -1,140 +1,165 @@
 """
 DEEZER SANATÇI LİSTELERİ
-Deezer Search API ile sanatçı bazlı şarkı çekme sistemi.
-Playlist ID kullanmıyoruz çünkü Deezer'ın public playlist'leri sık değişiyor.
 """
 
 # ========================================
-# TÜRKÇE SANATÇILAR (100+ sanatçı)
+# TÜRKÇE SANATÇILAR - TÜRLERE GÖRE
 # ========================================
-TURKCE_SANATCILAR = [
-    # Klasik Türkçe Pop
+TURKCE_POP = [
     "Tarkan", "Sezen Aksu", "Ajda Pekkan", "Nilüfer",
     "Sertab Erener", "Kenan Doğulu", "Mustafa Sandal", "Serdar Ortaç",
     "Hande Yener", "Gülşen", "Aleyna Tilki", "Hadise",
     "Demet Akalın", "Simge", "Ebru Gündeş", "Yıldız Tilbe",
-    
-    # Yeni Nesil Pop
     "Edis", "Murat Boz", "Emre Aydın", "İrem Derici",
-    "Buray", "Zeynep Bastık", "Semicenk", "Aleyna Tilki",
-    "Aynur Aydın", "Yalın", "Gülden", "Melek Mosso",
-    
-    # Rap / Hip-Hop
+    "Buray", "Zeynep Bastık", "Semicenk",
+    "Yalın", "Melek Mosso", "Fettah Can", "Ozan Doğulu", "Berkay",
+    "Mabel Matiz", "Manuş Baba", "Kalben", "Nazan Öncel",
+    "Mahsun Kırmızıgül", "Ferhat Göçer", "Levent Yüksel"
+]
+
+TURKCE_RAP = [
     "Ceza", "Sagopa Kajmer", "Sansar Salvo", "Ezhel",
     "Ben Fero", "Killa Hakan", "Şehinşah", "Norm Ender",
-    "Reynmen", "Motive", "Uzi", "Heijan",
-    "Contra", "Ados", "Massaka", "Anıl Piyancı",
-    
-    # Rock
+    "Reynmen", "Uzi", "Heijan",
+    "Contra", "Ados", "Massaka", "Anıl Piyancı"
+]
+
+TURKCE_ROCK = [
     "Duman", "MFÖ", "Cem Karaca", "Barış Manço",
     "Teoman", "Mor ve Ötesi", "Şebnem Ferah", "Hayko Cepkin",
     "Athena", "Manga", "Feridun Düzağaç", "Bulutsuzluk Özlemi",
-    
-    # Arabesk / Halk
-    "İbrahim Tatlıses", "Orhan Gencebay", "Ferdi Tayfur",
-    "Müslüm Gürses", "Bülent Ersoy", "Zeki Müren",
-    "Neşet Ertaş", "Aşık Veysel", "Selda Bağcan",
-    
-    # Türkü / Fantezi
-    "Ahmet Kaya", "Yaşar", "Mahsun Kırmızıgül",
-    "Ferhat Göçer", "Levent Yüksel", "Nazan Öncel",
-    
-    # Yeni Kuşak
-    "Mabel Matiz", "Melis Danişmend", "Manuş Baba",
-    "Erkin Koray", "Kalben", "Zeynep Casalini",
-    "Fettah Can", "Ozan Doğulu", "Berkay",
-    
-    # İndie / Alternative
-    "Kim Ki O", "Adamlar", "Palmiyeler", "Redd",
-    "Athena", "Grup Yorum", "Jehan Barbur"
+    "Erkin Koray", "Adamlar", "Palmiyeler", "Redd", "Grup Yorum"
 ]
 
+TURKCE_ARABESK = [
+    "İbrahim Tatlıses", "Orhan Gencebay", "Ferdi Tayfur",
+    "Müslüm Gürses", "Bülent Ersoy", "Zeki Müren",
+    "Neşet Ertaş", "Selda Bağcan", "Ahmet Kaya",
+    "Yaşar", "Aşık Veysel"
+]
+
+TURKCE_SANATCILAR = TURKCE_POP + TURKCE_RAP + TURKCE_ROCK + TURKCE_ARABESK
+
 # ========================================
-# YABANCI SANATÇILAR (100+ sanatçı)
+# YABANCI SANATÇILAR - TÜRLERE GÖRE
 # ========================================
-YABANCI_SANATCILAR = [
-    # Pop Yıldızları
+YABANCI_POP = [
     "Taylor Swift", "Ariana Grande", "Billie Eilish", "Dua Lipa",
     "The Weeknd", "Bruno Mars", "Ed Sheeran", "Adele",
     "Rihanna", "Beyoncé", "Justin Bieber", "Shawn Mendes",
-    "Post Malone", "Doja Cat", "Olivia Rodrigo", "Harry Styles",
+    "Doja Cat", "Olivia Rodrigo", "Harry Styles",
     "Miley Cyrus", "Selena Gomez", "Katy Perry", "Lady Gaga",
-    "Charlie Puth", "Sam Smith", "Camila Cabello", "Halsey",
+    "Charlie Puth", "Sam Smith", "Camila Cabello",
     "Sabrina Carpenter", "Tate McRae", "Chappell Roan",
-    
-    # Rap / Hip-Hop
+    "SZA", "Lana Del Rey", "Lizzo", "Benson Boone", "Noah Kahan"
+]
+
+YABANCI_RAP = [
     "Drake", "Kendrick Lamar", "Eminem", "Kanye West",
     "Travis Scott", "J. Cole", "Lil Wayne", "Nicki Minaj",
     "Cardi B", "Megan Thee Stallion", "21 Savage", "Future",
     "Central Cee", "Ice Spice", "Metro Boomin", "Playboi Carti",
-    
-    # Rock / Alternative
+    "Bad Bunny", "Karol G", "Rosalía", "Peso Pluma", "Feid",
+    "Post Malone"
+]
+
+YABANCI_ROCK = [
     "Coldplay", "Imagine Dragons", "Maroon 5", "OneRepublic",
     "Twenty One Pilots", "The Killers", "Arctic Monkeys", "Muse",
     "Green Day", "Foo Fighters", "Linkin Park", "Nirvana",
     "Red Hot Chili Peppers", "Radiohead", "The Beatles", "Queen",
     "Pink Floyd", "AC/DC", "Metallica", "Guns N' Roses",
-    
-    # Electronic / Dance
-    "Calvin Harris", "David Guetta", "Marshmello", "Alan Walker",
-    "Kygo", "Zedd", "Martin Garrix", "Tiësto",
-    "Avicii", "Diplo", "Skrillex", "The Chainsmokers",
-    
-    # Klasik / Legendaries
-    "Michael Jackson", "Elvis Presley", "Frank Sinatra", "Bob Marley",
-    "Stevie Wonder", "Whitney Houston", "Madonna", "Prince",
-    "David Bowie", "Elton John", "Freddie Mercury", "John Lennon",
-    
-    # 2020'ler Yeni Yıldızlar
-    "SZA", "Lana Del Rey", "Lizzo", "Bad Bunny",
-    "Karol G", "Rosalía", "Peso Pluma", "Feid",
-    "Morgan Wallen", "Zach Bryan", "Noah Kahan", "Benson Boone"
+    "David Bowie", "Elton John", "Freddie Mercury"
 ]
 
+YABANCI_ELECTRONIC = [
+    "Calvin Harris", "David Guetta", "Marshmello", "Alan Walker",
+    "Kygo", "Zedd", "Martin Garrix", "Tiësto",
+    "Avicii", "Diplo", "Skrillex", "The Chainsmokers"
+]
+
+YABANCI_KLASIK = [
+    "Michael Jackson", "Elvis Presley", "Frank Sinatra", "Bob Marley",
+    "Stevie Wonder", "Whitney Houston", "Madonna", "Prince",
+    "John Lennon", "Morgan Wallen", "Zach Bryan"
+]
+
+YABANCI_SANATCILAR = YABANCI_POP + YABANCI_RAP + YABANCI_ROCK + YABANCI_ELECTRONIC + YABANCI_KLASIK
 
 # ========================================
-# KATEGORİ SEÇİCİ
+# TÜR HARİTASI (dil → tür → sanatçılar)
 # ========================================
+TUR_BY_DIL = {
+    "tr": {
+        "pop": TURKCE_POP,
+        "rap": TURKCE_RAP,
+        "rock": TURKCE_ROCK,
+        "arabesk": TURKCE_ARABESK,
+    },
+    "yabanci": {
+        "pop": YABANCI_POP,
+        "rap": YABANCI_RAP,
+        "rock": YABANCI_ROCK,
+        "electronic": YABANCI_ELECTRONIC,
+        "klasikler": YABANCI_KLASIK,
+    },
+}
 
-def get_artists(dil: str) -> list:
+VALID_TURLER = ["pop", "rap", "rock", "arabesk", "electronic", "klasikler"]
+
+
+def get_artists(dil: str, tur: str = None) -> list:
     """
-    Dil seçimine göre sanatçı listesi döner.
-    
-    Args:
-        dil: "tr" (Türkçe), "yabanci" (Yabancı), "karisik" (Karışık)
-    
-    Returns:
-        Sanatçı isim listesi
+    Dil + tür seçimine göre sanatçı listesi döner.
     """
+    if not tur:
+        if dil == "tr":
+            return TURKCE_SANATCILAR
+        elif dil == "yabanci":
+            return YABANCI_SANATCILAR
+        else:
+            return TURKCE_SANATCILAR + YABANCI_SANATCILAR
+
+    if dil == "karisik":
+        result = []
+        for lang in ["tr", "yabanci"]:
+            if tur in TUR_BY_DIL.get(lang, {}):
+                result += TUR_BY_DIL[lang][tur]
+        return result if result else TURKCE_SANATCILAR + YABANCI_SANATCILAR
+
+    if dil in TUR_BY_DIL and tur in TUR_BY_DIL[dil]:
+        return TUR_BY_DIL[dil][tur]
+
     if dil == "tr":
         return TURKCE_SANATCILAR
     elif dil == "yabanci":
         return YABANCI_SANATCILAR
-    elif dil == "karisik":
-        return TURKCE_SANATCILAR + YABANCI_SANATCILAR
-    else:
-        return TURKCE_SANATCILAR + YABANCI_SANATCILAR
-
-
-# ========================================
-# TEST
-# ========================================
-
-def test_artists():
-    """Sanatçı listelerinin doğru olduğunu doğrula"""
-    print("🎵 SANATÇI LİSTELERİ TESTİ\n")
-    print(f"🇹🇷 Türkçe sanatçı sayısı: {len(TURKCE_SANATCILAR)}")
-    print(f"🌍 Yabancı sanatçı sayısı: {len(YABANCI_SANATCILAR)}")
-    print(f"🎭 Karışık toplam: {len(TURKCE_SANATCILAR) + len(YABANCI_SANATCILAR)}\n")
+    return TURKCE_SANATCILAR + YABANCI_SANATCILAR
     
-    print("İlk 10 Türkçe sanatçı:")
-    for i, s in enumerate(TURKCE_SANATCILAR[:10], 1):
-        print(f"  {i}. {s}")
-    
-    print("\nİlk 10 Yabancı sanatçı:")
-    for i, s in enumerate(YABANCI_SANATCILAR[:10], 1):
-        print(f"  {i}. {s}")
+# ========================================
+# ARTIST → TÜR YARDIMCISI
+# ========================================
+ARTIST_TO_TUR = {}
+
+def _build_artist_tur_map():
+    """Sanatçı → tür haritası oluştur (arama için hızlı)"""
+    mapping = {
+        "pop": TURKCE_POP + YABANCI_POP,
+        "rap": TURKCE_RAP + YABANCI_RAP,
+        "rock": TURKCE_ROCK + YABANCI_ROCK,
+        "arabesk": TURKCE_ARABESK,
+        "electronic": YABANCI_ELECTRONIC,
+        "klasikler": YABANCI_KLASIK,
+    }
+    for tur, artists in mapping.items():
+        for a in artists:
+            ARTIST_TO_TUR[a.lower().strip()] = tur
+
+_build_artist_tur_map()
 
 
-if __name__ == "__main__":
-    test_artists()
+def get_tur_of_artist(artist_name: str) -> str:
+    """Sanatçının türünü döner. Bulamazsa 'karışık' döner."""
+    if not artist_name:
+        return "karisik"
+    return ARTIST_TO_TUR.get(artist_name.lower().strip(), "karisik")    

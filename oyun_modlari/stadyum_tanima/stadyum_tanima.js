@@ -592,6 +592,25 @@ function renderStadScoreboardList() {
     });
 }
 
+// ✨ Tüm stadyum resimlerini önden yükle (browser cache)
+const _stadPreloadedImages = [];
+function preloadStadImages(imageFiles) {
+    _stadPreloadedImages.length = 0;  // eski cache'i temizle
+    imageFiles.forEach((file, idx) => {
+        const img = new Image();
+        img.src = `/stadyum_images/${file}`;
+        // Referansı tut ki garbage collector silmesin
+        _stadPreloadedImages.push(img);
+        img.onload = () => {
+            console.log(`[STAD PRELOAD] ${idx + 1}/${imageFiles.length}: ${file}`);
+        };
+        img.onerror = () => {
+            console.warn(`[STAD PRELOAD HATA] ${file}`);
+        };
+    });
+    console.log(`[STAD PRELOAD] ${imageFiles.length} resim arka planda yükleniyor...`);
+}
+
 function resetStadClues() {
     stadData.clues = {
         takim: null,
@@ -643,6 +662,9 @@ function renderStadGame() {
 
     if (stadData.stadium) {
         img.src = `/stadyum_images/${stadData.stadium.img_file}`;
+        // ✨ Sağ tık + drag engelle (hile önlemi)
+        img.oncontextmenu = (e) => { e.preventDefault(); return false; };
+        img.ondragstart = (e) => { e.preventDefault(); return false; };
     }
 
     const myTurn = stadData.currentPlayer === stadData.playerId;
@@ -763,7 +785,12 @@ handleMessage = function(msg) {
         if (msg.max_players !== undefined) stadData.maxPlayers = msg.max_players;
         stadData.answered = false;
         resetStadClues();
-        
+
+        // ✨ Tüm resimleri arka planda preload et (browser cache'e girsin)
+        if (msg.all_image_files && Array.isArray(msg.all_image_files)) {
+            preloadStadImages(msg.all_image_files);
+        }
+
         const overBox = document.getElementById("stadGameOverBox");
         if (overBox) overBox.classList.add("hidden");
 
@@ -826,8 +853,25 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "stad_back_to_lobby") {
-        document.getElementById("stadGameOverBox").classList.add("hidden");
+        // Tüm oyun overlay'lerini kapat
+        const overBox = document.getElementById("stadGameOverBox");
+        if (overBox) overBox.classList.add("hidden");
+        
+        // Timer + state sıfırla
         stopStadTimer();
+        stadData.answered = false;
+        stadData.roundNo = 0;
+        stadData.stadium = null;
+        stadData.options = [];
+        stadData.eliminatedIndices = [];
+        resetStadClues();
+        
+        // Toast göster
+        if (typeof showToast === "function") {
+            showToast("🚪 Lobiye Dönüldü", "Host oyunu sonlandırdı.", null, "success");
+        }
+        
+        // Lobiye geç
         showScreen("stadLobby");
         updateStadLobby();
         return;

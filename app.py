@@ -272,6 +272,56 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type")
+        
+# ==========================================
+            # AÇIK SUNUCULAR LİSTESİ
+            # ==========================================
+            if msg_type == "list_public_rooms":
+                public_rooms = []
+                mode_display = {
+                    "bil_bakalim": "🎯 Bil Bakalım",
+                    "takim_bilmece": "⚽ Takım Bilmece",
+                    "kim_milyoner": "💰 Kim Milyoner",
+                    "haritadan_bul": "🌍 Haritadan Bul",
+                    "gizemli_kariyer": "🎭 Gizemli Kariyer",
+                    "ilk_11_challenge": "⚽ İlk 11 Challenge",
+                    "stadyum_tanima": "🏟️ Stadyum Tanıma",
+                    "meme_arena": "🎭 Meme Arena",
+                    "sarkidan_bul": "🎵 Şarkıdan Bul",
+                    "mini_futbol": "⚽ Mini Futbol",
+                    "jokerli_satranc": "♟️ Jokerli Satranç"
+                }
+                for code, room in rooms.items():
+                    if room.get("phase") != "lobby":
+                        continue
+                    player_count = len(room.get("players", {}))
+                    max_players = room.get("max_players", room.get("ml_max_players", 2))
+                    if isinstance(max_players, str):
+                        try:
+                            max_players = int(max_players)
+                        except:
+                            max_players = 2
+                    if player_count >= max_players:
+                        continue
+                    mode = room.get("mode", "bil_bakalim")
+                    host_name = ""
+                    for pid, pdata in room.get("players", {}).items():
+                        if pid == 1:
+                            host_name = pdata.get("name", "???")
+                            break
+                    public_rooms.append({
+                        "room_code": code,
+                        "mode": mode,
+                        "mode_display": mode_display.get(mode, mode),
+                        "host_name": host_name,
+                        "player_count": player_count,
+                        "max_players": max_players
+                    })
+                await safe_send(websocket, {
+                    "type": "public_rooms_list",
+                    "rooms": public_rooms
+                })
+                continue            
 
             # ==========================================
             # ORTAK CHAT HANDLER (tüm modlar için)

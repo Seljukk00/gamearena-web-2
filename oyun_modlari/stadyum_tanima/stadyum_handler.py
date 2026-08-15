@@ -272,6 +272,9 @@ async def start_stad_game(room, safe_send, broadcast):
     room["stad_options"] = options
     room["stad_correct_index"] = correct_index
 
+    # ✨ Tüm turların resim dosyalarını önden gönder (frontend preload için)
+    all_image_files = [get_stadium_img_file(img_key) for img_key in order]
+
     for pid, pdata in room["players"].items():
         await safe_send(pdata["ws"], {
             "type": "stad_game_started",
@@ -285,7 +288,8 @@ async def start_stad_game(room, safe_send, broadcast):
             "options": options,
             "scores": room["scores"],
             "jokers_left": room["stad_jokers_left"],
-            "max_players": room.get("max_players", 2)
+            "max_players": room.get("max_players", 2),
+            "all_image_files": all_image_files
         })
 
     room["stad_question_start"] = asyncio.get_running_loop().time()
@@ -647,14 +651,30 @@ async def handle_stadyum_message(
             return _handled(current_room_code, current_player_id)
         
         room["phase"] = "lobby"
-        room["max_players"] = len(room["players"])
+        # max_players'ı olduğu gibi bırak (küçültme yok)
         
+        # Task iptal
         old_task = room.get("stad_task")
         if old_task and not old_task.done():
             old_task.cancel()
+        room["stad_task"] = None
         
+        # Oyun state'lerini sıfırla
+        room["stad_order"] = []
+        room["stad_round"] = 0
+        room["stad_answered"] = False
+        room["stad_jokers_left"] = {}
+        room["stad_used_jokers"] = {}
+        room["stad_eliminated_indices"] = []
+        room["scores"] = {}
+        room["left_players"] = {}
+        
+        # Önce herkese lobiye dönüş bildir
         await broadcast(room, {"type": "stad_back_to_lobby"})
+        # Sonra lobby update (players listesi ile)
         await send_stad_lobby_update(room, broadcast)
+        
+        print(f"[STAD] Lobiye dönüldü, oda: {current_room_code}")
         return _handled(current_room_code, current_player_id)
 
     # ==========================================

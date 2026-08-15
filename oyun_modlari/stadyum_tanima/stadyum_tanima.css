@@ -304,3 +304,23 @@
 .stadGameOverItem .rankScore.negative {
     color: #ff6b6b;
 }
+
+/* ✨ Resim yükleme durumu (placeholder) */
+#stadImage {
+    background: linear-gradient(135deg, #1a2540 0%, #0a1020 100%);
+    min-height: 300px;
+    transition: opacity 0.15s;
+}
+
+#stadImage[src=""], #stadImage:not([src]) {
+    opacity: 0;
+}
+
+/* Stadyum resmine sağ tık + seçim + drag engelle */
+#stadImage {
+    -webkit-user-drag: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    pointer-events: none;
+}

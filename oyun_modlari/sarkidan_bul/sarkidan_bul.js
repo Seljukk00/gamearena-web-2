@@ -44,7 +44,29 @@
         // Havuz durumunu sıfırla - backend prefetch başlayacak
         sarkiPoolReady = false;
         sarkiPoolPercent = 0;
-        console.log("[SARKI] State senkronize edildi: playerId=" + newPlayerId + ", isHost=" + sarkiIsHost);
+
+        // ✨ CHAT SIFIRLA (mod değişimi sonrası temiz başla)
+        const msgBox = document.getElementById("sarkiChatMessages");
+        if (msgBox) msgBox.innerHTML = "";
+        const badge = document.getElementById("sarkiChatBadge");
+        if (badge) {
+            badge.textContent = "0";
+            badge.style.display = "none";
+        }
+        const stack = document.getElementById("sarkiChatPopupStack");
+        if (stack) {
+            stack.innerHTML = "";
+            stack.style.display = "none";
+        }
+        const panel = document.getElementById("sarkiChatPanel");
+        if (panel) panel.style.display = "none";
+        _sarkiChatOpen = false;
+        // Dış tık handler'ını da kaldır
+        try {
+            document.removeEventListener("mousedown", _sarkiChatOutsideClickHandler, true);
+        } catch(e) {}
+
+        console.log("[SARKI] State + Chat senkronize edildi: playerId=" + newPlayerId + ", isHost=" + sarkiIsHost);
     };
 
     // ==========================================
@@ -105,6 +127,11 @@
                 }
                 // ✨ Kaydedilmiş ayarları yükle
                 loadSarkiSavedSettings();
+                // ✨ Sonra tür dropdown'unu dil'e göre güncelle (geçersiz seçim varsa sıfırla)
+                const dilSel = $("sarkiDilSelect");
+                if (dilSel) {
+                    dilSel.dispatchEvent(new Event("change"));
+                }
             });
         });
 
@@ -168,6 +195,39 @@
         if (backToMenuBtn) backToMenuBtn.addEventListener('click', leaveSarkiRoom);
 
         setupSarkiChat();
+
+        // ✨ Şarkı dili değişince tür dropdown'unu güncelle
+        const dilSelect = $("sarkiDilSelect");
+        const turSelect = $("sarkiTurSelect");
+        if (dilSelect && turSelect) {
+            const updateTurOptions = () => {
+                const dil = dilSelect.value;
+                const currentTur = turSelect.value;
+                // Türkçe seçildiyse Electronic ve Klasikler'i gizle
+                const hideForTurkish = ["electronic", "klasikler"];
+                Array.from(turSelect.options).forEach(opt => {
+                    if (dil === "tr" && hideForTurkish.includes(opt.value)) {
+                        opt.style.display = "none";
+                        opt.disabled = true;
+                    } else {
+                        opt.style.display = "";
+                        opt.disabled = false;
+                    }
+                });
+                // Eğer seçili tür artık geçersizse VEYA gizlendiyse "Tüm Türler"e çek
+                const selectedOpt = turSelect.options[turSelect.selectedIndex];
+                if (dil === "tr" && hideForTurkish.includes(currentTur)) {
+                    turSelect.value = "";
+                }
+                // Ekstra güvenlik: eğer seçili option disabled ise sıfırla
+                if (selectedOpt && selectedOpt.disabled) {
+                    turSelect.value = "";
+                }
+            };
+            dilSelect.addEventListener("change", updateTurOptions);
+            // Sayfa açılışında da uygula
+            updateTurOptions();
+        }
     });
 
     // ==========================================
@@ -186,6 +246,7 @@
         const settings = {
             max_players: parseInt($("sarkiMaxPlayersSelect").value),
             dil: $("sarkiDilSelect").value,
+            tur: $("sarkiTurSelect") ? $("sarkiTurSelect").value || null : null,
             total_songs: parseInt($("sarkiTotalSongsSelect").value),
             song_duration: parseInt($("sarkiSongDurationSelect").value),
             answer_duration: parseInt($("sarkiAnswerDurationSelect").value)
@@ -228,6 +289,7 @@
             setSelect("sarkiTotalSongsSelect", s.total_songs);
             setSelect("sarkiSongDurationSelect", s.song_duration);
             setSelect("sarkiAnswerDurationSelect", s.answer_duration);
+			setSelect("sarkiTurSelect", s.tur || "");
             
             console.log("[SARKI] Kayıtlı ayarlar yüklendi:", s);
         } catch(e) {
@@ -298,9 +360,13 @@
                     current: sarkiSettings.total_songs,
                     options: [
                         { value: 5, label: "5 Şarkı" },
+                        { value: 6, label: "6 Şarkı" },
                         { value: 10, label: "10 Şarkı" },
+                        { value: 12, label: "12 Şarkı" },
                         { value: 15, label: "15 Şarkı" },
-                        { value: 20, label: "20 Şarkı" }
+                        { value: 20, label: "20 Şarkı" },
+                        { value: 25, label: "25 Şarkı" },
+                        { value: 30, label: "30 Şarkı" }
                     ]
                 },
                 {
@@ -313,6 +379,20 @@
                         { value: 15, label: "15 saniye" },
                         { value: 20, label: "20 saniye" },
                         { value: 30, label: "30 saniye (Çok Kolay)" }
+                    ]
+                },
+				{
+                    id: "settingSarkiTur",
+                    label: "🎸 Şarkı Türü",
+                    current: sarkiSettings.tur || "",
+                    options: [
+                        { value: "", label: "🎭 Tüm Türler" },
+                        { value: "pop", label: "🎤 Pop" },
+                        { value: "rap", label: "🎧 Rap" },
+                        { value: "rock", label: "🎸 Rock" },
+                        { value: "arabesk", label: "🎻 Arabesk" },
+                        { value: "electronic", label: "🎛️ Electronic" },
+                        { value: "klasikler", label: "👑 Klasikler" }
                     ]
                 },
                 {
@@ -335,6 +415,7 @@
                 const newMax = parseInt(values.settingSarkiMax);
                 const newSongDur = parseInt(values.settingSarkiSongDur);
                 const newAnsDur = parseInt(values.settingSarkiAnsDur);
+				const newTur = values.settingSarkiTur || null;
                 
                 // Dil veya şarkı sayısı değiştiyse havuz hazır flag'ini SIFIRLA
                 if (newDil !== sarkiSettings.dil || newTotal !== sarkiSettings.total_songs) {
@@ -358,6 +439,7 @@
                     type: "sarki_update_settings",
                     max_players: newMax,
                     dil: newDil,
+                    tur: newTur,
                     total_songs: newTotal,
                     song_duration: newSongDur,
                     answer_duration: newAnsDur
@@ -438,6 +520,7 @@
         sarkiSettings.total_songs = msg.total_songs || 10;
         sarkiSettings.song_duration = msg.song_duration || 10;
         sarkiSettings.answer_duration = msg.answer_duration || 10;
+		sarkiSettings.tur = msg.tur || null;
 
         sarkiRoomCode = msg.room_code;
         
@@ -547,6 +630,11 @@
         
         // ✨ İlk tur ise skor tablosunu 0 puanla başlat
         if (msg.round_no === 1 && msg.players_info) {
+            // Önceki skorları sıfırla (animasyon bug'ı için)
+            window._sarkiPrevScores = {};
+            msg.players_info.forEach(p => {
+                window._sarkiPrevScores[p.id] = 0;
+            });
             const initialScores = msg.players_info.map(p => ({
                 player_id: p.id,
                 player_name: p.name,
@@ -568,7 +656,13 @@
         }
         
         // Bilgi çubuğunu güncelle
-        $("sarkiRoundInfo").textContent = `🎵 Şarkı ${msg.round_no}/${msg.total_rounds}`;
+        const turMap2 = {
+            "pop": "🎤 Pop", "rap": "🎧 Rap", "rock": "🎸 Rock",
+            "arabesk": "🎻 Arabesk", "electronic": "🎛️ Electronic",
+            "klasikler": "👑 Klasikler"
+        };
+        const turText2 = sarkiSettings.tur ? ` &nbsp;•&nbsp; <span style="color:#c084fc;">${turMap2[sarkiSettings.tur] || sarkiSettings.tur}</span>` : "";
+        $("sarkiRoundInfo").innerHTML = `🎵 Şarkı ${msg.round_no}/${msg.total_rounds}${turText2}`;
         $("sarkiPhaseInfo").innerHTML = `<span style="color:#adb5bd;">⏳ Başlıyor...</span>`;
         $("sarkiSongStatus").textContent = "";
         $("sarkiStatusMsg").textContent = "";
@@ -648,7 +742,15 @@
         sarkiIsMyTurn = (msg.current_turn === sarkiPlayerId);
         const turnName = msg.current_turn_name || "?";
 
-        $("sarkiRoundInfo").textContent = `🎵 Şarkı ${msg.round_no}/${msg.total_rounds}`;
+        const turMap = {
+            "pop": "🎤 Pop", "rap": "🎧 Rap", "rock": "🎸 Rock",
+            "arabesk": "🎻 Arabesk", "electronic": "🎛️ Electronic",
+            "klasikler": "👑 Klasikler", "karisik": "🎭 Karışık"
+        };
+        // ✨ Öncelik: bu turun şarkısının türü, yoksa oda ayarındaki tür
+        const activeTur = msg.song_tur || sarkiSettings.tur;
+        const turText = activeTur ? ` &nbsp;•&nbsp; <span style="color:#c084fc;">${turMap[activeTur] || activeTur}</span>` : "";
+        $("sarkiRoundInfo").innerHTML = `🎵 Şarkı ${msg.round_no}/${msg.total_rounds}${turText}`;
         
         if (sarkiIsMyTurn) {
             $("sarkiPhaseInfo").innerHTML = `<span style="color:#51cf66;">🎯 SIRA SENDE!</span>`;
@@ -797,6 +899,7 @@
             
             audioEl.src = previewUrl;
             audioEl.volume = getGlobalVolume();
+            audioEl.loop = false;
             audioEl.load();
 
             sarkiAudio = audioEl;
@@ -845,12 +948,14 @@
                                 
                                 // Paused ise (şarkı bitti veya kesildi) baştan başlat
                                 if (sarkiAudio.paused || sarkiAudio.ended) {
+                                    sarkiAudio.loop = true;
                                     sarkiAudio.currentTime = 0;
                                     const p = sarkiAudio.play();
                                     if (p) p.catch(() => {});
-                                    console.log(`[SARKI] Cevap fazı: şarkı bitmişti, baştan başlıyor, ses %${(targetVol*100).toFixed(1)}`);
+                                    console.log(`[SARKI] Cevap fazı: şarkı bitmişti, loop ile devam, ses %${(targetVol*100).toFixed(1)}`);
                                 } else {
-                                    console.log(`[SARKI] Cevap fazı: şarkı devam ediyor (${sarkiAudio.currentTime.toFixed(1)}sn), ses %${(targetVol*100).toFixed(1)}`);
+                                    sarkiAudio.loop = true;
+                                    console.log(`[SARKI] Cevap fazı: şarkı devam ediyor, loop açıldı, ses %${(targetVol*100).toFixed(1)}`);
                                 }
                             }
                         } catch(e) {}
@@ -1141,6 +1246,10 @@
         const sortedResults = [...results].sort((a, b) => b.total_score - a.total_score);
         const list = $("sarkiScoreboardList");
         if (!list) return;
+        
+        // Önceki skorları hatırla (animasyon için)
+        if (!window._sarkiPrevScores) window._sarkiPrevScores = {};
+        
         list.innerHTML = "";
         sortedResults.forEach((r, idx) => {
             const li = document.createElement("li");
@@ -1148,17 +1257,62 @@
             const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`;
             li.className = "sarkiScoreRow" + (isMe ? " me" : "");
             
-            // ✨ Negatif puan → kırmızı, pozitif → sarı, 0 → gri
+            const prevScore = window._sarkiPrevScores[r.player_id];
+            const diff = (typeof prevScore === "number") ? (r.total_score - prevScore) : 0;
+            
+            // Animasyon için: önce eski skoru göster
+            let displayScore = (typeof prevScore === "number") ? prevScore : r.total_score;
+            
             let scoreClass = "scoreTotal";
-            if (r.total_score < 0) scoreClass += " negative";
-            else if (r.total_score === 0) scoreClass += " zero";
+            if (displayScore < 0) scoreClass += " negative";
+            else if (displayScore === 0) scoreClass += " zero";
+            
+            // Floating point (+10 / -3)
+            let floatingHtml = "";
+            if (diff !== 0) {
+                const floatColor = diff > 0 ? "#51cf66" : "#ff6b6b";
+                const floatText = (diff > 0 ? "+" : "") + diff;
+                floatingHtml = `<span class="sarkiFloatPoint" style="color:${floatColor};">${floatText}</span>`;
+            }
             
             li.innerHTML = `
                 <span class="scoreMedal">${medal}</span>
                 <span class="scoreName">${r.player_name}${isMe ? ' (Sen)' : ''}</span>
-                <span class="${scoreClass}">${r.total_score}</span>
+                <span class="sarkiScoreCell">
+                    ${floatingHtml}
+                    <span class="${scoreClass}" data-final="${r.total_score}">${displayScore}</span>
+                </span>
             `;
             list.appendChild(li);
+            
+            // Animasyonlu skor artışı (500ms sonra başlar, 800ms sürer)
+            if (diff !== 0) {
+                setTimeout(() => {
+                    const scoreEl = li.querySelector('.scoreTotal');
+                    if (!scoreEl) return;
+                    const startVal = prevScore;
+                    const endVal = r.total_score;
+                    const duration = 800;
+                    const startTime = performance.now();
+                    
+                    function animate(now) {
+                        const elapsed = now - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const current = Math.round(startVal + (endVal - startVal) * progress);
+                        scoreEl.textContent = current;
+                        // Renk sınıfını dinamik güncelle
+                        scoreEl.classList.remove("negative", "zero");
+                        if (current < 0) scoreEl.classList.add("negative");
+                        else if (current === 0) scoreEl.classList.add("zero");
+                        
+                        if (progress < 1) requestAnimationFrame(animate);
+                    }
+                    requestAnimationFrame(animate);
+                }, 500);
+            }
+            
+            // Kalıcı olarak güncel skoru kaydet
+            window._sarkiPrevScores[r.player_id] = r.total_score;
         });
     }
 
@@ -1186,9 +1340,19 @@
             if (s.score < 0) scoreClass += " negative";
             else if (s.score === 0) scoreClass += " zero";
             
+            const correctCount = s.correct_count || 0;
+            const wrongCount = s.wrong_count || 0;
+            
             li.innerHTML = `
                 <span class="scoreMedal">${medal}</span>
-                <span class="scoreName">${s.player_name}${isMe ? ' (Sen)' : ''}</span>
+                <span class="scoreName">
+                    ${s.player_name}${isMe ? ' (Sen)' : ''}
+                    <div style="font-size:12px; color:#adb5bd; margin-top:3px; font-weight:normal;">
+                        <span style="color:#51cf66;">✅ ${correctCount} doğru</span>
+                        &nbsp;•&nbsp;
+                        <span style="color:#ff6b6b;">❌ ${wrongCount} yanlış</span>
+                    </div>
+                </span>
                 <span class="${scoreClass}">${s.score} puan</span>
             `;
             list.appendChild(li);
@@ -1210,28 +1374,70 @@
         stopSarkiTimer();
         $("sarkiGameOverBox").classList.add("hidden");
         $("sarkiRoundResultBox").classList.add("hidden");
+        // ✨ Skor animasyonu için önceki skorları sıfırla
+        window._sarkiPrevScores = {};
         showSarkiScreen("sarkiLobby");
     }
 
     // ==========================================
     // CHAT
     // ==========================================
+    let _sarkiChatOpen = false;
+
+    function _openSarkiChatPanel() {
+        const panel = $("sarkiChatPanel");
+        const input = $("sarkiChatInput");
+        if (!panel) return;
+        panel.style.display = "flex";
+        _sarkiChatOpen = true;
+        // Badge sıfırla
+        const badge = $("sarkiChatBadge");
+        if (badge) {
+            badge.style.display = "none";
+            badge.textContent = "0";
+        }
+        // Baloncukları temizle
+        const stack = $("sarkiChatPopupStack");
+        if (stack) {
+            stack.innerHTML = "";
+            stack.style.display = "none";
+        }
+        // ✨ Input'a otomatik focus
+        if (input) setTimeout(() => input.focus(), 50);
+        // Dışarı tıklayınca kapansın
+        setTimeout(() => {
+            document.addEventListener("mousedown", _sarkiChatOutsideClickHandler, true);
+        }, 100);
+    }
+
+    function _closeSarkiChatPanel() {
+        const panel = $("sarkiChatPanel");
+        if (panel) panel.style.display = "none";
+        _sarkiChatOpen = false;
+        document.removeEventListener("mousedown", _sarkiChatOutsideClickHandler, true);
+        const input = $("sarkiChatInput");
+        if (input && input.value) input.value = "";
+    }
+
+    function _sarkiChatOutsideClickHandler(e) {
+        const container = $("sarkiChatContainer");
+        if (!container) return;
+        if (container.contains(e.target)) return;
+        _closeSarkiChatPanel();
+    }
+
     function setupSarkiChat() {
         const toggleBtn = $("sarkiChatToggleBtn");
         const closeBtn = $("sarkiChatCloseBtn");
         const sendBtn = $("sarkiChatSendBtn");
         const input = $("sarkiChatInput");
-        const panel = $("sarkiChatPanel");
 
         if (toggleBtn) toggleBtn.addEventListener('click', () => {
-            panel.style.display = panel.style.display === "flex" ? "none" : "flex";
-            if (panel.style.display === "flex") {
-                $("sarkiChatBadge").style.display = "none";
-                $("sarkiChatBadge").textContent = "0";
-            }
+            if (_sarkiChatOpen) _closeSarkiChatPanel();
+            else _openSarkiChatPanel();
         });
 
-        if (closeBtn) closeBtn.addEventListener('click', () => panel.style.display = "none");
+        if (closeBtn) closeBtn.addEventListener('click', () => _closeSarkiChatPanel());
 
         const sendMsg = () => {
             const text = input.value.trim();
@@ -1241,9 +1447,57 @@
         };
 
         if (sendBtn) sendBtn.addEventListener('click', sendMsg);
-        if (input) input.addEventListener('keydown', (e) => {
-            if (e.key === "Enter") sendMsg();
-        });
+        if (input) {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    sendMsg();
+                    _closeSarkiChatPanel();  // ✨ Mesaj atınca oto kapat
+                    return;
+                }
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    _closeSarkiChatPanel();
+                    return;
+                }
+                // Diğer tuşlar T tuşu handler'ına gitmesin
+                e.stopPropagation();
+            });
+        }
+
+        // ✨ T tuşu → chat aç
+        document.addEventListener("keydown", (e) => {
+            const k = e.key.toLowerCase();
+            if (k !== "t") return;
+
+            // Sadece sarkı ekranlarında
+            const gameEl = document.getElementById("sarkiGameScreen");
+            const lobbyEl = document.getElementById("sarkiLobbyScreen");
+            const inSarki = (gameEl && !gameEl.classList.contains("hidden")) ||
+                            (lobbyEl && !lobbyEl.classList.contains("hidden"));
+            if (!inSarki) return;
+
+            // Input/textarea odaktaysa yoksay
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+
+            // Chat container görünmüyorsa yoksay
+            const container = $("sarkiChatContainer");
+            if (!container || container.style.display === "none") return;
+
+            // Zaten açıksa yoksay
+            if (_sarkiChatOpen) return;
+
+            // Overlay/popup açıksa yoksay
+            const anyOverlay = document.querySelector(".overlay:not(.hidden)");
+            if (anyOverlay) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            _openSarkiChatPanel();
+        }, true);
     }
 
     function addChatMessage(msg) {
@@ -1255,13 +1509,65 @@
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
 
-        const panel = $("sarkiChatPanel");
-        if (panel.style.display !== "flex" && msg.sender_id !== sarkiPlayerId) {
-            const badge = $("sarkiChatBadge");
-            const cur = parseInt(badge.textContent) || 0;
-            badge.textContent = cur + 1;
-            badge.style.display = "inline-block";
+        // ✨ Rakip mesajıysa bildirim sesi çal
+        if (msg.sender_id !== sarkiPlayerId && typeof _playChatNotifySound === "function") {
+            _playChatNotifySound();
         }
+
+        const panel = $("sarkiChatPanel");
+        const isOpen = panel && (panel.style.display === "flex");
+        
+        if (!isOpen) {
+            // Rakip mesajıysa badge sayacını arttır
+            if (msg.sender_id !== sarkiPlayerId) {
+                const badge = $("sarkiChatBadge");
+                if (badge) {
+                    const cur = parseInt(badge.textContent) || 0;
+                    badge.textContent = cur + 1;
+                    badge.style.display = "inline-block";
+                }
+            }
+            // ✨ Popup baloncuk her mesaj için göster (kendi + rakip)
+            _showSarkiChatPopup(msg);
+        }
+    }
+
+    // ✨ Chat kapalıyken gelen mesaj için baloncuk popup
+    function _showSarkiChatPopup(msg) {
+        const stack = $("sarkiChatPopupStack");
+        if (!stack) return;
+        stack.style.display = "flex";
+
+        const popup = document.createElement("div");
+        popup.className = "miniChatPopup";
+        // Host mu misafir mi ona göre renk
+        if (msg.sender_id === 1) popup.classList.add("teamRed");
+        else popup.classList.add("teamBlue");
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "miniChatPopupName";
+        nameSpan.style.color = msg.sender_id === 1 ? "#ff8a8a" : "#7abfff";
+        nameSpan.textContent = msg.sender_name;
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "miniChatPopupText";
+        textSpan.textContent = msg.text;
+
+        popup.appendChild(nameSpan);
+        popup.appendChild(textSpan);
+        stack.appendChild(popup);
+
+        // Max 5 baloncuk
+        while (stack.children.length > 5) stack.removeChild(stack.firstChild);
+
+        // 3 saniye sonra kaybol
+        setTimeout(() => {
+            popup.classList.add("leaving");
+            setTimeout(() => {
+                if (popup.parentNode) popup.parentNode.removeChild(popup);
+                if (stack.children.length === 0) stack.style.display = "none";
+            }, 350);
+        }, 3000);
     }
 
     function escapeHTML(s) {
@@ -1283,6 +1589,23 @@
         if (c) c.style.display = "none";
         const p = $("sarkiChatPanel");
         if (p) p.style.display = "none";
+        // ✨ Chat state'i tamamen sıfırla
+        _sarkiChatOpen = false;
+        const msgBox = document.getElementById("sarkiChatMessages");
+        if (msgBox) msgBox.innerHTML = "";
+        const badge = document.getElementById("sarkiChatBadge");
+        if (badge) {
+            badge.textContent = "0";
+            badge.style.display = "none";
+        }
+        const stack = document.getElementById("sarkiChatPopupStack");
+        if (stack) {
+            stack.innerHTML = "";
+            stack.style.display = "none";
+        }
+        try {
+            document.removeEventListener("mousedown", _sarkiChatOutsideClickHandler, true);
+        } catch(e) {}
     }
 
     // ==========================================
@@ -1332,6 +1655,7 @@
             sarkiSettings = {
                 max_players: msg.max_players,
                 dil: msg.dil,
+                tur: msg.tur || null,
                 total_songs: msg.total_songs,
                 song_duration: msg.song_duration,
                 answer_duration: msg.answer_duration
@@ -1349,6 +1673,7 @@
             sarkiSettings = {
                 max_players: msg.max_players,
                 dil: msg.dil,
+                tur: msg.tur || null,
                 total_songs: msg.total_songs,
                 song_duration: msg.song_duration,
                 answer_duration: msg.answer_duration

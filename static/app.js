@@ -182,6 +182,7 @@ function showScreen(screenName) {
     if (screenName === "home") homeScreen.classList.remove("hidden");
     if (screenName === "create") createScreen.classList.remove("hidden");
     if (screenName === "join") joinScreen.classList.remove("hidden");
+	if (screenName !== "join") stopPublicRoomsRefresh();
     if (screenName === "lobby") lobbyScreen.classList.remove("hidden");
     if (screenName === "select") selectScreen.classList.remove("hidden");
     if (screenName === "game") gameScreen.classList.remove("hidden");
@@ -985,13 +986,9 @@ function _playChatNotifySound() {
             _chatNotifyAudio.preload = "auto";
         }
         // Global ses seviyesini al
-        const volumeSlider = document.getElementById("mlVolumeRange");
-        let volume = 0.5;
-        if (volumeSlider) {
-            volume = parseFloat(volumeSlider.value) / 100;
-        }
+        const volume = getGlobalVolume();
         if (volume <= 0) return;
-        
+
         const sound = _chatNotifyAudio.cloneNode();
         sound.volume = Math.min(1, Math.max(0, volume));
         sound.play().catch(() => {});
@@ -1173,6 +1170,11 @@ function handleMessage(msg) {
         } else {
             showToast("⚠️ Hata!", msg.message || "Bir hata oluştu.", null);
         }
+        return;
+    }
+	
+	if (msg.type === "public_rooms_list") {
+        renderPublicRooms(msg.rooms || []);
         return;
     }
 
@@ -1601,7 +1603,11 @@ function handleMessage(msg) {
 
 // ============ BUTON İŞLEMLERİ ============
 menuCreateCard.onclick = () => { showScreen("modselect"); };
-menuJoinCard.onclick = () => { showScreen("join"); joinNameInput.focus(); };
+menuJoinCard.onclick = () => {
+    showScreen("join");
+    joinNameInput.focus();
+    startPublicRoomsRefresh();
+};
 createBackBtn.onclick = () => { showScreen("modselect"); };
 document.getElementById("modSelectBackBtn").onclick = () => { showScreen("home"); };
 
@@ -1641,6 +1647,103 @@ takimDifficultySelect.addEventListener("change", updateJokerInfo);
 
 document.getElementById("createTakimBackBtn").onclick = () => { showScreen("modselect"); };
 joinBackBtn.onclick = () => { showScreen("home"); };
+
+// ==========================================
+// AÇIK SUNUCULAR
+// ==========================================
+let _publicRoomsInterval = null;
+
+function fetchPublicRooms() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    send({ type: "list_public_rooms" });
+}
+
+function renderPublicRooms(rooms) {
+    const list = document.getElementById("publicRoomsList");
+    if (!list) return;
+
+    if (!rooms || rooms.length === 0) {
+        list.innerHTML = '<p style="color:#6c757d; text-align:center; font-size:14px; padding:15px 0;">Şu an açık sunucu yok</p>';
+        return;
+    }
+
+    list.innerHTML = "";
+    rooms.forEach(function(r) {
+        const card = document.createElement("div");
+        card.style.cssText = "background:rgba(255,255,255,0.05); border:1px solid #3b4c63; border-radius:10px; padding:12px 15px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; transition: all 0.2s;";
+
+        card.onmouseenter = function() {
+            card.style.borderColor = "#4dabf7";
+            card.style.background = "rgba(77,171,247,0.08)";
+        };
+        card.onmouseleave = function() {
+            card.style.borderColor = "#3b4c63";
+            card.style.background = "rgba(255,255,255,0.05)";
+        };
+
+        const left = document.createElement("div");
+        left.innerHTML = '<div style="color:#fff; font-weight:bold; font-size:15px;">' + r.mode_display + '</div>' +
+            '<div style="color:#adb5bd; font-size:13px; margin-top:3px;">Host: ' + (r.host_name || "???") + '</div>';
+
+        const right = document.createElement("div");
+        right.style.cssText = "display:flex; align-items:center; gap:10px;";
+
+        const count = document.createElement("span");
+        count.style.cssText = "color:#51cf66; font-size:13px; font-weight:bold;";
+        count.textContent = "👥 " + r.player_count + "/" + r.max_players;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Katıl →";
+        btn.style.cssText = "background:#51cf66; color:#1a1e2e; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;";
+
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            const nameInput = document.getElementById("joinNameInput");
+            const roomInput2 = document.getElementById("roomInput");
+            if (!nameInput.value.trim()) {
+                document.getElementById("joinMsg").textContent = "Önce adını yaz!";
+                document.getElementById("joinMsg").style.color = "#ff6b6b";
+                nameInput.focus();
+                return;
+            }
+            roomInput2.value = r.room_code;
+            joinBtn.click();
+        };
+
+        right.appendChild(count);
+        right.appendChild(btn);
+        card.appendChild(left);
+        card.appendChild(right);
+
+        card.onclick = function() {
+            const roomInput2 = document.getElementById("roomInput");
+            roomInput2.value = r.room_code;
+            roomInput2.dispatchEvent(new Event("input"));
+        };
+
+        list.appendChild(card);
+    });
+}
+
+function startPublicRoomsRefresh() {
+    stopPublicRoomsRefresh();
+    fetchPublicRooms();
+    _publicRoomsInterval = setInterval(fetchPublicRooms, 5000);
+}
+
+function stopPublicRoomsRefresh() {
+    if (_publicRoomsInterval) {
+        clearInterval(_publicRoomsInterval);
+        _publicRoomsInterval = null;
+    }
+}
+
+const _publicRoomsRefreshBtn = document.getElementById("publicRoomsRefreshBtn");
+if (_publicRoomsRefreshBtn) {
+    _publicRoomsRefreshBtn.onclick = function() {
+        fetchPublicRooms();
+    };
+}
 
 createBtn.onclick = () => {
     myName = createNameInput.value.trim();
@@ -2537,6 +2640,48 @@ setTimeout(() => {
         };
     }
 }, 100);
+
+// ============ GLOBAL SES YARDIMCISI ============
+function getGlobalVolume() {
+    const slider = document.getElementById("mlVolumeRange");
+    if (!slider) return 0.3;
+    const v = parseInt(slider.value, 10);
+    return isNaN(v) ? 0.3 : Math.max(0, Math.min(100, v)) / 100;
+}
+window.getGlobalVolume = getGlobalVolume;
+
+// ============ SES SLIDER BAŞLATICI ============
+(function initVolumeSlider() {
+    const slider = document.getElementById("mlVolumeRange");
+    if (!slider) return;
+
+    // localStorage'dan oku, yoksa default 30
+    let saved = null;
+    try { saved = localStorage.getItem("gameArenaVolume"); } catch(e) {}
+    const initVal = (saved !== null && !isNaN(parseInt(saved, 10)))
+        ? Math.max(0, Math.min(100, parseInt(saved, 10)))
+        : 30;
+
+    function applyUI(v) {
+        slider.value = String(v);
+        const valEl = document.getElementById("mlVolumeVal");
+        if (valEl) valEl.textContent = String(Math.round(v / 10));
+        const w1 = document.getElementById("volumeWave1");
+        const w2 = document.getElementById("volumeWave2");
+        const w3 = document.getElementById("volumeWave3");
+        if (w1) w1.style.opacity = v > 0  ? "1" : "0.15";
+        if (w2) w2.style.opacity = v >= 34 ? "1" : "0.15";
+        if (w3) w3.style.opacity = v >= 67 ? "1" : "0.15";
+    }
+
+    applyUI(initVal);
+
+    slider.addEventListener("input", function() {
+        const v = Math.max(0, Math.min(100, parseInt(this.value, 10) || 0));
+        applyUI(v);
+        try { localStorage.setItem("gameArenaVolume", String(v)); } catch(e) {}
+    });
+})();
 
 console.log("GameArena - app.js yüklendi ✓");
 

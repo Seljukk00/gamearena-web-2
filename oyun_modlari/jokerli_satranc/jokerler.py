@@ -265,6 +265,15 @@ JOKERS = [
         "phase": "your_turn",
         "implemented": True
     },
+    {
+        "id": "rakibi_isinla",
+        "name": "Rakibi Işınla",
+        "icon": "⚡",
+        "category": "ekstra",
+        "desc": "Herhangi 2 taşı seç (kendi/rakip fark etmez, şah hariç), yer değişir.",
+        "phase": "your_turn",
+        "implemented": True
+    },
 
     # ==========================================
     # 🎡 ÇARKIFELEK GRUBU (4)

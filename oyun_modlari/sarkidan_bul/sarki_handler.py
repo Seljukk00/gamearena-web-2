@@ -7,7 +7,7 @@ import asyncio
 import random
 import time
 from .deezer_api import fetch_songs_by_artists
-from .playlists import get_artists
+from .playlists import get_artists, VALID_TURLER, get_tur_of_artist
 
 
 # ========================================
@@ -32,6 +32,7 @@ async def send_sarki_lobby_update(room, broadcast):
         "total_songs": room.get("total_songs", 10),
         "song_duration": room.get("song_duration", 10),
         "answer_duration": room.get("answer_duration", 10),
+        "tur": room.get("tur", None),
     }
     await broadcast(room, msg)
 
@@ -45,7 +46,7 @@ async def prefetch_song_pool(room, broadcast):
     Host beklemesin diye. Ayarlar değişince tekrar hazırlanır.
     """
     try:
-        cache_key = f"{room.get('dil')}_{room.get('total_songs')}"
+        cache_key = f"{room.get('dil')}_{room.get('tur', 'all')}_{room.get('total_songs')}"
         current_pool_size = len(room.get("song_pool", []))
         needed = room.get("total_songs", 10) * 2
         
@@ -99,7 +100,8 @@ async def prefetch_song_pool(room, broadcast):
 async def _fetch_pool(room, broadcast=None):
     """Deezer'dan şarkıları çeker ve room['song_pool']'a kaydeder"""
     dil = room.get("dil", "karisik")
-    artists = get_artists(dil)
+    tur = room.get("tur", None)
+    artists = get_artists(dil, tur)
     total_needed = room.get("total_songs", 10)
     
     random.shuffle(artists)
@@ -176,7 +178,7 @@ async def prepare_song_pool(room, safe_send, broadcast):
     Şarkı havuzunu hazırla. Zaten arka planda hazırlandıysa direkt kullan.
     """
     total_needed = room.get("total_songs", 10)
-    cache_key = f"{room.get('dil')}_{total_needed}"
+    cache_key = f"{room.get('dil')}_{room.get('tur', 'all')}_{total_needed}"
     
     # Havuz zaten hazır mı?
     if room.get("_pool_cache_key") == cache_key and len(room.get("song_pool", [])) >= total_needed * 2:
@@ -214,7 +216,10 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         total_songs = int(data.get("total_songs", 10))
         song_duration = int(data.get("song_duration", 10))
         answer_duration = int(data.get("answer_duration", 10))
-        
+        tur = data.get("tur", None)
+        if tur not in VALID_TURLER:
+            tur = None
+
         # Validasyon
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -224,7 +229,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             max_players = 2
         if dil not in ["tr", "yabanci", "karisik"]:
             dil = "karisik"
-        if total_songs not in [5, 10, 15, 20]:
+        if total_songs not in [5, 6, 10, 12, 15, 20, 25, 30]:
             total_songs = 10
         if song_duration not in [5, 10, 15, 20, 30]:
             song_duration = 10
@@ -244,6 +249,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             "total_songs": total_songs,
             "song_duration": song_duration,
             "answer_duration": answer_duration,
+            "tur": tur,
             "current_round": 0,
             "song_pool": [],
             "current_song": None,
@@ -266,7 +272,8 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             "dil": dil,
             "total_songs": total_songs,
             "song_duration": song_duration,
-            "answer_duration": answer_duration
+            "answer_duration": answer_duration,
+            "tur": tur
         })
         
         await send_sarki_lobby_update(rooms[new_code], broadcast)
@@ -386,13 +393,16 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             max_players = 2
         if dil not in ["tr", "yabanci", "karisik"]:
             dil = "karisik"
-        if total_songs not in [5, 10, 15, 20]:
+        if total_songs not in [5, 6, 10, 12, 15, 20, 25, 30]:
             total_songs = 10
         if song_duration not in [5, 10, 15, 20, 30]:
             song_duration = 10
         if answer_duration not in [5, 10, 15, 20, 30]:
             answer_duration = 10
-        
+        tur = data.get("tur", None)
+        if tur not in VALID_TURLER:
+            tur = None
+
         if max_players < len(room["players"]):
             await safe_send(websocket, {
                 "type": "error",
@@ -409,9 +419,11 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         room["total_songs"] = total_songs
         room["song_duration"] = song_duration
         room["answer_duration"] = answer_duration
-        
+        old_tur = room.get("tur")
+        room["tur"] = tur
+
         # ✨ Kritik ayar değiştiyse havuzu KOMPLE sıfırla + yeniden hazırla
-        if old_dil != dil or old_total != total_songs:
+        if old_dil != dil or old_total != total_songs or old_tur != tur:
             print(f"[SARKI] 🔄 Ayar değişti (dil: {old_dil}→{dil}, total: {old_total}→{total_songs}), havuz sıfırlanıyor")
             room["song_pool"] = []
             room["_pool_cache_key"] = None
@@ -475,6 +487,8 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         room["current_round"] = 0
         for pid in room["players"]:
             room["players"][pid]["score"] = 0
+            room["players"][pid]["correct_count"] = 0
+            room["players"][pid]["wrong_count"] = 0
         
         # Turn order: player id'lerini sırala
         room["turn_order"] = sorted(list(room["players"].keys()))
@@ -554,6 +568,8 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         room["player_answers"] = {}
         for pid in room["players"]:
             room["players"][pid]["score"] = 0
+            room["players"][pid]["correct_count"] = 0
+            room["players"][pid]["wrong_count"] = 0
         
         await broadcast(room, {"type": "sarki_back_to_lobby"})
         await send_sarki_lobby_update(room, broadcast)
@@ -731,6 +747,7 @@ async def start_sarki_round(room, safe_send, broadcast):
     # ✨ SONRA gerçek tur başlangıcı - şarkı çalmaya başla, timer aktif
     room["song_start_time"] = time.time()  # Sıfırla (intro sonrası)
     
+    song_tur = get_tur_of_artist(correct_song.get("artist", ""))
     await broadcast(room, {
         "type": "sarki_round_start",
         "round_no": room["current_round"],
@@ -741,7 +758,8 @@ async def start_sarki_round(room, safe_send, broadcast):
         "song_duration": room["song_duration"],
         "answer_duration": room["answer_duration"],
         "current_turn": current_turn_pid,
-        "current_turn_name": current_turn_name
+        "current_turn_name": current_turn_name,
+        "song_tur": song_tur
     })
     
     # Timer başlat: şarkı süresi + cevap süresi = toplam süre
@@ -868,6 +886,11 @@ async def show_round_result(room, safe_send, broadcast):
         
         old_score = current_pdata.get("score", 0)
         current_pdata["score"] = old_score + points
+        # ✨ Doğru/yanlış sayacı
+        if status in ("correct", "correct_fast"):
+            current_pdata["correct_count"] = current_pdata.get("correct_count", 0) + 1
+        else:
+            current_pdata["wrong_count"] = current_pdata.get("wrong_count", 0) + 1
         print(f"[SARKI] 💰 SKOR GÜNCELLENDİ: {current_pdata['name']}: {old_score} → {current_pdata['score']}")
         turn_result = {
             "player_id": current_turn_pid,
@@ -941,7 +964,9 @@ async def end_sarki_game(room, safe_send, broadcast):
         scores.append({
             "player_id": pid,
             "player_name": pdata["name"],
-            "score": pdata.get("score", 0)
+            "score": pdata.get("score", 0),
+            "correct_count": pdata.get("correct_count", 0),
+            "wrong_count": pdata.get("wrong_count", 0)
         })
     scores.sort(key=lambda x: x["score"], reverse=True)
     
