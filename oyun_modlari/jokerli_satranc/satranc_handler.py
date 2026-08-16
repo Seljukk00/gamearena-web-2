@@ -44,6 +44,7 @@ def make_satranc_room(code, host_name, settings=None):
         "satranc_clock_frozen_turn": {},# {pid: bool} (Zamanı Durdur: sadece bu tur saati akmaz)
         "satranc_yansima": {},          # {pid: bool} (Yansıma bufferı - rakibin joker'i geri döner)
         "satranc_sansur": {},           # {pid: turns_left} (Sansür - kullanılamaz)
+        "satranc_ignored": {},          # {square: {"owner": pid, "expires_move_count": N, "piece": {...}}} (Yok Say hayalet)
         "satranc_wants_white": [],      # [pid, ...] (Önce Başla jokerini kullananlar)
         "satranc_move_count": 0,        # Toplam hamle sayısı (efekt sayaçları için)
         "satranc_selected_slots": {},   # {pid: [joker_id, ...]} manuel seçim sırasında
@@ -354,7 +355,7 @@ async def handle_jokerli_satranc_message(
             room["satranc_time_mode"] = data["time_mode"]
         if "joker_count" in data:
             jc = int(data["joker_count"])
-            room["satranc_joker_count"] = max(1, min(6, jc))
+            room["satranc_joker_count"] = max(0, min(6, jc))
         if "pick_mode" in data and data["pick_mode"] in ("manuel", "karisik"):
             room["satranc_pick_mode"] = data["pick_mode"]
         if "pick_seconds" in data:
@@ -399,6 +400,14 @@ async def handle_jokerli_satranc_message(
         pick_mode = room.get("satranc_pick_mode", "karisik")
         pick_seconds = room.get("satranc_pick_seconds", 60)
         joker_count = room.get("satranc_joker_count", 3)
+
+        # ✨ Jokersiz mod → direkt oyuna başla
+        if joker_count == 0:
+            for pid in room["players"]:
+                room["satranc_jokers"][pid] = []
+                room["satranc_selection_done"][pid] = True
+            await _start_actual_game(room, broadcast, safe_send)
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
 
         import time as _time
         room["satranc_selection_deadline"] = _time.time() + pick_seconds
@@ -612,19 +621,16 @@ async def handle_jokerli_satranc_message(
         if not board:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
 
-        # Sıra kontrolü
         white_pid = room.get("satranc_white")
         black_pid = room.get("satranc_black")
-        expected_pid = white_pid if board.turn == chess.WHITE else black_pid
-
-        if player_id != expected_pid:
-            await safe_send(websocket, {"type": "error", "message": "Sıra sende değil!"})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
 
         uci_move = data.get("move", "")
         promotion = data.get("promotion", "q")
 
-        # ✨ JOKER KAYNAKLI PROMOSYON CEVABI - önce bunu kontrol et
+        # ✨ JOKER KAYNAKLI PROMOSYON CEVABI
+        # Not: bunu sıra kontrolünden ÖNCE yakalıyoruz.
+        # Çünkü ışınlanma / yer değiştir / rakibi ışınla sonrası promosyon seçimi,
+        # hamlenin devamı sayılıyor.
         pending_pre = room.get("satranc_pending_promotion")
         if pending_pre and pending_pre.get("pid") == player_id and pending_pre.get("source") in ("isinlan", "yer_degistir", "rakibi_isinla"):
             promo_map_pre = {"q": chess.QUEEN, "r": chess.ROOK, "b": chess.BISHOP, "n": chess.KNIGHT}
@@ -632,16 +638,30 @@ async def handle_jokerli_satranc_message(
             to_sq_name = pending_pre["to"]
             to_sq_idx = chess.parse_square(to_sq_name)
             my_color_promo = chess.WHITE if player_id == white_pid else chess.BLACK
+
             board.set_piece_at(to_sq_idx, chess.Piece(chosen_promo_pre, my_color_promo))
             room["satranc_pending_promotion"] = None
 
-            board_state_pre = board_to_dict(board)
-            piece_names_pre = {chess.QUEEN: "Vezir", chess.ROOK: "Kale",
-                                chess.BISHOP: "Fil", chess.KNIGHT: "At"}
-            piece_icons_pre = {chess.QUEEN: "♛", chess.ROOK: "♜",
-                                chess.BISHOP: "♝", chess.KNIGHT: "♞"}
+            # ✨ Joker hamlesi şimdi TAMAMLANMIŞ sayılır:
+            # önce dönüşüm olur, SONRA sıra rakibe geçer
+            board.turn = not board.turn
+            room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
+            decrement_effect_counters(room, mover_pid=player_id)
 
-            # Hamleyi rakibe geç (sıra zaten devroldu joker sırasında ama board.turn ayarlı)
+            board_state_pre = board_to_dict(board)
+            piece_names_pre = {
+                chess.QUEEN: "Vezir",
+                chess.ROOK: "Kale",
+                chess.BISHOP: "Fil",
+                chess.KNIGHT: "At"
+            }
+            piece_icons_pre = {
+                chess.QUEEN: "♛",
+                chess.ROOK: "♜",
+                chess.BISHOP: "♝",
+                chess.KNIGHT: "♞"
+            }
+
             await broadcast(room, {
                 "type": "satranc_board_update",
                 "board": board_state_pre,
@@ -659,7 +679,6 @@ async def handle_jokerli_satranc_message(
                 }
             })
 
-            # Sıra rakibe gönder
             opp_pid_promo = black_pid if player_id == white_pid else white_pid
             opp_ws_promo = room["players"].get(opp_pid_promo, {}).get("ws")
             if opp_ws_promo:
@@ -670,6 +689,13 @@ async def handle_jokerli_satranc_message(
                 })
 
             print(f"[SATRANC] Joker promosyon tamamlandı: {to_sq_name} → {promotion}")
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+        # Sıra kontrolü
+        expected_pid = white_pid if board.turn == chess.WHITE else black_pid
+
+        if player_id != expected_pid:
+            await safe_send(websocket, {"type": "error", "message": "Sıra sende değil!"})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
 
         # Hamleyi uygula
@@ -761,9 +787,35 @@ async def handle_jokerli_satranc_message(
                 room["satranc_pending_promotion"] = None
 
             if move not in board.legal_moves:
-                print(f"[SATRANC HAMLE HATA] Legal değil: {uci_move}, board turn: {board.turn}, promo: {promotion}")
-                await safe_send(websocket, {"type": "error", "message": "Geçersiz hamle!"})
-                return {"handled": True, "room_code": room_code, "player_id": player_id}
+                # ✨ Kalkanlı şah özel hamlesi olabilir - önce onu kontrol et
+                shielded_pre = room.get("satranc_shielded", {})
+                moving_p = board.piece_at(move.from_square)
+                is_shielded_king_move = (moving_p and moving_p.piece_type == chess.KING and 
+                                          chess.square_name(move.from_square) in shielded_pre)
+                
+                if not is_shielded_king_move:
+                    print(f"[SATRANC HAMLE HATA] Legal değil: {uci_move}, board turn: {board.turn}, promo: {promotion}")
+                    await safe_send(websocket, {"type": "error", "message": "Geçersiz hamle!"})
+                    return {"handled": True, "room_code": room_code, "player_id": player_id}
+                
+                # ✨ Kalkanlı şah ise: SADECE kalkanlı şah özel akışına düşsün
+                # Ama RAKIP ŞAH'ı yemeye çalışıyorsa engelle (şah yenilemez!)
+                target_at_dest = board.piece_at(move.to_square)
+                if target_at_dest and target_at_dest.piece_type == chess.KING:
+                    await safe_send(websocket, {"type": "error", "message": "Şahı yiyemezsin!"})
+                    return {"handled": True, "room_code": room_code, "player_id": player_id}
+                # Kalkanlı şah ise devam et (aşağıdaki kalkanlı şah bloğu yakalayacak)
+                
+            # ✨ HAYALET KARE KONTROLÜ (Yok Say jokeri)
+            # Hayalet karesine gidilemez (üzerinden geçilir ama üstünde durulamaz)
+            ignored_state = room.get("satranc_ignored", {})
+            to_sq_pre_check = chess.square_name(move.to_square)
+            if to_sq_pre_check in ignored_state:
+                await safe_send(websocket, {
+                    "type": "error",
+                    "message": "🚫 Bu kare hayalet! Üzerinden geçilir ama durulamaz."
+                })
+                return {"handled": True, "room_code": room_code, "player_id": player_id}    
 
             # ✨ EFEKT KONTROLLERİ
             from_sq = chess.square_name(move.from_square)
@@ -810,7 +862,7 @@ async def handle_jokerli_satranc_message(
                 })
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
 
-            # 2) Hedef kalkanlıysa (şah dahil), rakip yiyemez
+            # 2) Hedef kalkanlıysa, rakip yiyemez (şah dahil HER ŞEY korunur)
             if captured_piece and to_sq in shielded:
                 await safe_send(websocket, {
                     "type": "error",
@@ -824,14 +876,14 @@ async def handle_jokerli_satranc_message(
                 captured_invisible_owner = inv_owners_check.get(to_sq)
                 print(f"[SATRANC] Görünmez taş yendi! Kare={to_sq}, sahibi pid={captured_invisible_owner}")
 
-            # ✨ KİLİT KONTROLÜ (max 2 kare hareket)
+            # ✨ KİLİT KONTROLÜ (max 1 kare hareket)
             locked = room.get("satranc_locked", {})
             if from_sq in locked:
                 dist = chebyshev_distance(from_sq, to_sq)
-                if dist > 2:
+                if dist > 1:
                     await safe_send(websocket, {
                         "type": "error",
-                        "message": f"⛓️ Bu taş kilitli! Max 2 kare gidebilir ({locked[from_sq]} tur kaldı)."
+                        "message": f"⛓️ Bu taş kilitli! Sadece 1 kare gidebilir ({locked[from_sq]} tur kaldı)."
                     })
                     return {"handled": True, "room_code": room_code, "player_id": player_id}
 
@@ -864,7 +916,7 @@ async def handle_jokerli_satranc_message(
                             # Hızlı Kaçış efektini kaldır
                             hizli_kacis.pop(player_id, None)
                             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-                            decrement_effect_counters(room)
+                            decrement_effect_counters(room, mover_pid=player_id)
                             # Efekt taşı
                             for effect_key in ["satranc_shielded", "satranc_frozen", "satranc_invisible", "satranc_locked"]:
                                 effects = room.get(effect_key, {})
@@ -922,7 +974,7 @@ async def handle_jokerli_satranc_message(
                     board.turn = not board.turn
                     san_move = f"K{to_sq}(Kalkan)"
                     room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-                    decrement_effect_counters(room)
+                    decrement_effect_counters(room, mover_pid=player_id)
                     # Kalkan efekti şaha ait, from_sq → to_sq taşınmalı
                     for effect_key in ["satranc_shielded", "satranc_frozen", "satranc_invisible", "satranc_locked"]:
                         effects = room.get(effect_key, {})
@@ -943,9 +995,34 @@ async def handle_jokerli_satranc_message(
                         if player_id in clocks_sh:
                             clocks_sh[player_id] += tm_sh["increment"]
 
+                    print(f"[SATRANC KALKAN ŞAH] Hamle sonrası shielded: {room.get('satranc_shielded', {})}")
+                    # ✨ İKİ HAMLE KONTROLÜ (kalkanlı şah da aynı taşla 2. hamle yapabilmeli)
+                    iki_hamle_2nd_shield = False
+                    same_piece_double_sh = room.get("satranc_same_piece_double", {})
+                    same_piece_state_sh = same_piece_double_sh.get(player_id)
+                    extra_move_sh = room.get("satranc_extra_move", {})
+                    
+                    if same_piece_state_sh and same_piece_state_sh.get("active"):
+                        required_from_sh = same_piece_state_sh.get("required_from")
+                        if not required_from_sh:
+                            # İlk hamle bitti, ikinci hamle aynı taşla
+                            same_piece_state_sh["required_from"] = to_sq
+                            board.turn = not board.turn  # Sıra tekrar bende
+                            san_move += " (+aynı taş)"
+                            iki_hamle_2nd_shield = True
+                        else:
+                            # 2. hamle de yapıldı
+                            same_piece_double_sh.pop(player_id, None)
+                    elif extra_move_sh.get(player_id):
+                        board.turn = not board.turn  # Sıra tekrar bende
+                        extra_move_sh.pop(player_id, None)
+                        san_move += " (+1)"
+                        iki_hamle_2nd_shield = True
+
                     board_state = board_to_dict(board)
                     next_pid = black_pid if player_id == white_pid else white_pid
                     next_legal = get_legal_moves(board)
+                    
                     await broadcast(room, {
                         "type": "satranc_board_update",
                         "board": board_state,
@@ -955,14 +1032,26 @@ async def handle_jokerli_satranc_message(
                         "clocks": {str(p): room["satranc_clocks"].get(p, 0) for p in room["satranc_clocks"]},
                         "effects": get_effect_state(room),
                         "captured_pieces": get_captured_pieces_payload(room),
+                        "iki_hamle_active": iki_hamle_2nd_shield,
                     })
-                    next_ws = room["players"].get(next_pid, {}).get("ws")
-                    if next_ws:
-                        await safe_send(next_ws, {
-                            "type": "satranc_your_turn",
-                            "legal_moves": next_legal,
-                            "is_check": board.is_check(),
-                        })
+                    
+                    if iki_hamle_2nd_shield:
+                        # Sıra hâlâ bende
+                        my_ws_sh = room["players"].get(player_id, {}).get("ws")
+                        if my_ws_sh:
+                            await safe_send(my_ws_sh, {
+                                "type": "satranc_your_turn",
+                                "legal_moves": next_legal,
+                                "is_check": board.is_check(),
+                            })
+                    else:
+                        next_ws = room["players"].get(next_pid, {}).get("ws")
+                        if next_ws:
+                            await safe_send(next_ws, {
+                                "type": "satranc_your_turn",
+                                "legal_moves": next_legal,
+                                "is_check": board.is_check(),
+                            })
                     return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # Yenilen taşı kaydet (push'tan ÖNCE)
@@ -979,7 +1068,33 @@ async def handle_jokerli_satranc_message(
 
             # Hamle sayacı artır + efekt sayaçlarını azalt
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
+            
+            # ✨ HAYALET TAŞLARI GERİ GETİR (Yok Say jokeri - süresi dolanları)
+            ignored_state = room.get("satranc_ignored", {})
+            current_mc = room.get("satranc_move_count", 0)
+            expired_ignored = []
+            for ig_sq, ig_data in list(ignored_state.items()):
+                if current_mc >= ig_data.get("expires_move_count", 0):
+                    # Süresi doldu, taşı geri getir (eğer o kare boşsa)
+                    try:
+                        ig_sq_idx = chess.parse_square(ig_sq)
+                        if board.piece_at(ig_sq_idx) is None:
+                            # Kare boş, taşı geri koy
+                            restored_piece = chess.Piece(
+                                ig_data["piece_type"],
+                                chess.WHITE if ig_data["piece_color"] == "w" else chess.BLACK
+                            )
+                            board.set_piece_at(ig_sq_idx, restored_piece)
+                            print(f"[SATRANC YOKSAY] {ig_sq} hayalet süresi doldu, taş geri geldi")
+                        else:
+                            # Kareye başka taş taşınmış, geri gelemiyor
+                            print(f"[SATRANC YOKSAY] {ig_sq} hayalet süresi doldu ama kare dolu, taş yok oldu")
+                    except Exception as e:
+                        print(f"[SATRANC YOKSAY GERİ GETİRME HATA] {e}")
+                    expired_ignored.append(ig_sq)
+            for ig_sq in expired_ignored:
+                del ignored_state[ig_sq]
 
             # ✨ Sansür sayacı azalt (hamle sahibi için)
             sansur_state = room.get("satranc_sansur", {})
@@ -996,10 +1111,17 @@ async def handle_jokerli_satranc_message(
                 if to_sq in room.get("satranc_invisible_owners", {}):
                     del room["satranc_invisible_owners"][to_sq]
 
-            # Taşın taşındığı efektleri güncelle (kaynak → hedef)
-            if captured_piece and to_sq in room.get("satranc_ajan_disguised", {}):
-                del room["satranc_ajan_disguised"][to_sq]
+            # ✨ Hedef karede kilitli/kalkanlı/donmuş taş varsa ve YENİLDİYSE efekti sil
+            if captured_piece:
+                for eff_key_kill in ["satranc_shielded", "satranc_frozen", "satranc_locked"]:
+                    eff_dict_kill = room.get(eff_key_kill, {})
+                    if to_sq in eff_dict_kill:
+                        del eff_dict_kill[to_sq]
+                        print(f"[SATRANC EFEKT SİLİNDİ] {eff_key_kill}: {to_sq} (taş yenildi)")
+                if to_sq in room.get("satranc_ajan_disguised", {}):
+                    del room["satranc_ajan_disguised"][to_sq]
 
+            # Taşın taşındığı efektleri güncelle (kaynak → hedef)
             for effect_key in ["satranc_shielded", "satranc_frozen", "satranc_invisible", "satranc_locked", "satranc_ajan_disguised"]:
                 effects = room.get(effect_key, {})
                 if from_sq in effects:
@@ -1055,6 +1177,16 @@ async def handle_jokerli_satranc_message(
             for fr_sq in expired_frozen:
                 del fr_dict[fr_sq]
                 print(f"[SATRANC FROZEN BİTTİ] {fr_sq}")
+
+            # ✨ KİLİTLİ TAŞLAR - SADECE o kilitli taş hareket ederse sayaç düşer
+            # Not: efekt yukarıda from_sq → to_sq taşındı, yani to_sq'da locked varsa hareket etmiş demektir
+            lk_dict = room.get("satranc_locked", {})
+            if to_sq in lk_dict:
+                lk_dict[to_sq] -= 1
+                print(f"[SATRANC LOCKED SAYAÇ] {to_sq}: {lk_dict[to_sq]} tur kaldı")
+                if lk_dict[to_sq] <= 0:
+                    del lk_dict[to_sq]
+                    print(f"[SATRANC LOCKED BİTTİ] {to_sq}")
 
             # ✨ AJAN SAYACI - SADECE ajan taşı hareket edince azalsın
             # Not: efekt yukarıda from_sq -> to_sq taşındı, yani to_sq'da ajan varsa hareket etmiş demektir
@@ -1723,6 +1855,74 @@ async def handle_jokerli_satranc_message(
 
             print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Karşılıklı Ekstra Joker")
             return {"handled": True, "room_code": room_code, "player_id": player_id}
+            
+        # ==========================================
+        # 📦 KASA - CS:GO tarzı kasa aç, rastgele joker
+        # ==========================================
+        if joker_id == "kasa":
+            # Havuzdan rastgele joker seç
+            exclude_set = {"kasa", "once_basla"}
+            time_mode_check = room.get("satranc_time_mode", "blitz")
+            if time_mode_check == "suresiz":
+                exclude_set.update({"zaman_cal", "zamani_durdur", "ekstra_sure"})
+
+            current_jokers = room["satranc_jokers"].get(player_id, [])
+            already_have = set(current_jokers)
+
+            # Sahip olmadığın implemented jokerler
+            available = [j for j in JOKERS
+                         if j["id"] not in already_have
+                         and j["id"] not in exclude_set
+                         and j.get("implemented", False)]
+
+            if not available:
+                # Hepsine sahipsen sahip olduklarından ver
+                available = [j for j in JOKERS
+                             if j["id"] not in exclude_set
+                             and j.get("implemented", False)]
+
+            if not available:
+                await safe_send(websocket, {
+                    "type": "error",
+                    "message": "📦 Kasada verilecek joker kalmadı!"
+                })
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            # Sonucu belirle
+            winner_joker = random.choice(available)
+            winner_info = get_public_joker_info(winner_joker["id"])
+
+            # Animasyon için "rulet listesi" hazırla (25-30 kart)
+            # Ortadaki (index 20) kazanan olacak
+            reel_size = 25
+            winner_index = 20  # Ortada duracak
+            reel = []
+            for i in range(reel_size):
+                if i == winner_index:
+                    reel.append(winner_info)
+                else:
+                    # Rastgele başka jokerler (görsel için)
+                    rand_j = random.choice(JOKERS)
+                    reel.append(get_public_joker_info(rand_j["id"]))
+
+            # Yeni jokeri oyuncuya ver
+            current_jokers.append(winner_joker["id"])
+            room["satranc_jokers"][player_id] = current_jokers
+
+            used.append(joker_id)
+
+            # Herkese kasa animasyonu gönder (rakip de izler)
+            await broadcast(room, {
+                "type": "satranc_kasa_animation",
+                "reel": reel,
+                "winner_index": winner_index,
+                "winner_joker": winner_info,
+                "user_id": player_id,
+                "user_name": room["players"][player_id]["name"],
+            })
+
+            print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Kasa açtı: {winner_joker['id']}")
+            return {"handled": True, "room_code": room_code, "player_id": player_id}    
 
         # ==========================================
         # 👁️ JOKER GÖR
@@ -2139,7 +2339,7 @@ async def handle_jokerli_satranc_message(
             # Hamle sayılır - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             piece_names_tr = {"q": "Vezir", "r": "Kale", "b": "Fil", "n": "At", "p": "Piyon"}
@@ -2278,7 +2478,7 @@ async def handle_jokerli_satranc_message(
             # ✨ Sansür HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
 
@@ -2465,7 +2665,65 @@ async def handle_jokerli_satranc_message(
             "type": "error",
             "message": "Bu joker için efekt bulunamadı."
         })
-        return {"handled": True, "room_code": room_code, "player_id": player_id}  
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+    # ----------------------------------------
+    # JOKER HEDEF SORGULAMA (Dinamik Yasaklama)
+    # ----------------------------------------
+    if msg_type == "satranc_query_joker_targets":
+        joker_id = data.get("joker_id")
+        target1 = data.get("target1") # ilk seçilen kare
+        
+        room = rooms.get(room_code)
+        if not room or not target1: return {"handled": True}
+        
+        board = room.get("satranc_game")
+        if not board: return {"handled": True}
+        
+        white_pid = room.get("satranc_white")
+        my_color = chess.WHITE if player_id == white_pid else chess.BLACK
+        
+        valid_targets = []
+        
+        if joker_id == "rakibi_isinla":
+            # Target1 zaten seçildi, hangi Target2'ler şahı tehlikeye atmaz?
+            t1_sq = chess.parse_square(target1)
+            t1_piece = board.piece_at(t1_sq)
+            
+            for sq_idx in chess.SQUARES:
+                t2_piece = board.piece_at(sq_idx)
+                # Kriterler: Boş olmamalı, Şah olmamalı, Target1 ile aynı olmamalı
+                if not t2_piece or t2_piece.piece_type == chess.KING or sq_idx == t1_sq:
+                    continue
+                
+                # En az biri rakip taş olmalı
+                if t1_piece.color == my_color and t2_piece.color == my_color:
+                    continue
+                
+                # SİMÜLASYON: Yer değiştirince şah tehlikeye giriyor mu?
+                board.remove_piece_at(t1_sq)
+                board.remove_piece_at(sq_idx)
+                board.set_piece_at(t1_sq, t2_piece)
+                board.set_piece_at(sq_idx, t1_piece)
+                
+                temp_turn = board.turn
+                board.turn = my_color
+                if not board.is_check():
+                    valid_targets.append(chess.square_name(sq_idx))
+                board.turn = temp_turn
+                
+                # GERİ AL
+                board.remove_piece_at(t1_sq)
+                board.remove_piece_at(sq_idx)
+                board.set_piece_at(t1_sq, t1_piece)
+                board.set_piece_at(sq_idx, t2_piece)
+
+        await safe_send(websocket, {
+            "type": "satranc_joker_valid_targets",
+            "joker_id": joker_id,
+            "valid_targets": valid_targets
+        })
+        return {"handled": True, "room_code": room_code, "player_id": player_id}        
 
     # ----------------------------------------
     # HEDEFLİ JOKER KULLAN (kare seçimli)
@@ -2537,6 +2795,34 @@ async def handle_jokerli_satranc_message(
 
         target1_piece = board.piece_at(target1_sq)
 
+        # ✨ EFEKT ÇAKIŞMA KONTROLÜ — bir taşta zaten aktif efekt varsa yeni efekt eklenemez
+        # Klon jokeri de aynı listede: efektli taş klonlanamaz
+        efekt_jokerler = ["kalkan", "dondur", "kilitle", "gorunmez", "ajan", "klon"]
+        if joker_id in efekt_jokerler:
+            has_shield = target1 in room.get("satranc_shielded", {})
+            has_frozen = target1 in room.get("satranc_frozen", {})
+            has_locked = target1 in room.get("satranc_locked", {})
+            has_invisible = target1 in room.get("satranc_invisible", {})
+            has_ajan = target1 in room.get("satranc_ajan_disguised", {})
+
+            active_effects = []
+            if has_shield: active_effects.append("🛡️ Kalkan")
+            if has_frozen: active_effects.append("🧊 Dondur")
+            if has_locked: active_effects.append("⛓️ Kilitle")
+            if has_invisible: active_effects.append("🧙 Görünmez")
+            if has_ajan: active_effects.append("🕵️ Ajan")
+
+            if active_effects:
+                effect_list = ", ".join(active_effects)
+                extra_msg = "Önce süresi bitsin!"
+                if joker_id == "klon":
+                    extra_msg = "Efektli taşlar klonlanamaz!"
+                await safe_send(websocket, {
+                    "type": "error",
+                    "message": f"⚠️ Bu taşta zaten aktif efekt var: {effect_list}. {extra_msg}"
+                })
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
         # ==========================================
         # 👑 VEZİRE YÜKSELT - HAMLE SAYILIR
         # ==========================================
@@ -2558,7 +2844,7 @@ async def handle_jokerli_satranc_message(
 
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             board_state = board_to_dict(board)
             next_legal = get_legal_moves(board)
@@ -2608,7 +2894,7 @@ async def handle_jokerli_satranc_message(
             # ✨ Kalkan HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_kl = black_pid if player_id == white_pid else white_pid
@@ -2671,13 +2957,13 @@ async def handle_jokerli_satranc_message(
                     print(f"[SATRANC YANSIMA] Dondur yansıdı! Yeni hedef: {target1}")
 
             frozen = room.setdefault("satranc_frozen", {})
-            frozen[target1] = 2  # 2 tur (rakip başka taşla oynayınca -1)
+            frozen[target1] = 3  # 3 tur
             used.append(joker_id)
 
             # ✨ Dondur HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_d = black_pid if player_id == white_pid else white_pid
@@ -2750,26 +3036,42 @@ async def handle_jokerli_satranc_message(
                 target2_rank = chess.square_rank(target2_sq)
                 if (my_color == chess.WHITE and target2_rank == 7) or \
                    (my_color == chess.BLACK and target2_rank == 0):
-                    # Promosyon menüsü gönder (sıra devri promosyon sonrası olacak)
                     my_captured = room.get("satranc_captured_pieces", {}).get(player_id, [])
-                    await safe_send(websocket, {
-                        "type": "satranc_promotion_needed",
-                        "from": target1,
-                        "to": target2,
-                        "captured_pieces": my_captured,
-                    })
+
                     room["satranc_pending_promotion"] = {
                         "pid": player_id,
                         "from": target1,
                         "to": target2,
                         "source": "isinlan"
                     }
+
+                    await broadcast(room, {
+                        "type": "satranc_joker_used",
+                        "joker_id": joker_id,
+                        "joker_name": joker_info["name"],
+                        "joker_icon": joker_info["icon"],
+                        "user_id": player_id,
+                        "user_name": room["players"][player_id]["name"],
+                        "message": f"{room['players'][player_id]['name']} taşını ışınladı! 🔮 ({target1} → {target2}) - Promosyon seçiliyor.",
+                        "board": board_to_dict(board),
+                        "effects": get_effect_state(room),
+                        "captured_pieces": get_captured_pieces_payload(room),
+                    })
+
+                    await safe_send(websocket, {
+                        "type": "satranc_promotion_needed",
+                        "from": target1,
+                        "to": target2,
+                        "captured_pieces": my_captured,
+                    })
+
                     print(f"[SATRANC] Işınlama sonrası piyon promosyon isteniyor: {target2}")
+                    return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # ✨ Işınlanma HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_is = black_pid if player_id == white_pid else white_pid
@@ -2812,6 +3114,50 @@ async def handle_jokerli_satranc_message(
             # ✨ Kendi taşına atılamasın
             if target1_piece.color == my_color:
                 await safe_send(websocket, {"type": "error", "message": "💣 Kendi taşına bomba atamazsın!"})
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            # ✨ KALKANLI TAŞA BOMBA → taş patlamaz, kalkan 1 azalır
+            shielded_bomb = room.get("satranc_shielded", {})
+            if target1 in shielded_bomb:
+                shielded_bomb[target1] -= 1
+                shield_msg = ""
+                if shielded_bomb[target1] <= 0:
+                    del shielded_bomb[target1]
+                    shield_msg = "Kalkan kırıldı!"
+                else:
+                    shield_msg = f"Kalkan dayanıyor! ({shielded_bomb[target1]} tur kaldı)"
+
+                used.append(joker_id)
+
+                board.turn = not board.turn
+                room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
+                decrement_effect_counters(room, mover_pid=player_id)
+
+                opp_pid_bs = black_pid if player_id == white_pid else white_pid
+
+                await broadcast(room, {
+                    "type": "satranc_joker_used",
+                    "joker_id": joker_id,
+                    "joker_name": joker_info["name"],
+                    "joker_icon": joker_info["icon"],
+                    "user_id": player_id,
+                    "user_name": room["players"][player_id]["name"],
+                    "message": f"💣 {room['players'][player_id]['name']} bomba attı ama 🛡️ kalkan korudu! {shield_msg} Sıra rakipte.",
+                    "board": board_to_dict(board),
+                    "explosion_square": target1,
+                    "effects": get_effect_state(room),
+                    "captured_pieces": get_captured_pieces_payload(room),
+                })
+
+                opp_ws_bs = room["players"].get(opp_pid_bs, {}).get("ws")
+                if opp_ws_bs:
+                    await safe_send(opp_ws_bs, {
+                        "type": "satranc_your_turn",
+                        "legal_moves": get_legal_moves(board),
+                        "is_check": board.is_check(),
+                    })
+
+                print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Bomba vs Kalkan ({target1}) - {shield_msg}")
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # Taş bilgisi
@@ -2894,7 +3240,7 @@ async def handle_jokerli_satranc_message(
             # ✨ Sırayı rakibe geçir (Bomba hamle sayılır)
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             board_state = board_to_dict(board)
             next_legal = get_legal_moves(board)
@@ -2966,7 +3312,7 @@ async def handle_jokerli_satranc_message(
             # ✨ Klon HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_k = black_pid if player_id == white_pid else white_pid
@@ -3026,7 +3372,7 @@ async def handle_jokerli_satranc_message(
             # ✨ Görünmez HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
 
@@ -3094,16 +3440,15 @@ async def handle_jokerli_satranc_message(
                 await safe_send(websocket, {"type": "error", "message": "Geçersiz taş türü."})
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
             if not target1_piece:
-                await safe_send(websocket, {"type": "error", "message": "Kendi taşını seç!"})
-                return {"handled": True, "room_code": room_code, "player_id": player_id}
-            if target1_piece.color != my_color:
-                await safe_send(websocket, {"type": "error", "message": "Kendi taşını seç!"})
+                await safe_send(websocket, {"type": "error", "message": "Bir taş seç!"})
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
             if target1_piece.piece_type == chess.KING:
                 await safe_send(websocket, {"type": "error", "message": "Şahı dönüştüremezsin!"})
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
 
-            board.set_piece_at(target1_sq, chess.Piece(type_map[new_type], my_color))
+            # Kendi veya rakip taşı dönüştürebilir (şah hariç)
+            piece_color = target1_piece.color
+            board.set_piece_at(target1_sq, chess.Piece(type_map[new_type], piece_color))
             used.append(joker_id)
 
             type_names = {"q": "Vezir", "r": "Kale", "b": "Fil", "n": "At", "p": "Piyon"}
@@ -3113,7 +3458,7 @@ async def handle_jokerli_satranc_message(
 
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             board_state = board_to_dict(board)
             next_legal = get_legal_moves(board)
@@ -3221,7 +3566,7 @@ async def handle_jokerli_satranc_message(
 
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             board_state = board_to_dict(board)
             next_legal = get_legal_moves(board)
@@ -3326,38 +3671,67 @@ async def handle_jokerli_satranc_message(
 
             used.append(joker_id)
 
-            # ✨ PIYON PROMOSYON - kendi piyonum son sıraya geldiyse
+            # ✨ PIYON PROMOSYON - kendi VEYA rakibin piyonu son sıraya geldiyse
             promo_needed_sq = None
             promo_from_sq = None
+            promo_owner_pid = None
+            promo_owner_ws = None
+            promo_captured = []
+
             for check_sq_name, check_sq_idx in [(target1, target1_sq), (target2, target2_sq)]:
                 p_at = board.piece_at(check_sq_idx)
-                if p_at and p_at.piece_type == chess.PAWN and p_at.color == my_color:
-                    rank = chess.square_rank(check_sq_idx)
-                    if (my_color == chess.WHITE and rank == 7) or (my_color == chess.BLACK and rank == 0):
-                        promo_needed_sq = check_sq_name
-                        promo_from_sq = target2 if check_sq_name == target1 else target1
-                        break
+                if not p_at or p_at.piece_type != chess.PAWN:
+                    continue
 
-            if promo_needed_sq:
-                my_captured = room.get("satranc_captured_pieces", {}).get(player_id, [])
-                await safe_send(websocket, {
+                rank = chess.square_rank(check_sq_idx)
+                if (p_at.color == chess.WHITE and rank == 7) or (p_at.color == chess.BLACK and rank == 0):
+                    promo_needed_sq = check_sq_name
+                    promo_from_sq = target2 if check_sq_name == target1 else target1
+                    # Piyonun sahibi kim?
+                    promo_owner_pid = white_pid if p_at.color == chess.WHITE else black_pid
+                    promo_owner_ws = room["players"].get(promo_owner_pid, {}).get("ws")
+                    promo_captured = room.get("satranc_captured_pieces", {}).get(promo_owner_pid, [])
+                    break
+
+            if promo_needed_sq and promo_owner_pid and promo_owner_ws:
+                room["satranc_pending_promotion"] = {
+                    "pid": promo_owner_pid,
+                    "from": promo_from_sq,
+                    "to": promo_needed_sq,
+                    "source": "rakibi_isinla",
+                    "initiator_pid": player_id,
+                }
+
+                bekleme_text = "Promosyon seçiliyor." if promo_owner_pid == player_id else "Rakip promosyon seçiyor."
+
+                await broadcast(room, {
+                    "type": "satranc_joker_used",
+                    "joker_id": joker_id,
+                    "joker_name": joker_info["name"],
+                    "joker_icon": joker_info["icon"],
+                    "user_id": player_id,
+                    "user_name": room["players"][player_id]["name"],
+                    "message": f"⚡ {room['players'][player_id]['name']} Rakibi Işınla! ({target1} ↔ {target2}) - {bekleme_text}",
+                    "board": board_to_dict(board),
+                    "effects": get_effect_state(room),
+                    "captured_pieces": get_captured_pieces_payload(room),
+                })
+
+                # Popup piyonun SAHİBİNE gönderilir (sen de olabilir, rakip de)
+                await safe_send(promo_owner_ws, {
                     "type": "satranc_promotion_needed",
                     "from": promo_from_sq,
                     "to": promo_needed_sq,
-                    "captured_pieces": my_captured,
+                    "captured_pieces": promo_captured,
                 })
-                room["satranc_pending_promotion"] = {
-                    "pid": player_id,
-                    "from": promo_from_sq,
-                    "to": promo_needed_sq,
-                    "source": "rakibi_isinla"
-                }
-                print(f"[SATRANC] Rakibi Işınla sonrası piyon promosyon: {promo_needed_sq}")
+
+                print(f"[SATRANC] Rakibi Işınla sonrası piyon promosyon: {promo_needed_sq} | owner_pid={promo_owner_pid}")
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # Hamle sayılır - sıra rakibe
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_ri = black_pid if player_id == white_pid else white_pid
@@ -3442,24 +3816,41 @@ async def handle_jokerli_satranc_message(
 
             if promo_needed_sq:
                 my_captured = room.get("satranc_captured_pieces", {}).get(player_id, [])
-                await safe_send(websocket, {
-                    "type": "satranc_promotion_needed",
-                    "from": promo_from_sq,
-                    "to": promo_needed_sq,
-                    "captured_pieces": my_captured,
-                })
+
                 room["satranc_pending_promotion"] = {
                     "pid": player_id,
                     "from": promo_from_sq,
                     "to": promo_needed_sq,
                     "source": "yer_degistir"
                 }
+
+                await broadcast(room, {
+                    "type": "satranc_joker_used",
+                    "joker_id": joker_id,
+                    "joker_name": joker_info["name"],
+                    "joker_icon": joker_info["icon"],
+                    "user_id": player_id,
+                    "user_name": room["players"][player_id]["name"],
+                    "message": f"{room['players'][player_id]['name']} taşlarının yerini değiştirdi! 🌀 ({target1} ↔ {target2}) - Promosyon seçiliyor.",
+                    "board": board_to_dict(board),
+                    "effects": get_effect_state(room),
+                    "captured_pieces": get_captured_pieces_payload(room),
+                })
+
+                await safe_send(websocket, {
+                    "type": "satranc_promotion_needed",
+                    "from": promo_from_sq,
+                    "to": promo_needed_sq,
+                    "captured_pieces": my_captured,
+                })
+
                 print(f"[SATRANC] Yer Değiştir sonrası piyon promosyon: {promo_needed_sq}")
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # ✨ Yer Değiştir HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_y = black_pid if player_id == white_pid else white_pid
@@ -3521,13 +3912,13 @@ async def handle_jokerli_satranc_message(
                     print(f"[SATRANC YANSIMA] Kilitle yansıdı! Yeni hedef: {target1}")
 
             locked = room.setdefault("satranc_locked", {})
-            locked[target1] = 3  # 3 tur
+            locked[target1] = 3  # 3 tur - sadece kilitli taşın sahibi oynayınca düşer
             used.append(joker_id)
 
             # ✨ Kilitle HAMLE SAYILIR - sıra rakibe geç
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             new_legal_moves = get_legal_moves(board)
             opp_pid_kl = black_pid if player_id == white_pid else white_pid
@@ -3539,7 +3930,7 @@ async def handle_jokerli_satranc_message(
                 "joker_icon": joker_info["icon"],
                 "user_id": player_id,
                 "user_name": room["players"][player_id]["name"],
-                "message": f"{room['players'][player_id]['name']} rakip taşını kilitledi! ⛓️ 3 tur max 2 kare gidebilir. Sıra rakipte.",
+                "message": f"{room['players'][player_id]['name']} rakip taşını kilitledi! ⛓️ 3 tur sadece 1 kare gidebilir. Sıra rakipte.",
                 "target": target1,
                 "board": board_to_dict(board),
                 "effects": get_effect_state(room),
@@ -3556,6 +3947,143 @@ async def handle_jokerli_satranc_message(
 
             print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Kilitle ({target1}) - sıra rakibe")
             return {"handled": True, "room_code": room_code, "player_id": player_id}
+            
+        # ==========================================
+        # 🚫 TAŞI YOK SAY (hayalet - üzerinden geçilir, yenmez)
+        # ==========================================
+        if joker_id == "yoksay":
+            if not target1_piece:
+                await safe_send(websocket, {"type": "error", "message": "🚫 Bir taş seç!"})
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            if target1_piece.piece_type == chess.KING:
+                await safe_send(websocket, {"type": "error", "message": "🚫 Şahı yok sayamazsın!"})
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            # ✨ Şahtayken kullanılamaz
+            if board.is_check():
+                await safe_send(websocket, {"type": "error", "message": "🚫 Şahtayken bu joker kullanılamaz!"})
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            # ✨ Zaten hayaletse engelle
+            if target1 in room.get("satranc_ignored", {}):
+                await safe_send(websocket, {"type": "error", "message": "🚫 Bu taş zaten hayalet!"})
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            # Taş bilgisini kaydet (geri getirmek için)
+            piece_symbol_saved = target1_piece.symbol()
+            piece_color_saved = target1_piece.color
+            piece_type_saved = target1_piece.piece_type
+
+            # ✨ Taşı geçici sil (hayalet efekti)
+            board.remove_piece_at(target1_sq)
+
+            # ✨ Ignored state'e kaydet - bir sonraki hamleden sonra geri gelecek
+            ignored_state = room.setdefault("satranc_ignored", {})
+            current_move_count = room.get("satranc_move_count", 0)
+            ignored_state[target1] = {
+                "owner": player_id,
+                "expires_move_count": current_move_count + 1,  # 1 half-move sonra
+                "piece_symbol": piece_symbol_saved,
+                "piece_color": "w" if piece_color_saved == chess.WHITE else "b",
+                "piece_type": piece_type_saved,
+            }
+
+            used.append(joker_id)
+
+            # ✨ Şah kontrolü - taş silindikten SONRA şah var mı?
+            white_pid_ys = room.get("satranc_white")
+            black_pid_ys = room.get("satranc_black")
+            opp_pid_ys = black_pid_ys if player_id == white_pid_ys else white_pid_ys
+            my_color_ys = chess.WHITE if player_id == white_pid_ys else chess.BLACK
+
+            # Şu an sıra bende, board.turn = my_color
+            # Şah kontrolü: rakibin şahı tehdit altında mı? (yani ben şah çektim mi?)
+            temp_board_check = board.copy()
+            temp_board_check.turn = not my_color_ys  # rakip sırası varmış gibi
+            opp_in_check = temp_board_check.is_check()
+
+            # Kendi şahım tehdit altında mı? (yansıma etkisi - yok sayınca kendi şahım açığa çıktı)
+            temp_board_check2 = board.copy()
+            temp_board_check2.turn = my_color_ys
+            my_in_check = temp_board_check2.is_check()
+
+            any_check = opp_in_check or my_in_check
+
+            piece_names_ys = {
+                chess.PAWN: "Piyon", chess.ROOK: "Kale", chess.KNIGHT: "At",
+                chess.BISHOP: "Fil", chess.QUEEN: "Vezir"
+            }
+            piece_name_ys = piece_names_ys.get(piece_type_saved, "Taş")
+
+            if any_check:
+                # ✨ Şah oluştu → sıra karşıya geç
+                board.turn = not board.turn
+                room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
+                decrement_effect_counters(room, mover_pid=player_id)
+
+                # Ignored expires güncelle (move_count değişti)
+                ignored_state[target1]["expires_move_count"] = room["satranc_move_count"]
+
+                board_state = board_to_dict(board)
+                next_legal = get_legal_moves(board)
+
+                check_msg = "Rakibe şah çekildi!" if opp_in_check else "KENDİ şahın açığa çıktı!"
+
+                await broadcast(room, {
+                    "type": "satranc_joker_used",
+                    "joker_id": joker_id,
+                    "joker_name": joker_info["name"],
+                    "joker_icon": joker_info["icon"],
+                    "user_id": player_id,
+                    "user_name": room["players"][player_id]["name"],
+                    "message": f"🚫 {room['players'][player_id]['name']} {piece_name_ys}'i hayalet yaptı! ({target1}) {check_msg} Sıra rakipte.",
+                    "board": board_state,
+                    "target": target1,
+                    "ignored_squares": list(ignored_state.keys()),
+                    "effects": get_effect_state(room),
+                })
+
+                opp_ws = room["players"].get(opp_pid_ys, {}).get("ws")
+                if opp_ws:
+                    await safe_send(opp_ws, {
+                        "type": "satranc_your_turn",
+                        "legal_moves": next_legal,
+                        "is_check": board.is_check(),
+                    })
+
+                print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Taşı Yok Say ({target1}) ŞAH! - sıra rakibe")
+            else:
+                # ✨ Şah yok → sıra bende kalıyor, hamlemi yapabilirim
+                board_state = board_to_dict(board)
+                my_legal = get_legal_moves(board)
+
+                await broadcast(room, {
+                    "type": "satranc_joker_used",
+                    "joker_id": joker_id,
+                    "joker_name": joker_info["name"],
+                    "joker_icon": joker_info["icon"],
+                    "user_id": player_id,
+                    "user_name": room["players"][player_id]["name"],
+                    "message": f"🚫 {room['players'][player_id]['name']} {piece_name_ys}'i hayalet yaptı! ({target1}) - Hâlâ sırası, hamle yapacak.",
+                    "board": board_state,
+                    "target": target1,
+                    "ignored_squares": list(ignored_state.keys()),
+                    "effects": get_effect_state(room),
+                })
+
+                # Sıra bende, kendi legal moves'umu ben alırım
+                my_ws_ys = room["players"].get(player_id, {}).get("ws")
+                if my_ws_ys:
+                    await safe_send(my_ws_ys, {
+                        "type": "satranc_your_turn",
+                        "legal_moves": my_legal,
+                        "is_check": board.is_check(),
+                    })
+
+                print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Taşı Yok Say ({target1}) - sıra bende")
+
+            return {"handled": True, "room_code": room_code, "player_id": player_id}    
 
         # ==========================================
         # 🕵️ AJAN (kendi taşını seç → görsel olarak rakip rengine döner, kontrol sende)
@@ -3588,7 +4116,7 @@ async def handle_jokerli_satranc_message(
             # Sırayı rakibe geçir
             board.turn = not board.turn
             room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-            decrement_effect_counters(room)
+            decrement_effect_counters(room, mover_pid=player_id)
 
             board_state = board_to_dict(board)
             next_legal = get_legal_moves(board)
@@ -3624,6 +4152,9 @@ async def handle_jokerli_satranc_message(
                 fake_chess_color = chess.BLACK if fake_color == "b" else chess.WHITE
                 fake_board.set_piece_at(target1_sq, chess.Piece(target1_piece.piece_type, fake_chess_color))
                 opp_board_state = board_to_dict(fake_board)
+                # ✨ is_check değerini GERÇEK board'dan al (sahte renk yüzünden yanlış hesaplanmasın)
+                opp_board_state["is_check"] = board.is_check()
+                opp_board_state["is_checkmate"] = board.is_checkmate()
 
                 await safe_send(opp_ws, {
                     "type": "satranc_joker_used",
@@ -3696,6 +4227,7 @@ async def handle_jokerli_satranc_message(
         room["satranc_clock_frozen_turn"] = {}
         room["satranc_yansima"] = {}
         room["satranc_sansur"] = {}
+        room["satranc_ignored"] = {}
         room["satranc_selected_slots"] = {}
         room["satranc_selection_done"] = {}
 
@@ -3807,6 +4339,15 @@ async def handle_jokerli_satranc_message(
         pick_mode = room.get("satranc_pick_mode", "karisik")
         pick_seconds = room.get("satranc_pick_seconds", 60)
         joker_count = room.get("satranc_joker_count", 3)
+
+        # ✨ Jokersiz mod → direkt oyuna başla
+        if joker_count == 0:
+            for pid in room["players"]:
+                room["satranc_jokers"][pid] = []
+                room["satranc_selection_done"][pid] = True
+            await _start_actual_game(room, broadcast, safe_send)
+            print(f"[SATRANC REMATCH] {room_code} | Jokersiz mod")
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
 
         import time as _time
         room["satranc_selection_deadline"] = _time.time() + pick_seconds
@@ -3920,18 +4461,10 @@ async def _delayed_game_start(room, broadcast, safe_send, delay=3):
 # JOKER EFEKT YÖNETİMİ
 # ==========================================
 
-def decrement_effect_counters(room):
-    """Her hamleden sonra kilitle sayacını azalt.
-    Görünmez, Kalkan ve Dondur özel mantık ile azalır - burada değil!"""
-    for effect_key in ["satranc_locked"]:
-        effects = room.get(effect_key, {})
-        expired = []
-        for sq, turns in list(effects.items()):
-            effects[sq] = turns - 1
-            if effects[sq] <= 0:
-                expired.append(sq)
-        for sq in expired:
-            del effects[sq]
+def decrement_effect_counters(room, mover_pid=None):
+    """Kilitle sayacı burada DEĞİL - hamle handler'ında özel olarak düşürülüyor.
+    Görünmez, Kalkan ve Dondur da özel mantık ile azalır - burada değil!"""
+    pass
 
 
 def square_neighbors(square_name):
@@ -3995,6 +4528,15 @@ def _is_queen_like_move(board, from_sq_idx, to_sq_idx, mover_color):
 
 def get_effect_state(room):
     """Frontend'e gönderilecek efekt state'i (varsayılan - hepsi görünür)."""
+    # Hayalet taşların detayları (frontend'de fake gösterim için)
+    ignored_state = room.get("satranc_ignored", {})
+    ignored_details = {}
+    for sq, data in ignored_state.items():
+        ignored_details[sq] = {
+            "piece_type": data.get("piece_symbol", "").lower(),
+            "piece_color": data.get("piece_color", "w"),
+        }
+
     return {
         "shielded": list(room.get("satranc_shielded", {}).keys()),
         "shielded_details": dict(room.get("satranc_shielded", {})),
@@ -4002,6 +4544,9 @@ def get_effect_state(room):
         "frozen_details": dict(room.get("satranc_frozen", {})),
         "invisible": list(room.get("satranc_invisible", {}).keys()),
         "locked": list(room.get("satranc_locked", {}).keys()),
+        "locked_details": dict(room.get("satranc_locked", {})),
+        "ignored": list(ignored_state.keys()),
+        "ignored_details": ignored_details,
         "ajan_disguised": {},
     }
 
@@ -4049,6 +4594,15 @@ def get_effect_state_for_player(room, player_id):
         if isinstance(data, dict) and data.get("owner") == player_id:
             my_ajan[sq] = data
 
+    # Hayalet taşların detayları (herkes görebilir - kimin taşı olduğu önemli değil, görsel için)
+    ignored_state = room.get("satranc_ignored", {})
+    ignored_details_visible = {}
+    for sq, data in ignored_state.items():
+        ignored_details_visible[sq] = {
+            "piece_type": data.get("piece_symbol", "").lower(),
+            "piece_color": data.get("piece_color", "w"),
+        }
+
     return {
         "shielded": _visible_effect_keys("satranc_shielded"),
         "shielded_details": shielded_details_visible,
@@ -4057,6 +4611,13 @@ def get_effect_state_for_player(room, player_id):
         "invisible": my_invisible,
         "invisible_details": my_invisible_details,
         "locked": _visible_effect_keys("satranc_locked"),
+        "locked_details": {
+            sq: room.get("satranc_locked", {})[sq]
+            for sq in _visible_effect_keys("satranc_locked")
+            if sq in room.get("satranc_locked", {})
+        },
+        "ignored": list(ignored_state.keys()),
+        "ignored_details": ignored_details_visible,
         "ajan_disguised": my_ajan,
     }
     

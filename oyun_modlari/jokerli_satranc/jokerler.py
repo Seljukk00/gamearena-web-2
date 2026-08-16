@@ -128,6 +128,15 @@ JOKERS = [
         "implemented": True
     },
     {
+        "id": "yoksay",
+        "name": "Taşı Yok Say",
+        "icon": "🚫",
+        "category": "kaos",
+        "desc": "1 taşı (kendi/rakip, şah hariç) hayalet yapar. Şah oluşursa sıra karşıya, oluşmazsa hamlene devam edersin.",
+        "phase": "your_turn",
+        "implemented": True
+    },
+    {
         "id": "zaman_cal",
         "name": "Zaman Çal",
         "icon": "⏰",
@@ -178,9 +187,9 @@ JOKERS = [
     {
         "id": "kilitle",
         "name": "Kilitle",
-        "icon": "⛓️",
+        "icon": "🔒",
         "category": "ekstra",
-        "desc": "Bir rakip taş 3 tur boyunca sadece 2 kare mesafede hareket edebilir.",
+        "desc": "Bir rakip taş 3 tur boyunca sadece 1 kare mesafede hareket edebilir.",
         "phase": "your_turn",
         "implemented": True
     },
@@ -271,6 +280,15 @@ JOKERS = [
         "icon": "⚡",
         "category": "ekstra",
         "desc": "Herhangi 2 taşı seç (kendi/rakip fark etmez, şah hariç), yer değişir.",
+        "phase": "your_turn",
+        "implemented": True
+    },
+    {
+        "id": "kasa",
+        "name": "Kasa",
+        "icon": "🛒",
+        "category": "ekstra",
+        "desc": "Kasa aç, Havuzdan rastgele 1 joker kazan!.",
         "phase": "your_turn",
         "implemented": True
     },

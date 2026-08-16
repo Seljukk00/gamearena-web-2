@@ -37,9 +37,11 @@ let satrancData = {
     lastInvisibleSquares: [],  // Bir önceki turdaki görünmez kareler (kaybolan → reappear tespiti)
     shieldedDetails: {}, // {square: kalan_tur} - kalkanlı taşlar
     frozenDetails: {}, // {square: kalan_tur} - dondurulmuş taşlar
+    lockedDetails: {}, // {square: kalan_tur} - kilitli taşlar
     ajanDisguised: {}, // {square: "w"|"b"} - sadece görsel sahte renk
     mySansurLeft: 0,  // Kendi sansür kalan tur sayım
     oppSansurLeft: 0, // Rakibin sansür kalan tur sayısı
+    ignoredSquares: [], // 🚫 Yok Say hayalet kareleri (kendi ve rakip)
 };
 
 let _satrancRoomHelper = null;
@@ -64,6 +66,7 @@ const SATRANC_SOUNDS = {
     kilit: "/satranc_sounds/kilit.mp3",
     geri_al: "/satranc_sounds/geri_al.mp3",
     zar: "/satranc_sounds/zar.mp3",
+    kasa_acilma: "/satranc_sounds/kasa_acilma.wav",
 };
 
 // Ses cache (aynı ses üst üste çalabilsin)
@@ -469,6 +472,23 @@ function renderMyJokers() {
             }
         }
 
+        if (joker.id === "kilitle" && isUsed) {
+            const lockedDetails = satrancData.lockedDetails || {};
+            const activeSquares = Object.keys(lockedDetails);
+            if (activeSquares.length > 0) {
+                // En yüksek kalan turu göster (birden fazla kilitli taş olabilir)
+                let maxTurns = 0;
+                activeSquares.forEach(sq => {
+                    const t = lockedDetails[sq] || 0;
+                    if (t > maxTurns) maxTurns = t;
+                });
+                if (maxTurns > 0) {
+                    cardTopBadge = `<div class="satrancJcTopBadge lockedBadge">⛓️ Kalan Tur: ${maxTurns}</div>`;
+                    card.classList.add("lockedActive");
+                }
+            }
+        }
+
         card.innerHTML = `
             ${cardTopBadge}
             ${cardChargeBar}
@@ -498,7 +518,7 @@ function renderMyJokers() {
 
 // Hedef gerektiren jokerler
 const SINGLE_TARGET_JOKERS = ["vezire_yukselt", "kalkan", "dondur", "bomba", "gorunmez",
-                              "kilitle", "ajan"];
+                              "kilitle", "ajan", "yoksay"];
 const DOUBLE_TARGET_JOKERS = ["isinlan", "klon", "rakip_tas_yerlestir", "yer_degistir", "rakibi_isinla"];
 // Özel: Taş Dönüştür - kare seç + tür seç popup
 const SPECIAL_TARGET_JOKERS = ["tas_donustur"];
@@ -511,6 +531,12 @@ function tryUseJoker(joker) {
     const usedIds = new Set(satrancData.usedJokers || []);
     if (usedIds.has(joker.id)) {
         showToast("⚠️ Kullanıldı", "Bu jokeri zaten kullandın.", null, "warning");
+        return;
+    }
+
+    // ✨ Yok Say jokeri şahtayken kullanılamaz
+    if (joker.id === "yoksay" && satrancData.game && satrancData.game.in_check()) {
+        showToast("🚫 Şahtasın!", "Şahtayken Taşı Yok Say jokerini kullanamazsın.", null, "warning");
         return;
     }
 
@@ -559,16 +585,23 @@ function startTasDonusturFlow(joker) {
         target1: null,
         _isTasDonustur: true
     };
-    showJokerTargetBanner(`🃏 ${joker.name}`, "Dönüştürülecek kendi taşını seç");
+    showJokerTargetBanner(`🃏 ${joker.name}`, "Dönüştürülecek taşı seç (kendi veya rakip, şah hariç)");
+
+    // ✨ Hedeflenebilir kareleri highlight et (şah hariç herkes)
+    highlightTargetableSquares("tas_donustur", 1);
 
     $("#satrancBoard .square-55d63").off("click.jokerTarget").on("click.jokerTarget", function() {
         const square = $(this).attr("data-square");
         if (!square) return;
+
+        // ✨ Targetable değilse yoksay (şah tıklanamaz)
+        if (!isSquareTargetable(square, "tas_donustur", 1, null)) return;
+
         // Kare seçildi, tür seçim popup göster
         satrancChoice({
             icon: "🃏",
             title: "Taş Dönüştür",
-            message: `${square} karesindeki taşı neye dönüştürmek istiyorsun?`,
+            message: `${square.toUpperCase()} karesindeki taşı neye dönüştürmek istiyorsun?`,
             choices: [
                 { value: "q", icon: "♛", label: "Vezir" },
                 { value: "r", icon: "♜", label: "Kale" },
@@ -694,11 +727,54 @@ function _wouldRemovingEnemyExposeMyKing(square) {
     }
 }
 
+// ✨ Rakibi Işınla sonrası şahım tehdit altında kalır mı?
+function _wouldRakibiIsinlaExposeMyKing(square1, square2) {
+    if (!satrancData.game || !satrancData.myColor) return false;
+    try {
+        const tempFen = satrancData.game.fen();
+        const tempGame = new Chess(tempFen);
+
+        const piece1 = tempGame.get(square1);
+        const piece2 = tempGame.get(square2);
+
+        if (!piece1 || !piece2) return false;
+        if (piece1.type === "k" || piece2.type === "k") return true;
+
+        tempGame.remove(square1);
+        tempGame.remove(square2);
+        tempGame.put({ type: piece2.type, color: piece2.color }, square1);
+        tempGame.put({ type: piece1.type, color: piece1.color }, square2);
+
+        const parts = tempGame.fen().split(" ");
+        parts[1] = satrancData.myColor;
+        tempGame.load(parts.join(" "));
+
+        return tempGame.in_check();
+    } catch (e) {
+        console.warn("[SATRANC] _wouldRakibiIsinlaExposeMyKing hata:", e);
+        return false;
+    }
+}
+
 // ✨ Belirli joker için tıklanabilir karelerin kontrolü
 function isSquareTargetable(square, jokerId, phase, prevTarget) {
     if (!satrancData.game) return true;
     const piece = satrancData.game.get(square);
     const myColor = satrancData.myColor;
+
+    // ✨ Efekt çakışma kontrolü — bir taşta zaten aktif efekt varsa yeni efekt eklenemez
+    // Ayrıca: klon jokerinde efektli taş klonlanamaz
+    const efektJokerler = ["kalkan", "dondur", "kilitle", "gorunmez", "ajan", "klon"];
+    if (efektJokerler.includes(jokerId) && phase === 1) {
+        const sh = satrancData.shieldedDetails || {};
+        const fr = satrancData.frozenDetails || {};
+        const lk = satrancData.lockedDetails || {};
+        const inv = satrancData.invisibleDetails || {};
+        const aj = satrancData.ajanDisguised || {};
+        if (sh[square] || fr[square] || lk[square] || inv[square] || aj[square]) {
+            return false;
+        }
+    }
 
     switch (jokerId) {
         case "bomba":
@@ -727,17 +803,24 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
             if (!piece || piece.color !== myColor || piece.type === "k") return false;
             if (satrancData.invisibleDetails && satrancData.invisibleDetails[square]) return false;
             return true;
+		case "yoksay":
+            // Kendi ya da rakip herhangi bir taş (kral hariç)
+            if (!piece || piece.type === "k") return false;
+            // Zaten hayaletse engelle
+            if (satrancData.ignoredSquares && satrancData.ignoredSquares.includes(square)) return false;
+            return true;	
         case "isinlan":
             if (phase === 1) {
                 if (!piece || piece.color !== myColor) return false;
-                // ✨ Bu taş şahımı koruyor mu? (pinned)
                 if (piece.type !== "k" && _wouldExposeMyKing(square)) return false;
                 return true;
             }
-            // Phase 2: boş kare olmalı + hedefe geçince şahım tehdit altına girmemeli
+            // Phase 2: boş kare olmalı
             if (piece) return false;
             if (!prevTarget) return true;
-            // Şah tehdit simülasyonu: prevTarget → square taşındığında şahım tehdit altında mı?
+            // Şah tehdit simülasyonu: prevTarget → square taşındığında
+            // 1) kendi şahım tehdit altına girmemeli
+            // 2) rakibin şahına şah çekmemeli (jokerle şah çekmek yasak)
             if (satrancData.game) {
                 try {
                     const tempFen = satrancData.game.fen();
@@ -746,9 +829,16 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
                     if (movingPiece) {
                         tempGame.remove(prevTarget);
                         tempGame.put({type: movingPiece.type, color: movingPiece.color}, square);
-                        const parts = tempGame.fen().split(" ");
-                        parts[1] = myColor;
-                        tempGame.load(parts.join(" "));
+                        // Kendi şahım tehdit altında mı?
+                        const parts1 = tempGame.fen().split(" ");
+                        parts1[1] = myColor;
+                        tempGame.load(parts1.join(" "));
+                        if (tempGame.in_check()) return false;
+                        // Rakibin şahı tehdit altında mı? (jokerle şah çekmek yasak)
+                        const oppColor = myColor === "w" ? "b" : "w";
+                        const parts2 = tempGame.fen().split(" ");
+                        parts2[1] = oppColor;
+                        tempGame.load(parts2.join(" "));
                         if (tempGame.in_check()) return false;
                     }
                 } catch(e) {}
@@ -778,24 +868,51 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
             if (_wouldPlacingEnemyExposeMyKing(prevTarget, square)) return false;
             return true;
 		case "rakibi_isinla":
-            // ⚡ İki dolu kare (şah hariç), ama 2 kendi taş olamaz + pinned kontrolü
+            // ⚡ İki dolu kare (şah hariç), en az biri rakip taş olmalı
+            // ve swap sonrası kendi şahım tehdit altında kalmamalı.
             if (phase === 1) {
                 if (!piece || piece.type === "k") return false;
-                // Kendi taşımsa pinned kontrol
-                if (piece.color === myColor && _wouldExposeMyKing(square)) return false;
-                return true;
+
+                // Bu ilk taş için en az 1 geçerli ikinci taş var mı?
+                const files_ri = "abcdefgh";
+                for (let rank_ri = 1; rank_ri <= 8; rank_ri++) {
+                    for (let fileIdx_ri = 0; fileIdx_ri < 8; fileIdx_ri++) {
+                        const candidateSq = files_ri[fileIdx_ri] + rank_ri;
+                        if (candidateSq === square) continue;
+
+                        const candidatePiece = satrancData.game.get(candidateSq);
+                        if (!candidatePiece || candidatePiece.type === "k") continue;
+
+                        // 2 kendi taş yasak
+                        if (piece.color === myColor && candidatePiece.color === myColor) continue;
+
+                        // Swap sonrası şah açıkta kalıyorsa bu aday geçersiz
+                        if (_wouldRakibiIsinlaExposeMyKing(square, candidateSq)) continue;
+
+                        return true;
+                    }
+                }
+                return false;
             }
+
             if (!piece || piece.type === "k") return false;
             if (square === prevTarget) return false;
-            // 2 kendi taş yasak
+
             if (satrancData.game && prevTarget) {
                 const prevPiece = satrancData.game.get(prevTarget);
-                if (prevPiece && prevPiece.color === myColor && piece.color === myColor) {
+                if (!prevPiece || prevPiece.type === "k") return false;
+
+                // 2 kendi taş yasak
+                if (prevPiece.color === myColor && piece.color === myColor) {
+                    return false;
+                }
+
+                // Swap sonrası şah açıkta kalıyorsa seçilemesin
+                if (_wouldRakibiIsinlaExposeMyKing(prevTarget, square)) {
                     return false;
                 }
             }
-            // İkinci taş kendi taşımsa pinned kontrol
-            if (piece.color === myColor && _wouldExposeMyKing(square)) return false;
+
             return true;	
         case "yer_degistir":
             // Kendi 2 taş (şah dahil), pinned taş seçilemez
@@ -808,7 +925,8 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
             if (piece.type !== "k" && _wouldExposeMyKing(square)) return false;
             return true;
         case "tas_donustur":
-            return piece && piece.color === myColor && piece.type !== "k";
+            // Kendi veya rakip taş (şah hariç)
+            return piece && piece.type !== "k";
         default:
             return true;
     }
@@ -840,6 +958,7 @@ function _getJokerTargetHint(jokerId, phase) {
         "gorunmez": ["Görünmez yapacağın kendi taşını seç"],
         "kilitle": ["Kilitleyeceğin rakip taşını seç"],
         "ajan": ["Ajan yapacağın kendi taşını seç"],
+        "yoksay": ["🚫 Hayalet yapılacak taşı seç (kendi/rakip, kral hariç)"],
         "isinlan": ["Işınlayacağın kendi taşını seç", "Hedef boş kareyi seç"],
         "klon": ["Klonlanacak kendi taşını seç", "Klon için komşu boş kareyi seç"],
         "rakip_tas_yerlestir": ["Taşınacak rakip taşı seç", "Hedef boş kareyi seç"],
@@ -1056,17 +1175,62 @@ function renderOppJokers() {
     revealed.forEach(joker => {
         const card = document.createElement("div");
         const isUsed = usedIds.has(joker.id) || joker.used;
-        card.className = "satrancJokerCard satrancJokerGameCard" + (isUsed ? " used" : "");
+
+        // ✨ Aktif efekti olan jokerler silik görünmesin
+        let isStillActive = false;
+        let activeTurns = 0;
+        if (isUsed) {
+            if (joker.id === "kilitle") {
+                const ld = satrancData.lockedDetails || {};
+                const maxT = Math.max(0, ...Object.values(ld).map(Number));
+                if (maxT > 0) { isStillActive = true; activeTurns = maxT; }
+            } else if (joker.id === "dondur") {
+                const fd = satrancData.frozenDetails || {};
+                const maxT = Math.max(0, ...Object.values(fd).map(Number));
+                if (maxT > 0) { isStillActive = true; activeTurns = maxT; }
+            } else if (joker.id === "kalkan") {
+                const sd = satrancData.shieldedDetails || {};
+                const maxT = Math.max(0, ...Object.values(sd).map(Number));
+                if (maxT > 0) { isStillActive = true; activeTurns = maxT; }
+            } else if (joker.id === "gorunmez") {
+                const id = satrancData.invisibleDetails || {};
+                const maxT = Math.max(0, ...Object.values(id).map(Number));
+                if (maxT > 0) { isStillActive = true; activeTurns = maxT; }
+            } else if (joker.id === "ajan") {
+                const ad = satrancData.ajanDisguised || {};
+                Object.values(ad).forEach(v => {
+                    const t = (typeof v === "object") ? (v.turns || 0) : 0;
+                    if (t > 0) { isStillActive = true; activeTurns = Math.max(activeTurns, t); }
+                });
+            }
+        }
+
+        const showAsUsed = isUsed && !isStillActive;
+        card.className = "satrancJokerCard satrancJokerGameCard" + (showAsUsed ? " used" : "");
         card.dataset.category = joker.category || "revealed";
 
         if (joker._revealed && !isUsed) {
             card.title = `👁️ Görüldü: ${joker.name} - ${joker.desc || ""}`;
             card.classList.add("revealed-visible");
+        } else if (isStillActive) {
+            card.title = `Aktif: ${joker.name} (${activeTurns} tur kaldı)`;
+            card.classList.add("opp-joker-active");
         } else if (isUsed) {
             card.title = `Kullanıldı: ${joker.name}`;
         }
 
+        let badgeHtml = "";
+        if (isStillActive) {
+            const badgeIcons = {
+                kilitle: "⛓️", dondur: "❄️", kalkan: "🛡️",
+                gorunmez: "🧙", ajan: "🕵️"
+            };
+            const badgeIcon = badgeIcons[joker.id] || "⏳";
+            badgeHtml = `<div class="satrancJcTopBadge lockedBadge">${badgeIcon} Kalan Tur: ${activeTurns}</div>`;
+        }
+
         card.innerHTML = `
+            ${badgeHtml}
             <div class="satrancJcIcon">${joker.icon}</div>
             <div class="satrancJcName">${joker.name}</div>
         `;
@@ -1627,38 +1791,279 @@ function showDiceResult(msg) {
 }
 
 // ==========================================
-// RULET ANİMASYONU
+// 📦 KASA AÇILIMI - CS:GO Tarzı Yatay Kayan Animasyon
+// ==========================================
+function showKasaAnimation(msg) {
+    let overlay = document.getElementById("satrancKasaOverlay");
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement("div");
+    overlay.id = "satrancKasaOverlay";
+    overlay.className = "satrancKasaOverlay";
+    document.body.appendChild(overlay);
+
+    const reel = msg.reel || [];
+    const winnerIdx = msg.winner_index || 20;
+    const winnerJoker = msg.winner_joker || {};
+    const isMyKasa = (msg.user_id === satrancData.playerId);
+    const openerName = msg.user_name || "Rakip";
+
+    // Her kart 180px genişlik + 10px gap = 190px
+    const cardWidth = 180;
+    const gap = 10;
+    const totalCardWidth = cardWidth + gap;
+
+    // Container ortası
+    const containerWidth = 900;
+    const centerOffset = containerWidth / 2 - cardWidth / 2;
+
+    // Kazanan kartı ortaya getirmek için kaydırılacak mesafe
+    // + Rastgele küçük offset (heyecan için, tam ortalamadan biraz kayık dursun)
+    const randomJitter = (Math.random() - 0.5) * 60; // -30 ile +30 arası
+    const targetTranslate = -(winnerIdx * totalCardWidth) + centerOffset + randomJitter;
+
+    // Kart HTML'i oluştur
+    let cardsHtml = "";
+    reel.forEach((joker, i) => {
+        const category = joker.category || "ekstra";
+        cardsHtml += `
+            <div class="satrancKasaCard" data-category="${category}" data-index="${i}">
+                <div class="satrancKasaCardIcon">${joker.icon || "🃏"}</div>
+                <div class="satrancKasaCardName">${joker.name || "?"}</div>
+                <div class="satrancKasaCardCat">${category}</div>
+            </div>
+        `;
+    });
+
+    const titleText = isMyKasa ? "📦 KASA AÇILIYOR" : `📦 ${openerName} KASA AÇIYOR`;
+    const subtitleText = isMyKasa 
+        ? "Kazanacağın jokeri belirliyoruz..." 
+        : "Rakibin kasayı izliyorsun...";
+
+    overlay.innerHTML = `
+        <div class="satrancKasaBox">
+            <h1 class="satrancKasaTitle">${titleText}</h1>
+            <p class="satrancKasaSubtitle">${subtitleText}</p>
+
+            <div class="satrancKasaReelWrap">
+                <div class="satrancKasaPointerTop">▼</div>
+                <div class="satrancKasaPointerBottom">▲</div>
+                <div class="satrancKasaCenterLine"></div>
+                <div class="satrancKasaReel" id="satrancKasaReel">
+                    ${cardsHtml}
+                </div>
+            </div>
+
+            <div id="satrancKasaResult" class="satrancKasaResult">
+                <div class="satrancKasaResultLabel">${isMyKasa ? "🎉 KAZANDIN!" : `🎁 ${openerName} KAZANDI!`}</div>
+                <div class="satrancKasaResultCard" data-category="${winnerJoker.category || 'ekstra'}">
+                    <div class="satrancKasaResultIcon">${winnerJoker.icon || "🃏"}</div>
+                    <div class="satrancKasaResultName">${winnerJoker.name || "?"}</div>
+                    <div class="satrancKasaResultDesc">${winnerJoker.desc || ""}</div>
+                </div>
+            </div>
+
+            <button class="bigBtn greenBtn satrancKasaCloseBtn hidden" id="satrancKasaCloseBtn">
+                ${isMyKasa ? "✅ Al ve Devam Et" : "👁️ Tamam"} <span id="satrancKasaCountdown"></span>
+            </button>
+        </div>
+    `;
+
+    // Kasa açma sesi
+    try { playSatrancSound("kasa_acilma"); } catch(e) {}
+
+    // Reel'i başlangıç konumuna ZORLA (transition sıfır)
+    requestAnimationFrame(() => {
+        const reelEl = document.getElementById("satrancKasaReel");
+        if (reelEl) {
+            reelEl.style.transition = "none";
+            reelEl.style.transform = "translateX(0px)";
+        }
+
+        // İkinci frame'de animasyon başlasın (5 saniye dönme)
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                const reelEl2 = document.getElementById("satrancKasaReel");
+                if (reelEl2) {
+                    reelEl2.style.transition = "transform 5s cubic-bezier(0.15, 0.7, 0.1, 1)";
+                    reelEl2.style.transform = `translateX(${targetTranslate}px)`;
+                    console.log("[KASA] Animasyon başladı - hedef:", targetTranslate);
+                } else {
+                    console.warn("[KASA] Reel elementi bulunamadı!");
+                }
+            }, 500);
+        });
+    });
+
+    // Kazanan kartı vurgula (5.5 saniye sonra - dönme bitti)
+    setTimeout(() => {
+        const winnerCard = document.querySelector(`.satrancKasaCard[data-index="${winnerIdx}"]`);
+        if (winnerCard) {
+            winnerCard.classList.add("satrancKasaWinnerCard");
+        }
+    }, 5700);
+
+    // Sonuç kutusu göster (6. saniye)
+    setTimeout(() => {
+        const result = document.getElementById("satrancKasaResult");
+        if (result) result.classList.add("show");
+
+        // Kapanış fonksiyonu
+        const doClose = () => {
+            if (overlay && overlay.parentNode) {
+                overlay.style.transition = "opacity 0.4s";
+                overlay.style.opacity = "0";
+                setTimeout(() => {
+                    if (overlay.parentNode) overlay.remove();
+                }, 450);
+            }
+            // Sadece açan kişide jokeri ekle + kasa'yı used olarak işaretle
+            if (isMyKasa && winnerJoker && winnerJoker.id) {
+                if (!satrancData.myJokers) satrancData.myJokers = [];
+                // Zaten backend eklemiş olabilir - duplicate önlemek için kontrol
+                const alreadyHas = satrancData.myJokers.some(j => j.id === winnerJoker.id);
+                if (!alreadyHas) {
+                    satrancData.myJokers.push(winnerJoker);
+                }
+                // ✨ Kasa jokerini used listesine ekle (silik göstermek için)
+                if (!satrancData.usedJokers) satrancData.usedJokers = [];
+                if (!satrancData.usedJokers.includes("kasa")) {
+                    satrancData.usedJokers.push("kasa");
+                }
+                renderMyJokers();
+            }
+        };
+
+        const closeBtn = document.getElementById("satrancKasaCloseBtn");
+        if (closeBtn) {
+            closeBtn.classList.remove("hidden");
+            closeBtn.onclick = doClose;
+        }
+
+        // ✨ 3 saniye geri sayım + otomatik kapanış
+        let cd = 3;
+        const cdEl = document.getElementById("satrancKasaCountdown");
+        if (cdEl) cdEl.textContent = ` (${cd})`;
+
+        const cdInterval = setInterval(() => {
+            cd--;
+            if (cdEl) cdEl.textContent = cd > 0 ? ` (${cd})` : "";
+            if (cd <= 0) {
+                clearInterval(cdInterval);
+                doClose();
+            }
+        }, 1000);
+
+        // Butona basılırsa geri sayımı durdur
+        if (closeBtn) {
+            const origClick = closeBtn.onclick;
+            closeBtn.onclick = () => {
+                clearInterval(cdInterval);
+                doClose();
+            };
+        }
+    }, 6000);
+}
+
+// ==========================================
+// RULET ANİMASYONU - Çark Animasyonlu
 // ==========================================
 function showRuletAnimation(msg) {
-    // Basit versiyon: popup göster
     let overlay = document.getElementById("satrancRuletOverlay");
-    if (!overlay) {
-        overlay = document.createElement("div");
-        overlay.id = "satrancRuletOverlay";
-        overlay.className = "satrancRuletOverlay";
-        document.body.appendChild(overlay);
-    }
+    if (overlay) overlay.remove();
+
+    overlay = document.createElement("div");
+    overlay.id = "satrancRuletOverlay";
+    overlay.className = "satrancRuletOverlay";
+    document.body.appendChild(overlay);
+
+    // 4 farklı sonuç
+    const outcomes = [
+        { type: "opp_lose_piece", icon: "🎯", label: "Rakip taş kaybeder", color: "#51cf66" },
+        { type: "self_lose_piece", icon: "💀", label: "Sen taş kaybedersin", color: "#ff6b6b" },
+        { type: "extra_turn", icon: "🔁", label: "Ekstra hamle", color: "#4dabf7" },
+        { type: "skip_opp", icon: "⏭️", label: "Rakip atlanır", color: "#ffd43b" }
+    ];
+
+    const winnerIdx = outcomes.findIndex(o => o.type === msg.rulet_outcome);
+    const anglePerSlice = 360 / outcomes.length; // 90 derece her dilim
+
+    let sliceHtml = "";
+    outcomes.forEach((o, i) => {
+        const startAngle = i * anglePerSlice;
+        const endAngle = (i + 1) * anglePerSlice;
+        const largeArc = 0;
+        const x1 = 150 + 140 * Math.cos((startAngle - 90) * Math.PI / 180);
+        const y1 = 150 + 140 * Math.sin((startAngle - 90) * Math.PI / 180);
+        const x2 = 150 + 140 * Math.cos((endAngle - 90) * Math.PI / 180);
+        const y2 = 150 + 140 * Math.sin((endAngle - 90) * Math.PI / 180);
+        const midAngle = (startAngle + endAngle) / 2 - 90;
+        const textX = 150 + 85 * Math.cos(midAngle * Math.PI / 180);
+        const textY = 150 + 85 * Math.sin(midAngle * Math.PI / 180);
+
+        sliceHtml += `
+            <path d="M 150 150 L ${x1} ${y1} A 140 140 0 ${largeArc} 1 ${x2} ${y2} Z"
+                  fill="${o.color}" stroke="#1a1e2e" stroke-width="3"/>
+            <text x="${textX}" y="${textY}" fill="white" font-size="42" text-anchor="middle"
+                  dominant-baseline="middle"
+                  transform="rotate(${startAngle + anglePerSlice/2}, ${textX}, ${textY})">
+                ${o.icon}
+            </text>
+        `;
+    });
+
+    const targetAngle = -(winnerIdx * anglePerSlice + anglePerSlice / 2);
+    const spinAmount = 360 * 6 + targetAngle;
+
     overlay.innerHTML = `
-        <div class="satrancRuletBox">
-            <h1 style="color:#ffd43b; margin:0 0 15px 0;">🎰 RULET!</h1>
-            <div class="satrancRuletSpinner">🎰</div>
-            <div class="satrancRuletResult">
-                <div style="font-size:28px; color:#51cf66; font-weight:bold; margin:15px 0;">
+        <div class="satrancRuletBoxV2">
+            <h1 class="satrancRuletTitle">🎰 RULET DÖNÜYOR!</h1>
+            <p class="satrancRuletUser">${msg.user_name} çevirdi...</p>
+
+            <div class="satrancRuletWheelWrap">
+                <div class="satrancRuletPointer">▼</div>
+                <svg id="satrancRuletSvg" width="300" height="300" viewBox="0 0 300 300"
+                     style="transform: rotate(0deg); transition: transform 4s cubic-bezier(0.17, 0.67, 0.16, 0.99);">
+                    ${sliceHtml}
+                    <circle cx="150" cy="150" r="25" fill="#ffd43b" stroke="#1a1e2e" stroke-width="4"/>
+                    <text x="150" y="150" fill="#1a1e2e" font-size="24" text-anchor="middle" dominant-baseline="middle">🎰</text>
+                </svg>
+            </div>
+
+            <div id="satrancRuletResultBox" class="satrancRuletResultBox">
+                <div class="satrancRuletResultIcon">${outcomes[winnerIdx].icon}</div>
+                <div class="satrancRuletResultLabel" style="color:${outcomes[winnerIdx].color};">
                     ${msg.rulet_label}
                 </div>
-                <div style="color:#adb5bd; font-size:16px;">
+                <div class="satrancRuletResultDetail">
                     ${msg.rulet_result || ""}
                 </div>
             </div>
-            <button class="bigBtn greenBtn" onclick="document.getElementById('satrancRuletOverlay').remove()">Tamam</button>
+
+            <button class="bigBtn greenBtn satrancRuletCloseBtn" onclick="document.getElementById('satrancRuletOverlay').remove()">Tamam</button>
         </div>
     `;
-    overlay.classList.remove("hidden");
 
-    // 4 saniye sonra otomatik kapan
+    // Çark dönme animasyonu
     setTimeout(() => {
-        if (overlay && overlay.parentNode) overlay.remove();
-    }, 5000);
+        const svg = document.getElementById("satrancRuletSvg");
+        if (svg) svg.style.transform = `rotate(${spinAmount}deg)`;
+    }, 100);
+
+    // Sonucu göster
+    setTimeout(() => {
+        const resultBox = document.getElementById("satrancRuletResultBox");
+        if (resultBox) resultBox.classList.add("show");
+    }, 4200);
+
+    // Otomatik kapanış
+    setTimeout(() => {
+        if (overlay && overlay.parentNode) {
+            overlay.style.transition = "opacity 0.4s";
+            overlay.style.opacity = "0";
+            setTimeout(() => overlay.remove(), 450);
+        }
+    }, 8000);
 }
 
 // ==========================================
@@ -1869,10 +2274,14 @@ function applyAjanDisguiseVisuals(effects) {
     const disguised = (effects && effects.ajan_disguised) ? effects.ajan_disguised : {};
     satrancData.ajanDisguised = disguised;
 
-    // Eski ajan görsellerini temizle
+    // Eski ajan görsellerini temizle (SADECE ajan'a ait olanları)
     $("#satrancBoard .squareAjanCharge").remove();
     $("#satrancBoard .ajanSquareEmoji").remove();
-    $("#satrancBoard .invisibleSquareEmoji").remove();
+
+    // ✨ Ajan yoksa (sahibi değilim) çık — rakibe zaten sahte FEN gönderiliyor
+    if (Object.keys(disguised).length === 0) {
+        return;
+    }
 
     Object.keys(disguised).forEach(square => {
         const data = disguised[square];
@@ -2334,6 +2743,12 @@ function initSatrancBoard(fen, myColor, legalMoves) {
 
             const piece = satrancData.game.get(square);
 
+            // ✨ Aynı kareye 2. tıklama → seçimi iptal (efekt kontrollerinden ÖNCE)
+            if (satrancData.selectedSquare === square) {
+                clearSquareSelection();
+                return;
+            }
+
             // ✨ Donmuş taşa tıklanamaz - hiç hamle gösterilmesin
             const frozenSquares = Object.keys(satrancData.frozenDetails || {});
             if (frozenSquares.includes(square) && piece && piece.color === satrancData.myColor) {
@@ -2342,9 +2757,39 @@ function initSatrancBoard(fen, myColor, legalMoves) {
                 return;
             }
 
+            // ✨ Hayalet kareye tıklanamaz (Yok Say jokeri aktif)
+            const ignoredList = satrancData.ignoredSquares || [];
+            if (ignoredList.includes(square)) {
+                showToast("🚫 Hayalet!", "Bu kare hayalet - üzerinden geçilir ama tıklanamaz.", null, "warning");
+                clearSquareSelection();
+                return;
+            }
+
             // Zaten bir taş seçiliyse ve tıklanan kare hedef mi?
             if (satrancData.selectedSquare) {
+                // ✨ Kalkanlı kareye tıklama → hiçbir şey yapma (hamle gönderme)
+                const shieldedNow = Object.keys(satrancData.shieldedDetails || {});
+                if (shieldedNow.includes(square)) {
+                    // Kalkanlı kareye tıklandı → seçimi iptal etme, sadece yoksay
+                    return;
+                }
+
                 const uci = satrancData.selectedSquare + square;
+
+                // ✨ Kilitli taş sadece 1 kare gidebilir
+                const lockedSquaresNow = Object.keys(satrancData.lockedDetails || {});
+                if (lockedSquaresNow.includes(satrancData.selectedSquare)) {
+                    const filesLock = "abcdefgh";
+                    const f1 = filesLock.indexOf(satrancData.selectedSquare[0]);
+                    const r1 = parseInt(satrancData.selectedSquare[1], 10);
+                    const f2 = filesLock.indexOf(square[0]);
+                    const r2 = parseInt(square[1], 10);
+                    const dist = Math.max(Math.abs(f1 - f2), Math.abs(r1 - r2));
+                    if (dist > 1) {
+                        return;
+                    }
+                }
+
                 // Direkt eşleşme
                 if (satrancData.legalMoves.includes(uci)) {
                     sendMove(uci);
@@ -2414,6 +2859,10 @@ function selectSquare(square) {
         const files = "abcdefgh";
         const fIdx = files.indexOf(square[0]);
         const rIdx = parseInt(square[1]);
+        // ✨ Kalkan son 1 diş mi? (bu hamle sonrası kalkan düşecek)
+        const myShieldTurns = satrancData.shieldedDetails[square] || 0;
+        const shieldWillExpire = (myShieldTurns <= 1);
+
         for (let df = -1; df <= 1; df++) {
             for (let dr = -1; dr <= 1; dr++) {
                 if (df === 0 && dr === 0) continue;
@@ -2424,7 +2873,26 @@ function selectSquare(square) {
                 const targetPiece = satrancData.game.get(targetSq);
                 if (targetPiece && targetPiece.color === satrancData.myColor) continue;
                 if (targetPiece && targetPiece.type === "k") continue;
-                // ✨ Rakip kalkanlı bile olsa şahım yiyebilmeli → shieldedSquares kontrolünü buradan atla
+
+                // ✨ Kalkan son 1 dişse: hamle sonrası kalkan düşecek → şah kontrolü yap
+                if (shieldWillExpire) {
+                    try {
+                        const tempFen = satrancData.game.fen();
+                        const tempGame = new Chess(tempFen);
+                        // Şahı taşı
+                        const fromPiece = tempGame.get(square);
+                        tempGame.remove(square);
+                        if (targetPiece) tempGame.remove(targetSq);
+                        tempGame.put({type: fromPiece.type, color: fromPiece.color}, targetSq);
+                        // Sıra rakibe geçmiş gibi kontrol et
+                        const oppColor = satrancData.myColor === "w" ? "b" : "w";
+                        const parts = tempGame.fen().split(" ");
+                        parts[1] = satrancData.myColor;
+                        tempGame.load(parts.join(" "));
+                        if (tempGame.in_check()) continue; // ✨ Tehlikeli kare → atla
+                    } catch(e) {}
+                }
+
                 const uci = square + targetSq;
                 if (!satrancData.legalMoves.includes(uci)) {
                     satrancData.legalMoves.push(uci);
@@ -2461,11 +2929,25 @@ function selectSquare(square) {
 
     // Legal hamleleri göster
     const invCapSquares = satrancData.invisibleCaptureSquares || [];
+    const lockedSquares = Object.keys(satrancData.lockedDetails || {});
+    const isLockedPiece = lockedSquares.includes(square);
 
     const shownTargets = new Set();
     satrancData.legalMoves.forEach(move => {
         if (move.startsWith(square)) {
             const to = move.slice(2, 4);
+
+            // ✨ Kilitli taş sadece 1 kare gidebilir
+            if (isLockedPiece) {
+                const filesLock = "abcdefgh";
+                const f1 = filesLock.indexOf(square[0]);
+                const r1 = parseInt(square[1], 10);
+                const f2 = filesLock.indexOf(to[0]);
+                const r2 = parseInt(to[1], 10);
+                const dist = Math.max(Math.abs(f1 - f2), Math.abs(r1 - r2));
+                if (dist > 1) return;
+            }
+
             if (shownTargets.has(to)) return;  // aynı hedefi 4 kez gösterme (promo varyantları için)
             shownTargets.add(to);
             const $sq = $(`#satrancBoard .square-${to}`);
@@ -2474,12 +2956,10 @@ function selectSquare(square) {
             const targetPiece = satrancData.game ? satrancData.game.get(to) : null;
             const isCapture = targetPiece && targetPiece.color !== satrancData.myColor;
 
-            // 🛡️ Hedef kare kalkanlıysa, bu hamle YOKMUŞ gibi davran
-            // AMA! Kalkanlı şah kalkanlıya bile saldırabilir (istisna)
+            // 🛡️ Hedef kare kalkanlıysa, bu hamle YOKMUŞ gibi davran (hiç yeşil nokta gösterme)
+            // Kalkanlı şah bile kalkanlı taşı yiyemez (kalkan = tam koruma)
             if (shieldedSquares.includes(to)) {
-                if (!isKingShielded) {
-                    return;
-                }
+                return;
             }
 
             // ✨ Kendi taşım kalkanlıysa kimseyi yiyemez (şah hariç, o zaten yiyebilir)
@@ -2658,8 +3138,10 @@ function updateSatrancBoard(boardState, lastMove, effects) {
     $("#satrancBoard .squareShieldCharge").remove();
     $("#satrancBoard .squareFrozenCharge").remove();
     $("#satrancBoard .squareAjanCharge").remove();
+    $("#satrancBoard .squareLockedCharge").remove();
     $("#satrancBoard .ajanSquareEmoji").remove();
     $("#satrancBoard .invisibleSquareEmoji").remove();
+    $("#satrancBoard .lockedSquareEmoji").remove();
 
     // ✨ Efektleri animasyondan SONRA uygula (board.position animasyonu ~500ms)
     // Bu sırada img'ler yeniden yaratıldığı için efektin yeni img'e binmesi lazım
@@ -2681,8 +3163,9 @@ function updateSatrancBoard(boardState, lastMove, effects) {
             $(`#satrancBoard .square-${to}`).addClass("highlight-to");
         }
 
-        // Şah
-        if (boardState.is_check) {
+        // Şah — SADECE backend "is_check: true" dediyse göster
+        // (Ajan sahte renkli FEN yüzünden chess.js yanlış hesaplayabilir, backend'e güven)
+        if (boardState.is_check === true) {
             const turn = boardState.turn;
             const board = satrancData.game.board();
             const shieldedNow = (effects && effects.shielded) ? effects.shielded : [];
@@ -2725,7 +3208,7 @@ function updateSatrancBoard(boardState, lastMove, effects) {
                 $sq.addClass("effect-frozen");
                 // Şarj çubukları (max 2 diş)
                 const turnsLeft = (effects.frozen_details || {})[sq] || 0;
-                const maxTurns = 2;
+                const maxTurns = 3;
                 const colorClass = `frozenCharge-${turnsLeft}`;
                 let bars = "";
                 for (let i = 0; i < maxTurns; i++) {
@@ -2758,7 +3241,57 @@ function updateSatrancBoard(boardState, lastMove, effects) {
                 $sq.append(`<div class="squareInvisibleCharge ${colorClass}" title="Kalan tur: ${turnsLeft}">${bars}</div>`);
             });
             (effects.locked || []).forEach(sq => {
-                $(`#satrancBoard .square-${sq}`).addClass("effect-locked");
+                const $sq = $(`#satrancBoard .square-${sq}`);
+                $sq.addClass("effect-locked");
+                // ✨ Sol üstte 🔒 emoji
+                $sq.find(".lockedSquareEmoji").remove();
+                $sq.append(`<div class="lockedSquareEmoji" title="Kilitli taş - max 2 kare">🔒</div>`);
+                // ✨ Sağ üstte şarj çubukları (max 3 diş)
+                const turnsLeft = (effects.locked_details || {})[sq] || 0;
+                const maxTurns = 3;
+                const colorClass = `lockedCharge-${Math.min(turnsLeft, 3)}`;
+                let bars = "";
+                for (let i = 0; i < maxTurns; i++) {
+                    const filled = i < turnsLeft ? "filled" : "empty";
+                    bars += `<div class="squareChargeBar ${filled}"></div>`;
+                }
+                $sq.find(".squareLockedCharge").remove();
+                $sq.append(`<div class="squareLockedCharge ${colorClass}" title="Kilit kalan: ${turnsLeft}">${bars}</div>`);
+            });
+
+            // ✨ Yok Say hayalet kareleri - fake taş göster + %30 opacity + 🚫 emoji
+            $("#satrancBoard .square-55d63").removeClass("effect-ignored");
+            $("#satrancBoard .ignoredSquareEmoji").remove();
+            $("#satrancBoard .ignoredGhostPiece").remove();
+            const ignoredList = effects.ignored || [];
+            const ignoredDetails = effects.ignored_details || {};
+            satrancData.ignoredSquares = ignoredList;
+            const ignoredTypeMap = { p: "P", r: "R", n: "N", b: "B", q: "Q", k: "K" };
+            ignoredList.forEach(sq => {
+                const $sq = $(`#satrancBoard .square-${sq}`);
+                $sq.addClass("effect-ignored");
+
+                // ✨ Fake taş görselini ekle (backend'de taş silindi ama biz gösteriyoruz)
+                const detail = ignoredDetails[sq];
+                if (detail && detail.piece_type && detail.piece_color) {
+                    const pieceCode = `${detail.piece_color}${ignoredTypeMap[detail.piece_type] || "P"}`;
+                    const ghostImg = document.createElement("img");
+                    ghostImg.className = "ignoredGhostPiece";
+                    ghostImg.src = `/satranc_vendor/img/chesspieces/wikipedia/${pieceCode}.png`;
+                    ghostImg.style.position = "absolute";
+                    ghostImg.style.top = "0";
+                    ghostImg.style.left = "0";
+                    ghostImg.style.width = "100%";
+                    ghostImg.style.height = "100%";
+                    ghostImg.style.opacity = "0.3";
+                    ghostImg.style.filter = "grayscale(50%) brightness(1.1)";
+                    ghostImg.style.pointerEvents = "none";
+                    ghostImg.style.zIndex = "3";
+                    $sq.append(ghostImg);
+                }
+
+                // Sol üstte 🚫 emoji
+                $sq.append(`<div class="ignoredSquareEmoji" title="Hayalet - Yok sayılıyor">🚫</div>`);
             });
 
             // ✨ Reappear tespiti - SADECE aktif hiç görünmez kalmadıysa oynasın
@@ -2775,11 +3308,13 @@ function updateSatrancBoard(boardState, lastMove, effects) {
             satrancData.invisibleDetails = effects.invisible_details || {};
             satrancData.shieldedDetails = effects.shielded_details || {};
             satrancData.frozenDetails = effects.frozen_details || {};
+            satrancData.lockedDetails = effects.locked_details || {};
 
             applyAjanDisguiseVisuals(effects);
 
-            // ✨ invisibleDetails değişti, kart görünümünü güncelle (üstü çizik olabilir)
+            // ✨ Efekt sayaçları değiştiyse hem kendi hem rakip joker paneli yenilensin
             renderMyJokers();
+            renderOppJokers();
         }
     };
 
@@ -3083,7 +3618,15 @@ function openSatrancRoomSettings() {
             {
                 id: "jokerCount", label: "🃏 Joker Sayısı",
                 current: satrancData.jokerCount,
-                options: [1,2,3,4,5,6].map(v => ({value: v, label: String(v)}))
+                options: [
+                    {value: 0, label: "Jokersiz ♟️"},
+                    {value: 1, label: "1"},
+                    {value: 2, label: "2"},
+                    {value: 3, label: "3"},
+                    {value: 4, label: "4"},
+                    {value: 5, label: "5"},
+                    {value: 6, label: "6"}
+                ]
             },
             {
                 id: "pickMode", label: "🎴 Joker Seçim Modu",
@@ -3105,6 +3648,14 @@ function openSatrancRoomSettings() {
             }
         ],
         onSave: (values) => {
+            // ✨ localStorage'a kaydet (site kapatılıp açılınca hatırlasın)
+            try {
+                localStorage.setItem("satrancTimeMode", values.timeMode);
+                localStorage.setItem("satrancJokerCount", values.jokerCount);
+                localStorage.setItem("satrancPickMode", values.pickMode);
+                localStorage.setItem("satrancPickSeconds", values.pickSeconds);
+            } catch(e) {}
+
             send({
                 type: "satranc_update_settings",
                 time_mode: values.timeMode,
@@ -3464,6 +4015,15 @@ handleMessage = function(msg) {
 
     // ✨ Joker seçim başladı
     if (msg.type === "satranc_joker_selection_start") {
+        // ✨ Game over box açıksa kapat (rematch sonrası)
+        const gameOverBox = document.getElementById("satrancGameOverBox");
+        if (gameOverBox) gameOverBox.classList.add("hidden");
+        // Board temizle
+        if (satrancData.board) {
+            try { satrancData.board.destroy(); } catch(e) {}
+            satrancData.board = null;
+        }
+        stopSatrancClock();
         openJokerSelectScreen(msg);
         return;
     }
@@ -3623,6 +4183,7 @@ handleMessage = function(msg) {
                     renderClocks(msg.clocks || {});
                     updateTurnInfo(msg.board);
                     renderMyJokers();
+                    renderOppJokers();
                     if (msg.captured_pieces) {
                         const myPid = String(satrancData.playerId);
                         const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
@@ -3647,6 +4208,8 @@ handleMessage = function(msg) {
         renderClocks(msg.clocks || {});
         updateTurnInfo(msg.board);
         renderMyJokers();  // ✨ Sıra değişti, jokerleri yenile
+        renderOppJokers();
+        renderOppJokers();
 
         // ✨ Ses efekti: san_move içinde 'x' varsa taş yeme, yoksa hareket
         if (msg.san_move) {
@@ -3870,6 +4433,12 @@ handleMessage = function(msg) {
         satrancData.oppUsedJokers = (msg.jokers || []).filter(j => j.used).map(j => j.id);
         renderOppJokers();
         showToast("👁️ Joker Gör", `${msg.opponent_name}'in tüm jokerleri artık görünür!`, null, "success");
+        return;
+    }
+	
+	// ✨ Kasa animasyonu
+    if (msg.type === "satranc_kasa_animation") {
+        showKasaAnimation(msg);
         return;
     }
 
@@ -4104,11 +4673,17 @@ handleMessage = function(msg) {
                         updateSatrancBoard(msg.board, null, msg.effects);
                         updateTurnInfo(msg.board);
                         renderMyJokers();
+                        renderOppJokers();
                         if (msg.captured_pieces) {
                             const myPid = String(satrancData.playerId);
                             const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
                             renderCapturedPieces(msg.captured_pieces[myPid] || [], msg.captured_pieces[oppPid] || []);
                         }
+                        // ✨ Ajan görselini agresif olarak birden fazla kez uygula
+                        // (Animasyon sonrası src reset olabilir)
+                        [100, 400, 800, 1200, 1600].forEach(delay => {
+                            setTimeout(() => applyAjanDisguiseVisuals(msg.effects), delay);
+                        });
                     }
                     showToast(
                         `${msg.joker_icon} ${msg.joker_name}`,
@@ -4130,8 +4705,8 @@ handleMessage = function(msg) {
                 satrancData.frozenDetails = msg.effects.frozen_details;
             }
 
-            const turnsLeft = (msg.effects && msg.effects.frozen_details) ? (msg.effects.frozen_details[msg.target] || 2) : 2;
-            const maxTurns = 2;
+            const turnsLeft = (msg.effects && msg.effects.frozen_details) ? (msg.effects.frozen_details[msg.target] || 3) : 3;
+            const maxTurns = 3;
             const colorClass = `frozenCharge-${turnsLeft}`;
             let bars = "";
             for (let i = 0; i < maxTurns; i++) {
@@ -4143,7 +4718,32 @@ handleMessage = function(msg) {
 
             renderMyJokers();
         }
-   
+		
+		// ✨ Kilitle uygulandı - anında görsel (herkes için)
+        if (msg.joker_id === "kilitle" && msg.target) {
+            const $sq = $(`#satrancBoard .square-${msg.target}`);
+            $sq.addClass("effect-locked");
+
+            if (msg.effects && msg.effects.locked_details) {
+                satrancData.lockedDetails = msg.effects.locked_details;
+            }
+
+            const turnsLeft = (msg.effects && msg.effects.locked_details) ? (msg.effects.locked_details[msg.target] || 3) : 3;
+            const maxTurns = 3;
+            const colorClass = `lockedCharge-${Math.min(turnsLeft, 3)}`;
+            let bars = "";
+            for (let i = 0; i < maxTurns; i++) {
+                const filled = i < turnsLeft ? "filled" : "empty";
+                bars += `<div class="squareChargeBar ${filled}"></div>`;
+            }
+            $sq.find(".squareLockedCharge").remove();
+            $sq.find(".lockedSquareEmoji").remove();
+            $sq.append(`<div class="lockedSquareEmoji">🔒</div>`);
+            $sq.append(`<div class="squareLockedCharge ${colorClass}" title="Kilit kalan: ${turnsLeft}">${bars}</div>`);
+
+            renderMyJokers();
+            renderOppJokers();
+        }
 
         // ✨ Kalkan uygulandı - anında görsel (herkes için)
         if (msg.joker_id === "kalkan" && msg.target) {
@@ -4177,6 +4777,8 @@ handleMessage = function(msg) {
             updateSatrancBoard(msg.board, null, msg.effects);
             updateTurnInfo(msg.board);
             renderMyJokers();
+            renderOppJokers();
+            renderOppJokers();
 
             if (msg.captured_pieces) {
                 const myPidStr = String(satrancData.playerId);
@@ -4262,7 +4864,22 @@ handleMessage = function(msg) {
         satrancData.invisibleCaptureSquares = msg.invisible_capture_squares || [];
         renderMyJokers();  // ✨ Sıra bende, jokerleri güncelle
         if (msg.is_check) {
-            showToast("⚠️ ŞAH!", "Şahtan çıkman lazım!", null, "warning");
+            // ✨ Kalkanlı şah varsa uyarı gösterme (kalkan koruyor)
+            const myKingSq = (() => {
+                if (!satrancData.game) return null;
+                const b = satrancData.game.board();
+                for (let r = 0; r < 8; r++)
+                    for (let c = 0; c < 8; c++) {
+                        const p = b[r][c];
+                        if (p && p.type === "k" && p.color === satrancData.myColor)
+                            return "abcdefgh"[c] + (8 - r);
+                    }
+                return null;
+            })();
+            const shieldedNow = Object.keys(satrancData.shieldedDetails || {});
+            if (!myKingSq || !shieldedNow.includes(myKingSq)) {
+                showToast("⚠️ ŞAH!", "Şahtan çıkman lazım!", null, "warning");
+            }
         }
         return;
     }
@@ -4483,5 +5100,43 @@ window.addEventListener("resize", () => {
         try { satrancData.board.resize(); } catch(e) {}
     }
 });
+
+// ✨ Joker seçim ekranında ESC → lobiye dön popup
+document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    
+    const jsScreen = document.getElementById("satrancJokerSelectScreen");
+    if (!jsScreen || jsScreen.classList.contains("hidden")) return;
+    
+    // Chat açıksa önce chat kapansın
+    if (satrancChat.open) return;
+    
+    // Başka popup açıksa yoksay
+    const anyPopup = document.querySelector(".overlay:not(.hidden), .satrancModalOverlay.show");
+    if (anyPopup) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // ✨ Host ise lobiye dön, değilse sadece ayrıl
+    if (satrancData.playerId === 1) {
+        satrancConfirm({
+            icon: "🏠",
+            title: "Lobiye Dön",
+            message: "Joker seçimini iptal edip lobiye dönmek istiyor musun?",
+            type: "warning",
+            yesText: "Evet, Lobiye Dön",
+            noText: "Hayır"
+        }).then(ok => {
+            if (ok) {
+                send({ type: "satranc_back_to_lobby" });
+            }
+        });
+    } else {
+        if (typeof window._showLeaveConfirmPopup === "function") {
+            window._showLeaveConfirmPopup();
+        }
+    }
+}, true);
 
 console.log("♟️ Jokerli Satranç JS yüklendi ✓");
