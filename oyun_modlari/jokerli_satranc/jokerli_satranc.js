@@ -2773,6 +2773,19 @@ function initSatrancBoard(fen, myColor, legalMoves) {
                     // Kalkanlı kareye tıklandı → seçimi iptal etme, sadece yoksay
                     return;
                 }
+				
+				// ✨ HIZLI KAÇIŞ: şah vezir gibi gidiyorsa direkt gönder
+                const _hkActive = satrancData._hizliKacisActive || false;
+                const _selPiece = satrancData.game ? satrancData.game.get(satrancData.selectedSquare) : null;
+                const _isMyKing = _selPiece && _selPiece.type === "k" && _selPiece.color === satrancData.myColor;
+                const _hkUci = satrancData.selectedSquare + square;
+
+                if (_hkActive && _isMyKing && satrancData.legalMoves.includes(_hkUci)) {
+                    console.log("[HIZLI KACIS] Vezir gibi hamle gönderiliyor:", _hkUci);
+                    sendMove(_hkUci);
+                    clearSquareSelection();
+                    return;
+                }
 
                 const uci = satrancData.selectedSquare + square;
 
@@ -2904,6 +2917,7 @@ function selectSquare(square) {
     // ✨ HIZLI KAÇIŞ: kendi şahım seçiliyse vezir gibi tüm boş yönlere gidebilsin
     const hizliKacisActive = satrancData._hizliKacisActive || false;
     if (isMyKing && hizliKacisActive) {
+        console.log("[HIZLI KACIS] Aktif! Şah:", square, "vezir hamleleri hesaplanıyor...");
         const files2 = "abcdefgh";
         const fIdx2 = files2.indexOf(square[0]);
         const rIdx2 = parseInt(square[1]);
@@ -2916,15 +2930,23 @@ function selectSquare(square) {
                 if (nf < 0 || nf > 7 || nr < 1 || nr > 8) break;
                 const targetSq = files2[nf] + nr;
                 const targetPiece = satrancData.game.get(targetSq);
+                // Kendi taşım varsa dur (yiyemem)
                 if (targetPiece && targetPiece.color === satrancData.myColor) break;
+                // Rakip şah yenemem, dur
                 if (targetPiece && targetPiece.type === "k") break;
+                // Kalkanlı taşları da dur (yiyemem)
+                const shieldedNow = Object.keys(satrancData.shieldedDetails || {});
+                if (shieldedNow.includes(targetSq)) break;
+
                 const uci = square + targetSq;
                 if (!satrancData.legalMoves.includes(uci)) {
                     satrancData.legalMoves.push(uci);
+                    console.log("[HIZLI KACIS] Legal eklendi:", uci);
                 }
-                if (targetPiece) break;  // Rakip taş yendiyse dur
+                if (targetPiece) break;  // Rakip taş yendiyse dur (o taşı yer)
             }
         });
+        console.log("[HIZLI KACIS] Toplam legal moves:", satrancData.legalMoves.filter(m => m.startsWith(square)).length);
     }
 
     // Legal hamleleri göster

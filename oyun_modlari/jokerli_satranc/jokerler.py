@@ -207,7 +207,7 @@ JOKERS = [
         "name": "Hızlı Kaçış",
         "icon": "🌪️",
         "category": "ekstra",
-        "desc": "Şah bu turda 4 kare hareket edebilir.",
+        "desc": "Şah bu turda Vezir gibi hareket edebilir.",
         "phase": "your_turn",
         "implemented": True
     },

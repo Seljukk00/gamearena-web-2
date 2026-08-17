@@ -163,30 +163,58 @@ def search_artist_top_tracks(artist_name: str, limit: int = 10) -> List[Dict]:
     return songs
 
 
-def fetch_songs_by_artists(artist_list: List[str], songs_per_artist: int = 5) -> List[Dict]:
+def fetch_songs_by_artists(artist_list, songs_per_artist: int = 6) -> List[Dict]:
     """
     Sanatçı listesinden şarkı havuzu oluşturur.
+    
+    artist_list şu formatlardan birinde olabilir:
+    - ["Tarkan", "Sezen Aksu"]  → eski format (string listesi)
+    - [{"name": "Tarkan", "tier": "efsane"}, ...]  → yeni format (dict listesi)
+    
+    songs_per_artist: Her sanatçıdan çekilecek şarkı sayısı (default 6)
+    Aynı sanatçı tuzağı için minimum 5-6 şarkı gereklidir.
     """
     all_songs = []
     seen_ids = set()
     success_count = 0
     fail_count = 0
+    failed_artists = []
     
-    for artist in artist_list:
-        songs = search_artist_top_tracks(artist, limit=songs_per_artist)
+    for artist_item in artist_list:
+        # Hem string hem dict formatını destekle
+        if isinstance(artist_item, dict):
+            artist_name = artist_item.get("name", "")
+            artist_tier = artist_item.get("tier", "populer")
+        else:
+            artist_name = str(artist_item)
+            artist_tier = "populer"
+        
+        if not artist_name:
+            continue
+        
+        songs = search_artist_top_tracks(artist_name, limit=songs_per_artist)
         if songs:
             success_count += 1
             for song in songs:
                 if song["id"] not in seen_ids:
                     seen_ids.add(song["id"])
+                    # ✨ Şarkıya tier bilgisini de ekle (sanatçısından geliyor)
+                    song["tier"] = artist_tier
                     all_songs.append(song)
         else:
             fail_count += 1
+            failed_artists.append(artist_name)
         
         time.sleep(0.15)
     
     print(f"[DEEZER] Sanatçı bazlı: {success_count} başarılı, {fail_count} başarısız")
     print(f"[DEEZER] Toplam benzersiz şarkı: {len(all_songs)}")
+    if failed_artists:
+        print(f"[DEEZER] ❌ Bulunamayan sanatçılar ({len(failed_artists)}):")
+        for name in failed_artists[:20]:  # İlk 20 tanesini göster
+            print(f"   - {name}")
+        if len(failed_artists) > 20:
+            print(f"   ... ve {len(failed_artists) - 20} tane daha")
     return all_songs
 
 

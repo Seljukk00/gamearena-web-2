@@ -210,6 +210,18 @@ async def health():
     return {"status": "ok", "timestamp": time.time()}
 
 
+@app.get("/ads.txt")
+async def ads_txt():
+    """Google AdSense doğrulama dosyası"""
+    return FileResponse("static/ads.txt", media_type="text/plain")
+
+
+@app.get("/ads.txt")
+async def ads_txt():
+    """Google AdSense doğrulama dosyası"""
+    return FileResponse("static/ads.txt", media_type="text/plain")
+
+
 @app.head("/")
 async def head_root():
     return {"status": "ok"}

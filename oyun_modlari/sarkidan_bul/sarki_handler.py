@@ -7,7 +7,14 @@ import asyncio
 import random
 import time
 from .deezer_api import fetch_songs_by_artists
-from .playlists import get_artists, VALID_TURLER, get_tur_of_artist
+from .playlists import (
+    get_artists,
+    get_artist_objects,
+    get_artists_by_tier,
+    VALID_TURLER,
+    get_tur_of_artist,
+    get_tier_of_artist,
+)
 
 
 # ========================================
@@ -98,36 +105,41 @@ async def prefetch_song_pool(room, broadcast):
 
 
 async def _fetch_pool(room, broadcast=None):
-    """Deezer'dan şarkıları çeker ve room['song_pool']'a kaydeder"""
+    """
+    Deezer'dan şarkıları çeker ve room['song_pool']'a kaydeder.
+    ✨ Yeni: Sanatçı dict formatı (name+tier) kullanır, şarkılara tier bilgisi ekler.
+    """
     dil = room.get("dil", "karisik")
     tur = room.get("tur", None)
-    artists = get_artists(dil, tur)
+    artist_objs = get_artist_objects(dil, tur)  # dict listesi
     total_needed = room.get("total_songs", 10)
     
-    random.shuffle(artists)
-    target_artists = min(len(artists), max(15, total_needed * 2))
-    selected_artists = artists[:target_artists]
+    random.shuffle(artist_objs)
+    # ✨ Progresif mod için daha çok sanatçı çek (her tier'dan yeterli olsun)
+    target_count = min(len(artist_objs), max(30, total_needed * 4))
+    selected_artists = artist_objs[:target_count]
     
-    # ✨ Sanatçıları parça parça çek (progress için)
+    print(f"[SARKI] 🎯 Havuz hedefi: {target_count} sanatçı, {total_needed} tur için")
+    
     songs = []
     seen_ids = set()
-    chunk_size = 3  # Her seferinde 3 sanatçı çek
+    chunk_size = 5  # Her seferinde 5 sanatçı çek (biraz daha hızlı)
     total_chunks = (len(selected_artists) + chunk_size - 1) // chunk_size
     
     for i in range(0, len(selected_artists), chunk_size):
         chunk = selected_artists[i:i + chunk_size]
+        # ✨ songs_per_artist=6: aynı sanatçı tuzağı için gerekli
         chunk_songs = await asyncio.to_thread(
-            fetch_songs_by_artists, chunk, 4
+            fetch_songs_by_artists, chunk, 6
         )
         for s in chunk_songs:
             if s["id"] not in seen_ids:
                 seen_ids.add(s["id"])
                 songs.append(s)
         
-        # ✨ Progress broadcast (yüzde hesapla)
+        # Progress broadcast
         current_chunk = (i // chunk_size) + 1
         percent = int((current_chunk / total_chunks) * 100)
-        # Yetersizse %85'te sabit tut (extra çekim gelecek)
         if percent > 90:
             percent = 90
         
@@ -143,17 +155,16 @@ async def _fetch_pool(room, broadcast=None):
                 pass
     
     # Yetersizse ek çek
-    if len(songs) < total_needed * 2 and len(artists) > target_artists:
-        extra_artists = artists[target_artists:target_artists + 15]
+    if len(songs) < total_needed * 4 and len(artist_objs) > target_count:
+        extra_artists = artist_objs[target_count:target_count + 20]
         extra_songs = await asyncio.to_thread(
-            fetch_songs_by_artists, extra_artists, 4
+            fetch_songs_by_artists, extra_artists, 6
         )
         for s in extra_songs:
             if s["id"] not in seen_ids:
                 seen_ids.add(s["id"])
                 songs.append(s)
         
-        # Extra çekim tamamlandı
         if broadcast:
             try:
                 await broadcast(room, {
@@ -167,7 +178,92 @@ async def _fetch_pool(room, broadcast=None):
     
     random.shuffle(songs)
     room["song_pool"] = songs
+    
+    # ✨ Tier istatistikleri yazdır
+    tier_stats = {"efsane": 0, "cok_populer": 0, "populer": 0, "bilinen": 0}
+    for s in songs:
+        t = s.get("tier", "populer")
+        if t in tier_stats:
+            tier_stats[t] += 1
     print(f"[SARKI] 🎵 Deezer'dan çekildi: {len(songs)} şarkı ({dil})")
+    print(f"[SARKI] 📊 Tier dağılımı: 🌟{tier_stats['efsane']} ⭐{tier_stats['cok_populer']} ✅{tier_stats['populer']} 📼{tier_stats['bilinen']}")
+    
+# ========================================
+# PROGRESİF MOD - ZORLUK HESAPLAMA
+# ========================================
+
+def calculate_round_difficulty(current_round: int, total_rounds: int) -> str:
+    """
+    Turun zorluğunu hesaplar: 'kolay', 'orta', 'zor'
+    
+    Toplam şarkıyı 3'e böler:
+    - İlk 1/3 → kolay
+    - Orta 1/3 → orta
+    - Son 1/3 → zor
+    """
+    if total_rounds <= 0:
+        return "orta"
+    
+    # Bölünme noktaları
+    kolay_sinir = total_rounds // 3
+    orta_sinir = (total_rounds * 2) // 3
+    
+    # 5 şarkı için özel durum: 2 kolay, 2 orta, 1 zor
+    if total_rounds == 5:
+        if current_round <= 2:
+            return "kolay"
+        elif current_round <= 4:
+            return "orta"
+        else:
+            return "zor"
+    
+    # 6 şarkı için özel: 2 kolay, 2 orta, 2 zor
+    if total_rounds == 6:
+        if current_round <= 2:
+            return "kolay"
+        elif current_round <= 4:
+            return "orta"
+        else:
+            return "zor"
+    
+    # Genel durum
+    if current_round <= kolay_sinir:
+        return "kolay"
+    elif current_round <= orta_sinir:
+        return "orta"
+    else:
+        return "zor"
+
+
+def get_tiers_for_difficulty(difficulty: str) -> list:
+    """
+    Zorluk seviyesine göre hangi tier'lardan şarkı seçileceğini döner.
+    """
+    if difficulty == "kolay":
+        # Bilindik şarkılar
+        return ["efsane", "cok_populer"]
+    elif difficulty == "orta":
+        # Karışık - hem popüler hem az bilinen
+        return ["cok_populer", "populer"]
+    elif difficulty == "zor":
+        # Bilinmedik - meraklısı bilir
+        return ["populer", "bilinen"]
+    else:
+        return ["cok_populer", "populer"]
+
+
+def should_use_same_artist_trap(difficulty: str) -> bool:
+    """
+    Aynı sanatçı tuzağı kullanılsın mı?
+    - Kolay: %25 ihtimalle (bazen sürpriz)
+    - Orta: %100 (her zaman)
+    - Zor: %100 (her zaman)
+    """
+    if difficulty == "kolay":
+        return random.random() < 0.25  # %25
+    elif difficulty in ("orta", "zor"):
+        return True
+    return False    
 
 # ========================================
 # ŞARKI HAVUZU HAZIRLAMA
@@ -636,7 +732,12 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
 # ========================================
 
 async def start_sarki_round(room, safe_send, broadcast):
-    """Yeni tur başlatır - önce intro, sonra şarkı + 4 şık - sıradaki oyuncu cevaplar"""
+    """
+    Yeni tur başlatır - PROGRESİF MOD.
+    - İlk 1/3: Kolay (efsane şarkılar, 4 farklı sanatçı)
+    - Orta 1/3: Orta (popüler, 1 aynı sanatçı tuzağı)
+    - Son 1/3: Zor (bilinmedik, 1 aynı sanatçı tuzağı)
+    """
     room["current_round"] = room.get("current_round", 0) + 1
     
     # Sıradaki oyuncuyu belirle (round-robin)
@@ -650,9 +751,7 @@ async def start_sarki_round(room, safe_send, broadcast):
     
     # Sıradaki oyuncu odada mı? (ayrılmış olabilir)
     if room["current_turn"] not in room["players"]:
-        # Bu sırayı atla, sonraki turn'a geç
-        room["current_round"] -= 1  # tur sayısını geri al
-        # Sıra atlama için turn_order'ı yenile
+        room["current_round"] -= 1
         room["turn_order"] = [pid for pid in room["turn_order"] if pid in room["players"]]
         if not room["turn_order"]:
             await end_sarki_game(room, safe_send, broadcast)
@@ -661,46 +760,116 @@ async def start_sarki_round(room, safe_send, broadcast):
         turn_index = (room["current_round"] - 1) % len(room["turn_order"])
         room["current_turn"] = room["turn_order"][turn_index]
     
-    print(f"[SARKI] Round {room['current_round']}: Sıra Oyuncu {room['current_turn']} ({room['players'][room['current_turn']]['name']})'de")
+    # ✨ ZORLUK HESAPLA (Progresif mod)
+    total_rounds = room.get("total_songs", 10)
+    difficulty = calculate_round_difficulty(room["current_round"], total_rounds)
+    target_tiers = get_tiers_for_difficulty(difficulty)
+    use_trap = should_use_same_artist_trap(difficulty)
     
-    # Havuzdan rastgele bir şarkı seç
+    difficulty_emoji = {"kolay": "🟢", "orta": "🟡", "zor": "🔴"}[difficulty]
+    print(f"[SARKI] Round {room['current_round']}/{total_rounds}: "
+          f"{difficulty_emoji} {difficulty.upper()} | "
+          f"Sıra: {room['players'][room['current_turn']]['name']} | "
+          f"Tuzak: {'✅' if use_trap else '❌'} | "
+          f"Hedef tier: {target_tiers}")
+    
+    # Havuzdan şarkı seç
     pool = room.get("song_pool", [])
     if not pool:
         print("[SARKI] HATA: Şarkı havuzu boş!")
         await end_sarki_game(room, safe_send, broadcast)
         return
     
-    # Şarkıyı havuzdan çıkar (tekrar gelmesin)
-    correct_song = pool.pop(0)
-    room["current_song"] = correct_song
+    # ✨ ZORLUKA UYGUN ŞARKI SEÇ
+    # Önce hedef tier'daki şarkılardan seç
+    tier_matching = [s for s in pool if s.get("tier") in target_tiers]
     
-    # 3 yanlış şık üret (farklı sanatçılardan)
-    wrong_options = []
+    if tier_matching:
+        correct_song = random.choice(tier_matching)
+        pool.remove(correct_song)
+    else:
+        # Uygun tier yoksa herhangi bir şarkı al (fallback)
+        print(f"[SARKI] ⚠️ {difficulty} zorluk için uygun şarkı yok, rastgele seçiliyor")
+        correct_song = pool.pop(0)
+    
+    room["current_song"] = correct_song
     correct_artist = correct_song["artist"].lower()
     correct_id = correct_song["id"]
+    correct_tur = get_tur_of_artist(correct_song["artist"])
     
-    # Havuzdan farklı sanatçılı şarkı seç
-    candidates = [s for s in pool 
-                  if s["artist"].lower() != correct_artist 
-                  and s["id"] != correct_id]
+    print(f"[SARKI] 🎵 Doğru şarkı: {correct_song['artist']} - {correct_song['title']} "
+          f"(tier: {correct_song.get('tier', '?')}, tür: {correct_tur})")
     
-    # Yeterli aday yoksa daha esnek ol
-    if len(candidates) < 3:
-        candidates = [s for s in pool if s["id"] != correct_id]
+    # ✨ YANLIŞ ŞIK ÜRETME (Zorluk odaklı)
+    wrong_options = []
     
-    if len(candidates) >= 3:
-        wrong_options = random.sample(candidates, 3)
+    # 1) Önce AYNI TÜRDEN adayları topla
+    same_tur_candidates = [s for s in pool 
+                          if s["artist"].lower() != correct_artist 
+                          and s["id"] != correct_id
+                          and get_tur_of_artist(s["artist"]) == correct_tur]
+    
+    # 2) Aynı türden de aynı zorluğa yakın olanları önceliklendir
+    same_tier_candidates = [s for s in same_tur_candidates 
+                           if s.get("tier") in target_tiers]
+    
+    # ✨ AYNI SANATÇI TUZAĞI
+    if use_trap:
+        # Aynı sanatçının başka şarkısını bul
+        same_artist_songs = [s for s in pool 
+                            if s["artist"].lower() == correct_artist 
+                            and s["id"] != correct_id]
+        
+        if same_artist_songs:
+            trap_song = random.choice(same_artist_songs)
+            wrong_options.append(trap_song)
+            pool.remove(trap_song)
+            print(f"[SARKI] 🪤 Aynı sanatçı tuzağı eklendi: {trap_song['title']}")
+    
+    # Kalan yanlış şık sayısı
+    remaining_needed = 3 - len(wrong_options)
+    
+    # 3) Önce aynı tür + aynı tier'dan seç
+    used_ids = {opt["id"] for opt in wrong_options}
+    tier_pool = [s for s in same_tier_candidates if s["id"] not in used_ids]
+    
+    if len(tier_pool) >= remaining_needed:
+        selected = random.sample(tier_pool, remaining_needed)
+        wrong_options.extend(selected)
     else:
-        # Havuz çok küçük - oyunu bitir
-        await end_sarki_game(room, safe_send, broadcast)
-        return
+        # Yeterli değilse: aynı tür (herhangi tier'dan) + kalanı tüm havuzdan
+        wrong_options.extend(tier_pool)
+        used_ids = {opt["id"] for opt in wrong_options}
+        remaining_needed = 3 - len(wrong_options)
+        
+        # Aynı türden (tier fark etmez)
+        tur_fallback = [s for s in same_tur_candidates if s["id"] not in used_ids]
+        if len(tur_fallback) >= remaining_needed:
+            wrong_options.extend(random.sample(tur_fallback, remaining_needed))
+        else:
+            wrong_options.extend(tur_fallback)
+            used_ids = {opt["id"] for opt in wrong_options}
+            remaining_needed = 3 - len(wrong_options)
+            
+            # Son çare: tüm havuzdan
+            any_fallback = [s for s in pool 
+                          if s["artist"].lower() != correct_artist 
+                          and s["id"] not in used_ids
+                          and s["id"] != correct_id]
+            if len(any_fallback) >= remaining_needed:
+                wrong_options.extend(random.sample(any_fallback, remaining_needed))
+            else:
+                # Havuz çok küçük - oyunu bitir
+                print(f"[SARKI] ❌ Yeterli yanlış şık yok ({len(wrong_options)}/3)")
+                await end_sarki_game(room, safe_send, broadcast)
+                return
     
-    # 4 şıkkı karıştır, doğru olanın index'ini bul
+    # 4 şıkkı karıştır
     all_options = wrong_options + [correct_song]
     random.shuffle(all_options)
     correct_index = all_options.index(correct_song)
     
-    # Şıkları oyunculara gönderilecek formata çevir (preview_url gönderme, cheating önle)
+    # Şıkları oyunculara gönderilecek formata çevir
     display_options = []
     for opt in all_options:
         display_options.append({
@@ -710,12 +879,15 @@ async def start_sarki_round(room, safe_send, broadcast):
     
     room["current_options"] = all_options
     room["current_correct_index"] = correct_index
+    room["current_difficulty"] = difficulty  # ✨ Frontend'e gönderelim
     room["player_answers"] = {}
     room["song_start_time"] = time.time()
     room["phase"] = "playing"
     
-    print(f"[SARKI] Tur {room['current_round']}: {correct_song['artist']} - {correct_song['title']}")
-    print(f"[SARKI] Doğru şık index: {correct_index}")
+    print(f"[SARKI] Şıklar:")
+    for i, opt in enumerate(all_options):
+        marker = "✅" if i == correct_index else "❌"
+        print(f"   {marker} {i+1}. {opt['artist']} - {opt['title']}")
     
     # Herkese tur başlangıcı gönder + sıradaki oyuncu bilgisi
     current_turn_pid = room["current_turn"]
@@ -759,7 +931,8 @@ async def start_sarki_round(room, safe_send, broadcast):
         "answer_duration": room["answer_duration"],
         "current_turn": current_turn_pid,
         "current_turn_name": current_turn_name,
-        "song_tur": song_tur
+        "song_tur": song_tur,
+        "difficulty": room.get("current_difficulty", "orta")  # ✨ Progresif zorluk
     })
     
     # Timer başlat: şarkı süresi + cevap süresi = toplam süre
@@ -861,11 +1034,11 @@ async def show_round_result(room, safe_send, broadcast):
         answer_data = room["player_answers"].get(current_turn_pid)
         
         if not answer_data:
-            points = -3
+            points = -5
             status = "timeout"
             answer_time = 0
             answer_idx = -1
-            print(f"[SARKI] ⏰ TIMEOUT: {current_pdata['name']} cevap vermedi → -3 puan")
+            print(f"[SARKI] ⏰ TIMEOUT: {current_pdata['name']} cevap vermedi → -5 puan")
         elif answer_data["answer_index"] == correct_index:
             answer_time = answer_data["time"]
             if answer_time < 3.0:
@@ -878,11 +1051,11 @@ async def show_round_result(room, safe_send, broadcast):
                 print(f"[SARKI] ✅ DOĞRU: {current_pdata['name']} → +10 puan")
             answer_idx = answer_data["answer_index"]
         else:
-            points = -3
+            points = -5
             status = "wrong"
             answer_time = answer_data["time"]
             answer_idx = answer_data["answer_index"]
-            print(f"[SARKI] ❌ YANLIŞ: {current_pdata['name']} → -3 puan (cevap: {answer_idx}, doğru: {correct_index})")
+            print(f"[SARKI] ❌ YANLIŞ: {current_pdata['name']} → -5 puan (cevap: {answer_idx}, doğru: {correct_index})")
         
         old_score = current_pdata.get("score", 0)
         current_pdata["score"] = old_score + points

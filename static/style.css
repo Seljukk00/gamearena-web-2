@@ -2417,3 +2417,540 @@ body > .container {
         grid-template-columns: 1fr 1fr !important;
     }
 }
+
+/* ============================================================
+   📱 MOBİL UYUMLULUK - GLOBAL (tüm modlar için)
+   ============================================================ */
+
+/* Tablet ve küçük ekranlar (768px altı) */
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+    
+    .container {
+        width: 100%;
+        max-width: 100%;
+        margin: 5px auto;
+        padding: 0 8px;
+    }
+    
+    h1.mainTitle {
+        font-size: 24px;
+        margin: 10px 0;
+        letter-spacing: 0.5px;
+    }
+    
+    h2 {
+        font-size: 18px;
+    }
+    
+    h3 {
+        font-size: 16px;
+    }
+    
+    /* Butonlar mobilde daha büyük dokunmatik alan */
+    button {
+        padding: 12px 16px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+    
+    .bigBtn {
+        padding: 14px 20px;
+        font-size: 15px;
+        min-width: 140px;
+        width: 100%;
+        max-width: 320px;
+    }
+    
+    /* Input'lar mobilde geniş, iOS zoom önleyici */
+    input, select, textarea {
+        width: 100%;
+        max-width: 100%;
+        padding: 12px 14px;
+        font-size: 16px;
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    
+    /* Panel padding azalt */
+    .panel {
+        padding: 12px 10px;
+        margin-bottom: 10px;
+    }
+    
+    /* Row/joinBox alt alta */
+    .row, .centerBox, .joinBox {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .row > *, .centerBox > *, .joinBox > * {
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    /* Timer label mobilde alt alta */
+    .timerLabel {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .timerLabel select, .timerLabel input {
+        width: 100%;
+    }
+    
+    /* Popup/Overlay mobil için */
+    .overlay {
+        padding: 10px;
+    }
+    
+    .overlayCard {
+        width: 100%;
+        max-width: 95vw;
+        padding: 18px 12px;
+        max-height: 92vh;
+        overflow-y: auto;
+    }
+    
+    .overlayCard img {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .bigName {
+        font-size: 18px;
+    }
+    
+    /* Confirm butonları alt alta */
+    .confirmButtons {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .confirmButtons > button {
+        width: 100%;
+    }
+    
+    /* Toast bildirim */
+    .toastBox {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        min-width: 0;
+        bottom: 15px;
+    }
+    
+    .toastBox img {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .toastTitle {
+        font-size: 15px;
+    }
+    
+    .toastMsg {
+        font-size: 13px;
+    }
+    
+    /* Answer toast */
+    .answerToast {
+        left: 10px;
+        right: 10px;
+        bottom: 15px;
+        font-size: 15px;
+        padding: 12px 16px;
+    }
+    
+    /* Kart grid küçük */
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+        gap: 5px;
+    }
+    
+    .card {
+        padding: 5px;
+        min-height: 130px;
+    }
+    
+    .card img {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 4px;
+    }
+    
+    .card .name {
+        font-size: 11px;
+    }
+    
+    .card .meta {
+        font-size: 9px;
+    }
+    
+    /* Ses widget'ı mobilde */
+    .volumeWidget {
+        bottom: 10px;
+        right: 10px;
+    }
+    
+    .volumeButton {
+        width: 42px;
+        height: 42px;
+    }
+    
+    .volumeButton svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .volumeSliderBox {
+        height: 180px;
+        width: 45px;
+    }
+    
+    /* Menü kartları */
+    .menuCards {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .menuCard {
+        padding: 22px 15px;
+    }
+    
+    .menuIcon {
+        font-size: 42px;
+    }
+    
+    .menuTitle {
+        font-size: 20px;
+    }
+    
+    .menuDesc {
+        font-size: 13px;
+    }
+    
+    /* Mod grid (2 sütun tablet) */
+    .mod-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 0 4px;
+        max-width: 100%;
+    }
+    
+    .mod-card img {
+        height: 100px;
+    }
+    
+    .mod-info {
+        padding: 8px;
+    }
+    
+    .mod-info h3 {
+        font-size: 13px;
+    }
+    
+    .mod-info p {
+        font-size: 10px;
+    }
+    
+    /* Footer */
+    .siteFooter {
+        padding: 15px 10px;
+    }
+    
+    .footerLinks {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .footerSeparator {
+        display: none;
+    }
+    
+    .footerCopy {
+        font-size: 11px;
+    }
+    
+    /* Oda kodu */
+    .roomCode {
+        font-size: 20px;
+        letter-spacing: 2px;
+    }
+    
+    .roomCodeBox {
+        font-size: 15px;
+    }
+    
+    /* Davet linki */
+    .inviteLink {
+        font-size: 11px;
+        word-break: break-all;
+    }
+    
+    /* Player listesi */
+    #playersList li,
+    #takimPlayersList li,
+    #mlPlayersList li,
+    #haritaPlayersList li,
+    #gizemPlayersList li,
+    #ilk11PlayersList li,
+    #stadPlayersList li,
+    #memePlayersList li,
+    #sarkiPlayersList li,
+    #satrancPlayersList li {
+        font-size: 14px;
+        padding: 8px 10px;
+        max-width: 100% !important;
+        height: 42px;
+        min-height: 42px;
+        max-height: 42px;
+    }
+    
+    .kickBtnNew {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+    
+    /* Game layout tek sütun */
+    .gameLayout {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .sidebar {
+        gap: 10px;
+    }
+    
+    /* Topbar */
+    .topbar {
+        padding: 8px 10px;
+        font-size: 12px;
+        gap: 6px;
+    }
+    
+    .timerText {
+        font-size: 14px;
+        padding: 2px 6px;
+    }
+    
+    /* Log */
+    .logBox {
+        max-height: 180px;
+        font-size: 12px;
+    }
+    
+    /* Cevap butonları */
+    .answerBtn {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
+    .answerButtons {
+        gap: 8px;
+    }
+    
+    /* Soru gösterimi */
+    .questionShow {
+        font-size: 14px;
+    }
+    
+    .questionBtn {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    .guessBtn {
+        font-size: 15px;
+        padding: 12px;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Home ekranı */
+    #homeScreen .panel {
+        padding: 15px 12px;
+    }
+    
+    /* Reklam mobil */
+    .ad-container {
+        margin: 10px auto;
+        padding: 8px;
+        min-height: 80px;
+    }
+    
+    /* Cloudflare Turnstile mobil */
+    .cf-turnstile {
+        transform: scale(0.9);
+        transform-origin: center;
+    }
+}
+
+/* Çok küçük telefonlar (400px altı) */
+@media (max-width: 400px) {
+    h1.mainTitle {
+        font-size: 20px;
+    }
+    
+    .mod-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .mod-card img {
+        height: 130px;
+    }
+    
+    .bigBtn {
+        font-size: 14px;
+        padding: 12px 16px;
+    }
+    
+    .roomCode {
+        font-size: 16px;
+        letter-spacing: 1px;
+    }
+    
+    .grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .card img {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .card {
+        min-height: 110px;
+    }
+}
+
+/* Yatay Mobil (landscape) */
+@media (max-width: 900px) and (orientation: landscape) {
+    .container {
+        max-width: 100%;
+    }
+    
+    /* Grid 6 sütun yatayda */
+    .grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .card {
+        min-height: 110px;
+    }
+    
+    .card img {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .card .name {
+        font-size: 10px;
+    }
+    
+    /* Overlay yatayda daha geniş */
+    .overlayCard {
+        max-width: 500px;
+    }
+    
+    /* Topbar tek satır scroll */
+    .topbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    /* Menü kartları yatay */
+    .menuCards {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    /* Mod grid yatay 3-4 sütun */
+    .mod-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Touch cihazlar için hover kaldır */
+@media (hover: none) and (pointer: coarse) {
+    .card:hover,
+    .menuCard:hover,
+    .mod-card:hover,
+    button:hover:not(:disabled) {
+        transform: none !important;
+        box-shadow: initial !important;
+    }
+    
+    .card:active {
+        transform: scale(0.97);
+    }
+    
+    button:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+    
+    .menuCard:active,
+    .mod-card:active {
+        transform: scale(0.98);
+    }
+}
+
+/* iOS Safari ekstra ayarlar */
+@supports (-webkit-touch-callout: none) {
+    input, select, textarea {
+        font-size: 16px !important; /* iOS zoom önleyici */
+    }
+    
+    body {
+        overscroll-behavior-y: contain;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    button, .card, .menuCard, .mod-card {
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* Chat mobil için optimize */
+@media (max-width: 768px) {
+    .miniChatContainer {
+        bottom: 10px !important;
+        left: 10px !important;
+    }
+    
+    .miniChatToggleBtn {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 20px !important;
+    }
+    
+    .miniChatPanel {
+        width: calc(100vw - 20px) !important;
+        max-width: 350px;
+        max-height: 60vh;
+    }
+    
+    .miniChatMessages {
+        max-height: 40vh;
+    }
+    
+    .miniChatInput {
+        font-size: 16px !important;
+    }
+    
+    .miniChatPopupStack {
+        left: 10px !important;
+        bottom: 65px !important;
+        max-width: calc(100vw - 20px);
+    }
+    
+    .miniChatPopup {
+        max-width: calc(100vw - 40px);
+        font-size: 12px;
+    }
+}

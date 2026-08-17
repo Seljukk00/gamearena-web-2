@@ -144,26 +144,26 @@ def _remove_last_captured_piece(room, capturer_pid, piece_type, piece_color):
             break
 
 
-def rollback_captured_for_undo(room, board_before_move, move, mover_pid):
+def rollback_captured_for_undo(room, board_current, move, mover_pid):
     """Undo sonrası captured listesini geri sarar."""
     try:
-        if not board_before_move.is_capture(move):
-            return
-
-        if board_before_move.is_en_passant(move):
-            _remove_last_captured_piece(room, mover_pid, "p", not board_before_move.turn)
-            return
-
-        restored_piece = board_before_move.piece_at(move.to_square)
-        if not restored_piece:
-            return
-
-        _remove_last_captured_piece(
-            room,
-            mover_pid,
-            restored_piece.symbol().lower(),
-            restored_piece.color
-        )
+        # ÖNEMLİ: board_current zaten pop() yapılmış halidir. 
+        # Ama hamlenin ne yediğini anlamak için board'un içindeki hamle bilgisini (is_capture) kullanırız.
+        # move nesnesi zaten hamle yapıldığında oluşturulmuştu.
+        
+        # Eğer hamle bir taş yediyse
+        # piece_at(move.to_square) pop'tan sonra geri gelen taşı verir.
+        restored_piece = board_current.piece_at(move.to_square)
+        
+        if restored_piece:
+            # mover_pid bu taşı yiyen kişiydi, şimdi ondan geri alıyoruz
+            _remove_last_captured_piece(
+                room,
+                mover_pid,
+                restored_piece.symbol().lower(),
+                restored_piece.color
+            )
+            print(f"[UNDO] {mover_pid} id'li oyuncunun yediği {restored_piece.symbol()} geri verildi.")
     except Exception as e:
         print(f"[SATRANC UNDO CAPTURE ROLLBACK HATA] {e}")
 
@@ -787,13 +787,16 @@ async def handle_jokerli_satranc_message(
                 room["satranc_pending_promotion"] = None
 
             if move not in board.legal_moves:
-                # ✨ Kalkanlı şah özel hamlesi olabilir - önce onu kontrol et
+                # ✨ Kalkanlı şah VEYA Hızlı Kaçış aktif şah özel hamlesi olabilir
                 shielded_pre = room.get("satranc_shielded", {})
+                hizli_kacis_pre = room.get("satranc_hizli_kacis", {})
                 moving_p = board.piece_at(move.from_square)
-                is_shielded_king_move = (moving_p and moving_p.piece_type == chess.KING and 
+                is_king_piece = moving_p and moving_p.piece_type == chess.KING
+                is_shielded_king_move = (is_king_piece and 
                                           chess.square_name(move.from_square) in shielded_pre)
-                
-                if not is_shielded_king_move:
+                is_hizli_kacis_move = (is_king_piece and hizli_kacis_pre.get(player_id))
+
+                if not is_shielded_king_move and not is_hizli_kacis_move:
                     print(f"[SATRANC HAMLE HATA] Legal değil: {uci_move}, board turn: {board.turn}, promo: {promotion}")
                     await safe_send(websocket, {"type": "error", "message": "Geçersiz hamle!"})
                     return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -899,51 +902,115 @@ async def handle_jokerli_satranc_message(
                 target_ok = (not target_piece_at_dest or (target_piece_at_dest.color != moving_piece.color and target_piece_at_dest.piece_type != chess.KING))
 
                 if is_queen_like and target_ok:
-                            # Rakip taşı yediyse captured'a ekle
-                            if target_piece_at_dest and target_piece_at_dest.piece_type != chess.KING:
-                                captured_list = room["satranc_captured_pieces"].setdefault(player_id, [])
-                                piece_symbol = target_piece_at_dest.symbol().lower()
-                                piece_color_str = "w" if target_piece_at_dest.color == chess.WHITE else "b"
-                                captured_list.append({"type": piece_symbol, "color": piece_color_str})
+                    # Rakip taşı yediyse captured'a ekle
+                    if target_piece_at_dest and target_piece_at_dest.piece_type != chess.KING:
+                        captured_list = room["satranc_captured_pieces"].setdefault(player_id, [])
+                        piece_symbol = target_piece_at_dest.symbol().lower()
+                        piece_color_str = "w" if target_piece_at_dest.color == chess.WHITE else "b"
+                        captured_list.append({"type": piece_symbol, "color": piece_color_str})
 
-                            # Manuel şah hamlesi (vezir gibi)
-                            board.remove_piece_at(move.from_square)
-                            if target_piece_at_dest:
-                                board.remove_piece_at(move.to_square)
-                            board.set_piece_at(move.to_square, moving_piece)
-                            board.turn = not board.turn
-                            san_move = f"K{to_sq}(HK-Vezir)"
-                            # Hızlı Kaçış efektini kaldır
-                            hizli_kacis.pop(player_id, None)
-                            room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
-                            decrement_effect_counters(room, mover_pid=player_id)
-                            # Efekt taşı
-                            for effect_key in ["satranc_shielded", "satranc_frozen", "satranc_invisible", "satranc_locked"]:
-                                effects = room.get(effect_key, {})
-                                if from_sq in effects:
-                                    effects[to_sq] = effects.pop(from_sq)
-                            board_state = board_to_dict(board)
-                            next_pid = black_pid if player_id == white_pid else white_pid
-                            next_legal = get_legal_moves(board)
-                            await broadcast(room, {
-                                "type": "satranc_board_update",
-                                "board": board_state,
-                                "last_move": uci_move,
-                                "san_move": san_move,
-                                "mover_id": player_id,
-                                "clocks": {str(p): room["satranc_clocks"].get(p, 0) for p in room["satranc_clocks"]},
-                                "effects": get_effect_state(room),
-                                "captured_pieces": get_captured_pieces_payload(room),
+                    # Manuel şah hamlesi (vezir gibi)
+                    board.remove_piece_at(move.from_square)
+                    if target_piece_at_dest:
+                        board.remove_piece_at(move.to_square)
+                    board.set_piece_at(move.to_square, moving_piece)
+                    board.turn = not board.turn
+                    san_move = f"K{to_sq}(HK-Vezir)"
+
+                    # Hızlı Kaçış efektini kaldır
+                    hizli_kacis.pop(player_id, None)
+
+                    room["satranc_move_count"] = room.get("satranc_move_count", 0) + 1
+                    decrement_effect_counters(room, mover_pid=player_id)
+
+                    # Efekt taşı
+                    for effect_key in ["satranc_shielded", "satranc_frozen", "satranc_invisible", "satranc_locked"]:
+                        effects = room.get(effect_key, {})
+                        if from_sq in effects:
+                            effects[to_sq] = effects.pop(from_sq)
+
+                    # ✨ İKİ HAMLE / EKSTRA HAMLE kontrolü
+                    continue_my_turn_hk = False
+                    same_piece_forced_legal_hk = None
+
+                    same_piece_double_hk = room.get("satranc_same_piece_double", {})
+                    same_piece_state_hk = same_piece_double_hk.get(player_id)
+                    extra_move_hk = room.get("satranc_extra_move", {})
+
+                    if same_piece_state_hk and same_piece_state_hk.get("active"):
+                        required_from_hk = same_piece_state_hk.get("required_from")
+
+                        # İlk hızlı kaçış hamlesi bitti → aynı taşla 2. hamle var mı?
+                        if not required_from_hk:
+                            next_same_from_hk = to_sq
+
+                            temp_board_hk = board.copy(stack=False)
+                            temp_board_hk.turn = chess.WHITE if player_id == white_pid else chess.BLACK
+
+                            candidate_legal_hk = [
+                                m.uci() for m in temp_board_hk.legal_moves
+                                if chess.square_name(m.from_square) == next_same_from_hk
+                            ]
+
+                            if candidate_legal_hk:
+                                same_piece_state_hk["required_from"] = next_same_from_hk
+                                same_piece_forced_legal_hk = candidate_legal_hk
+                                board.turn = chess.WHITE if player_id == white_pid else chess.BLACK
+                                san_move += " (+aynı taş)"
+                                continue_my_turn_hk = True
+                                print(f"[SATRANC IKI_HAMLE][HIZLI_KACIS] pid={player_id} ilk={from_sq}->{to_sq} ikinci_legal={candidate_legal_hk}")
+                            else:
+                                same_piece_double_hk.pop(player_id, None)
+                                san_move += " (aynı taşla devam hamlesi yok)"
+                                print(f"[SATRANC IKI_HAMLE][HIZLI_KACIS] pid={player_id} {next_same_from_hk} için ikinci hamle yok")
+                        else:
+                            # Zaten ikinci hamle yapıldıysa efekt bitsin
+                            same_piece_double_hk.pop(player_id, None)
+                            print(f"[SATRANC IKI_HAMLE][HIZLI_KACIS] pid={player_id} ikinci hamle tamamlandı: {from_sq}->{to_sq}")
+
+                    # Hakkını Bana Ver vb. ekstra hamle
+                    if not continue_my_turn_hk and extra_move_hk.get(player_id):
+                        board.turn = not board.turn
+                        extra_move_hk.pop(player_id, None)
+                        san_move += " (+1)"
+                        continue_my_turn_hk = True
+
+                    board_state = board_to_dict(board)
+                    next_pid = black_pid if player_id == white_pid else white_pid
+                    next_legal = same_piece_forced_legal_hk if same_piece_forced_legal_hk is not None else get_legal_moves(board)
+
+                    await broadcast(room, {
+                        "type": "satranc_board_update",
+                        "board": board_state,
+                        "last_move": uci_move,
+                        "san_move": san_move,
+                        "mover_id": player_id,
+                        "clocks": {str(p): room["satranc_clocks"].get(p, 0) for p in room["satranc_clocks"]},
+                        "effects": get_effect_state(room),
+                        "iki_hamle_active": continue_my_turn_hk,
+                        "captured_pieces": get_captured_pieces_payload(room),
+                    })
+
+                    if continue_my_turn_hk:
+                        my_ws_hk = room["players"].get(player_id, {}).get("ws")
+                        if my_ws_hk:
+                            await safe_send(my_ws_hk, {
+                                "type": "satranc_your_turn",
+                                "legal_moves": next_legal,
+                                "is_check": board.is_check(),
                             })
-                            next_ws = room["players"].get(next_pid, {}).get("ws")
-                            if next_ws:
-                                await safe_send(next_ws, {
-                                    "type": "satranc_your_turn",
-                                    "legal_moves": next_legal,
-                                    "is_check": board.is_check(),
-                                })
-                            print(f"[SATRANC HIZLI KACIS] {room['players'][player_id]['name']} vezir gibi hareket: {from_sq}→{to_sq}")
-                            return {"handled": True, "room_code": room_code, "player_id": player_id}
+                    else:
+                        next_ws = room["players"].get(next_pid, {}).get("ws")
+                        if next_ws:
+                            await safe_send(next_ws, {
+                                "type": "satranc_your_turn",
+                                "legal_moves": next_legal,
+                                "is_check": board.is_check(),
+                            })
+
+                    print(f"[SATRANC HIZLI KACIS] {room['players'][player_id]['name']} vezir gibi hareket: {from_sq}→{to_sq}")
+                    return {"handled": True, "room_code": room_code, "player_id": player_id}
+
                 # Hızlı Kaçış aktif ama geçersiz hedef → hata
                 await safe_send(websocket, {
                     "type": "error",
@@ -1611,44 +1678,63 @@ async def handle_jokerli_satranc_message(
         # 🔄 GERİ AL (YENİ MANTIK)
         # ==========================================
         if joker_id == "geri_al":
-            # Zaten yukarıda "sıra sende değilse hata" kontrolü var
-            # Yani buraya geldiysek sıra bendedir
-            # Board'da son hamle rakibinki (çünkü sıra bana geçti)
-
             if len(board.move_stack) == 0:
-                await safe_send(websocket, {
-                    "type": "error",
-                    "message": "Geri Al: Henüz hamle yapılmadı."
-                })
+                await safe_send(websocket, {"type": "error", "message": "Geri Al: Henüz hamle yapılmadı."})
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+            undo_moves = []
+            opp_pid_undo = black_pid if player_id == white_pid else white_pid
+
+            # ✨ SADECE 1 HAMLE GERİ AL - RAKİBİN SON HAMLESİ
+            # Şu an sıra bende (Geri Al kullanıyorum) demek ki son hamle rakibin.
+            rakip_move = board.pop()
+            # pop sonrası taş tahtaya geri geldi. Captured listesinden de silelim:
+            rollback_captured_for_undo(room, board, rakip_move, opp_pid_undo)
+            undo_moves.append(rakip_move.uci())
+
+            # ✨ SIRA BENDE KALIR (Geri Al kullanan kendi hamlesini yapacak)
+            # board.pop() turn'ü değiştirir, o yüzden zorla kendime çevir
+            my_color_chess = chess.WHITE if player_id == white_pid else chess.BLACK
+            board.turn = my_color_chess
+
+            used.append(joker_id)
+            board_state = board_to_dict(board)
+            legal_moves = get_legal_moves(board)
+
+            await broadcast(room, {
+                "type": "satranc_joker_used",
+                "joker_id": joker_id,
+                "joker_name": joker_info["name"],
+                "joker_icon": joker_info["icon"],
+                "user_id": player_id,
+                "user_name": room["players"][player_id]["name"],
+                "message": f"{room['players'][player_id]['name']} rakibin son hamlesini geri aldı! 🔄 Şimdi kendisi oynayacak.",
+                "board": board_state,
+                "undo_moves": undo_moves,
+                "undo_count": len(undo_moves),
+                "effects": get_effect_state(room),
+                "captured_pieces": get_captured_pieces_payload(room),
+            })
+
+            # ✨ Sıra BENDE (Geri Al kullanan), kendime legal moves gönder
+            await safe_send(websocket, {
+                "type": "satranc_your_turn",
+                "legal_moves": legal_moves,
+                "is_check": board.is_check(),
+            })
+
+            print(f"[SATRANC JOKER] {room['players'][player_id]['name']} → Geri Al (rakibin hamlesi geri alındı, sıra kendisinde)")
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # Son hamlenin RAKİBİN olduğunu kontrol et
             # move_stack'in son elemanı, henüz applied olan hamle
             # board.turn şu an bize dönmüş, demek ki son hamleyi rakip yapmış
 
-            # ✨ Rakibin son hamlesi bizim taşımızı yediyse
+            # Son hamle rakibin hamlesi.
+            # Rakip bizim taşımızı yemiş olsa bile Geri Al buna izin verir:
+            # board.pop() yenilen taşı tahtaya geri getirir,
+            # rollback_captured_for_undo() da captured panelini geri sarar.
             last_move = board.move_stack[-1]
-
-            # board şu anki state, popla önceki state'e dönüyoruz
-            # Ama önce: rakip beni yedi mi kontrol et
-            # Bunu anlamak için: son hamlenin geldiği kareye bakıp,
-            # push edilmeden önceki halde bizim taşımız var mıydı?
-
-            # Basit yol: FEN karşılaştırma - son hamleden ÖNCE ve SONRA
-            # captured piece check: SAN string'inde 'x' varsa yeme var
-            temp_board = board.copy()
-            temp_board.pop()  # bir öncesi
-            captured_piece = temp_board.piece_at(last_move.to_square)
-
-            my_color = chess.WHITE if player_id == white_pid else chess.BLACK
-
-            if captured_piece and captured_piece.color == my_color:
-                # Rakip beni yedi
-                await safe_send(websocket, {
-                    "type": "error",
-                    "message": "❌ Taşınız yendi, geri alınamaz!"
-                })
-                return {"handled": True, "room_code": room_code, "player_id": player_id}
 
             # Rakip yemedi → hem rakip hem ben (2 half-move) geri
             # Ama ben belki henüz oynamadım? Yani sadece rakip 1 hamle yaptı?

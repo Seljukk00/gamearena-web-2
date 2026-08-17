@@ -873,6 +873,15 @@
         // Önce eskisini KESİN durdur (çift ses fix)
         stopSarkiAudio();
         
+        // ✨ URL kontrolü
+        if (!previewUrl || typeof previewUrl !== "string" || previewUrl.trim() === "") {
+            console.warn("[SARKI] Preview URL boş/null:", previewUrl);
+            $("sarkiStatusMsg").textContent = "⚠️ Şarkı yüklenemedi (URL yok)";
+            return;
+        }
+        
+        console.log("[SARKI] Şarkı çalınıyor:", previewUrl.substring(0, 80) + "...");
+        
         // Play ID (aynı anda birden fazla çağrı gelirse en yeni kazansın)
         window._sarkiPlayId = (window._sarkiPlayId || 0) + 1;
         const myPlayId = window._sarkiPlayId;
@@ -892,25 +901,49 @@
             const audioEl = document.getElementById("sarkiAudio");
             if (!audioEl) return;
 
+            // ✨ Önce mevcut state'i tamamen temizle
             try {
                 audioEl.pause();
+                audioEl.removeAttribute("src");
+                audioEl.load();  // Boş load, eski src cache'ini temizle
                 audioEl.currentTime = 0;
             } catch(e) {}
             
+            // ✨ Yeni src ata
             audioEl.src = previewUrl;
             audioEl.volume = getGlobalVolume();
             audioEl.loop = false;
+            audioEl.crossOrigin = "anonymous";  // CORS için
             audioEl.load();
 
             sarkiAudio = audioEl;
             
-            const playPromise = audioEl.play();
-            if (playPromise) {
-                playPromise.catch(err => {
-                    console.warn("[SARKI] Autoplay engellendi:", err);
-                    $("sarkiStatusMsg").textContent = "⚠️ Ses çalmıyor - Sayfayı tıklayın!";
-                });
-            }
+            // ✨ Kısa gecikme ile play (load bitsin)
+            setTimeout(() => {
+                if (myPlayId !== window._sarkiPlayId) return;
+                
+                const playPromise = audioEl.play();
+                if (playPromise) {
+                    playPromise.catch(err => {
+                        console.warn("[SARKI] Autoplay engellendi:", err.name, err.message);
+                        // ✨ NotSupportedError ise src'yi tekrar dene
+                        if (err.name === "NotSupportedError") {
+                            console.log("[SARKI] Kaynak bulunamadı, 500ms sonra tekrar denenecek...");
+                            setTimeout(() => {
+                                if (myPlayId !== window._sarkiPlayId) return;
+                                audioEl.src = previewUrl;
+                                audioEl.load();
+                                audioEl.play().catch(e2 => {
+                                    console.error("[SARKI] Tekrar denemede de başarısız:", e2.message);
+                                    $("sarkiStatusMsg").textContent = "⚠️ Şarkı yüklenemedi";
+                                });
+                            }, 500);
+                        } else {
+                            $("sarkiStatusMsg").textContent = "⚠️ Ses çalmıyor - Sayfayı tıklayın!";
+                        }
+                    });
+                }
+            }, 50);
         }, AUDIO_START_DELAY);
 
         // ✨ CEVAP FAZINA GEÇİŞ timer'ı (şarkı devam eder, sadece sesi kısılır)
@@ -971,20 +1004,25 @@
             clearTimeout(sarkiAudioStopTimer);
             sarkiAudioStopTimer = null;
         }
-        // ✨ HTML'deki audio element'ini de garantile
+        // ✨ HTML'deki audio element'ini durdur (src'yi silme!)
         const audioEl = document.getElementById("sarkiAudio");
         if (audioEl) {
             try {
                 audioEl.pause();
                 audioEl.currentTime = 0;
-                audioEl.src = "";  // Kaynağı da sil - iki kere çalmasını önler
+                audioEl.loop = false;
+                // ✨ src'yi silmiyoruz - sadece removeAttribute + load ile temizle
+                audioEl.removeAttribute("src");
+                audioEl.load();
             } catch(e) {}
         }
         if (sarkiAudio && sarkiAudio !== audioEl) {
             try {
                 sarkiAudio.pause();
                 sarkiAudio.currentTime = 0;
-                sarkiAudio.src = "";
+                sarkiAudio.loop = false;
+                sarkiAudio.removeAttribute("src");
+                sarkiAudio.load();
             } catch(e) {}
         }
         sarkiAudio = null;
@@ -1008,8 +1046,9 @@
         const t = $("sarkiTimer");
         if (!t) return;
         t.textContent = Math.max(0, remaining);
+        t.classList.remove("warning", "caution");
         if (remaining <= 3) t.classList.add("warning");
-        else t.classList.remove("warning");
+        else if (remaining === 4) t.classList.add("caution");
 
         // ✨ Kapak altındaki süre göstergesi
         const songDur = window._sarkiSongDuration || 10;
@@ -1030,6 +1069,7 @@
                 bigTimer.textContent = ansLeft;
                 bigTimer.className = "sarkiBigTimer answering";
                 if (ansLeft <= 3) bigTimer.classList.add("warning");
+                else if (ansLeft === 4) bigTimer.classList.add("caution");
             }
         }
 
