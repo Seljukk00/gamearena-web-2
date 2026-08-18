@@ -384,6 +384,52 @@ async def websocket_endpoint(websocket: WebSocket):
                     history.pop(0)
 
                 continue
+                
+            # ==========================================
+            # WEBRTC SİGNALING (Mini Futbol P2P için)
+            # ==========================================
+            if msg_type == "mini_webrtc_offer":
+                # Host misafire offer gönderdi
+                if room_code and room_code in rooms:
+                    room = rooms[room_code]
+                    if room.get("mode") == "mini_futbol":
+                        # Offer'ı misafire ilet (host değilse herkese, host ise herkese)
+                        for pid, pdata in room["players"].items():
+                            if pid != player_id:
+                                await safe_send(pdata["ws"], {
+                                    "type": "mini_webrtc_offer",
+                                    "offer": data.get("offer"),
+                                    "from_player_id": player_id
+                                })
+                continue
+
+            if msg_type == "mini_webrtc_answer":
+                # Misafir host'a answer gönderdi
+                if room_code and room_code in rooms:
+                    room = rooms[room_code]
+                    if room.get("mode") == "mini_futbol":
+                        for pid, pdata in room["players"].items():
+                            if pid != player_id:
+                                await safe_send(pdata["ws"], {
+                                    "type": "mini_webrtc_answer",
+                                    "answer": data.get("answer"),
+                                    "from_player_id": player_id
+                                })
+                continue
+
+            if msg_type == "mini_webrtc_ice":
+                # ICE candidate taşı (her iki yönde)
+                if room_code and room_code in rooms:
+                    room = rooms[room_code]
+                    if room.get("mode") == "mini_futbol":
+                        for pid, pdata in room["players"].items():
+                            if pid != player_id:
+                                await safe_send(pdata["ws"], {
+                                    "type": "mini_webrtc_ice",
+                                    "candidate": data.get("candidate"),
+                                    "from_player_id": player_id
+                                })
+                continue    
 
             # ==========================================
             # ORTAK KICK HANDLER (tüm modlar için)
