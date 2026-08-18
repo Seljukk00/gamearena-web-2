@@ -10,6 +10,11 @@ let satrancData = {
     jokerCount: 3,
     pickMode: "karisik",
     pickSeconds: 60,
+    lockMode: "off",         // ✨ Joker kilidi: off / pieces / time
+    lockPieces: 3,           // ✨ Kaç taş yendikten sonra
+    lockMinutes: 2,          // ✨ Kaç dakika sonra
+    lockStatus: null,        // ✨ Oyun içi: {locked, remaining_pieces, remaining_seconds, ...}
+    lockCountdownInterval: null,  // ✨ Süre modu için canlı countdown
     players: [],
     myColor: null,       // "w" veya "b"
     whiteId: null,
@@ -38,6 +43,7 @@ let satrancData = {
     shieldedDetails: {}, // {square: kalan_tur} - kalkanlı taşlar
     frozenDetails: {}, // {square: kalan_tur} - dondurulmuş taşlar
     lockedDetails: {}, // {square: kalan_tur} - kilitli taşlar
+    slowedDetails: {}, // {square: kalan_tur} - yavaşlatılmış taşlar
     ajanDisguised: {}, // {square: "w"|"b"} - sadece görsel sahte renk
     mySansurLeft: 0,  // Kendi sansür kalan tur sayım
     oppSansurLeft: 0, // Rakibin sansür kalan tur sayısı
@@ -67,6 +73,7 @@ const SATRANC_SOUNDS = {
     geri_al: "/satranc_sounds/geri_al.mp3",
     zar: "/satranc_sounds/zar.mp3",
     kasa_acilma: "/satranc_sounds/kasa_acilma.wav",
+    rulet: "/satranc_sounds/rulet.mp3",
 };
 
 // Ses cache (aynı ses üst üste çalabilsin)
@@ -351,6 +358,74 @@ function isMyTurn() {
     return satrancData.game.turn() === satrancData.myColor;
 }
 
+// ✨ Joker kilidi countdown başlat (süre modu için)
+function _startLockCountdown() {
+    _stopLockCountdown();
+    satrancData.lockCountdownInterval = setInterval(() => {
+        if (satrancData.jokersUnlocked || satrancData.lockMode !== "time") {
+            _stopLockCountdown();
+            return;
+        }
+        const elapsed = (Date.now() - satrancData.gameStartTs) / 1000;
+        const totalSec = satrancData.lockMinutes * 60;
+        const remaining = Math.max(0, totalSec - elapsed);
+        
+        if (remaining <= 0) {
+            satrancData.jokersUnlocked = true;
+            _stopLockCountdown();
+            showToast("🔓 Jokerler Açıldı!", "Artık jokerlerini kullanabilirsin!", null, "success");
+        }
+        
+        // Panel başlıklarını güncelle
+        renderMyJokers();
+        renderOppJokers();
+    }, 1000);
+}
+
+function _stopLockCountdown() {
+    if (satrancData.lockCountdownInterval) {
+        clearInterval(satrancData.lockCountdownInterval);
+        satrancData.lockCountdownInterval = null;
+    }
+}
+
+// ✨ Kilit durumu HTML'ini oluştur (panel başlığı için)
+function _getLockBadgeHtml() {
+    if (satrancData.jokersUnlocked || satrancData.lockMode === "off") {
+        return "";
+    }
+    
+    if (satrancData.lockMode === "pieces") {
+        const status = satrancData.lockStatus;
+        const remaining = status ? status.remaining_pieces : satrancData.lockPieces;
+        return `<div style='color:#ffa94d; font-size:11px; font-weight:normal; margin-top:4px; padding:4px 8px; background:rgba(255,169,77,0.15); border-radius:6px; border:1px solid #ffa94d;'>🔒 Kalan Taş: <b>${remaining}</b></div>`;
+    }
+    
+    if (satrancData.lockMode === "time") {
+        const elapsed = (Date.now() - satrancData.gameStartTs) / 1000;
+        const totalSec = satrancData.lockMinutes * 60;
+        const remaining = Math.max(0, totalSec - elapsed);
+        const timeStr = _formatLockTime(remaining);
+        return `<div style='color:#ffa94d; font-size:11px; font-weight:normal; margin-top:4px; padding:4px 8px; background:rgba(255,169,77,0.15); border-radius:6px; border:1px solid #ffa94d;'>🔒 ${timeStr} sonra açılacak</div>`;
+    }
+    
+    return "";
+}
+
+// ✨ Süreyi güzel formatla (49 saniye, 2 dakika 15 saniye, vb.)
+function _formatLockTime(totalSeconds) {
+    const total = Math.max(0, Math.ceil(totalSeconds));
+    if (total < 60) {
+        return `${total} saniye`;
+    }
+    const mm = Math.floor(total / 60);
+    const ss = total % 60;
+    if (ss === 0) {
+        return `${mm} dakika`;
+    }
+    return `${mm} dk ${ss} sn`;
+}
+
 function renderMyJokers() {
     const container = document.getElementById("satrancMyJokers");
     if (!container) return;
@@ -381,6 +456,8 @@ function renderMyJokers() {
         if (iAmSansurlu) {
             baseTitle += `<div style='color:#ffa94d; font-size:11px; font-weight:normal; margin-top:4px; padding:4px 8px; background:rgba(255,107,107,0.15); border-radius:6px; border:1px solid #ff6b6b;'>⛔ Sansür bitmesine: <b>${sansurLeft} tur</b></div>`;
         }
+        // ✨ Joker kilidi badge
+        baseTitle += _getLockBadgeHtml();
         panelHeader.innerHTML = baseTitle;
     }
 
@@ -392,6 +469,8 @@ function renderMyJokers() {
         if (oppSansur > 0) {
             oppBaseTitle += `<div style='color:#51cf66; font-size:11px; font-weight:normal; margin-top:4px; padding:4px 8px; background:rgba(81,207,102,0.15); border-radius:6px; border:1px solid #51cf66;'>⛔ Rakip sansürlü: <b>${oppSansur} tur</b></div>`;
         }
+        // ✨ Joker kilidi badge (rakip için de göster)
+        oppBaseTitle += _getLockBadgeHtml();
         oppPanelHeader.innerHTML = oppBaseTitle;
     }
 
@@ -488,6 +567,23 @@ function renderMyJokers() {
                 }
             }
         }
+        
+        // ✨ YAVAŞLAT joker kartında kalan tur badge
+        if (joker.id === "yavaslat" && isUsed) {
+            const slowedDetails = satrancData.slowedDetails || {};
+            const activeSquares = Object.keys(slowedDetails);
+            if (activeSquares.length > 0) {
+                let maxTurns = 0;
+                activeSquares.forEach(sq => {
+                    const t = slowedDetails[sq] || 0;
+                    if (t > maxTurns) maxTurns = t;
+                });
+                if (maxTurns > 0) {
+                    cardTopBadge = `<div class="satrancJcTopBadge slowedBadge">🐌 Kalan Tur: ${maxTurns}</div>`;
+                    card.classList.add("slowedActive");
+                }
+            }
+        }
 
         card.innerHTML = `
             ${cardTopBadge}
@@ -496,9 +592,42 @@ function renderMyJokers() {
             <div class="satrancJcName">${joker.name}</div>
         `;
 
-        // ✨ Sadece kullanılmamış VE sıra bendeyken VE sansürsüzken tıklanabilir
-        if (!isUsed && myTurn && !iAmSansurlu) {
+        // ✨ Joker kilidi kontrolü
+        const jokersLocked = !satrancData.jokersUnlocked && satrancData.lockMode !== "off";
+        if (!isUsed && jokersLocked) {
+            card.classList.add("sansurluCard");
+            let lockMsg = "";
+            if (satrancData.lockMode === "pieces") {
+                const status = satrancData.lockStatus;
+                const remaining = status ? status.remaining_pieces : satrancData.lockPieces;
+                lockMsg = `🔒 Jokerler kilitli! ${remaining} taş daha yenmeli.`;
+            } else if (satrancData.lockMode === "time") {
+                const elapsed = (Date.now() - satrancData.gameStartTs) / 1000;
+                const totalSec = satrancData.lockMinutes * 60;
+                const remaining = Math.max(0, totalSec - elapsed);
+                lockMsg = `🔒 Jokerler kilitli! ${_formatLockTime(remaining)} sonra açılacak.`;
+            }
+            card.title = lockMsg;
+        }
+        
+        // ✨ Sadece kullanılmamış VE sıra bendeyken VE sansürsüzken VE kilit yokken tıklanabilir
+        if (!isUsed && myTurn && !iAmSansurlu && !jokersLocked) {
             card.onclick = () => tryUseJoker(joker);
+        } else if (!isUsed && jokersLocked) {
+            card.onclick = () => {
+                let lockMsg = "";
+                if (satrancData.lockMode === "pieces") {
+                    const status = satrancData.lockStatus;
+                    const remaining = status ? status.remaining_pieces : satrancData.lockPieces;
+                    lockMsg = `${remaining} taş daha yenmeli.`;
+                } else if (satrancData.lockMode === "time") {
+                    const elapsed = (Date.now() - satrancData.gameStartTs) / 1000;
+                    const totalSec = satrancData.lockMinutes * 60;
+                    const remaining = Math.max(0, totalSec - elapsed);
+                    lockMsg = `${_formatLockTime(remaining)} sonra açılacak.`;
+                }
+                showToast("🔒 Jokerler Kilitli!", lockMsg, null, "warning");
+            };
         } else if (!isUsed && iAmSansurlu) {
             card.onclick = () => {
                 showToast("⛔ Sansürlüsün!", `${sansurLeft} tur daha joker kullanamazsın.`, null, "warning");
@@ -518,7 +647,7 @@ function renderMyJokers() {
 
 // Hedef gerektiren jokerler
 const SINGLE_TARGET_JOKERS = ["vezire_yukselt", "kalkan", "dondur", "bomba", "gorunmez",
-                              "kilitle", "ajan", "yoksay"];
+                              "kilitle", "ajan", "yoksay", "yavaslat"];
 const DOUBLE_TARGET_JOKERS = ["isinlan", "klon", "rakip_tas_yerlestir", "yer_degistir", "rakibi_isinla"];
 // Özel: Taş Dönüştür - kare seç + tür seç popup
 const SPECIAL_TARGET_JOKERS = ["tas_donustur"];
@@ -763,15 +892,35 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
     const myColor = satrancData.myColor;
 
     // ✨ Efekt çakışma kontrolü — bir taşta zaten aktif efekt varsa yeni efekt eklenemez
-    // Ayrıca: klon jokerinde efektli taş klonlanamaz
-    const efektJokerler = ["kalkan", "dondur", "kilitle", "gorunmez", "ajan", "klon"];
+    // TÜM efekt jokerleri + hareket jokerleri
+    const efektJokerler = [
+        "kalkan", "dondur", "kilitle", "gorunmez", "ajan", "klon", "yavaslat",
+        "vezire_yukselt", "tas_donustur", "isinlan"
+    ];
+    // Bomba burada YOK - kalkanlı taşa bomba atılabilir (kalkan koruyor)
     if (efektJokerler.includes(jokerId) && phase === 1) {
         const sh = satrancData.shieldedDetails || {};
         const fr = satrancData.frozenDetails || {};
         const lk = satrancData.lockedDetails || {};
         const inv = satrancData.invisibleDetails || {};
         const aj = satrancData.ajanDisguised || {};
-        if (sh[square] || fr[square] || lk[square] || inv[square] || aj[square]) {
+        const sl = satrancData.slowedDetails || {};
+        if (sh[square] || fr[square] || lk[square] || inv[square] || aj[square] || sl[square]) {
+            return false;
+        }
+    }
+    
+    // ✨ Yer Değiştir / Rakibi Işınla / Rakip Taş Yerleştir - iki taş de efektsiz olmalı
+    const swapJokerler = ["yer_degistir", "rakibi_isinla", "rakip_tas_yerlestir"];
+    if (swapJokerler.includes(jokerId)) {
+        const sh = satrancData.shieldedDetails || {};
+        const fr = satrancData.frozenDetails || {};
+        const lk = satrancData.lockedDetails || {};
+        const inv = satrancData.invisibleDetails || {};
+        const aj = satrancData.ajanDisguised || {};
+        const sl = satrancData.slowedDetails || {};
+        // Phase 1 veya Phase 2'de seçilen kare kontrol edilir
+        if (sh[square] || fr[square] || lk[square] || inv[square] || aj[square] || sl[square]) {
             return false;
         }
     }
@@ -796,6 +945,7 @@ function isSquareTargetable(square, jokerId, phase, prevTarget) {
             return true;
         case "dondur":
         case "kilitle":
+        case "yavaslat":
             // Rakip taş (şah hariç)
             return piece && piece.color !== myColor && piece.type !== "k";
         case "ajan":
@@ -957,6 +1107,7 @@ function _getJokerTargetHint(jokerId, phase) {
         "bomba": ["Bombanın merkezini seç (şah hariç)"],
         "gorunmez": ["Görünmez yapacağın kendi taşını seç"],
         "kilitle": ["Kilitleyeceğin rakip taşını seç"],
+        "yavaslat": ["🐌 Yavaşlatacağın rakip taşını seç"],
         "ajan": ["Ajan yapacağın kendi taşını seç"],
         "yoksay": ["🚫 Hayalet yapılacak taşı seç (kendi/rakip, kral hariç)"],
         "isinlan": ["Işınlayacağın kendi taşını seç", "Hedef boş kareyi seç"],
@@ -1165,6 +1316,9 @@ function renderOppJokers() {
     const revealed = window._satrancRevealedOppJokers || [];
     const usedIds = new Set(satrancData.oppUsedJokers || []);
     const hiddenCount = Math.max(0, totalCount - revealed.length);
+    
+    // ✨ Joker kilidi kontrolü (rakip için)
+    const jokersLocked = !satrancData.jokersUnlocked && satrancData.lockMode !== "off";
 
     if (totalCount === 0) {
         container.innerHTML = '<p style="color:#6c757d; text-align:center; font-size:12px;">Joker yok</p>';
@@ -1202,6 +1356,10 @@ function renderOppJokers() {
                     const t = (typeof v === "object") ? (v.turns || 0) : 0;
                     if (t > 0) { isStillActive = true; activeTurns = Math.max(activeTurns, t); }
                 });
+            } else if (joker.id === "yavaslat") {
+                const sd = satrancData.slowedDetails || {};
+                const maxT = Math.max(0, ...Object.values(sd).map(Number));
+                if (maxT > 0) { isStillActive = true; activeTurns = maxT; }
             }
         }
 
@@ -1223,7 +1381,7 @@ function renderOppJokers() {
         if (isStillActive) {
             const badgeIcons = {
                 kilitle: "⛓️", dondur: "❄️", kalkan: "🛡️",
-                gorunmez: "🧙", ajan: "🕵️"
+                gorunmez: "🧙", ajan: "🕵️", yavaslat: "🐌"
             };
             const badgeIcon = badgeIcons[joker.id] || "⏳";
             badgeHtml = `<div class="satrancJcTopBadge lockedBadge">${badgeIcon} Kalan Tur: ${activeTurns}</div>`;
@@ -1241,11 +1399,37 @@ function renderOppJokers() {
     for (let i = 0; i < hiddenCount; i++) {
         const card = document.createElement("div");
         card.className = "satrancJokerCard satrancJokerHiddenCard";
+        // ✨ Kilit varsa soluk göster
+        if (jokersLocked) {
+            card.classList.add("sansurluCard");
+            let lockMsg = "";
+            if (satrancData.lockMode === "pieces") {
+                const status = satrancData.lockStatus;
+                const remaining = status ? status.remaining_pieces : satrancData.lockPieces;
+                lockMsg = `🔒 Rakibin jokerleri kilitli - ${remaining} taş daha yenmeli`;
+            } else if (satrancData.lockMode === "time") {
+                const elapsed = (Date.now() - satrancData.gameStartTs) / 1000;
+                const totalSec = satrancData.lockMinutes * 60;
+                const remaining = Math.max(0, totalSec - elapsed);
+                lockMsg = `🔒 Rakibin jokerleri kilitli - ${_formatLockTime(remaining)} sonra açılacak`;
+            }
+            card.title = lockMsg;
+        }
         card.innerHTML = `
             <div class="satrancJcIcon">🎴</div>
             <div class="satrancJcName">???</div>
         `;
         container.appendChild(card);
+    }
+    
+    // ✨ Rakibin açığa çıkmış jokerleri de kilitli olmalı
+    if (jokersLocked) {
+        const oppCards = container.querySelectorAll(".satrancJokerCard:not(.used)");
+        oppCards.forEach(c => {
+            if (!c.classList.contains("used")) {
+                c.classList.add("sansurluCard");
+            }
+        });
     }
 }
 
@@ -1966,7 +2150,7 @@ function showKasaAnimation(msg) {
 }
 
 // ==========================================
-// RULET ANİMASYONU - Çark Animasyonlu
+// RULET ANİMASYONU - Kumarhane Tarzı (Kırmızı-Siyah Çark + Zıplayan Top)
 // ==========================================
 function showRuletAnimation(msg) {
     let overlay = document.getElementById("satrancRuletOverlay");
@@ -1986,84 +2170,198 @@ function showRuletAnimation(msg) {
     ];
 
     const winnerIdx = outcomes.findIndex(o => o.type === msg.rulet_outcome);
-    const anglePerSlice = 360 / outcomes.length; // 90 derece her dilim
-
-    let sliceHtml = "";
-    outcomes.forEach((o, i) => {
-        const startAngle = i * anglePerSlice;
-        const endAngle = (i + 1) * anglePerSlice;
-        const largeArc = 0;
-        const x1 = 150 + 140 * Math.cos((startAngle - 90) * Math.PI / 180);
-        const y1 = 150 + 140 * Math.sin((startAngle - 90) * Math.PI / 180);
-        const x2 = 150 + 140 * Math.cos((endAngle - 90) * Math.PI / 180);
-        const y2 = 150 + 140 * Math.sin((endAngle - 90) * Math.PI / 180);
+    
+    // ✨ Kumarhane rulet: 16 hücre (4 sonuç x 4 kez tekrar)
+    const cellCount = 16;
+    const cellsPerOutcome = cellCount / outcomes.length; // 4
+    const anglePerCell = 360 / cellCount; // 22.5 derece
+    
+    // Renk paterni: kırmızı-siyah-kırmızı-siyah
+    const cellColors = ["#c92a2a", "#1a1a1a"]; // Kırmızı, Siyah
+    
+    // 16 hücrenin outcome atamaları (dağıtılmış)
+    // outcome 0: 0, 4, 8, 12
+    // outcome 1: 1, 5, 9, 13
+    // outcome 2: 2, 6, 10, 14
+    // outcome 3: 3, 7, 11, 15
+    const cellOutcomes = [];
+    for (let i = 0; i < cellCount; i++) {
+        cellOutcomes.push(i % outcomes.length);
+    }
+    
+    // Kazanan hücre bul (winnerIdx * 4. sırada olan hücre - randomize et)
+    const winnerCells = [];
+    for (let i = 0; i < cellCount; i++) {
+        if (cellOutcomes[i] === winnerIdx) winnerCells.push(i);
+    }
+    const winnerCellIdx = winnerCells[Math.floor(Math.random() * winnerCells.length)];
+    
+    // Rulet çarkı SVG oluştur
+    let cellsHtml = "";
+    let numbersHtml = "";
+    for (let i = 0; i < cellCount; i++) {
+        const startAngle = i * anglePerCell;
+        const endAngle = (i + 1) * anglePerCell;
+        const outcome = outcomes[cellOutcomes[i]];
+        const color = cellColors[i % 2]; // Kırmızı-siyah paterni
+        
+        // Dış hücre (renk + icon)
+        const x1Out = 175 + 155 * Math.cos((startAngle - 90) * Math.PI / 180);
+        const y1Out = 175 + 155 * Math.sin((startAngle - 90) * Math.PI / 180);
+        const x2Out = 175 + 155 * Math.cos((endAngle - 90) * Math.PI / 180);
+        const y2Out = 175 + 155 * Math.sin((endAngle - 90) * Math.PI / 180);
+        const x1In = 175 + 95 * Math.cos((startAngle - 90) * Math.PI / 180);
+        const y1In = 175 + 95 * Math.sin((startAngle - 90) * Math.PI / 180);
+        const x2In = 175 + 95 * Math.cos((endAngle - 90) * Math.PI / 180);
+        const y2In = 175 + 95 * Math.sin((endAngle - 90) * Math.PI / 180);
+        
+        cellsHtml += `
+            <path d="M ${x1Out} ${y1Out} A 155 155 0 0 1 ${x2Out} ${y2Out} L ${x2In} ${y2In} A 95 95 0 0 0 ${x1In} ${y1In} Z"
+                  fill="${color}" stroke="#ffd700" stroke-width="1.5"/>
+        `;
+        
+        // Icon
         const midAngle = (startAngle + endAngle) / 2 - 90;
-        const textX = 150 + 85 * Math.cos(midAngle * Math.PI / 180);
-        const textY = 150 + 85 * Math.sin(midAngle * Math.PI / 180);
-
-        sliceHtml += `
-            <path d="M 150 150 L ${x1} ${y1} A 140 140 0 ${largeArc} 1 ${x2} ${y2} Z"
-                  fill="${o.color}" stroke="#1a1e2e" stroke-width="3"/>
-            <text x="${textX}" y="${textY}" fill="white" font-size="42" text-anchor="middle"
-                  dominant-baseline="middle"
-                  transform="rotate(${startAngle + anglePerSlice/2}, ${textX}, ${textY})">
-                ${o.icon}
+        const iconX = 175 + 125 * Math.cos(midAngle * Math.PI / 180);
+        const iconY = 175 + 125 * Math.sin(midAngle * Math.PI / 180);
+        
+        numbersHtml += `
+            <text x="${iconX}" y="${iconY}" fill="white" font-size="20" text-anchor="middle"
+                  dominant-baseline="middle" font-weight="bold"
+                  transform="rotate(${startAngle + anglePerCell/2}, ${iconX}, ${iconY})"
+                  style="text-shadow: 0 0 3px rgba(0,0,0,0.9);">
+                ${outcome.icon}
             </text>
         `;
-    });
-
-    const targetAngle = -(winnerIdx * anglePerSlice + anglePerSlice / 2);
-    const spinAmount = 360 * 6 + targetAngle;
-
+    }
+    
+    // Kazanan hücre için çark açısı (çark sağa dönecek, kazanan yukarıda durmalı)
+    // Çark: -CCW (saat yönü tersi = negatif)
+    // Kazanan hücre indeksi × angle = o hücrenin başlangıç açısı
+    // Ok yukarıda (0 derece), ortalamak için angleForCenter = i × anglePerCell + anglePerCell/2
+    const winnerCenterAngle = winnerCellIdx * anglePerCell + anglePerCell / 2;
+    const wheelSpins = 8; // 8 tam tur döner
+    const finalWheelAngle = wheelSpins * 360 + (360 - winnerCenterAngle); // Ok yukarıda kalsın diye tersine
+    
+    // Top ise çarkın TERS yönüne döner
+    const ballSpins = 10;
+    const finalBallAngle = -(ballSpins * 360) + winnerCenterAngle; // Aynı hücreye gitsin
+    
     overlay.innerHTML = `
-        <div class="satrancRuletBoxV2">
-            <h1 class="satrancRuletTitle">🎰 RULET DÖNÜYOR!</h1>
-            <p class="satrancRuletUser">${msg.user_name} çevirdi...</p>
-
-            <div class="satrancRuletWheelWrap">
-                <div class="satrancRuletPointer">▼</div>
-                <svg id="satrancRuletSvg" width="300" height="300" viewBox="0 0 300 300"
-                     style="transform: rotate(0deg); transition: transform 4s cubic-bezier(0.17, 0.67, 0.16, 0.99);">
-                    ${sliceHtml}
-                    <circle cx="150" cy="150" r="25" fill="#ffd43b" stroke="#1a1e2e" stroke-width="4"/>
-                    <text x="150" y="150" fill="#1a1e2e" font-size="24" text-anchor="middle" dominant-baseline="middle">🎰</text>
-                </svg>
+        <div class="satrancRuletCasinoBox">
+            <div class="satrancRuletHeader">
+                <h1 class="satrancRuletCasinoTitle">🎰 RULET</h1>
+                <p class="satrancRuletCasinoUser">${msg.user_name} çeviriyor...</p>
             </div>
-
-            <div id="satrancRuletResultBox" class="satrancRuletResultBox">
-                <div class="satrancRuletResultIcon">${outcomes[winnerIdx].icon}</div>
-                <div class="satrancRuletResultLabel" style="color:${outcomes[winnerIdx].color};">
-                    ${msg.rulet_label}
+            
+            <div class="satrancRuletCasinoWrap">
+                <!-- Ana çark -->
+                <div class="satrancRuletWheelContainer">
+                    <svg id="satrancRuletWheelSvg" width="350" height="350" viewBox="0 0 350 350"
+                         style="transform: rotate(0deg); transition: transform 5s cubic-bezier(0.15, 0.7, 0.1, 1);">
+                        <!-- Dış altın halka -->
+                        <circle cx="175" cy="175" r="170" fill="none" stroke="#ffd700" stroke-width="4"/>
+                        <circle cx="175" cy="175" r="160" fill="none" stroke="#8b6914" stroke-width="2"/>
+                        
+                        <!-- Hücreler -->
+                        ${cellsHtml}
+                        
+                        <!-- İç iç halkalar -->
+                        <circle cx="175" cy="175" r="95" fill="none" stroke="#ffd700" stroke-width="2"/>
+                        <circle cx="175" cy="175" r="85" fill="#2d1810" stroke="#8b6914" stroke-width="1"/>
+                        
+                        <!-- Merkez göbek -->
+                        <circle cx="175" cy="175" r="40" fill="#1a0f08" stroke="#ffd700" stroke-width="3"/>
+                        <circle cx="175" cy="175" r="30" fill="#3d2817" stroke="#8b6914" stroke-width="1"/>
+                        <text x="175" y="175" fill="#ffd700" font-size="24" text-anchor="middle" 
+                              dominant-baseline="middle" font-weight="bold">🎰</text>
+                        
+                        <!-- İkonlar (dönerken görsünler diye ayrı grup) -->
+                        ${numbersHtml}
+                    </svg>
+                    
+                    <!-- Top (ayrı animasyon) -->
+                    <div class="satrancRuletBallTrack" id="satrancRuletBallTrack">
+                        <div class="satrancRuletBall" id="satrancRuletBall"></div>
+                    </div>
                 </div>
-                <div class="satrancRuletResultDetail">
-                    ${msg.rulet_result || ""}
+                
+                <!-- Kazananın bilgi kutusu -->
+                <div id="satrancRuletCasinoResult" class="satrancRuletCasinoResult">
+                    <div class="satrancRuletCasinoWinIcon">${outcomes[winnerIdx].icon}</div>
+                    <div class="satrancRuletCasinoWinLabel" style="color:${outcomes[winnerIdx].color};">
+                        ${msg.rulet_label}
+                    </div>
+                    <div class="satrancRuletCasinoWinDetail">
+                        ${msg.rulet_result || ""}
+                    </div>
                 </div>
             </div>
-
-            <button class="bigBtn greenBtn satrancRuletCloseBtn" onclick="document.getElementById('satrancRuletOverlay').remove()">Tamam</button>
+            
+            <button class="bigBtn greenBtn satrancRuletCloseBtn" id="satrancRuletCloseBtn">Tamam</button>
         </div>
     `;
-
-    // Çark dönme animasyonu
+    
+    // Kapat butonu event
     setTimeout(() => {
-        const svg = document.getElementById("satrancRuletSvg");
-        if (svg) svg.style.transform = `rotate(${spinAmount}deg)`;
+        const closeBtn = document.getElementById("satrancRuletCloseBtn");
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                overlay.style.transition = "opacity 0.4s";
+                overlay.style.opacity = "0";
+                setTimeout(() => overlay.remove(), 450);
+            };
+        }
     }, 100);
-
-    // Sonucu göster
+    
+    // ✨ Rulet sesi çal
+    playSatrancSound("rulet");
+    
+    // Çark ve top animasyonu başlat
     setTimeout(() => {
-        const resultBox = document.getElementById("satrancRuletResultBox");
+        const wheelSvg = document.getElementById("satrancRuletWheelSvg");
+        const ballTrack = document.getElementById("satrancRuletBallTrack");
+        
+        if (wheelSvg) {
+            wheelSvg.style.transform = `rotate(${finalWheelAngle}deg)`;
+        }
+        
+        // Top ilk 3 saniye hızlı, sonra yavaşlar
+        if (ballTrack) {
+            ballTrack.style.transition = "transform 5s cubic-bezier(0.15, 0.7, 0.1, 1)";
+            ballTrack.style.transform = `rotate(${finalBallAngle}deg)`;
+        }
+        
+        console.log("[RULET] Çark döndü:", finalWheelAngle, "Top döndü:", finalBallAngle);
+    }, 200);
+    
+    // Sonuç kutusunu 5.5 saniyede göster (çark durunca)
+    setTimeout(() => {
+        const resultBox = document.getElementById("satrancRuletCasinoResult");
         if (resultBox) resultBox.classList.add("show");
-    }, 4200);
-
-    // Otomatik kapanış
+        
+        // Kazanan hücreyi vurgula
+        const wheelSvg = document.getElementById("satrancRuletWheelSvg");
+        if (wheelSvg) {
+            wheelSvg.style.filter = "drop-shadow(0 0 25px " + outcomes[winnerIdx].color + ")";
+        }
+        
+        // ✨ Topun altındaki hücreyi parlat (efekt)
+        const ball = document.getElementById("satrancRuletBall");
+        if (ball) {
+            ball.style.boxShadow = "0 0 30px " + outcomes[winnerIdx].color + ", 0 0 60px " + outcomes[winnerIdx].color;
+            ball.style.animation = "ballWinPulse 0.6s ease-in-out infinite alternate";
+        }
+    }, 5500);
+    
+    // 10 saniye sonra otomatik kapat
     setTimeout(() => {
         if (overlay && overlay.parentNode) {
             overlay.style.transition = "opacity 0.4s";
             overlay.style.opacity = "0";
             setTimeout(() => overlay.remove(), 450);
         }
-    }, 8000);
+    }, 10000);
 }
 
 // ==========================================
@@ -2251,6 +2549,127 @@ function playInvisibleRevealKillAnimation(square, onDone, pieceType, pieceColor)
         pieceImg.style.opacity = (blinkCount % 2 === 0) ? "0.2" : "1";
         blinkCount++;
     }, 200);
+}
+
+// ✨ Rulet için özel taş silme animasyonu
+function _animateRuletPieceRemoval(oldFen, newFen, onDone) {
+    try {
+        const oldGame = new Chess(oldFen);
+        const newGame = new Chess(newFen);
+        
+        // Hangi kare değişti bul (eskiden taş vardı, yenide yok)
+        let removedSquare = null;
+        let removedPiece = null;
+        
+        const files = "abcdefgh";
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const sq = files[c] + (r + 1);
+                const oldP = oldGame.get(sq);
+                const newP = newGame.get(sq);
+                
+                if (oldP && !newP) {
+                    removedSquare = sq;
+                    removedPiece = oldP;
+                    break;
+                }
+            }
+            if (removedSquare) break;
+        }
+        
+        if (!removedSquare) {
+            console.log("[RULET ANIM] Silinen taş bulunamadı");
+            if (onDone) onDone();
+            return;
+        }
+        
+        console.log(`[RULET ANIM] Silinecek taş: ${removedSquare} (${removedPiece.color}${removedPiece.type})`);
+        
+        const $sq = $(`#satrancBoard .square-${removedSquare}`);
+        const $img = $sq.find("img");
+        
+        if (!$img.length) {
+            console.log("[RULET ANIM] Taş img bulunamadı");
+            if (onDone) onDone();
+            return;
+        }
+        
+        // ✨ Kırmızı arka plan flash + parlama
+        $sq.css({
+            "transition": "background-color 0.3s ease, box-shadow 0.3s ease",
+            "background-color": "rgba(255, 107, 107, 0.4)",
+            "box-shadow": "inset 0 0 20px rgba(255, 50, 50, 0.8)"
+        });
+        
+        // ✨ Taşı büyüt + parlat (0.4 sn)
+        $img.css({
+            "transition": "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.4s ease",
+            "transform": "scale(1.3)",
+            "filter": "drop-shadow(0 0 15px rgba(255, 100, 100, 0.9)) brightness(1.3)",
+            "z-index": "999",
+            "position": "relative"
+        });
+        
+        // ✨ Kırmızı X emoji üstte
+        const rect = $sq[0].getBoundingClientRect();
+        const cross = document.createElement("div");
+        cross.textContent = "✖";
+        cross.style.cssText = `
+            position: fixed;
+            left: ${rect.left + rect.width / 2}px;
+            top: ${rect.top + rect.height / 2}px;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 40px;
+            color: #ff3838;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(255, 0, 0, 0.9), 0 0 30px rgba(255, 0, 0, 0.6);
+            z-index: 9999;
+            pointer-events: none;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+        `;
+        document.body.appendChild(cross);
+        
+        // 0.1 sn sonra X büyüsün
+        setTimeout(() => {
+            cross.style.transform = "translate(-50%, -50%) scale(1.5) rotate(20deg)";
+        }, 100);
+        
+        // 0.5 sn sonra taş küçülüp kaybolmaya başlasın
+        setTimeout(() => {
+            $img.css({
+                "transition": "transform 0.5s cubic-bezier(0.55, -0.15, 0.35, 1.15), opacity 0.5s ease, filter 0.5s ease",
+                "transform": "scale(0)",
+                "opacity": "0",
+                "filter": "blur(3px)"
+            });
+            
+            // X emoji da kaybolsun
+            cross.style.transform = "translate(-50%, -50%) scale(2) rotate(45deg)";
+            cross.style.opacity = "0";
+        }, 500);
+        
+        // 1.1 sn sonra kare arka planı normal
+        setTimeout(() => {
+            $sq.css({
+                "background-color": "",
+                "box-shadow": ""
+            });
+        }, 1100);
+        
+        // 1.2 sn sonra X emoji sil
+        setTimeout(() => {
+            if (cross.parentNode) cross.remove();
+        }, 1200);
+        
+        // 1.3 sn sonra callback (board update)
+        setTimeout(() => {
+            if (onDone) onDone();
+        }, 1300);
+        
+    } catch (e) {
+        console.warn("[RULET ANIM HATA]", e);
+        if (onDone) onDone();
+    }
 }
 
 // Görünmez taş süresi bittiğinde - kısa ✨ efekti
@@ -2757,6 +3176,15 @@ function initSatrancBoard(fen, myColor, legalMoves) {
                 return;
             }
 
+            // ✨ Kilitli taşa tıklanamaz - hiç hamle gösterilmesin
+            const lockedSquaresCheck = Object.keys(satrancData.lockedDetails || {});
+            if (lockedSquaresCheck.includes(square) && piece && piece.color === satrancData.myColor) {
+                const turnsLeft = satrancData.lockedDetails[square] || 0;
+                showToast("⛓️ Kilitli!", `Bu taş kilitli, hareket edemez (${turnsLeft} tur kaldı).`, null, "warning");
+                clearSquareSelection();
+                return;
+            }
+
             // ✨ Hayalet kareye tıklanamaz (Yok Say jokeri aktif)
             const ignoredList = satrancData.ignoredSquares || [];
             if (ignoredList.includes(square)) {
@@ -2789,16 +3217,24 @@ function initSatrancBoard(fen, myColor, legalMoves) {
 
                 const uci = satrancData.selectedSquare + square;
 
-                // ✨ Kilitli taş sadece 1 kare gidebilir
+                // ✨ Kilitli taş HİÇ hareket edemez - hedef kare seçimini iptal
                 const lockedSquaresNow = Object.keys(satrancData.lockedDetails || {});
                 if (lockedSquaresNow.includes(satrancData.selectedSquare)) {
-                    const filesLock = "abcdefgh";
-                    const f1 = filesLock.indexOf(satrancData.selectedSquare[0]);
-                    const r1 = parseInt(satrancData.selectedSquare[1], 10);
-                    const f2 = filesLock.indexOf(square[0]);
-                    const r2 = parseInt(square[1], 10);
-                    const dist = Math.max(Math.abs(f1 - f2), Math.abs(r1 - r2));
-                    if (dist > 1) {
+                    // Zaten selectSquare içinde tıklama engellenmişti ama yine de güvenlik
+                    return;
+                }
+                
+                // ✨ Yavaşlatılmış taş SADECE 1 kare gidebilir
+                const slowedSquaresNow = Object.keys(satrancData.slowedDetails || {});
+                if (slowedSquaresNow.includes(satrancData.selectedSquare)) {
+                    const filesSl = "abcdefgh";
+                    const f1s = filesSl.indexOf(satrancData.selectedSquare[0]);
+                    const r1s = parseInt(satrancData.selectedSquare[1], 10);
+                    const f2s = filesSl.indexOf(square[0]);
+                    const r2s = parseInt(square[1], 10);
+                    const distSl = Math.max(Math.abs(f1s - f2s), Math.abs(r1s - r2s));
+                    if (distSl > 1) {
+                        showToast("🐌 Yavaşlatılmış!", "Bu taş sadece 1 kare gidebilir.", null, "warning");
                         return;
                     }
                 }
@@ -2954,20 +3390,29 @@ function selectSquare(square) {
     const lockedSquares = Object.keys(satrancData.lockedDetails || {});
     const isLockedPiece = lockedSquares.includes(square);
 
+    // ✨ Kilitli taş HİÇ hareket edemez - hiçbir hedef gösterme
+    if (isLockedPiece) {
+        return;  // Legal moves gösterilmeyecek
+    }
+
+    // ✨ Yavaşlatılmış taş sadece 1 kare gidebilir
+    const slowedSquares = Object.keys(satrancData.slowedDetails || {});
+    const isSlowedPiece = slowedSquares.includes(square);
+
     const shownTargets = new Set();
     satrancData.legalMoves.forEach(move => {
         if (move.startsWith(square)) {
             const to = move.slice(2, 4);
-
-            // ✨ Kilitli taş sadece 1 kare gidebilir
-            if (isLockedPiece) {
-                const filesLock = "abcdefgh";
-                const f1 = filesLock.indexOf(square[0]);
-                const r1 = parseInt(square[1], 10);
-                const f2 = filesLock.indexOf(to[0]);
-                const r2 = parseInt(to[1], 10);
-                const dist = Math.max(Math.abs(f1 - f2), Math.abs(r1 - r2));
-                if (dist > 1) return;
+            
+            // ✨ Yavaşlatılmış taş → sadece 1 kare gösterebilir
+            if (isSlowedPiece) {
+                const filesSl = "abcdefgh";
+                const f1s = filesSl.indexOf(square[0]);
+                const r1s = parseInt(square[1], 10);
+                const f2s = filesSl.indexOf(to[0]);
+                const r2s = parseInt(to[1], 10);
+                const distSl = Math.max(Math.abs(f1s - f2s), Math.abs(r1s - r2s));
+                if (distSl > 1) return;
             }
 
             if (shownTargets.has(to)) return;  // aynı hedefi 4 kez gösterme (promo varyantları için)
@@ -3161,9 +3606,13 @@ function updateSatrancBoard(boardState, lastMove, effects) {
     $("#satrancBoard .squareFrozenCharge").remove();
     $("#satrancBoard .squareAjanCharge").remove();
     $("#satrancBoard .squareLockedCharge").remove();
+    $("#satrancBoard .squareSlowedCharge").remove();
     $("#satrancBoard .ajanSquareEmoji").remove();
     $("#satrancBoard .invisibleSquareEmoji").remove();
     $("#satrancBoard .lockedSquareEmoji").remove();
+    $("#satrancBoard .slowedSquareEmoji").remove();
+    // ✨ EFFECT CLASS'LARINI TÜM KARELERDEN TEMİZLE (yavaşlat dahil)
+    $("#satrancBoard .square-55d63").removeClass("effect-slowed");
 
     // ✨ Efektleri animasyondan SONRA uygula (board.position animasyonu ~500ms)
     // Bu sırada img'ler yeniden yaratıldığı için efektin yeni img'e binmesi lazım
@@ -3267,7 +3716,7 @@ function updateSatrancBoard(boardState, lastMove, effects) {
                 $sq.addClass("effect-locked");
                 // ✨ Sol üstte 🔒 emoji
                 $sq.find(".lockedSquareEmoji").remove();
-                $sq.append(`<div class="lockedSquareEmoji" title="Kilitli taş - max 2 kare">🔒</div>`);
+                $sq.append(`<div class="lockedSquareEmoji" title="Kilitli taş - hareket edemez">🔒</div>`);
                 // ✨ Sağ üstte şarj çubukları (max 3 diş)
                 const turnsLeft = (effects.locked_details || {})[sq] || 0;
                 const maxTurns = 3;
@@ -3279,6 +3728,26 @@ function updateSatrancBoard(boardState, lastMove, effects) {
                 }
                 $sq.find(".squareLockedCharge").remove();
                 $sq.append(`<div class="squareLockedCharge ${colorClass}" title="Kilit kalan: ${turnsLeft}">${bars}</div>`);
+            });
+            
+            // ✨ YAVAŞLAT efekti - sol üstte 🐌 emoji + sağ üstte şarj (3 diş)
+            (effects.slowed || []).forEach(sq => {
+                const $sq = $(`#satrancBoard .square-${sq}`);
+                $sq.addClass("effect-slowed");
+                // Sol üstte 🐌 emoji
+                $sq.find(".slowedSquareEmoji").remove();
+                $sq.append(`<div class="slowedSquareEmoji" title="Yavaşlatılmış - max 1 kare">🐌</div>`);
+                // Sağ üstte şarj çubukları (max 3 diş)
+                const turnsLeft = (effects.slowed_details || {})[sq] || 0;
+                const maxTurns = 3;
+                const colorClass = `slowedCharge-${Math.min(turnsLeft, 3)}`;
+                let bars = "";
+                for (let i = 0; i < maxTurns; i++) {
+                    const filled = i < turnsLeft ? "filled" : "empty";
+                    bars += `<div class="squareChargeBar ${filled}"></div>`;
+                }
+                $sq.find(".squareSlowedCharge").remove();
+                $sq.append(`<div class="squareSlowedCharge ${colorClass}" title="Yavaşlat kalan: ${turnsLeft}">${bars}</div>`);
             });
 
             // ✨ Yok Say hayalet kareleri - fake taş göster + %30 opacity + 🚫 emoji
@@ -3331,6 +3800,7 @@ function updateSatrancBoard(boardState, lastMove, effects) {
             satrancData.shieldedDetails = effects.shielded_details || {};
             satrancData.frozenDetails = effects.frozen_details || {};
             satrancData.lockedDetails = effects.locked_details || {};
+            satrancData.slowedDetails = effects.slowed_details || {};
 
             applyAjanDisguiseVisuals(effects);
 
@@ -3667,15 +4137,63 @@ function openSatrancRoomSettings() {
                     {value: 180, label: "3 dakika"}, {value: 300, label: "5 dakika"},
                     {value: 0, label: "♾️ Sınırsız"}
                 ]
+            },
+            {
+                id: "lockMode", label: "🔒 Joker Kilidi",
+                current: satrancData.lockMode,
+                options: [
+                    {value: "off", label: "❌ Devre Dışı"},
+                    {value: "pieces", label: "⚔️ Taş Yendikten Sonra"},
+                    {value: "time", label: "⏰ Süre Bittikten Sonra"}
+                ]
+            },
+            {
+                id: "lockPieces", label: "⚔️ Kaç Taş Yenince",
+                current: satrancData.lockPieces,
+                options: [
+                    {value: 1, label: "1 taş"}, {value: 2, label: "2 taş"},
+                    {value: 3, label: "3 taş"}, {value: 4, label: "4 taş"},
+                    {value: 5, label: "5 taş"}, {value: 6, label: "6 taş"},
+                    {value: 7, label: "7 taş"}, {value: 8, label: "8 taş"},
+                    {value: 9, label: "9 taş"}, {value: 10, label: "10 taş"}
+                ]
+            },
+            {
+                id: "lockMinutes", label: "⏰ Kaç Dakika Sonra",
+                current: satrancData.lockMinutes,
+                options: [
+                    {value: 1, label: "1 dakika"}, {value: 2, label: "2 dakika"},
+                    {value: 3, label: "3 dakika"}, {value: 4, label: "4 dakika"},
+                    {value: 5, label: "5 dakika"}, {value: 6, label: "6 dakika"},
+                    {value: 7, label: "7 dakika"}, {value: 8, label: "8 dakika"},
+                    {value: 9, label: "9 dakika"}, {value: 10, label: "10 dakika"}
+                ]
             }
         ],
         onSave: (values) => {
+            // ✨ Kilit modu değiştiyse popup'ı yenile (alt kutular güncellensin)
+            const newLockMode = values.lockMode;
+            const oldLockMode = satrancData.lockMode;
+            if (newLockMode !== oldLockMode) {
+                satrancData.lockMode = newLockMode;
+                // Yeni değerleri güvenli varsayılanlarla ayarla
+                if (newLockMode === "pieces" && !values.lockPieces) {
+                    values.lockPieces = satrancData.lockPieces || 3;
+                }
+                if (newLockMode === "time" && !values.lockMinutes) {
+                    values.lockMinutes = satrancData.lockMinutes || 2;
+                }
+            }
+            
             // ✨ localStorage'a kaydet (site kapatılıp açılınca hatırlasın)
             try {
                 localStorage.setItem("satrancTimeMode", values.timeMode);
                 localStorage.setItem("satrancJokerCount", values.jokerCount);
                 localStorage.setItem("satrancPickMode", values.pickMode);
                 localStorage.setItem("satrancPickSeconds", values.pickSeconds);
+                localStorage.setItem("satrancLockMode", values.lockMode);
+                if (values.lockPieces !== undefined) localStorage.setItem("satrancLockPieces", values.lockPieces);
+                if (values.lockMinutes !== undefined) localStorage.setItem("satrancLockMinutes", values.lockMinutes);
             } catch(e) {}
 
             send({
@@ -3683,10 +4201,58 @@ function openSatrancRoomSettings() {
                 time_mode: values.timeMode,
                 joker_count: parseInt(values.jokerCount),
                 pick_mode: values.pickMode,
-                pick_seconds: parseInt(values.pickSeconds)
+                pick_seconds: parseInt(values.pickSeconds),
+                lock_mode: values.lockMode,
+                lock_pieces: parseInt(values.lockPieces || satrancData.lockPieces || 3),
+                lock_minutes: parseInt(values.lockMinutes || satrancData.lockMinutes || 2)
             });
         }
     });
+    
+    // ✨ Popup açıldıktan sonra Joker Kilidi alanına göre alt kutuları direkt göster/gizle
+    setTimeout(() => {
+        const lockModeSelect = document.getElementById("settingsField_lockMode");
+        const lockPiecesGroup = document.getElementById("settingsGroup_lockPieces");
+        const lockMinutesGroup = document.getElementById("settingsGroup_lockMinutes");
+
+        if (!lockModeSelect) {
+            console.warn("[SATRANC] settingsField_lockMode bulunamadı");
+            return;
+        }
+
+        function applyLockModeVisibility(shouldScroll) {
+            const mode = String(lockModeSelect.value || "off");
+
+            if (lockPiecesGroup) {
+                lockPiecesGroup.style.display = (mode === "pieces") ? "" : "none";
+            }
+
+            if (lockMinutesGroup) {
+                lockMinutesGroup.style.display = (mode === "time") ? "" : "none";
+            }
+
+            if (!shouldScroll) return;
+
+            let targetGroup = null;
+            if (mode === "pieces") targetGroup = lockPiecesGroup;
+            if (mode === "time") targetGroup = lockMinutesGroup;
+
+            if (targetGroup) {
+                setTimeout(() => {
+                    targetGroup.scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest",
+                        inline: "nearest"
+                    });
+                }, 60);
+            }
+        }
+
+        applyLockModeVisibility(false);
+        lockModeSelect.addEventListener("change", () => applyLockModeVisibility(true));
+
+        console.log("[SATRANC] Kilit alanları canlı göster/gizle aktif ✓");
+    }, 50);
 }
 
 // ==========================================
@@ -3997,6 +4563,9 @@ handleMessage = function(msg) {
         satrancData.jokerCount = msg.joker_count;
         satrancData.pickMode = msg.pick_mode;
         satrancData.pickSeconds = msg.pick_seconds;
+        satrancData.lockMode = msg.lock_mode || "off";
+        satrancData.lockPieces = msg.lock_pieces || 3;
+        satrancData.lockMinutes = msg.lock_minutes || 2;
         satrancData.inGame = true;
         playerId = msg.player_id;
         roomCode = msg.room_code;
@@ -4014,6 +4583,9 @@ handleMessage = function(msg) {
         satrancData.jokerCount = msg.joker_count;
         satrancData.pickMode = msg.pick_mode;
         satrancData.pickSeconds = msg.pick_seconds;
+        satrancData.lockMode = msg.lock_mode || "off";
+        satrancData.lockPieces = msg.lock_pieces || 3;
+        satrancData.lockMinutes = msg.lock_minutes || 2;
         satrancData.inGame = true;
         playerId = msg.player_id;
         roomCode = msg.room_code;
@@ -4031,6 +4603,9 @@ handleMessage = function(msg) {
         satrancData.jokerCount = msg.joker_count;
         satrancData.pickMode = msg.pick_mode;
         satrancData.pickSeconds = msg.pick_seconds;
+        satrancData.lockMode = msg.lock_mode || "off";
+        satrancData.lockPieces = msg.lock_pieces || 3;
+        satrancData.lockMinutes = msg.lock_minutes || 2;
         updateSatrancLobby();
         return;
     }
@@ -4104,6 +4679,19 @@ handleMessage = function(msg) {
         satrancData.oppUsedJokers = msg.opp_used_jokers || [];  // ✨ Rakibin Önce Başla için
         window._satrancRevealedOppJokers = [];  // ✨ reveal listesi sıfırla
 
+        // ✨ Joker Kilidi bilgilerini kaydet
+        satrancData.lockMode = msg.lock_mode || "off";
+        satrancData.lockPieces = msg.lock_pieces || 3;
+        satrancData.lockMinutes = msg.lock_minutes || 2;
+        satrancData.jokersUnlocked = msg.jokers_unlocked !== false;
+        satrancData.gameStartTs = Date.now();
+        satrancData.lockStatus = null;
+        
+        // Countdown başlat (süre modu için)
+        if (satrancData.lockMode === "time" && !satrancData.jokersUnlocked) {
+            _startLockCountdown();
+        }
+        
         // ✨ Rakibin kullanılmış jokerlerini reveal listesine ekle (Önce Başla için kart açık göster)
         if (msg.opp_revealed_jokers && Array.isArray(msg.opp_revealed_jokers)) {
             msg.opp_revealed_jokers.forEach(j => {
@@ -4178,6 +4766,17 @@ handleMessage = function(msg) {
         // ✨ Eğer ben oynadıysam Hızlı Kaçış flag'ini kaldır (backend zaten sildi)
         if (msg.mover_id === satrancData.playerId) {
             satrancData._hizliKacisActive = false;
+        }
+        
+        // ✨ Joker kilidi durumunu güncelle
+        if (msg.lock_status) {
+            satrancData.lockStatus = msg.lock_status;
+            if (!msg.lock_status.locked) {
+                // Kilit açıldı!
+                satrancData.jokersUnlocked = true;
+                _stopLockCountdown();
+                showToast("🔓 Jokerler Açıldı!", "Artık jokerlerini kullanabilirsin!", null, "success");
+            }
         }
         // ✨ Görünmez taş yenildiyse ÖNCE flash animasyonu göster, sonra board güncelle
         if (msg.invisible_revealed_kill) {
@@ -4482,11 +5081,77 @@ handleMessage = function(msg) {
         return;
     }
 
-    // ✨ Rulet sonucu (özel animasyonlu popup)
+    // ✨ Rulet sonucu (özel animasyonlu popup + gecikmeli taş silme animasyonu)
+    // HEM KULLANAN HEM İZLEYEN için aynı gecikmeli akış
     if (msg.type === "satranc_joker_used" && msg.joker_id === "rulet") {
-        // Rulet animasyonu göster
+        // Rulet animasyonu göster (her iki oyuncuda da çalışır)
         showRuletAnimation(msg);
-        // Diğer joker_used mantığı devam etsin ↓
+        
+        // ✨ Kullanılan jokeri HEMEN kaydet (silik görsün)
+        // Ama board güncelleme 7 saniye sonra olacak
+        if (msg.user_id === satrancData.playerId) {
+            if (!satrancData.usedJokers) satrancData.usedJokers = [];
+            if (!satrancData.usedJokers.includes("rulet")) {
+                satrancData.usedJokers.push("rulet");
+            }
+            renderMyJokers();
+        } else {
+            if (!satrancData.oppUsedJokers) satrancData.oppUsedJokers = [];
+            if (!satrancData.oppUsedJokers.includes("rulet")) {
+                satrancData.oppUsedJokers.push("rulet");
+            }
+            revealOppJokerAsUsed("rulet", msg.joker_name, msg.joker_icon);
+            renderOppJokers();
+        }
+        
+        // ✨ Taş silme sonucu mu?
+        const isPieceRemoval = (msg.rulet_outcome === "opp_lose_piece" || 
+                                msg.rulet_outcome === "self_lose_piece");
+        
+        // Eski board'u sakla (silinecek taşı bulmak için)
+        const oldFen = satrancData.game ? satrancData.game.fen() : null;
+        const savedMsg = msg;  // closure için
+        
+        // Popup 7 saniye açık kalacak, board update'i sonrasına ertele
+        // HEM KULLANAN HEM İZLEYEN için aynı süre (7 sn)
+        setTimeout(() => {
+            if (isPieceRemoval && oldFen && savedMsg.board && savedMsg.board.fen) {
+                // ✨ Taş silme animasyonu (kırmızı flash + ✖ + kaybol)
+                _animateRuletPieceRemoval(oldFen, savedMsg.board.fen, () => {
+                    // Animasyon bitti, board update yap
+                    updateSatrancBoard(savedMsg.board, null, savedMsg.effects);
+                    updateTurnInfo(savedMsg.board);
+                    renderMyJokers();
+                    renderOppJokers();
+                    if (savedMsg.captured_pieces) {
+                        const myPid = String(satrancData.playerId);
+                        const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
+                        renderCapturedPieces(savedMsg.captured_pieces[myPid] || [], savedMsg.captured_pieces[oppPid] || []);
+                    }
+                });
+            } else if (savedMsg.board) {
+                // ✨ Extra_turn veya skip_opp: sadece board güncelle (animasyon yok)
+                updateSatrancBoard(savedMsg.board, null, savedMsg.effects);
+                updateTurnInfo(savedMsg.board);
+                renderMyJokers();
+                renderOppJokers();
+                if (savedMsg.captured_pieces) {
+                    const myPid = String(satrancData.playerId);
+                    const oppPid = String(satrancData.players.find(p => p.id !== satrancData.playerId)?.id);
+                    renderCapturedPieces(savedMsg.captured_pieces[myPid] || [], savedMsg.captured_pieces[oppPid] || []);
+                }
+            }
+            
+            // Toast göster
+            showToast(
+                `${savedMsg.joker_icon} ${savedMsg.joker_name}`,
+                savedMsg.message,
+                null,
+                savedMsg.user_id === satrancData.playerId ? "success" : "warning"
+            );
+        }, 7000);  // 7 saniye sonra (rulet popup kapandıktan sonra)
+        
+        return;  // ✨ ÖNEMLİ: Normal joker_used akışı ÇALIŞMASIN (çift işlem önlensin)
     }
 
     // ✨ Joker kullanıldı bildirimi
@@ -4918,8 +5583,56 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "satranc_game_over") {
-        showSatrancGameOver(msg);
-        playSatrancSound("oyun_bitti");
+        // ✨ Şah mat olduysa 5 saniye bekle (kırmızı şah animasyonu + toast görünsün)
+        // Diğer durumlar (istifa, süre, berabere) hemen göster
+        const isCheckmate = msg.reason === "checkmate";
+        
+        if (isCheckmate) {
+            // ✨ ÖNCELİKLE BOARD'U GÜNCELLE (son taş yenmiş görünsün)
+            if (msg.board) {
+                updateSatrancBoard(msg.board, msg.last_move, msg.effects || {});
+                if (msg.san_move) addMoveToHistory(msg.san_move);
+            }
+            
+            // ✨ Taş yeme sesi (mat hamlesi zaten "x" içeriyor)
+            if (msg.san_move && msg.san_move.includes("x")) {
+                try { playSatrancSound("tas_yeme"); } catch(e) {}
+            } else {
+                try { playSatrancSound("tas_hareket"); } catch(e) {}
+            }
+            
+            // ✨ Şah sesi çal (dramatik efekt)
+            setTimeout(() => {
+                try { playSatrancSound("sah"); } catch(e) {}
+            }, 400);
+            
+            // ✨ Kırmızı şah karesini vurgula + toast göster
+            setTimeout(() => {
+                const $checkSq = $("#satrancBoard .highlight-check");
+                if ($checkSq.length) {
+                    $checkSq.css({
+                        "animation": "matCheckPulse 0.6s ease-in-out infinite",
+                    });
+                }
+                // ✨ KIRMIZI TOAST: Şah mat mesajı
+                showToast(
+                    "👑 ŞAH MAT!",
+                    "Kaçacak yer kalmadı!",
+                    null,
+                    "danger"
+                );
+            }, 500);
+            
+            // 5 saniye sonra sonuç popup göster
+            setTimeout(() => {
+                showSatrancGameOver(msg);
+                playSatrancSound("oyun_bitti");
+            }, 5000);
+        } else {
+            // Diğer durumlar (istifa, süre, berabere) → hemen göster
+            showSatrancGameOver(msg);
+            playSatrancSound("oyun_bitti");
+        }
         return;
     }
 
@@ -4948,6 +5661,22 @@ document.addEventListener("DOMContentLoaded", () => {
         pmSelListener.addEventListener("change", _updateSatrancPickSecondsVisibility);
     }
 
+    // ✨ Joker Kilidi Modu değişince alt kutuları göster/gizle
+    function _updateSatrancLockVisibility() {
+        const lockSel = document.getElementById("satrancLockModeSelect");
+        const piecesBox = document.getElementById("satrancLockPiecesBox");
+        const minutesBox = document.getElementById("satrancLockMinutesBox");
+        if (!lockSel) return;
+        const val = lockSel.value;
+        if (piecesBox) piecesBox.style.display = (val === "pieces") ? "" : "none";
+        if (minutesBox) minutesBox.style.display = (val === "time") ? "" : "none";
+    }
+    
+    const lockSelListener = document.getElementById("satrancLockModeSelect");
+    if (lockSelListener) {
+        lockSelListener.addEventListener("change", _updateSatrancLockVisibility);
+    }
+
     // Mod kartı
     const modCard = document.querySelector('.mod-card[data-mod="jokerli_satranc"]');
     if (modCard) {
@@ -4965,19 +5694,29 @@ document.addEventListener("DOMContentLoaded", () => {
             const savedJokerCount = localStorage.getItem("satrancJokerCount");
             const savedPickMode = localStorage.getItem("satrancPickMode");
             const savedPickSeconds = localStorage.getItem("satrancPickSeconds");
+            const savedLockMode = localStorage.getItem("satrancLockMode");
+            const savedLockPieces = localStorage.getItem("satrancLockPieces");
+            const savedLockMinutes = localStorage.getItem("satrancLockMinutes");
 
             const tmSel = document.getElementById("satrancTimeModeSelect");
             const jcSel = document.getElementById("satrancJokerCountSelect");
             const pmSel = document.getElementById("satrancPickModeSelect");
             const psSel = document.getElementById("satrancPickSecondsSelect");
+            const lmSel = document.getElementById("satrancLockModeSelect");
+            const lpSel = document.getElementById("satrancLockPiecesSelect");
+            const lmnSel = document.getElementById("satrancLockMinutesSelect");
 
             if (tmSel && savedTimeMode) tmSel.value = savedTimeMode;
             if (jcSel && savedJokerCount) jcSel.value = savedJokerCount;
             if (pmSel && savedPickMode) pmSel.value = savedPickMode;
             if (psSel && savedPickSeconds) psSel.value = savedPickSeconds;
+            if (lmSel && savedLockMode) lmSel.value = savedLockMode;
+            if (lpSel && savedLockPieces) lpSel.value = savedLockPieces;
+            if (lmnSel && savedLockMinutes) lmnSel.value = savedLockMinutes;
 
             // ✨ Sayfa açılışında da göster/gizle uygula
             _updateSatrancPickSecondsVisibility();
+            _updateSatrancLockVisibility();
         });
     }
 
@@ -4998,12 +5737,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const jokerCount = parseInt(document.getElementById("satrancJokerCountSelect").value);
             const pickMode = document.getElementById("satrancPickModeSelect").value;
             const pickSeconds = parseInt(document.getElementById("satrancPickSecondsSelect").value);
+            const lockMode = document.getElementById("satrancLockModeSelect")?.value || "off";
+            const lockPieces = parseInt(document.getElementById("satrancLockPiecesSelect")?.value || "3");
+            const lockMinutes = parseInt(document.getElementById("satrancLockMinutesSelect")?.value || "2");
 
             // ✨ Ayarları kaydet (sonraki oda kurulumunda hatırla)
             localStorage.setItem("satrancTimeMode", timeMode);
             localStorage.setItem("satrancJokerCount", String(jokerCount));
             localStorage.setItem("satrancPickMode", pickMode);
             localStorage.setItem("satrancPickSeconds", String(pickSeconds));
+            localStorage.setItem("satrancLockMode", lockMode);
+            localStorage.setItem("satrancLockPieces", String(lockPieces));
+            localStorage.setItem("satrancLockMinutes", String(lockMinutes));
 
             send({
                 type: "satranc_create_room",
@@ -5011,7 +5756,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 time_mode: timeMode,
                 joker_count: jokerCount,
                 pick_mode: pickMode,
-                pick_seconds: pickSeconds
+                pick_seconds: pickSeconds,
+                lock_mode: lockMode,
+                lock_pieces: lockPieces,
+                lock_minutes: lockMinutes
             });
         };
     }

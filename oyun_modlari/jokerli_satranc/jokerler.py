@@ -189,7 +189,16 @@ JOKERS = [
         "name": "Kilitle",
         "icon": "🔒",
         "category": "ekstra",
-        "desc": "Bir rakip taş 3 tur boyunca sadece 1 kare mesafede hareket edebilir.",
+        "desc": "Bir rakip taş 3 tur boyunca hareket edemez.",
+        "phase": "your_turn",
+        "implemented": True
+    },
+    {
+        "id": "yavaslat",
+        "name": "Yavaşlat",
+        "icon": "🐌",
+        "category": "ekstra",
+        "desc": "Bir rakip taşı yavaşlatır - 3 tur boyunca sadece 1 kare hareket edebilir.",
         "phase": "your_turn",
         "implemented": True
     },

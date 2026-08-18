@@ -2639,9 +2639,57 @@
                 </label>
             </div>
 
+            <!-- ✨ JOKER KİLİDİ AYARI -->
+            <div class="centerBox">
+                <label class="timerLabel">
+                    🔒 Joker Kilidi:
+                    <select id="satrancLockModeSelect">
+                        <option value="off" selected>❌ Devre Dışı (Anında açık)</option>
+                        <option value="pieces">⚔️ Taş Yendikten Sonra</option>
+                        <option value="time">⏰ Süre Bittikten Sonra</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox" id="satrancLockPiecesBox" style="display:none;">
+                <label class="timerLabel">
+                    ⚔️ Kaç Taş Yendikten Sonra:
+                    <select id="satrancLockPiecesSelect">
+                        <option value="1">1 taş</option>
+                        <option value="2">2 taş</option>
+                        <option value="3" selected>3 taş</option>
+                        <option value="4">4 taş</option>
+                        <option value="5">5 taş</option>
+                        <option value="6">6 taş</option>
+                        <option value="7">7 taş</option>
+                        <option value="8">8 taş</option>
+                        <option value="9">9 taş</option>
+                        <option value="10">10 taş</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="centerBox" id="satrancLockMinutesBox" style="display:none;">
+                <label class="timerLabel">
+                    ⏰ Kaç Dakika Sonra Açılsın:
+                    <select id="satrancLockMinutesSelect">
+                        <option value="1">1 dakika</option>
+                        <option value="2" selected>2 dakika</option>
+                        <option value="3">3 dakika</option>
+                        <option value="4">4 dakika</option>
+                        <option value="5">5 dakika</option>
+                        <option value="6">6 dakika</option>
+                        <option value="7">7 dakika</option>
+                        <option value="8">8 dakika</option>
+                        <option value="9">9 dakika</option>
+                        <option value="10">10 dakika</option>
+                    </select>
+                </label>
+            </div>
+
             <div class="ilk11InfoBox">
                 <h3>♟️ Nasıl Oynanır?</h3>
-                <p>Klasik satranç kuralları + <b style="color:#ffd43b">26 özel joker!</b></p>
+                <p>Klasik satranç kuralları + <b style="color:#ffd43b">34 özel joker!</b></p>
                 <p>Her oyuncuya <b style="color:#51cf66">1-6 joker</b> dağıtılır</p>
                 <p>Jokerler: Bomba 💣, Işınlanma 🔮, Dondurma 🧊, Çarkıfelek 🎡 ve daha fazlası!</p>
                 <p>Şah mat yapan veya süreyi kazanan <b style="color:#51cf66">KAZANIR!</b></p>
@@ -2726,7 +2774,7 @@
                 </div>
 
                 <div class="satrancJsRightPanel">
-                    <h3 style="color:#ffd43b; text-align:center; margin:0 0 10px 0;">🃏 Joker Havuzu (33)</h3>
+                    <h3 style="color:#ffd43b; text-align:center; margin:0 0 10px 0;">🃏 Joker Havuzu (34)</h3>
                     <div id="satrancJsPool" class="satrancJsPool"></div>
                 </div>
             </div>

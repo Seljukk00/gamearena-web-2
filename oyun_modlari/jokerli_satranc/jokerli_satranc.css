@@ -3587,3 +3587,359 @@ body > img.piece-417db.animatingInvisible {
         font-size: 20px;
     }
 }
+
+/* ============================================================
+   🎰 KUMARHANE RULET ANİMASYONU
+   ============================================================ */
+
+.satrancRuletCasinoBox {
+    background: linear-gradient(135deg, #1a0f08 0%, #2d1810 50%, #1a0f08 100%);
+    border: 3px solid #ffd700;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 
+        0 0 60px rgba(255, 215, 0, 0.4),
+        inset 0 0 30px rgba(255, 215, 0, 0.1);
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+}
+
+.satrancRuletHeader {
+    margin-bottom: 20px;
+}
+
+.satrancRuletCasinoTitle {
+    color: #ffd700;
+    font-size: 42px;
+    margin: 0 0 10px 0;
+    text-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.8),
+        0 0 40px rgba(255, 215, 0, 0.4);
+    letter-spacing: 3px;
+    animation: casinoTitleGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes casinoTitleGlow {
+    from {
+        text-shadow: 
+            0 0 15px rgba(255, 215, 0, 0.6),
+            0 0 30px rgba(255, 215, 0, 0.3);
+    }
+    to {
+        text-shadow: 
+            0 0 25px rgba(255, 215, 0, 1),
+            0 0 50px rgba(255, 215, 0, 0.6);
+    }
+}
+
+.satrancRuletCasinoUser {
+    color: #ffa94d;
+    font-size: 16px;
+    margin: 0;
+    font-style: italic;
+}
+
+.satrancRuletCasinoWrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px 0;
+}
+
+/* Üst gösterge (kumarhane çubuğu) */
+.satrancRuletCasinoPointer {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+}
+
+.pointerTriangle {
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 30px solid #ffd700;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+    animation: pointerBounce 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes pointerBounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(3px); }
+}
+
+/* Çark container */
+.satrancRuletWheelContainer {
+    position: relative;
+    width: 350px;
+    height: 350px;
+    margin-top: 20px;
+}
+
+/* SVG çark */
+#satrancRuletWheelSvg {
+    width: 350px;
+    height: 350px;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.8));
+}
+
+/* Top (ayrı animasyon) */
+.satrancRuletBallTrack {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transform-origin: center;
+    z-index: 15;
+}
+
+.satrancRuletBall {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: radial-gradient(circle at 30% 30%, #ffffff, #d0d0d0 60%, #808080);
+    border-radius: 50%;
+    box-shadow: 
+        0 0 12px rgba(255, 255, 255, 0.9),
+        0 2px 5px rgba(0, 0, 0, 0.6),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.3);
+    animation: ballBounce 0.15s ease-in-out infinite alternate;
+}
+
+@keyframes ballBounce {
+    from { top: 12px; }
+    to { top: 14px; }
+}
+
+/* Kazananın bilgi kutusu */
+.satrancRuletCasinoResult {
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    border-radius: 14px;
+    opacity: 0;
+    transform: translateY(15px);
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 400px;
+}
+
+.satrancRuletCasinoResult.show {
+    opacity: 1;
+    transform: translateY(0);
+    border-color: #ffd700;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+    animation: resultPulse 0.6s ease-out;
+}
+
+@keyframes resultPulse {
+    0% { transform: translateY(15px) scale(0.9); }
+    60% { transform: translateY(-5px) scale(1.05); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+.satrancRuletCasinoWinIcon {
+    font-size: 60px;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+    animation: winIconSpin 0.8s ease-out;
+}
+
+@keyframes winIconSpin {
+    from { 
+        transform: rotate(-180deg) scale(0.3); 
+        opacity: 0;
+    }
+    to { 
+        transform: rotate(0) scale(1); 
+        opacity: 1;
+    }
+}
+
+.satrancRuletCasinoWinLabel {
+    font-size: 22px;
+    font-weight: bold;
+    margin: 10px 0 8px 0;
+    text-shadow: 0 0 15px currentColor;
+    letter-spacing: 1px;
+}
+
+.satrancRuletCasinoWinDetail {
+    color: #ced4da;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Close button */
+.satrancRuletCloseBtn {
+    margin-top: 20px;
+    min-width: 150px;
+    background: linear-gradient(135deg, #2d1810, #1a0f08) !important;
+    border: 2px solid #ffd700 !important;
+    color: #ffd700 !important;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    transition: all 0.3s;
+}
+
+.satrancRuletCloseBtn:hover {
+    background: linear-gradient(135deg, #ffd700, #daa520) !important;
+    color: #1a0f08 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+
+/* Mobil */
+@media (max-width: 600px) {
+    .satrancRuletCasinoBox {
+        padding: 20px;
+    }
+    
+    .satrancRuletCasinoTitle {
+        font-size: 30px;
+    }
+    
+    .satrancRuletWheelContainer {
+        width: 280px;
+        height: 280px;
+    }
+    
+    #satrancRuletWheelSvg {
+        width: 280px;
+        height: 280px;
+    }
+    
+    .satrancRuletCasinoWinIcon {
+        font-size: 48px;
+    }
+    
+    .satrancRuletCasinoWinLabel {
+        font-size: 18px;
+    }
+}
+
+/* ✨ Kazanan top pulse efekti */
+@keyframes ballWinPulse {
+    from {
+        transform: translateX(-50%) scale(1);
+        filter: brightness(1);
+    }
+    to {
+        transform: translateX(-50%) scale(1.4);
+        filter: brightness(1.5);
+    }
+}
+
+/* ==========================================
+   🐌 YAVAŞLAT JOKERİ - Kare Efekti (Turuncu Çerçeve)
+   ========================================== */
+
+.square-55d63.effect-slowed {
+    background-color: rgba(255, 152, 0, 0.25) !important;
+    box-shadow: inset 0 0 0 3px #ff9800, inset 0 0 15px rgba(255, 152, 0, 0.5);
+    position: relative;
+}
+
+.square-55d63.effect-slowed::before {
+    content: "";
+    position: absolute;
+    top: 3px; left: 3px; right: 3px; bottom: 3px;
+    border: 2px solid rgba(255, 193, 7, 0.8);
+    pointer-events: none;
+    animation: slowedPulse 2s ease-in-out infinite;
+    box-sizing: border-box;
+}
+
+@keyframes slowedPulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+/* Sol üst 🐌 emoji */
+.slowedSquareEmoji {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 16px;
+    z-index: 10;
+    pointer-events: none;
+    text-shadow: 0 0 4px rgba(0,0,0,0.8);
+    filter: drop-shadow(0 0 3px rgba(255, 152, 0, 0.9));
+    animation: slowedEmojiBob 1.5s ease-in-out infinite;
+}
+
+@keyframes slowedEmojiBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+
+/* 🐌 Şarj çubukları - sağ üst (slowed) - Kilit tarzı */
+.squareSlowedCharge {
+    position: absolute !important;
+    top: 3px !important;
+    right: 3px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    z-index: 25 !important;
+    pointer-events: none !important;
+}
+
+.squareSlowedCharge .squareChargeBar {
+    width: 4px !important;
+    height: 8px !important;
+    background: transparent !important;
+    border: 1px solid rgba(255, 152, 0, 0.4) !important;
+    border-radius: 1px !important;
+    box-sizing: border-box !important;
+}
+
+.squareSlowedCharge .squareChargeBar.filled {
+    background: linear-gradient(180deg, #ffb74d, #ff9800) !important;
+    border-color: #e65100 !important;
+    box-shadow: 0 0 5px rgba(255, 152, 0, 0.9) !important;
+}
+
+/* Joker kartı için Yavaşlat badge */
+.satrancJcTopBadge.slowedBadge {
+    background: linear-gradient(135deg, #ff9800, #e65100);
+    color: white;
+    text-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+.satrancJokerGameCard.slowedActive {
+    border-color: #ff9800 !important;
+    box-shadow: 0 0 12px rgba(255, 152, 0, 0.5);
+}
+
+/* ✨ Şah Mat - Kırmızı şah karesinin nabzı */
+@keyframes matCheckPulse {
+    0%, 100% { 
+        box-shadow: inset 0 0 0 4px #ff0000, inset 0 0 30px rgba(255, 0, 0, 0.8);
+        filter: brightness(1.2);
+    }
+    50% { 
+        box-shadow: inset 0 0 0 6px #ff3838, inset 0 0 50px rgba(255, 0, 0, 1);
+        filter: brightness(1.5) drop-shadow(0 0 20px red);
+    }
+}
+
+/* Şah mat karesinin taşını da salla */
+.square-55d63.highlight-check img {
+    animation: matPieceShake 0.4s ease-in-out infinite;
+}
+
+@keyframes matPieceShake {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-3px) rotate(-2deg); }
+    75% { transform: translateX(3px) rotate(2deg); }
+}
