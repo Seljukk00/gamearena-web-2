@@ -202,10 +202,19 @@ showScreen = function(screenName) {
 const ilk11Card = document.querySelector('[data-mod="ilk_11_challenge"]');
 if (ilk11Card) {
     ilk11Card.addEventListener("click", () => {
+        // ✨ Normal giriş: isim + buton normale döndür
+        const nameInput = document.getElementById("createIlk11NameInput");
+        if (nameInput) {
+            const nameBox = nameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const createBtnEl = document.getElementById("createIlk11Btn");
+        if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
+        window._pendingModeChangeCtx = null;
+
         showScreen("createIlk11");
         setTimeout(() => {
-            const input = document.getElementById("createIlk11NameInput");
-            if (input) input.focus();
+            if (nameInput) nameInput.focus();
         }, 100);
     });
 }
@@ -219,19 +228,58 @@ if (_savedNameIlk11) {
 
 // Oda oluştur
 document.getElementById("createIlk11Btn").onclick = () => {
-    const name = document.getElementById("createIlk11NameInput").value.trim();
-    if (!name) {
-        document.getElementById("createIlk11Msg").textContent = "İsim gir.";
-        document.getElementById("createIlk11Msg").style.color = "#ff6b6b";
+    const nameInput = document.getElementById("createIlk11NameInput");
+    const enteredName = nameInput ? nameInput.value.trim() : "";
+    const msgEl = document.getElementById("createIlk11Msg");
+
+    const turnSec = parseInt(document.getElementById("ilk11TurnSecondsSelect").value) || 120;
+
+    // ✨ MOD DEĞİŞİMİ mi?
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "ilk_11_challenge" && pendingModeChange.createScreen === "createIlk11") {
+        console.log("[MODE CHANGE] İlk 11 için mod_change_room gönderiliyor");
+        if (msgEl) {
+            msgEl.textContent = "Mod değiştiriliyor...";
+            msgEl.style.color = "#51cf66";
+        }
+        send({
+            type: "mod_change_room",
+            new_mode: "ilk_11_challenge",
+            mode_settings: {
+                turn_seconds: turnSec
+            }
+        });
         return;
     }
-    localStorage.setItem("playerName", name);
-    myName = name;
-    const turnSec = parseInt(document.getElementById("ilk11TurnSecondsSelect").value) || 120;
-    send({ type: "ilk11_create_room", name: name, turn_seconds: turnSec });
+
+    // Normal akış
+    if (!enteredName) {
+        if (msgEl) {
+            msgEl.textContent = "İsim gir.";
+            msgEl.style.color = "#ff6b6b";
+        }
+        return;
+    }
+    localStorage.setItem("playerName", enteredName);
+    myName = enteredName;
+    send({ type: "ilk11_create_room", name: enteredName, turn_seconds: turnSec });
 };
 
 document.getElementById("createIlk11BackBtn").onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "ilk_11_challenge" && pendingModeChange.createScreen === "createIlk11") {
+        const returnScreen = pendingModeChange.returnScreen || "ilk11Lobby";
+        window._pendingModeChangeCtx = null;
+        const msgEl = document.getElementById("createIlk11Msg");
+        if (msgEl) msgEl.textContent = "";
+
+        showScreen(returnScreen);
+
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") openChangeModeModal();
+        }, 200);
+        return;
+    }
     showScreen("modselect");
 };
 

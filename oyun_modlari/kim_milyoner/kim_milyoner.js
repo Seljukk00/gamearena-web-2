@@ -557,8 +557,24 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
     const mod = card.dataset.mod;
     if (mod === "kim_milyoner") {
         card.addEventListener("click", () => {
+            // ✨ Normal giriş: isim + buton + turnstile normale döndür
+            const nameInput = document.getElementById("createMlNameInput");
+            if (nameInput) {
+                const nameBox = nameInput.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            const createBtnEl = document.getElementById("createMlBtn");
+            if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
+            // Turnstile widget'ını göster
+            const turnstileBox = document.getElementById("mlTurnstileWidget");
+            if (turnstileBox) {
+                const box = turnstileBox.closest(".centerBox");
+                if (box) box.style.display = "";
+            }
+            window._pendingModeChangeCtx = null;
+
             showScreen("createMl");
-            document.getElementById("createMlNameInput").focus();
+            if (nameInput) nameInput.focus();
         });
     }
 });
@@ -581,22 +597,48 @@ window.onTurnstileError = () => { mlTurnstileToken = null; };
 window.onTurnstileExpired = () => { mlTurnstileToken = null; };
 
 document.getElementById("createMlBtn").onclick = () => {
-    const name = document.getElementById("createMlNameInput").value.trim();
-    if (!name) { document.getElementById("createMlMsg").textContent = "İsim gir."; return; }
-    if (!mlTurnstileToken) { document.getElementById("createMlMsg").textContent = "⏳ Güvenlik doğrulaması bekleniyor..."; return; }
-    
-    localStorage.setItem("playerName", name);
-    myName = name;
-    
+    const nameInput = document.getElementById("createMlNameInput");
+    const enteredName = nameInput ? nameInput.value.trim() : "";
+    const msgEl = document.getElementById("createMlMsg");
+
     const category = document.getElementById("mlCategorySelect").value;
     const difficulty = document.getElementById("mlDifficultySelect").value;
     const turnSec = parseInt(document.getElementById("mlTurnSecondsSelect").value) || 60;
     const maxPlayers = parseInt(document.getElementById("mlMaxPlayersSelect").value) || 2;
     const totalQuestions = parseInt(document.getElementById("mlTotalQuestionsSelect").value) || 12;
+
+    // ✨ MOD DEĞİŞİMİ mi? (Turnstile es geçilir, host zaten odada)
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "kim_milyoner" && pendingModeChange.createScreen === "createMl") {
+        console.log("[MODE CHANGE] Kim Milyoner için mod_change_room gönderiliyor");
+        if (msgEl) {
+            msgEl.textContent = "Mod değiştiriliyor...";
+            msgEl.style.color = "#51cf66";
+        }
+        send({
+            type: "mod_change_room",
+            new_mode: "kim_milyoner",
+            mode_settings: {
+                category: category,
+                difficulty: difficulty,
+                turn_seconds: turnSec,
+                max_players: maxPlayers,
+                total_questions: totalQuestions
+            }
+        });
+        return;
+    }
+
+    // Normal akış (Turnstile gerekli)
+    if (!enteredName) { if (msgEl) msgEl.textContent = "İsim gir."; return; }
+    if (!mlTurnstileToken) { if (msgEl) msgEl.textContent = "⏳ Güvenlik doğrulaması bekleniyor..."; return; }
+    
+    localStorage.setItem("playerName", enteredName);
+    myName = enteredName;
     
     send({
         type: "ml_create_room",
-        name: name,
+        name: enteredName,
         category: category,
         difficulty: difficulty,
         turn_seconds: turnSec,
@@ -608,7 +650,23 @@ document.getElementById("createMlBtn").onclick = () => {
     if (window.turnstile) window.turnstile.reset("#mlTurnstileWidget");
 };
 
-document.getElementById("createMlBackBtn").onclick = () => showScreen("modselect");
+document.getElementById("createMlBackBtn").onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "kim_milyoner" && pendingModeChange.createScreen === "createMl") {
+        const returnScreen = pendingModeChange.returnScreen || "mlLobby";
+        window._pendingModeChangeCtx = null;
+        const msgEl = document.getElementById("createMlMsg");
+        if (msgEl) msgEl.textContent = "";
+
+        showScreen(returnScreen);
+
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") openChangeModeModal();
+        }, 200);
+        return;
+    }
+    showScreen("modselect");
+};
 document.getElementById("mlStartBtn").onclick = () => {
     const seenHashes = getMlHistory();
     console.log(`[ML] Başlatılıyor - ${seenHashes.length} önceden görülmüş soru gönderiliyor`);
@@ -638,6 +696,7 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: mlData.maxPlayers || 2,
+                minValue: (mlData.players && mlData.players.length > 2) ? mlData.players.length : null,
                 options: [
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},

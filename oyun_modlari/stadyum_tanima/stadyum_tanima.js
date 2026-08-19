@@ -217,10 +217,19 @@ showScreen = function(screenName) {
 const stadCard = document.querySelector('[data-mod="stadyum_tanima"]');
 if (stadCard) {
     stadCard.addEventListener("click", () => {
+        // ✨ Normal giriş: isim + buton normale döndür
+        const nameInput = document.getElementById("createStadNameInput");
+        if (nameInput) {
+            const nameBox = nameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const createBtnEl = document.getElementById("createStadBtn");
+        if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
+        window._pendingModeChangeCtx = null;
+
         showScreen("createStad");
         setTimeout(() => {
-            const input = document.getElementById("createStadNameInput");
-            if (input) input.focus();
+            if (nameInput) nameInput.focus();
         }, 100);
     });
 }
@@ -232,22 +241,49 @@ if (_savedNameStad) {
 }
 
 document.getElementById("createStadBtn").onclick = () => {
-    const name = document.getElementById("createStadNameInput").value.trim();
-    if (!name) {
-        document.getElementById("createStadMsg").textContent = "İsim gir.";
-        document.getElementById("createStadMsg").style.color = "#ff6b6b";
-        return;
-    }
-
-    localStorage.setItem("playerName", name);
-    myName = name;
+    const nameInput = document.getElementById("createStadNameInput");
+    const enteredName = nameInput ? nameInput.value.trim() : "";
+    const msgEl = document.getElementById("createStadMsg");
 
     const turnSec = parseInt(document.getElementById("stadTurnSecondsSelect").value) || 20;
     const maxPlayers = parseInt(document.getElementById("stadMaxPlayersSelect").value) || 2;
     const totalRounds = parseInt(document.getElementById("stadTotalRoundsSelect").value) || 10;
+
+    // ✨ MOD DEĞİŞİMİ mi?
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "stadyum_tanima" && pendingModeChange.createScreen === "createStad") {
+        console.log("[MODE CHANGE] Stadyum Tanıma için mod_change_room gönderiliyor");
+        if (msgEl) {
+            msgEl.textContent = "Mod değiştiriliyor...";
+            msgEl.style.color = "#51cf66";
+        }
+        send({
+            type: "mod_change_room",
+            new_mode: "stadyum_tanima",
+            mode_settings: {
+                turn_seconds: turnSec,
+                max_players: maxPlayers,
+                total_rounds: totalRounds
+            }
+        });
+        return;
+    }
+
+    // Normal akış
+    if (!enteredName) {
+        if (msgEl) {
+            msgEl.textContent = "İsim gir.";
+            msgEl.style.color = "#ff6b6b";
+        }
+        return;
+    }
+
+    localStorage.setItem("playerName", enteredName);
+    myName = enteredName;
+
     send({
         type: "stad_create_room",
-        name: name,
+        name: enteredName,
         turn_seconds: turnSec,
         max_players: maxPlayers,
         total_rounds: totalRounds
@@ -255,6 +291,20 @@ document.getElementById("createStadBtn").onclick = () => {
 };
 
 document.getElementById("createStadBackBtn").onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "stadyum_tanima" && pendingModeChange.createScreen === "createStad") {
+        const returnScreen = pendingModeChange.returnScreen || "stadLobby";
+        window._pendingModeChangeCtx = null;
+        const msgEl = document.getElementById("createStadMsg");
+        if (msgEl) msgEl.textContent = "";
+
+        showScreen(returnScreen);
+
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") openChangeModeModal();
+        }, 200);
+        return;
+    }
     showScreen("modselect");
 };
 
@@ -284,6 +334,7 @@ document.getElementById("stadRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: stadData.maxPlayers || 2,
+                minValue: (stadData.players && stadData.players.length > 2) ? stadData.players.length : null,
                 options: [
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},

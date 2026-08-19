@@ -1582,200 +1582,6 @@
             </div>
         </div>
 
-        <!-- MEME ARENA - ODA OLUŞTUR -->
-        <section id="createMemeScreen" class="panel hidden">
-            <h2 class="mainTitle">🎭 Meme Arena</h2>
-
-            <div class="centerBox">
-                <input id="createMemeNameInput" type="text" placeholder="Adını yaz" maxlength="15">
-            </div>
-
-            <div class="centerBox">
-                <label class="timerLabel">
-                    Oyuncu Sayısı:
-                    <select id="memeMaxPlayersSelect">
-                        <option value="2" selected>2 Oyuncu</option>
-                        <option value="3">3 Oyuncu</option>
-                        <option value="4">4 Oyuncu</option>
-                        <option value="5">5 Oyuncu</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="centerBox">
-                <label class="timerLabel">
-                    Tur Sayısı:
-                    <select id="memeRoundsSelect">
-                        <option value="3">3 Tur</option>
-                        <option value="5" selected>5 Tur</option>
-                        <option value="7">7 Tur</option>
-                        <option value="10">10 Tur</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="centerBox">
-                <label class="timerLabel">
-                    Kart Seçim Süresi:
-                    <select id="memeTurnSecondsSelect">
-                        <option value="30">30 saniye</option>
-                        <option value="45" selected>45 saniye</option>
-                        <option value="60">60 saniye</option>
-                        <option value="90">90 saniye</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="centerBox">
-                <label class="timerLabel">
-                    Oy Verme Süresi:
-                    <select id="memeVoteSecondsSelect">
-                        <option value="10">10 saniye</option>
-                        <option value="15" selected>15 saniye</option>
-                        <option value="20">20 saniye</option>
-                        <option value="30">30 saniye</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="memeInfoBox">
-                <h3>🎭 Nasıl Oynanır?</h3>
-                <p>Her turda bir <b style="color:#ffd43b">durum kartı</b> gösterilir</p>
-                <p>Elindeki <b style="color:#51cf66">5 mem kartından</b> duruma en uygun olanı seç</p>
-                <p>Diğerleri kartlara oy verir: <b style="color:#51cf66">🔥 +2</b> / <b style="color:#4dabf7">👌 +1</b> / <b style="color:#ff6b6b">🥀 -1</b></p>
-                <p>Kendi kartına oy veremezsin</p>
-                <p>En çok puan toplayan <b style="color:#ffd43b">KAZANIR!</b></p>
-            </div>
-
-            <div class="row">
-                <button id="createMemeBtn" class="bigBtn greenBtn">Oda Oluştur</button>
-                <button id="createMemeBackBtn" class="bigBtn">← Geri</button>
-            </div>
-
-            <p id="createMemeMsg" class="msg"></p>
-        </section>
-
-        <!-- MEME ARENA - LOBBY -->
-        <section id="memeLobbyScreen" class="panel hidden">
-            <h2 class="mainTitle">Meme Arena - Lobby</h2>
-            <div class="roomCodeBox">
-                <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="memeRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
-                <button class="eyeToggleBtn" id="memeRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
-                <span id="memeCopyHint" class="copyHint"></span>
-            </div>
-            <div class="inviteLinkBox">
-                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
-                <span id="memeInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
-                <button class="eyeToggleBtn" id="memeInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
-                <span id="memeInviteLinkHint" class="copyHint"></span>
-            </div>
-            <ul id="memePlayersList" style="list-style:none; padding:0;"></ul>
-            <div class="lobbyInfo">
-                <span>Oyuncu Sayısı: <span id="memeLobbyMaxPlayers">2</span></span>
-                <span style="margin-left: 20px;">Tur: <span id="memeLobbyRounds">5</span></span>
-                <span style="margin-left: 20px;">Seçim: <span id="memeLobbyTurnSeconds">45</span> sn</span>
-                <span style="margin-left: 20px;">Oylama: <span id="memeLobbyVoteSeconds">15</span> sn</span>
-            </div>
-            <div class="centerBox">
-                <button id="memeStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
-                <button id="memeRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
-                <button id="memeChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
-                <button id="memeLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
-            </div>
-            <p id="memeLobbyMsg" class="msg"></p>
-            <p id="memePreloadStatus" class="msg" style="margin-top:8px; font-size:14px;"></p>
-        </section>
-
-        <!-- MEME ARENA - OYUN EKRANI -->
-        <section id="memeGameScreen" class="hidden">
-            <div class="memeGameTop">
-                <div class="memeRoundInfo" id="memeRoundInfo">Tur 1/5</div>
-                <div class="memeTimerBig" id="memeTimer">45s</div>
-            </div>
-
-            <div class="memeDurumBox">
-                <div class="memeDurumLabel">DURUM</div>
-                <div class="memeDurumText" id="memeDurumText">---</div>
-                <div class="memeDurumButtons">
-                    <button id="memeDurumEditBtn" class="memeDurumActionBtn" title="Kendi durumunu yaz">
-                        ✏️
-                    </button>
-                    <button id="memeDurumShuffleBtn" class="memeDurumActionBtn" title="Başka bir durum çek">
-                        🔄
-                    </button>
-                </div>
-            </div>
-
-            <div class="memeCardsBox" id="memeCardsBox"></div>
-
-            <div class="memeControls">
-                <button class="memeShuffleBtn" id="memeShuffleBtn">🎲 Kart Değiştir (3)</button>
-                <button class="memeCancelBtn hidden" id="memeCancelBtn">❌ Seçimi İptal Et</button>
-            </div>
-
-            <p class="memeStatusMsg" id="memeStatusMsg">Kart seç!</p>
-
-            <!-- OY VERME EKRANI -->
-            <div id="memeVotingBox" class="memeVotingBox hidden">
-                <h2 style="color:#ffd43b; text-align:center;">
-                    <span id="memeVotingOwnerName">---</span>'in Kartı
-                    <span style="font-size:14px; color:#adb5bd;">(<span id="memeVotingIndex">1/2</span>)</span>
-                </h2>
-                <div class="memeVotingCardWrap">
-                    <img id="memeVotingImg" src="" alt="Mem">
-                </div>
-                <div id="memeVoteButtons" class="memeVoteButtons">
-                    <button class="memeVoteBtn voteBad" data-vote="-1">🥀 Dihh<br><span>-1</span></button>
-                    <button class="memeVoteBtn voteOk" data-vote="1">👌 Fena değil<br><span>+1</span></button>
-                    <button class="memeVoteBtn voteGood" data-vote="2">🔥 EFSANE<br><span>+2</span></button>
-                </div>
-                <p id="memeVoteOwnerNote" class="memeVoteOwnerNote hidden"></p>
-                <p id="memeVotingStatus" class="memeStatusMsg"></p>
-            </div>
-
-            <!-- SKOR TABLOSU (Tur sonu) -->
-            <div id="memeScoreboardBox" class="memeScoreboardBox hidden">
-                <h2 id="memeScoreboardTitle" style="color:#51cf66; text-align:center;">Tur Bitti!</h2>
-                <ol id="memeScoreboardList" class="memeScoreboardList"></ol>
-                <p style="text-align:center; color:#adb5bd; font-size:16px; margin-top:15px;">
-                    Yeni tur <span id="memeScoreboardCountdown" class="scoreboardCountdown">5</span> saniye içinde başlıyor...
-                </p>
-            </div>
-
-            <div class="centerBox">
-                <button id="memeBackBtn" class="bigBtn">← Menüye Dön</button>
-            </div>
-        </section>
-
-        <!-- MEME ARENA - OYUN SONU -->
-        <div id="memeGameOverBox" class="overlay hidden">
-            <div class="overlayCard">
-                <h1 id="memeGameOverTitle">🏆 KAZANDIN!</h1>
-                <ol id="memeGameOverList" class="memeScoreboardList" style="margin:20px 0;"></ol>
-                <div class="confirmButtons">
-                    <button id="memeGameOverRematchBtn" class="bigBtn greenBtn">Tekrar Oyna</button>
-                    <button id="memeGameOverLobbyBtn" class="bigBtn" style="background:#e67e22;">🚪 Lobiye Dön</button>
-                    <button id="memeGameOverMenuBtn" class="bigBtn">Ana Menüye Dön</button>
-                </div>
-                <p style="margin-top:15px; color:#adb5bd; font-size:14px;">
-                    ⏳ <span id="memeGameOverCountdown" style="color:#ffd43b; font-weight:bold;">30</span> saniye sonra otomatik lobiye dönülecek
-                </p>
-            </div>
-        </div>
-
-        <!-- MEME ARENA - KART SEÇİM ONAY POPUP -->
-        <div id="memeConfirmBox" class="overlay hidden">
-            <div class="overlayCard memeConfirmCard">
-                <h2 style="color:#ffd43b;">Bu Kartı Seçmek İstediğine Emin misin?</h2>
-                <img id="memeConfirmImg" src="" alt="Mem">
-                <div class="confirmButtons">
-                    <button id="memeConfirmYesBtn" class="bigBtn greenBtn">EVET, SEÇ</button>
-                    <button id="memeConfirmNoBtn" class="bigBtn redBtn">İPTAL</button>
-                </div>
-            </div>
-        </div>
-
         <!-- ==========================================
              ŞARKIDAN BUL - ODA OLUŞTUR
              ========================================== -->
@@ -2555,26 +2361,7 @@
             </div>
         </div>
         
-        <!-- MEME ARENA - KENDİ DURUM YAZMA POPUP -->
-        <div id="memeCustomDurumBox" class="overlay hidden">
-            <div class="overlayCard" style="max-width:500px;">
-                <h2 style="color:#ffd43b;">✏️ Kendi Durumunu Yaz</h2>
-                <p style="color:#adb5bd; margin:10px 0;">Ne düşünüyorsan yaz, ona göre kart seç!</p>
-                <textarea id="memeCustomDurumInput" 
-                          placeholder="Örn: Pazar sabahı halin..." 
-                          maxlength="150"
-                          style="width:100%; min-height:100px; padding:12px; font-size:16px; 
-                                 border-radius:10px; border:2px solid #ffd43b; background:#1a1e2e; 
-                                 color:#fff; resize:vertical; font-family:inherit;"></textarea>
-                <p style="color:#adb5bd; font-size:12px; text-align:right; margin:5px 0;">
-                    <span id="memeCustomDurumCount">0</span>/150 karakter
-                </p>
-                <div class="confirmButtons">
-                    <button id="memeCustomDurumSaveBtn" class="bigBtn greenBtn">✅ KAYDET</button>
-                    <button id="memeCustomDurumCancelBtn" class="bigBtn redBtn">❌ İPTAL</button>
-                </div>
-            </div>
-        </div>
+        
 
         <!-- ==========================================
              JOKERLİ SATRANÇ - ODA OLUŞTUR
@@ -3133,27 +2920,7 @@
         </div>
     </div>
 
-    <!-- MEME ARENA CHAT POPUP STACK -->
-    <div id="memeChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
-
-    <!-- MEME ARENA CHAT -->
-    <div id="memeChatContainer" class="miniChatContainer" style="display:none;">
-        <button id="memeChatToggleBtn" class="miniChatToggleBtn">
-            💬
-            <span id="memeChatBadge" class="miniChatBadge" style="display:none;">0</span>
-        </button>
-        <div id="memeChatPanel" class="miniChatPanel" style="display:none;">
-            <div class="miniChatHeader">
-                <span>💬 Sohbet</span>
-                <button id="memeChatCloseBtn" class="miniChatCloseBtn">✕</button>
-            </div>
-            <div id="memeChatMessages" class="miniChatMessages"></div>
-            <div class="miniChatInputRow">
-                <input type="text" id="memeChatInput" class="miniChatInput" placeholder="Mesaj yaz..." maxlength="100" autocomplete="off">
-                <button id="memeChatSendBtn" class="miniChatSendBtn">➤</button>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- STADYUM TANIMA CHAT POPUP STACK -->
     <div id="stadChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
@@ -3461,7 +3228,7 @@
                     <li>Gizemli Kariyer - Kariyerden futbolcuyu bul</li>
                     <li>İlk 11 Challenge - En iyi kadroyu kur</li>
                     <li>Stadyum Tanıma - Stadyumu tanı</li>
-                    <li>Meme Arena - Duruma en uygun memi seç</li>
+                    
                     <li>Mini Futbol - 1v1'den 5v5'e gerçek zamanlı futbol</li>
                 </ul>
                 

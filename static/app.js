@@ -136,7 +136,6 @@ window.addEventListener("beforeunload", (e) => {
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
                           "stadGame", "stadLobby",
-                          "memeGame", "memeLobby",
                           "sarkiGame", "sarkiLobby",
                           "miniGame", "miniLobby",
                           "satrancGame", "satrancLobby"];
@@ -1203,7 +1202,6 @@ function handleMessage(msg) {
                     "gizemli_kariyer": "🎭 Gizemli Kariyer",
                     "ilk_11_challenge": "⚽ İlk 11 Challenge",
                     "stadyum_tanima": "🏟️ Stadyum Tanıma",
-                    "meme_arena": "🎭 Meme Arena",
                     "sarkidan_bul": "🎵 Şarkıdan Bul",
                     "mini_futbol": "⚽ Mini Futbol",
                     "jokerli_satranc": "♟️ Jokerli Satranç"
@@ -1239,8 +1237,6 @@ function handleMessage(msg) {
             send({ type: "ilk11_join_room", name: name, room_code: code });
         } else if (msg.mode === "stadyum_tanima") {
             send({ type: "stad_join_room", name: name, room_code: code });
-        } else if (msg.mode === "meme_arena") {
-            send({ type: "meme_join_room", name: name, room_code: code });
         } else if (msg.mode === "sarkidan_bul") {
             send({ type: "sarki_join_room", name: name, room_code: code });
         } else if (msg.mode === "mini_futbol") {
@@ -1515,7 +1511,6 @@ function handleMessage(msg) {
         else if (current.includes("gizem")) showScreen("gizemLobby");
         else if (current.includes("ilk11")) showScreen("ilk11Lobby");
         else if (current.includes("stad")) showScreen("stadLobby");
-        else if (current.includes("meme")) showScreen("memeLobby");
         else if (current.includes("satranc")) showScreen("satrancLobby");
         else showScreen("lobby");  // Bil Bakalım
         
@@ -1557,7 +1552,7 @@ function handleMessage(msg) {
         
         // ✨ Lobby'de ayrıldıysa → popup YOK, sadece toast
         const lobbyScreens = ["lobby", "takimLobby", "mlLobby", "haritaLobby", 
-                              "gizemLobby", "ilk11Lobby", "stadLobby", "memeLobby"];
+                              "gizemLobby", "ilk11Lobby", "stadLobby"];
         if (lobbyScreens.includes(current)) {
             showToast("👋 Rakip Ayrıldı", msg.message || "Rakip lobbyden ayrıldı.", null, "warning");
             return;
@@ -1608,18 +1603,54 @@ menuJoinCard.onclick = () => {
     joinNameInput.focus();
     startPublicRoomsRefresh();
 };
-createBackBtn.onclick = () => { showScreen("modselect"); };
+createBackBtn.onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "bil_bakalim" && pendingModeChange.createScreen === "create") {
+        const returnScreen = pendingModeChange.returnScreen || "lobby";
+        window._pendingModeChangeCtx = null;
+        setMsg(createMsg, "");
+
+        // ✨ Önce eski moddaki lobiye dön
+        showScreen(returnScreen);
+
+        // ✨ Sonra Mod Değiştir popup'ını tekrar aç
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") {
+                openChangeModeModal();
+            }
+        }, 200);
+        return;
+    }
+    showScreen("modselect");
+};
 document.getElementById("modSelectBackBtn").onclick = () => { showScreen("home"); };
 
 document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
     card.addEventListener("click", () => {
         const mod = card.dataset.mod;
         if (mod === "bil_bakalim") {
+            if (createNameInput) {
+                const nameBox = createNameInput.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            if (createBtn) createBtn.textContent = "Oda Oluştur";
+            window._pendingModeChangeCtx = null;
+
             showScreen("create");
             createNameInput.focus();
         } else if (mod === "takim_bilmece") {
+            // ✨ Normal giriş için isim + buton normale döndür
+            const takimNameInput = document.getElementById("createTakimNameInput");
+            if (takimNameInput) {
+                const nameBox = takimNameInput.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            const takimCreateBtn = document.getElementById("createTakimBtn");
+            if (takimCreateBtn) takimCreateBtn.textContent = "Bil Bakalım";
+            window._pendingModeChangeCtx = null;
+
             showScreen("createTakim");
-            document.getElementById("createTakimNameInput").focus();
+            if (takimNameInput) takimNameInput.focus();
         }
         // Diğer modlar kendi JS dosyalarında handle ediyor (wrap sistemi)
     });
@@ -1645,7 +1676,26 @@ function updateJokerInfo() {
 
 takimDifficultySelect.addEventListener("change", updateJokerInfo);
 
-document.getElementById("createTakimBackBtn").onclick = () => { showScreen("modselect"); };
+document.getElementById("createTakimBackBtn").onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "takim_bilmece" && pendingModeChange.createScreen === "createTakim") {
+        const returnScreen = pendingModeChange.returnScreen || "takimLobby";
+        window._pendingModeChangeCtx = null;
+        document.getElementById("createTakimMsg").textContent = "";
+
+        // Eski moddaki lobiye dön
+        showScreen(returnScreen);
+
+        // Sonra Mod Değiştir popup'ını tekrar aç
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") {
+                openChangeModeModal();
+            }
+        }, 200);
+        return;
+    }
+    showScreen("modselect");
+};
 joinBackBtn.onclick = () => { showScreen("home"); };
 
 // ==========================================
@@ -1746,11 +1796,34 @@ if (_publicRoomsRefreshBtn) {
 }
 
 createBtn.onclick = () => {
-    myName = createNameInput.value.trim();
+    const enteredName = createNameInput.value.trim();
+    const parsedSeconds = parseInt(turnSecondsSelect.value, 10);
+    const parsedGuessLimit = parseInt(guessLimitSelect.value, 10);
+    const selectedSeconds = isNaN(parsedSeconds) ? 45 : parsedSeconds;
+    const selectedGuessLimit = isNaN(parsedGuessLimit) ? 0 : parsedGuessLimit;
+
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "bil_bakalim" && pendingModeChange.createScreen === "create") {
+        if (enteredName) {
+            myName = enteredName;
+            localStorage.setItem("playerName", myName);
+        }
+        setMsg(createMsg, "Mod değiştiriliyor...", "#51cf66");
+        console.log("[MODE CHANGE] Bil Bakalım için mod_change_room gönderiliyor");
+        send({
+            type: "mod_change_room",
+            new_mode: "bil_bakalim",
+            mode_settings: {
+                turn_seconds: selectedSeconds,
+                guess_limit: selectedGuessLimit
+            }
+        });
+        return;
+    }
+
+    myName = enteredName;
     if (!myName) { setMsg(createMsg, "İsim gir.", "#ff6b6b"); return; }
     localStorage.setItem("playerName", myName);
-    const selectedSeconds = parseInt(turnSecondsSelect.value) || 45;
-    const selectedGuessLimit = parseInt(guessLimitSelect.value) || 0;
     send({ type: "create_room", name: myName, turn_seconds: selectedSeconds, guess_limit: selectedGuessLimit });
 };
 
@@ -2092,9 +2165,6 @@ function getCurrentScreen() {
         "ilk11Game": "ilk11GameScreen",
         "stadLobby": "stadLobbyScreen",
         "stadGame": "stadGameScreen",
-        "createMeme": "createMemeScreen",
-        "memeLobby": "memeLobbyScreen",
-        "memeGame": "memeGameScreen",
         "createSarki": "createSarkiScreen",
         "sarkiLobby": "sarkiLobbyScreen",
         "sarkiGame": "sarkiGameScreen",
@@ -2124,14 +2194,13 @@ function getPreviousScreen() {
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
                           "stadGame", "stadLobby",
-                          "memeGame", "memeLobby",
                           "miniGame", "miniLobby"];
     if (gameScreens.includes(current)) return null;
     
     // Oda oluştur ekranlarından modselect'e
     const createScreens = ["create", "createTakim", "createMl",
                            "createHarita", "createGizem",
-                           "createIlk11", "createStad", "createMeme",
+                           "createIlk11", "createStad",
                            "createMini"];
     if (createScreens.includes(current)) return "modselect";
     
@@ -2234,7 +2303,7 @@ function _updateEscPopupButtons() {
     // Lobby ekranlarında "Lobiye Dön" gereksiz - gizle
     const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby", 
                           "gizemLobby", "ilk11Lobby", "stadLobby", 
-                          "memeLobby", "miniLobby"];
+                          "miniLobby"];
     if (lobbyScreens.includes(current)) {
         if (lobbyBtn) lobbyBtn.style.display = "none";
         if (msg) msg.textContent = "Ne yapmak istersin?";
@@ -2253,7 +2322,6 @@ function _isCurrentHost() {
     if (typeof gizemData !== "undefined" && gizemData.playerId === 1) return true;
     if (typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) return true;
     if (typeof stadData !== "undefined" && stadData.playerId === 1) return true;
-    if (typeof memeData !== "undefined" && memeData.playerId === 1) return true;
     if (typeof window._sarkiIsHostRef === "function" && window._sarkiIsHostRef()) return true;
     if (typeof miniData !== "undefined" && miniData.playerId === 1) return true;
     if (typeof satrancData !== "undefined" && satrancData.playerId === 1) return true;
@@ -2269,7 +2337,6 @@ function _getCurrentModePrefix() {
     if (current.startsWith("gizem")) return "gizem";
     if (current.startsWith("ilk11")) return "ilk11";
     if (current.startsWith("stad")) return "stad";
-    if (current.startsWith("meme")) return "meme";
     if (current.startsWith("sarki")) return "sarki";
     if (current.startsWith("mini")) return "mini";
     if (current.startsWith("satranc")) return "satranc";
@@ -2429,7 +2496,6 @@ document.addEventListener("keydown", (e) => {
                               "gizemGame", "gizemLobby",
                               "ilk11Game", "ilk11Lobby",
                               "stadGame", "stadLobby",
-                              "memeGame", "memeLobby",
                               "sarkiGame", "sarkiLobby",
                               "miniLobby"];
         if (gameScreens.includes(current)) {
@@ -2450,6 +2516,29 @@ document.addEventListener("keydown", (e) => {
     const current = getCurrentScreen();
     if (current === "miniGame") return;
     
+    // ✨ MOD DEĞİŞİMİ EKRANLARINDA ESC → geri butonu gibi davran
+    // (create/createTakim/createMl/... ekranlarındayken pending mode change varsa)
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.createScreen === current) {
+        const returnScreen = pendingModeChange.returnScreen || "modselect";
+        window._pendingModeChangeCtx = null;
+
+        // Mesajları temizle
+        const msgIds = ["createMsg", "createTakimMsg", "createMlMsg", "createHaritaMsg",
+                        "createGizemMsg", "createIlk11Msg", "createStadMsg",
+                        "createSarkiMsg", "createMiniMsg", "createSatrancMsg"];
+        msgIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = "";
+        });
+
+        showScreen(returnScreen);
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") openChangeModeModal();
+        }, 200);
+        return;
+    }
+    
     // Popup açıksa kapat
     const escPopupOpen = !document.getElementById("escConfirmBox").classList.contains("hidden");
     if (escPopupOpen) {
@@ -2469,7 +2558,7 @@ document.addEventListener("keydown", (e) => {
     // ✨ Lobby ekranlarında ESC → direkt ayrılma onayı
     const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby",
                           "gizemLobby", "ilk11Lobby", "stadLobby",
-                          "memeLobby", "sarkiLobby", "miniLobby", "satrancLobby"];
+                          "sarkiLobby", "miniLobby", "satrancLobby"];
     if (lobbyScreens.includes(current)) {
         window._showLeaveConfirmPopup();
         return;
@@ -2483,7 +2572,6 @@ document.addEventListener("keydown", (e) => {
                           "gizemGame",
                           "ilk11Game",
                           "stadGame",
-                          "memeGame",
                           "sarkiGame",
                           "satrancGame"];
     
@@ -2708,7 +2796,6 @@ setTimeout(() => {
             if (!wasHost && typeof gizemData !== "undefined" && gizemData.playerId === 1) wasHost = true;
             if (!wasHost && typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) wasHost = true;
             if (!wasHost && typeof stadData !== "undefined" && stadData.playerId === 1) wasHost = true;
-            if (!wasHost && typeof memeData !== "undefined" && memeData.playerId === 1) wasHost = true;
             if (!wasHost && typeof miniData !== "undefined" && miniData.playerId === 1) wasHost = true;
             
             const goHome = _escFromF5;
@@ -2751,6 +2838,180 @@ setTimeout(() => {
 const _prevShowScreenForHistory = showScreen;
 showScreen = function(screenName) {
     _prevShowScreenForHistory(screenName);
+
+    const pendingModeChange = window._pendingModeChangeCtx;
+
+    // Bil Bakalım createScreen
+    if (pendingModeChange && pendingModeChange.createScreen === "create" && screenName !== "create") {
+        window._pendingModeChangeCtx = null;
+        setMsg(createMsg, "");
+
+        if (createNameInput) {
+            const nameBox = createNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        if (createBtn) {
+            createBtn.textContent = "Oda Oluştur";
+        }
+    }
+
+    // Takım Bilmece createTakim
+    if (pendingModeChange && pendingModeChange.createScreen === "createTakim" && screenName !== "createTakim") {
+        window._pendingModeChangeCtx = null;
+        const msgEl = document.getElementById("createTakimMsg");
+        if (msgEl) msgEl.textContent = "";
+
+        const takimNameInput = document.getElementById("createTakimNameInput");
+        if (takimNameInput) {
+            const nameBox = takimNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const takimCreateBtn = document.getElementById("createTakimBtn");
+        if (takimCreateBtn) takimCreateBtn.textContent = "Bil Bakalım";
+    }
+
+    document.getElementById("createGizemBtn").onclick = () => {
+    const nameInput = document.getElementById("createGizemNameInput");
+    const enteredName = nameInput ? nameInput.value.trim() : "";
+    const msgEl = document.getElementById("createGizemMsg");
+
+    const turnSec = parseInt(document.getElementById("gizemTurnSecondsSelect").value) || 60;
+    const difficulty = document.getElementById("gizemDifficultySelect").value || "karisik";
+    const maxPlayers = parseInt(document.getElementById("gizemMaxPlayersSelect").value) || 2;
+    const totalRounds = parseInt(document.getElementById("gizemTotalRoundsSelect").value) || 10;
+
+    // ✨ MOD DEĞİŞİMİ mi?
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "gizemli_kariyer" && pendingModeChange.createScreen === "createGizem") {
+        console.log("[MODE CHANGE] Gizemli Kariyer için mod_change_room gönderiliyor");
+        if (msgEl) {
+            msgEl.textContent = "Mod değiştiriliyor...";
+            msgEl.style.color = "#51cf66";
+        }
+        send({
+            type: "mod_change_room",
+            new_mode: "gizemli_kariyer",
+            mode_settings: {
+                turn_seconds: turnSec,
+                difficulty: difficulty,
+                max_players: maxPlayers,
+                total_rounds: totalRounds
+            }
+        });
+        return;
+    }
+
+    // Normal akış
+    if (!enteredName) {
+        if (msgEl) {
+            msgEl.textContent = "İsim gir.";
+            msgEl.style.color = "#ff6b6b";
+        }
+        return;
+    }
+    localStorage.setItem("playerName", enteredName);
+    myName = enteredName;
+
+    send({
+        type: "gizem_create_room",
+        name: enteredName,
+        turn_seconds: turnSec,
+        difficulty: difficulty,
+        max_players: maxPlayers,
+        total_rounds: totalRounds
+    });
+};
+
+    // Haritadan Bul createHarita
+    if (pendingModeChange && pendingModeChange.createScreen === "createHarita" && screenName !== "createHarita") {
+        window._pendingModeChangeCtx = null;
+        const haritaMsgEl = document.getElementById("createHaritaMsg");
+        if (haritaMsgEl) haritaMsgEl.textContent = "";
+
+        const haritaNameInput = document.getElementById("createHaritaNameInput");
+        if (haritaNameInput) {
+            const nameBox = haritaNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const haritaCreateBtn = document.getElementById("createHaritaBtn");
+        if (haritaCreateBtn) haritaCreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // Gizemli Kariyer createGizem
+    if (pendingModeChange && pendingModeChange.createScreen === "createGizem" && screenName !== "createGizem") {
+        window._pendingModeChangeCtx = null;
+        const gizemMsgEl = document.getElementById("createGizemMsg");
+        if (gizemMsgEl) gizemMsgEl.textContent = "";
+
+        const gizemNameInput = document.getElementById("createGizemNameInput");
+        if (gizemNameInput) {
+            const nameBox = gizemNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const gizemCreateBtn = document.getElementById("createGizemBtn");
+        if (gizemCreateBtn) gizemCreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // İlk 11 createIlk11
+    if (pendingModeChange && pendingModeChange.createScreen === "createIlk11" && screenName !== "createIlk11") {
+        window._pendingModeChangeCtx = null;
+        const ilk11MsgEl = document.getElementById("createIlk11Msg");
+        if (ilk11MsgEl) ilk11MsgEl.textContent = "";
+
+        const ilk11NameInput = document.getElementById("createIlk11NameInput");
+        if (ilk11NameInput) {
+            const nameBox = ilk11NameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const ilk11CreateBtn = document.getElementById("createIlk11Btn");
+        if (ilk11CreateBtn) ilk11CreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // Stadyum Tanıma createStad
+    if (pendingModeChange && pendingModeChange.createScreen === "createStad" && screenName !== "createStad") {
+        window._pendingModeChangeCtx = null;
+        const stadMsgEl = document.getElementById("createStadMsg");
+        if (stadMsgEl) stadMsgEl.textContent = "";
+
+        const stadNameInput = document.getElementById("createStadNameInput");
+        if (stadNameInput) {
+            const nameBox = stadNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const stadCreateBtn = document.getElementById("createStadBtn");
+        if (stadCreateBtn) stadCreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // Jokerli Satranç createSatranc
+    if (pendingModeChange && pendingModeChange.createScreen === "createSatranc" && screenName !== "createSatranc") {
+        window._pendingModeChangeCtx = null;
+        const satrancMsgEl = document.getElementById("createSatrancMsg");
+        if (satrancMsgEl) satrancMsgEl.textContent = "";
+
+        const satrancNameInput = document.getElementById("createSatrancNameInput");
+        if (satrancNameInput) {
+            const nameBox = satrancNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const satrancCreateBtn = document.getElementById("createSatrancBtn");
+        if (satrancCreateBtn) satrancCreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // Mini Futbol createMini
+    if (pendingModeChange && pendingModeChange.createScreen === "createMini" && screenName !== "createMini") {
+        window._pendingModeChangeCtx = null;
+        const miniMsgEl = document.getElementById("createMiniMsg");
+        if (miniMsgEl) miniMsgEl.textContent = "";
+
+        const miniNameInput = document.getElementById("createMiniNameInput");
+        if (miniNameInput) {
+            const nameBox = miniNameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const miniCreateBtn = document.getElementById("createMiniBtn");
+        if (miniCreateBtn) miniCreateBtn.textContent = "🎮 Oda Oluştur";
+    }
+
     try {
         window.history.pushState({ screen: screenName }, "", "");
     } catch (e) {}
@@ -2779,7 +3040,6 @@ window.addEventListener("popstate", (e) => {
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
                           "stadGame", "stadLobby",
-                          "memeGame", "memeLobby",
                           "miniGame", "miniLobby"];
 
     if (gameScreens.includes(current)) {
@@ -2793,7 +3053,7 @@ window.addEventListener("popstate", (e) => {
     // Oda oluştur ekranlarındaysa → mod seçime dön
     const createScreens = ["create", "createTakim", "createMl",
                            "createHarita", "createGizem",
-                           "createIlk11", "createStad", "createMeme",
+                           "createIlk11", "createStad",
                            "createMini"];
     if (createScreens.includes(current)) {
         showScreen("modselect");
@@ -2944,18 +3204,49 @@ window.openRoomSettingsGeneric = function(config) {
     config.fields.forEach((field, i) => {
         // ✨ Gelişmiş modda devre dışı bırakılacaklar (data-disable-on-advanced)
         const disableOnAdv = field.disableOnAdvanced ? ` data-disable-on-adv="1"` : "";
+        
+        // ✨ minValue kontrolü (oyuncu sayısı kısıtlaması için)
+        const minVal = field.minValue || null;
+        const mapping = field.valueMapping || null;  // fonksiyon: (rawVal) => effectiveMax
+        
         html += `<div style="margin-bottom:20px;" id="settingsGroup_${field.id}"${disableOnAdv}>
             <label style="display:block; color:#ffd43b; font-weight:bold; margin-bottom:8px;">
-                ${field.label}:
+                ${field.label}:${minVal ? ` <span style="color:#ffa94d; font-size:12px; font-weight:normal;">(min: ${minVal})</span>` : ''}
             </label>
-            <select id="settingsField_${field.id}" style="width:100%; padding:12px; font-size:16px;">`;
+            <select id="settingsField_${field.id}" style="width:100%; padding:12px; font-size:16px;${minVal ? ' border:2px solid #ffa94d;' : ''}">`;
         
         field.options.forEach(opt => {
+            let disabled = "";
+            let optLabel = opt.label;
+            let optStyle = "";
+            
+            // minValue kontrolü
+            if (minVal !== null) {
+                const rawVal = parseInt(opt.value);
+                if (!isNaN(rawVal)) {
+                    const effectiveMax = mapping ? mapping(rawVal) : rawVal;
+                    if (effectiveMax < minVal) {
+                        disabled = " disabled";
+                        optLabel = "🚫 " + optLabel + ` (min ${minVal})`;
+                        optStyle = ' style="opacity:0.35; color:#6c757d;"';
+                    }
+                }
+            }
+            
             const selected = String(opt.value) == String(field.current) ? "selected" : "";
-            html += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+            html += `<option value="${opt.value}" ${selected}${disabled}${optStyle}>${optLabel}</option>`;
         });
         
-        html += `</select></div>`;
+        html += `</select>`;
+        
+        // minValue varsa altına uyarı
+        if (minVal) {
+            html += `<p style="color:#ffa94d; font-size:12px; margin:6px 0 0 0; font-style:italic;">
+                ⚠️ Odada ${minVal} oyuncu var. Daha düşük seçilemez.
+            </p>`;
+        }
+        
+        html += `</div>`;
     });
     
     // ✨ GELİŞMİŞ AYARLAR bölümü (varsa)
@@ -3428,17 +3719,17 @@ document.getElementById("roomSettingsBtn").onclick = () => {
 // ==========================================
 
 const ALL_MODES = [
-    { id: "bil_bakalim", name: "Bil Bakalım", img: "/mod_resimleri/bil_bakalim.png", desc: "Klasik futbolcu tahmin oyunu" },
-    { id: "takim_bilmece", name: "Takım Bilmece", img: "/mod_resimleri/takim_bilmece.png", desc: "11 oyuncudan takımı bul" },
-    { id: "kim_milyoner", name: "Kim Milyoner?", img: "/mod_resimleri/kim_milyoner.png", desc: "Milyoner tarzı bilgi yarışması" },
-    { id: "ilk_11_challenge", name: "İlk 11 Challenge", img: "/mod_resimleri/ilk_11.png", desc: "4-3-3 kadroyu kur, rakibi yen" },
-    { id: "gizemli_kariyer", name: "Gizemli Kariyer", img: "/mod_resimleri/gizemli_kariyer.png", desc: "Kariyerden futbolcuyu bul" },
-    { id: "haritadan_bul", name: "Haritadan Bul", img: "/mod_resimleri/haritadan_bul.png", desc: "Ülkeyi haritada göster" },
-    { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.png", desc: "Stadyumu gör, 4 şık arasından bul" },
+    { id: "bil_bakalim", name: "Bil Bakalım", img: "/mod_resimleri/bil_bakalim.png", desc: "Klasik futbolcu tahmin oyunu", maxPlayers: 2 },
+    { id: "takim_bilmece", name: "Takım Bilmece", img: "/mod_resimleri/takim_bilmece.png", desc: "11 oyuncudan takımı bul", maxPlayers: 5 },
+    { id: "kim_milyoner", name: "Kim Milyoner?", img: "/mod_resimleri/kim_milyoner.png", desc: "Milyoner tarzı bilgi yarışması", maxPlayers: 5 },
+    { id: "ilk_11_challenge", name: "İlk 11 Challenge", img: "/mod_resimleri/ilk_11.png", desc: "4-3-3 kadroyu kur, rakibi yen", maxPlayers: 2 },
+    { id: "gizemli_kariyer", name: "Gizemli Kariyer", img: "/mod_resimleri/gizemli_kariyer.png", desc: "Kariyerden futbolcuyu bul", maxPlayers: 5 },
+    { id: "haritadan_bul", name: "Haritadan Bul", img: "/mod_resimleri/haritadan_bul.png", desc: "Ülkeyi haritada göster", maxPlayers: 5 },
+    { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.png", desc: "Stadyumu gör, 4 şık arasından bul", maxPlayers: 5 },
     
-    { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.png", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!" },
-    { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.png", desc: "1v1'den 5v5'e gerçek zamanlı futbol!" },
-    { id: "jokerli_satranc", name: "♟️ Jokerli Satranç", img: "/mod_resimleri/jokerli_satranc.png", desc: "26 jokerle klasik satrancı alt üst et!" }
+    { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.png", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!", maxPlayers: 5 },
+    { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.png", desc: "1v1'den 5v5'e gerçek zamanlı futbol!", maxPlayers: 15 },
+    { id: "jokerli_satranc", name: "♟️ Jokerli Satranç", img: "/mod_resimleri/jokerli_satranc.png", desc: "26 jokerle klasik satrancı alt üst et!", maxPlayers: 2 }
 ];
 
 let _selectedNewMode = null;
@@ -3454,7 +3745,6 @@ function getCurrentMode() {
     if (current.startsWith("gizem")) return "gizemli_kariyer";
     if (current.startsWith("ilk11")) return "ilk_11_challenge";
     if (current.startsWith("stad")) return "stadyum_tanima";
-    if (current.startsWith("meme")) return "meme_arena";
     if (current.startsWith("sarki")) return "sarkidan_bul";
     if (current.startsWith("mini")) return "mini_futbol";
     if (current.startsWith("satranc")) return "jokerli_satranc";
@@ -3472,8 +3762,42 @@ function openChangeModeModal() {
     const GREEN_HIGHLIGHT = "5px solid #51cf66";
     const GREEN_GLOW = "0 0 35px rgba(81,207,102,0.9), 0 0 60px rgba(81,207,102,0.5), inset 0 0 20px rgba(81,207,102,0.2)";
     
+    // ✨ Şu anki oda oyuncu sayısını bul (tüm modlardan çek)
+    let currentPlayerCount = 0;
+    if (typeof players !== "undefined" && Array.isArray(players) && players.length > 0) {
+        currentPlayerCount = players.length;
+    } else if (typeof takimData !== "undefined" && takimData.players && takimData.players.length > 0) {
+        currentPlayerCount = takimData.players.length;
+    } else if (typeof mlData !== "undefined" && mlData.players && mlData.players.length > 0) {
+        currentPlayerCount = mlData.players.length;
+    } else if (typeof haritaData !== "undefined" && haritaData.players && haritaData.players.length > 0) {
+        currentPlayerCount = haritaData.players.length;
+    } else if (typeof gizemData !== "undefined" && gizemData.players && gizemData.players.length > 0) {
+        currentPlayerCount = gizemData.players.length;
+    } else if (typeof ilk11Data !== "undefined" && ilk11Data.players && ilk11Data.players.length > 0) {
+        currentPlayerCount = ilk11Data.players.length;
+    } else if (typeof stadData !== "undefined" && stadData.players && stadData.players.length > 0) {
+        currentPlayerCount = stadData.players.length;
+    } else if (typeof miniData !== "undefined" && miniData.players && miniData.players.length > 0) {
+        currentPlayerCount = miniData.players.length;
+    } else if (typeof satrancData !== "undefined" && satrancData.players && satrancData.players.length > 0) {
+        currentPlayerCount = satrancData.players.length;
+    }
+    // Sarkı için özel — window helper kullan
+    if (currentPlayerCount === 0 && typeof window._sarkiGetPlayerCount === "function") {
+        try { currentPlayerCount = window._sarkiGetPlayerCount() || 0; } catch(e) {}
+    }
+    // Fallback: en az 1 (kendim)
+    if (currentPlayerCount < 1) currentPlayerCount = 1;
+    
+    console.log(`[MODE CHANGE] Oda oyuncu sayısı: ${currentPlayerCount}`);
+    
     ALL_MODES.forEach(mode => {
         const isActive = (mode.id === _currentActiveMode);
+        const modeMax = mode.maxPlayers || 2;
+        // ✨ Bu mod bu oyuncu sayısına uygun mu?
+        const tooManyPlayers = (currentPlayerCount > modeMax) && !isActive;
+        
         const card = document.createElement("div");
         card.className = "mod-card";
         card.dataset.modId = mode.id;
@@ -3483,7 +3807,25 @@ function openChangeModeModal() {
             card.style.border = GREEN_HIGHLIGHT;
             card.style.boxShadow = GREEN_GLOW;
         }
+        
+        // ✨ Kapasiteye uymuyorsa soluk göster
+        if (tooManyPlayers) {
+            card.style.opacity = "0.4";
+            card.style.filter = "grayscale(70%)";
+            card.style.cursor = "not-allowed";
+            card.title = `Bu modda maksimum ${modeMax} oyuncu olabilir (şu an ${currentPlayerCount} kişi)`;
+        }
+        
+        // ✨ Uyarı badge (üstte kırmızı bant)
+        const warningBadge = tooManyPlayers 
+            ? `<div style="position:absolute; top:5px; left:5px; right:5px; background:rgba(255,107,107,0.95); color:#fff; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:6px; text-align:center; z-index:5; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+                ⚠️ Max ${modeMax} oyuncu (şu an ${currentPlayerCount})
+              </div>`
+            : "";
+        
+        card.style.position = "relative";
         card.innerHTML = `
+            ${warningBadge}
             <img src="${mode.img}" alt="${mode.name}" onerror="this.style.display='none'">
             <div class="mod-info">
                 <h3>${mode.name}${isActive ? ' ✅' : ''}</h3>
@@ -3494,6 +3836,20 @@ function openChangeModeModal() {
         // Tek tık → seç
         card.addEventListener("click", () => {
             if (mode.id === _currentActiveMode) return;  // Aynı mod seçilemez
+            
+            // ✨ Kapasite dolu ise engel
+            if (tooManyPlayers) {
+                if (typeof showToast === "function") {
+                    showToast(
+                        "⚠️ Kapasite Yetersiz",
+                        `${mode.name} modunda maksimum ${modeMax} oyuncu olabilir. Şu an odada ${currentPlayerCount} kişi var. Önce bazı oyuncuları çıkar veya kick et.`,
+                        null,
+                        "warning"
+                    );
+                }
+                return;
+            }
+            
             _selectedNewMode = mode.id;
             
             // ✨ TÜM kartları normalize et (aktif olan bile - artık seçim öncelikli)
@@ -3516,6 +3872,7 @@ function openChangeModeModal() {
         // Çift tık → direkt geç
         card.addEventListener("dblclick", () => {
             if (mode.id === _currentActiveMode) return;
+            if (tooManyPlayers) return;  // ✨ Çift tık da engel
             _selectedNewMode = mode.id;
             confirmModeChange();
         });
@@ -3543,7 +3900,35 @@ function confirmModeChange() {
         closeChangeModeModal();
         return;
     }
-    send({ type: "mod_change_room", new_mode: _selectedNewMode });
+    
+    // ✨ Şarkıdan Bul için özel akış (kendi sistemi var)
+    if (_selectedNewMode === "sarkidan_bul" && _isCurrentHost()) {
+        closeChangeModeModal();
+        if (typeof window._sarkiPrepareModeChange === "function") {
+            const handled = window._sarkiPrepareModeChange();
+            if (handled) return;
+        }
+    }
+    
+    // ✨ Her mod kendi _xxxPrepareModeChange fonksiyonunu kayıt eder
+    // window._modeChangeHandlers = { "bil_bakalim": function, ... }
+    // ✨ ÖNEMLİ: closeChangeModeModal _selectedNewMode'u null yapar,
+    //   o yüzden önce yerel değişkene alıyoruz
+    const modeToChange = _selectedNewMode;
+    const handlerFn = window._modeChangeHandlers ? window._modeChangeHandlers[modeToChange] : null;
+
+    if (_isCurrentHost() && typeof handlerFn === "function") {
+        closeChangeModeModal();
+        try {
+            const handled = handlerFn();
+            if (handled) return;
+        } catch (err) {
+            console.error("[MODE CHANGE] Handler hata verdi:", err);
+        }
+    }
+    
+    // Fallback: direkt backend'e gönder
+    send({ type: "mod_change_room", new_mode: modeToChange });
     closeChangeModeModal();
 }
 
@@ -3561,7 +3946,6 @@ const _allChangeModeBtnIds = [
     "gizemChangeModeBtn",
     "ilk11ChangeModeBtn",
     "stadChangeModeBtn",
-    "memeChangeModeBtn",
     "sarkiChangeModeBtn",
     "miniChangeModeBtn",
     "satrancChangeModeBtn"
@@ -3580,6 +3964,134 @@ window.updateChangeModeBtnVisibility = function(btnId, isHost) {
     } else {
         btn.classList.add("hidden");
     }
+};
+
+window._pendingModeChangeCtx = window._pendingModeChangeCtx || null;
+window._modeChangeHandlers = window._modeChangeHandlers || {};
+
+// ==========================================
+// ✨ OYUNCU SAYISI KISITLAMA HELPER'LARI
+// ==========================================
+
+// Şu anki odadaki oyuncu sayısını döner
+window._getCurrentRoomPlayerCount = function() {
+    let count = 0;
+    try {
+        if (typeof players !== "undefined" && Array.isArray(players) && players.length > 0) count = players.length;
+        else if (typeof takimData !== "undefined" && takimData.players && takimData.players.length > 0) count = takimData.players.length;
+        else if (typeof mlData !== "undefined" && mlData.players && mlData.players.length > 0) count = mlData.players.length;
+        else if (typeof haritaData !== "undefined" && haritaData.players && haritaData.players.length > 0) count = haritaData.players.length;
+        else if (typeof gizemData !== "undefined" && gizemData.players && gizemData.players.length > 0) count = gizemData.players.length;
+        else if (typeof ilk11Data !== "undefined" && ilk11Data.players && ilk11Data.players.length > 0) count = ilk11Data.players.length;
+        else if (typeof stadData !== "undefined" && stadData.players && stadData.players.length > 0) count = stadData.players.length;
+        else if (typeof miniData !== "undefined" && miniData.players && miniData.players.length > 0) count = miniData.players.length;
+        else if (typeof satrancData !== "undefined" && satrancData.players && satrancData.players.length > 0) count = satrancData.players.length;
+    } catch(e) {}
+    if (count < 1) count = 1;
+    return count;
+};
+
+// Bir <select> içindeki minValue altındaki option'ları disabled yapar
+// selectId: dropdown ID'si (örn "haritaMaxPlayersSelect")
+// minValue: bu değerin altındaki option'lar disabled olur
+// mapping: opsiyonel (mini futbol için: {2:1, 4:2, 6:3, ...} gibi)
+window._applyMinPlayerLimit = function(selectId, minValue, mapping) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    
+    let firstEnabledValue = null;
+    let currentDisabled = false;
+    
+    Array.from(sel.options).forEach(opt => {
+        const rawVal = parseInt(opt.value);
+        if (isNaN(rawVal)) return;
+        
+        // Mapping varsa değeri çevir (mini futbol: value=oyuncu*2 ise gerçek oyuncu = value/2)
+        // Buradaki "gerçek oyuncu sayısı" o modun oyuncu sayısıdır (max)
+        const effectiveMax = mapping ? mapping(rawVal) : rawVal;
+        
+        if (effectiveMax < minValue) {
+            opt.disabled = true;
+            opt.style.opacity = "0.35";
+            opt.style.color = "#6c757d";
+            if (!opt.textContent.includes("🚫")) {
+                opt.textContent = "🚫 " + opt.textContent + ` (min ${minValue})`;
+            }
+            if (sel.value === String(rawVal)) currentDisabled = true;
+        } else {
+            opt.disabled = false;
+            opt.style.opacity = "";
+            opt.style.color = "";
+            // 🚫 prefix'ini kaldır
+            opt.textContent = opt.textContent.replace(/^🚫 /, "").replace(/ \(min \d+\)$/, "");
+            if (firstEnabledValue === null) firstEnabledValue = String(rawVal);
+        }
+    });
+    
+    // Şu anki seçim disabled ise → ilk enabled'a çek
+    if (currentDisabled && firstEnabledValue !== null) {
+        sel.value = firstEnabledValue;
+    }
+    
+    // Görsel uyarı (dropdown border rengi)
+    if (minValue > 2) {
+        sel.style.borderColor = "#ffa94d";
+        sel.style.boxShadow = "0 0 8px rgba(255,169,77,0.3)";
+        sel.title = `Odadaki oyuncu sayısı ${minValue}. Daha düşük seçilemez.`;
+    } else {
+        sel.style.borderColor = "";
+        sel.style.boxShadow = "";
+        sel.title = "";
+    }
+};
+
+// Mini Futbol için özel mapping (value=2 → 1v1, value=4 → 2v2, ...)
+// Bir "değer" verildiğinde onun temsil ettiği maksimum oyuncu sayısını döner
+window._miniFutbolValueToMax = function(rawValue) {
+    return rawValue; // 2 → 2, 4 → 4, 6 → 6, 8 → 8, 10 → 10 (aynı zaten)
+};
+
+function _getModeChangeLobbyScreen(modeId) {
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+    return modeToScreen[modeId] || "lobby";
+}
+
+window._modeChangeHandlers["bil_bakalim"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = _currentActiveMode || getCurrentMode();
+    window._pendingModeChangeCtx = {
+        newMode: "bil_bakalim",
+        createScreen: "create",
+        returnScreen: _getModeChangeLobbyScreen(fromMode)
+    };
+
+    const savedName = (typeof myName === "string" && myName.trim())
+        ? myName.trim()
+        : (localStorage.getItem("playerName") || "");
+
+    if (createNameInput) createNameInput.value = savedName;
+
+    setMsg(createMsg, 'Bil Bakalım ayarlarını seç, sonra "Oda Oluştur" ile modu değiştir.', "#ffd43b");
+    showScreen("create");
+
+    if (createNameInput) {
+        setTimeout(() => createNameInput.focus(), 50);
+    }
+
+    console.log("[MODE CHANGE] Bil Bakalım create ekranı açıldı");
+    return true;
 };
 
 
@@ -3624,7 +4136,6 @@ handleMessage = function(msg) {
         try { if (typeof gizemData !== "undefined") { gizemData.playerId = null; gizemData.roomCode = ""; gizemData.inGame = false; } } catch(e) {}
         try { if (typeof ilk11Data !== "undefined") { ilk11Data.playerId = null; ilk11Data.roomCode = ""; ilk11Data.inGame = false; } } catch(e) {}
         try { if (typeof stadData !== "undefined") { stadData.playerId = null; stadData.roomCode = ""; stadData.inGame = false; } } catch(e) {}
-        try { if (typeof memeData !== "undefined") { memeData.playerId = null; memeData.roomCode = ""; memeData.inGame = false; } } catch(e) {}
         try { if (typeof miniData !== "undefined") { miniData.playerId = null; miniData.roomCode = ""; miniData.players = []; miniData.gameState = null; } } catch(e) {}
         try { if (typeof satrancData !== "undefined") { satrancData.playerId = null; satrancData.roomCode = ""; } } catch(e) {}
         
@@ -3670,7 +4181,6 @@ handleMessage = function(msg) {
         try { if (typeof hideGizemChat === "function") hideGizemChat(); } catch(e) {}
         try { if (typeof hideIlk11Chat === "function") hideIlk11Chat(); } catch(e) {}
         try { if (typeof hideStadChat === "function") hideStadChat(); } catch(e) {}
-        try { if (typeof hideMemeChat === "function") hideMemeChat(); } catch(e) {}
         try { if (typeof hideSarkiChat === "function") hideSarkiChat(); } catch(e) {}
         
         // Timer temizle (Bil Bakalım vs.)
@@ -3716,11 +4226,6 @@ handleMessage = function(msg) {
             stadData.roomCode = msg.room_code;
             stadData.inGame = true;
         }
-        if (msg.new_mode === "meme_arena" && typeof memeData !== "undefined") {
-            memeData.playerId = msg.player_id;
-            memeData.roomCode = msg.room_code;
-            memeData.inGame = true;
-        }
         if (msg.new_mode === "sarkidan_bul") {
             // ✨ Sarkı state'ini de senkronize et (sarkiIsHost için)
             // Modül scope'lu değişkenlerine erişim window fonksiyonları ile
@@ -3746,7 +4251,6 @@ handleMessage = function(msg) {
             "gizemli_kariyer": "gizemLobby",
             "ilk_11_challenge": "ilk11Lobby",
             "stadyum_tanima": "stadLobby",
-            "meme_arena": "memeLobby",
             "sarkidan_bul": "sarkiLobby",
             "mini_futbol": "miniLobby",
             "jokerli_satranc": "satrancLobby"
@@ -3764,7 +4268,6 @@ handleMessage = function(msg) {
             "gizemli_kariyer": "Gizemli Kariyer",
             "ilk_11_challenge": "İlk 11 Challenge",
             "stadyum_tanima": "Stadyum Tanıma",
-            "meme_arena": "🎭 Meme Arena",
             "sarkidan_bul": "🎵 Şarkıdan Bul",
             "mini_futbol": "⚽ Mini Futbol",
             "jokerli_satranc": "♟️ Jokerli Satranç"
@@ -3774,3 +4277,545 @@ handleMessage = function(msg) {
     }
     _prevHandleForModChange(msg);
 };
+
+// ==========================================
+// ✨ MOD DEĞİŞTİR HANDLER'LARI (Modlar için)
+// ==========================================
+window._pendingModeChangeCtx = window._pendingModeChangeCtx || null;
+window._modeChangeHandlers = window._modeChangeHandlers || {};
+
+window._modeChangeHandlers["bil_bakalim"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "bil_bakalim",
+        createScreen: "create",
+        returnScreen: modeToScreen[fromMode] || "lobby"
+    };
+
+    const savedName = (typeof myName === "string" && myName.trim())
+        ? myName.trim()
+        : (localStorage.getItem("playerName") || "");
+
+    if (createNameInput) createNameInput.value = savedName;
+
+    // ✨ Mod değişimi: isim kutusunu gizle (host zaten odada)
+    if (createNameInput) {
+        const nameBox = createNameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    // ✨ Buton yazısını değiştir
+    if (createBtn) {
+        createBtn.textContent = "✅ Modu Değiştir";
+    }
+
+    setMsg(createMsg, 'Bil Bakalım ayarlarını seç, sonra butona bas.', "#ffd43b");
+    showScreen("create");
+
+    console.log("[MODE CHANGE] Bil Bakalım create ekranı açıldı (isim gizlendi)");
+    return true;
+};
+
+console.log("[MODE CHANGE] Bil Bakalım handler kayıt edildi ✓");
+
+// ==========================================
+// TAKIM BİLMECE handler
+// ==========================================
+window._modeChangeHandlers["takim_bilmece"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        "meme_arena": "memeLobby",
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "takim_bilmece",
+        createScreen: "createTakim",
+        returnScreen: modeToScreen[fromMode] || "takimLobby"
+    };
+
+    const nameInput = document.getElementById("createTakimNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createTakimBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createTakimMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Takım Bilmece ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createTakim");
+
+    // ✨ Oyuncu sayısı kısıtlama (mevcut oda kaç kişi ise onun altına düşürtme)
+    setTimeout(() => {
+        const currentCount = window._getCurrentRoomPlayerCount();
+        if (currentCount > 2) {
+            window._applyMinPlayerLimit("takimMaxPlayersSelect", currentCount);
+        }
+    }, 100);
+
+    console.log("[MODE CHANGE] Takım Bilmece create ekranı açıldı (isim gizlendi)");
+    return true;
+};
+
+console.log("[MODE CHANGE] Takım Bilmece handler kayıt edildi ✓");
+
+// ==========================================
+// KİM MİLYONER handler
+// ==========================================
+window._modeChangeHandlers["kim_milyoner"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "kim_milyoner",
+        createScreen: "createMl",
+        returnScreen: modeToScreen[fromMode] || "mlLobby"
+    };
+
+    const nameInput = document.getElementById("createMlNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    // ✨ Turnstile widget'ını gizle (host doğrulanmış)
+    const turnstileBox = document.getElementById("mlTurnstileWidget");
+    if (turnstileBox) {
+        const box = turnstileBox.closest(".centerBox");
+        if (box) box.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createMlBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createMlMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Kim Milyoner ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createMl");
+
+    // ✨ Oyuncu sayısı kısıtlama
+    setTimeout(() => {
+        const currentCount = window._getCurrentRoomPlayerCount();
+        if (currentCount > 2) {
+            window._applyMinPlayerLimit("mlMaxPlayersSelect", currentCount);
+        }
+    }, 100);
+
+    console.log("[MODE CHANGE] Kim Milyoner create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] Kim Milyoner handler kayıt edildi ✓");
+
+// ==========================================
+// HARİTADAN BUL handler
+// ==========================================
+window._modeChangeHandlers["haritadan_bul"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "haritadan_bul",
+        createScreen: "createHarita",
+        returnScreen: modeToScreen[fromMode] || "haritaLobby"
+    };
+
+    const nameInput = document.getElementById("createHaritaNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createHaritaBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createHaritaMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Haritadan Bul ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createHarita");
+
+    // ✨ Oyuncu sayısı kısıtlama
+    setTimeout(() => {
+        const currentCount = window._getCurrentRoomPlayerCount();
+        if (currentCount > 2) {
+            window._applyMinPlayerLimit("haritaMaxPlayersSelect", currentCount);
+        }
+    }, 100);
+
+    console.log("[MODE CHANGE] Haritadan Bul create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] Haritadan Bul handler kayıt edildi ✓");
+
+// ==========================================
+// GİZEMLİ KARİYER handler
+// ==========================================
+window._modeChangeHandlers["gizemli_kariyer"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "gizemli_kariyer",
+        createScreen: "createGizem",
+        returnScreen: modeToScreen[fromMode] || "gizemLobby"
+    };
+
+    const nameInput = document.getElementById("createGizemNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createGizemBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createGizemMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Gizemli Kariyer ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createGizem");
+
+    // ✨ Oyuncu sayısı kısıtlama
+    setTimeout(() => {
+        const currentCount = window._getCurrentRoomPlayerCount();
+        if (currentCount > 2) {
+            window._applyMinPlayerLimit("gizemMaxPlayersSelect", currentCount);
+        }
+    }, 100);
+
+    console.log("[MODE CHANGE] Gizemli Kariyer create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] Gizemli Kariyer handler kayıt edildi ✓");
+
+// ==========================================
+// İLK 11 CHALLENGE handler
+// ==========================================
+window._modeChangeHandlers["ilk_11_challenge"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "ilk_11_challenge",
+        createScreen: "createIlk11",
+        returnScreen: modeToScreen[fromMode] || "ilk11Lobby"
+    };
+
+    const nameInput = document.getElementById("createIlk11NameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createIlk11Btn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createIlk11Msg");
+    if (msgEl) {
+        msgEl.textContent = 'İlk 11 ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createIlk11");
+
+    console.log("[MODE CHANGE] İlk 11 create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] İlk 11 handler kayıt edildi ✓");
+
+// ==========================================
+// STADYUM TANIMA handler
+// ==========================================
+window._modeChangeHandlers["stadyum_tanima"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "stadyum_tanima",
+        createScreen: "createStad",
+        returnScreen: modeToScreen[fromMode] || "stadLobby"
+    };
+
+    const nameInput = document.getElementById("createStadNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createStadBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createStadMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Stadyum Tanıma ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createStad");
+
+    // ✨ Oyuncu sayısı kısıtlama
+    setTimeout(() => {
+        const currentCount = window._getCurrentRoomPlayerCount();
+        if (currentCount > 2) {
+            window._applyMinPlayerLimit("stadMaxPlayersSelect", currentCount);
+        }
+    }, 100);
+
+    console.log("[MODE CHANGE] Stadyum Tanıma create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] Stadyum Tanıma handler kayıt edildi ✓");
+
+// ==========================================
+// JOKERLİ SATRANÇ handler
+// ==========================================
+window._modeChangeHandlers["jokerli_satranc"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "jokerli_satranc",
+        createScreen: "createSatranc",
+        returnScreen: modeToScreen[fromMode] || "satrancLobby"
+    };
+
+    const nameInput = document.getElementById("createSatrancNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createSatrancBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createSatrancMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Jokerli Satranç ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createSatranc");
+
+    console.log("[MODE CHANGE] Jokerli Satranç create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] Jokerli Satranç handler kayıt edildi ✓");
+
+// ==========================================
+// MİNİ FUTBOL handler
+// ==========================================
+window._modeChangeHandlers["mini_futbol"] = function() {
+    if (!_isCurrentHost()) return false;
+
+    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
+        ? _currentActiveMode
+        : getCurrentMode();
+
+    const modeToScreen = {
+        "bil_bakalim": "lobby",
+        "takim_bilmece": "takimLobby",
+        "kim_milyoner": "mlLobby",
+        "haritadan_bul": "haritaLobby",
+        "gizemli_kariyer": "gizemLobby",
+        "ilk_11_challenge": "ilk11Lobby",
+        "stadyum_tanima": "stadLobby",
+        
+        "sarkidan_bul": "sarkiLobby",
+        "mini_futbol": "miniLobby",
+        "jokerli_satranc": "satrancLobby"
+    };
+
+    window._pendingModeChangeCtx = {
+        newMode: "mini_futbol",
+        createScreen: "createMini",
+        returnScreen: modeToScreen[fromMode] || "miniLobby"
+    };
+
+    const nameInput = document.getElementById("createMiniNameInput");
+    if (nameInput) {
+        const nameBox = nameInput.closest(".centerBox");
+        if (nameBox) nameBox.style.display = "none";
+    }
+
+    const createBtnEl = document.getElementById("createMiniBtn");
+    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
+
+    const msgEl = document.getElementById("createMiniMsg");
+    if (msgEl) {
+        msgEl.textContent = 'Mini Futbol ayarlarını seç, sonra butona bas.';
+        msgEl.style.color = "#ffd43b";
+    }
+
+    showScreen("createMini");
+
+    // ✨ Oyuncu sayısı kısıtlama (Mini Futbol: oyuncu + izleyici toplamı hesaba katılmalı ama şimdilik sadece oyuncu)
+    setTimeout(() => {
+        const currentCount = window._getCurrentRoomPlayerCount();
+        if (currentCount > 2) {
+            // Mini Futbol için: value=2→1v1, value=4→2v2 vs.
+            // currentCount 3 ise → 2v2 (value=4) veya üstü gerekir
+            // currentCount 5 ise → 3v3 (value=6) veya üstü gerekir
+            // Yani effective max = value / 1 (çünkü value oyuncu sayısını gösteriyor)
+            window._applyMinPlayerLimit("miniPlayerCountSelect", currentCount, (v) => v);
+        }
+    }, 100);
+
+    console.log("[MODE CHANGE] Mini Futbol create ekranı açıldı");
+    return true;
+};
+
+console.log("[MODE CHANGE] Mini Futbol handler kayıt edildi ✓");

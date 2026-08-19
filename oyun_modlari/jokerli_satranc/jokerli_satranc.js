@@ -5681,6 +5681,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const modCard = document.querySelector('.mod-card[data-mod="jokerli_satranc"]');
     if (modCard) {
         modCard.addEventListener("click", () => {
+            // ✨ Normal giriş: isim + buton normale döndür
+            const nameInputR = document.getElementById("createSatrancNameInput");
+            if (nameInputR) {
+                const nameBox = nameInputR.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            const createBtnEl = document.getElementById("createSatrancBtn");
+            if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
+            window._pendingModeChangeCtx = null;
+
             showScreen("createSatranc");
             const nameInput = document.getElementById("createSatrancNameInput");
             if (nameInput) {
@@ -5725,13 +5735,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (createBtn) {
         createBtn.onclick = () => {
             const nameInput = document.getElementById("createSatrancNameInput");
-            const name = nameInput ? nameInput.value.trim() : "";
-            if (!name) {
-                const msgEl = document.getElementById("createSatrancMsg");
-                if (msgEl) { msgEl.textContent = "İsim gir."; msgEl.style.color = "#ff6b6b"; }
-                return;
-            }
-            localStorage.setItem("playerName", name);
+            const enteredName = nameInput ? nameInput.value.trim() : "";
+            const msgEl = document.getElementById("createSatrancMsg");
 
             const timeMode = document.getElementById("satrancTimeModeSelect").value;
             const jokerCount = parseInt(document.getElementById("satrancJokerCountSelect").value);
@@ -5750,9 +5755,40 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.setItem("satrancLockPieces", String(lockPieces));
             localStorage.setItem("satrancLockMinutes", String(lockMinutes));
 
+            // ✨ MOD DEĞİŞİMİ mi?
+            const pendingModeChange = window._pendingModeChangeCtx;
+            if (pendingModeChange && pendingModeChange.newMode === "jokerli_satranc" && pendingModeChange.createScreen === "createSatranc") {
+                console.log("[MODE CHANGE] Jokerli Satranç için mod_change_room gönderiliyor");
+                if (msgEl) {
+                    msgEl.textContent = "Mod değiştiriliyor...";
+                    msgEl.style.color = "#51cf66";
+                }
+                send({
+                    type: "mod_change_room",
+                    new_mode: "jokerli_satranc",
+                    mode_settings: {
+                        time_mode: timeMode,
+                        joker_count: jokerCount,
+                        pick_mode: pickMode,
+                        pick_seconds: pickSeconds,
+                        lock_mode: lockMode,
+                        lock_pieces: lockPieces,
+                        lock_minutes: lockMinutes
+                    }
+                });
+                return;
+            }
+
+            // Normal akış
+            if (!enteredName) {
+                if (msgEl) { msgEl.textContent = "İsim gir."; msgEl.style.color = "#ff6b6b"; }
+                return;
+            }
+            localStorage.setItem("playerName", enteredName);
+
             send({
                 type: "satranc_create_room",
-                name: name,
+                name: enteredName,
                 time_mode: timeMode,
                 joker_count: jokerCount,
                 pick_mode: pickMode,
@@ -5766,7 +5802,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Geri
     const backBtn = document.getElementById("createSatrancBackBtn");
-    if (backBtn) backBtn.onclick = () => showScreen("modselect");
+    if (backBtn) backBtn.onclick = () => {
+        const pendingModeChange = window._pendingModeChangeCtx;
+        if (pendingModeChange && pendingModeChange.newMode === "jokerli_satranc" && pendingModeChange.createScreen === "createSatranc") {
+            const returnScreen = pendingModeChange.returnScreen || "satrancLobby";
+            window._pendingModeChangeCtx = null;
+            const msgEl = document.getElementById("createSatrancMsg");
+            if (msgEl) msgEl.textContent = "";
+
+            showScreen(returnScreen);
+
+            setTimeout(() => {
+                if (typeof openChangeModeModal === "function") openChangeModeModal();
+            }, 200);
+            return;
+        }
+        showScreen("modselect");
+    };
 
     // Başlat
     const startBtn = document.getElementById("satrancStartBtn");

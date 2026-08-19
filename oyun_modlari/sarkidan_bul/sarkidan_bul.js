@@ -94,6 +94,137 @@
         const el = document.getElementById(targetId);
         if (el) el.classList.remove("hidden");
     }
+    
+    // ✨ MOD DEĞİŞTİRME - Şarkıdan Bul özel: host önce createSarki ekranını görsün
+    window._sarkiPrepareModeChange = function() {
+        // ✨ TÜM MODLAR için host tespiti (app.js'deki _isCurrentHost fonksiyonu)
+        let isHost = false;
+        if (typeof _isCurrentHost === "function") {
+            isHost = _isCurrentHost();
+        } else {
+            // Fallback: global playerId (Bil Bakalım için)
+            isHost = (typeof playerId !== "undefined" && playerId === 1);
+        }
+        
+        if (!isHost) {
+            console.log("[SARKI] Mod değişimi iptal: host değilsin");
+            return false;
+        }
+        
+        // ✨ Şu anki modu hatırla (geri basınca dönmek için)
+        if (typeof getCurrentMode === "function") {
+            window._originalModeBeforeSarki = getCurrentMode();
+            console.log("[SARKI] Orijinal mod hatırlandı:", window._originalModeBeforeSarki);
+        }
+        
+        // Host için: createSarki ekranını göster (henüz mod değiştirme yok)
+        showSarkiScreen("createSarki");
+        
+        // ✨ MOD DEĞİŞİMİ: isim kutusunu gizle (host zaten odada)
+        const nameInput = document.getElementById("createSarkiNameInput");
+        if (nameInput) {
+            const nameBox = nameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "none";
+        }
+        
+        // İsim inputunu yine de doldur (submit için)
+        if (nameInput) {
+            const savedName = localStorage.getItem("playerName") || "";
+            if (savedName) nameInput.value = savedName;
+        }
+        
+        // Kayıtlı ayarları yükle
+        loadSarkiSavedSettings();
+        
+        // Tür dropdown'unu dil'e göre güncelle
+        const dilSel = document.getElementById("sarkiDilSelect");
+        if (dilSel) {
+            dilSel.dispatchEvent(new Event("change"));
+        }
+        
+        // ✨ Oyuncu sayısı kısıtlama (mod değişimi sırasında)
+        setTimeout(() => {
+            if (typeof window._getCurrentRoomPlayerCount === "function" && 
+                typeof window._applyMinPlayerLimit === "function") {
+                const currentCount = window._getCurrentRoomPlayerCount();
+                if (currentCount > 2) {
+                    window._applyMinPlayerLimit("sarkiMaxPlayersSelect", currentCount);
+                }
+            }
+        }, 100);
+        
+        // ✨ Flag: "Bu sadece mod değişimi için, oda zaten var"
+        window._sarkiModeChangePending = true;
+        
+        // ✨ createMiSarkiBtn'ın text'ini güncelle (host farkında olsun)
+        const createBtn = document.getElementById("createSarkiBtn");
+        if (createBtn) {
+            createBtn.textContent = "✅ Modu Değiştir";
+        }
+        
+        // ✨ Geri butonuna bas → mod değiştir popup açılsın
+        const backBtn = document.getElementById("createSarkiBackBtn");
+        if (backBtn) {
+            backBtn.onclick = () => {
+                window._sarkiModeChangePending = false;
+                // Buton yazısını sıfırla
+                if (createBtn) createBtn.textContent = "Oda Oluştur";
+                
+                // ✨ ÖNCE eski moddaki lobiye dön
+                _sarkiReturnToOriginalLobby();
+                
+                // Sonra mod değiştir popup'ını aç
+                setTimeout(() => {
+                    if (window.openChangeModeModal) {
+                        window.openChangeModeModal();
+                    }
+                }, 200);
+            };
+        }
+        
+        console.log("[SARKI] Mod değişimi hazırlığı: host createSarki ekranında, misafir eski lobide bekliyor");
+        return true;
+    };
+    
+    // Host geri basınca eski moda göre lobiye dönüş
+    function _sarkiReturnToOriginalLobby() {
+        // Şu anki mod ne ise ona göre lobiye dön
+        // app.js'de getCurrentMode() var ama şu an sarkı ekranındayız
+        // O yüzden mevcut oda modunu tespit et
+        
+        if (typeof showScreen !== "function") return;
+        
+        // Backend'e sormak yerine: mevcut oda modu neyse ona göre lobby
+        // app.js global playerId var ve inRoom var, mod bilgisi lazım
+        // En güvenlisi: rooms[room_code]["mode"] backend'de ama frontend'de
+        // Alternatif: getCurrentMode() yerine tüm mod lobby'lerini dene
+        
+        // ✨ Frontend'de bilinen tüm mod lobby'lerini kontrol et
+        // Hangi mod aktifse ona göre lobiye dön
+        const modeLobbyMap = {
+            "bil_bakalim": "lobby",
+            "takim_bilmece": "takimLobby",
+            "kim_milyoner": "mlLobby",
+            "haritadan_bul": "haritaLobby",
+            "gizemli_kariyer": "gizemLobby",
+            "ilk_11_challenge": "ilk11Lobby",
+            "stadyum_tanima": "stadLobby",
+            
+            "sarkidan_bul": "sarkiLobby",
+            "mini_futbol": "miniLobby",
+            "jokerli_satranc": "satrancLobby"
+        };
+        
+        // Global window._originalModeBeforeSarki varsa onu kullan
+        const origMode = window._originalModeBeforeSarki;
+        if (origMode && modeLobbyMap[origMode]) {
+            showScreen(modeLobbyMap[origMode]);
+            return;
+        }
+        
+        // Yoksa varsayılan: Bil Bakalım lobby (en yaygın)
+        showScreen("lobby");
+    }
 
     // ==========================================
     // EVENT LISTENERS
@@ -118,6 +249,28 @@
         document.querySelectorAll('.mod-card').forEach(card => {
             if (card.dataset.mod !== "sarkidan_bul") return;
             card.addEventListener('click', () => {
+                // ✨ Normal giriş: mod değişim flag'ini KESİN sıfırla (bug fix)
+                window._sarkiModeChangePending = false;
+                
+                // ✨ Buton yazısını normale döndür
+                const createBtn = $("createSarkiBtn");
+                if (createBtn) createBtn.textContent = "Oda Oluştur";
+                
+                // ✨ İsim kutusunu geri aç (mod değişiminden sonra)
+                const nameInputR = $("createSarkiNameInput");
+                if (nameInputR) {
+                    const nameBox = nameInputR.closest(".centerBox");
+                    if (nameBox) nameBox.style.display = "";
+                }
+                
+                // ✨ Geri butonunu normal davranışa döndür (mod değişim handler'ını temizle)
+                const backBtn = $("createSarkiBackBtn");
+                if (backBtn) {
+                    backBtn.onclick = () => {
+                        if (typeof showScreen === "function") showScreen("modselect");
+                    };
+                }
+                
                 showSarkiScreen("createSarki");
                 const nameInput = $("createSarkiNameInput");
                 if (nameInput) {
@@ -189,6 +342,12 @@
         if (backToLobbyBtn) backToLobbyBtn.addEventListener('click', () => {
             $("sarkiGameOverBox").classList.add("hidden");
             send({ type: "sarki_back_to_lobby" });
+            
+            // ✨ Host hemen kendi lobisine geçsin (backend broadcast'i beklemeden)
+            // Backend broadcast misafire gidince o da lobiye dönecek
+            if (sarkiIsHost) {
+                onBackToLobby();
+            }
         });
 
         const backToMenuBtn = $("sarkiBackToMenuBtn");
@@ -235,13 +394,19 @@
     // ==========================================
     function createSarkiRoom() {
         const name = $("createSarkiNameInput").value.trim();
-        if (!name) {
+        
+        // ✨ MOD DEĞİŞİMİ ise isim zorunlu değil (host zaten odada)
+        const isModeChange = window._sarkiModeChangePending === true;
+        
+        if (!isModeChange && !name) {
             $("createSarkiMsg").textContent = "❌ İsim gir!";
             return;
         }
 
-        sarkiMyName = name;
-        localStorage.setItem("playerName", name);
+        if (name) {
+            sarkiMyName = name;
+            localStorage.setItem("playerName", name);
+        }
 
         const settings = {
             max_players: parseInt($("sarkiMaxPlayersSelect").value),
@@ -252,11 +417,40 @@
             answer_duration: parseInt($("sarkiAnswerDurationSelect").value)
         };
 
-        // ✨ Ayarları localStorage'a kaydet (bir dahaki sefere hatırlansın)
+        // ✨ Ayarları localStorage'a kaydet
         try {
             localStorage.setItem("sarkiCreateSettings", JSON.stringify(settings));
         } catch(e) {}
+        
+        // ✨ MOD DEĞİŞİMİ MODU: Zaten bir oda var, yeni oda kurmak yerine
+        // mevcut odayı Şarkıdan Bul'a çevir
+        if (window._sarkiModeChangePending) {
+            console.log("[SARKI] Mod değişimi başlatılıyor, ayarlar:", settings);
+            window._sarkiModeChangePending = false;
+            
+            // Buton yazısını sıfırla
+            const createBtn = document.getElementById("createSarkiBtn");
+            if (createBtn) createBtn.textContent = "Oda Oluştur";
+            
+            // ✨ İsim kutusunu geri aç (bir sonraki normal girişte açık olsun)
+            const nameInputR = document.getElementById("createSarkiNameInput");
+            if (nameInputR) {
+                const nameBox = nameInputR.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            
+            $("createSarkiMsg").textContent = "⏳ Mod değiştiriliyor...";
+            
+            // Backend'e mod değiştir + ayarları yolla
+            send({
+                type: "mod_change_room",
+                new_mode: "sarkidan_bul",
+                sarki_settings: settings  // ✨ Yeni: ayarları da gönder
+            });
+            return;
+        }
 
+        // NORMAL MOD: Yeni oda kur
         const msg = {
             type: "sarki_create_room",
             name: name,
@@ -337,6 +531,7 @@
                     id: "settingSarkiMax",
                     label: "👥 Oyuncu Sayısı",
                     current: sarkiSettings.max_players,
+                    minValue: (typeof window._getCurrentRoomPlayerCount === "function" && window._getCurrentRoomPlayerCount() > 2) ? window._getCurrentRoomPlayerCount() : null,
                     options: [
                         { value: 2, label: "2 Oyuncu" },
                         { value: 3, label: "3 Oyuncu" },
@@ -451,16 +646,66 @@
 	// ==========================================
     // LOBBY MESAJI + BAŞLAT BUTONU DURUMU
     // ==========================================
+    // ✨ Yumuşak yüzde animasyonu için
+    let _sarkiDisplayPercent = 0;
+    let _sarkiTargetPercent = 0;
+    let _sarkiPercentAnimTimer = null;
+    
+    function _sarkiAnimatePercent() {
+        // Hedef ile mevcut arasında yumuşak geçiş
+        const diff = _sarkiTargetPercent - _sarkiDisplayPercent;
+        
+        if (Math.abs(diff) < 0.5) {
+            _sarkiDisplayPercent = _sarkiTargetPercent;
+            _sarkiPercentAnimTimer = null;
+            // Son bir kere UI'yi güncelle
+            _sarkiRenderPercent();
+            return;
+        }
+        
+        // Kalan mesafenin %15'ini kapat (yumuşak easing)
+        _sarkiDisplayPercent += diff * 0.15;
+        
+        _sarkiRenderPercent();
+        _sarkiPercentAnimTimer = requestAnimationFrame(_sarkiAnimatePercent);
+    }
+    
+    function _sarkiRenderPercent() {
+        const lobbyMsg = $("sarkiLobbyMsg");
+        if (!lobbyMsg) return;
+        
+        const pct = Math.round(_sarkiDisplayPercent);
+        const isBackgroundLoading = sarkiPoolReady && window._sarkiBackgroundLoading;
+        
+        if (!sarkiPoolReady) {
+            // Henüz hazır değil
+            lobbyMsg.innerHTML = `🎵 Şarkı havuzu hazırlanıyor... <span style="color:#fff; background:rgba(255,212,59,0.2); padding:2px 10px; border-radius:12px; font-family:monospace; font-weight:bold; margin-left:8px;">%${pct}</span>`;
+        } else if (isBackgroundLoading) {
+            // Hazır AMA arka planda daha çok yükleniyor
+            // Bu durumda sadece küçük bir gösterge kalır, ana mesajı bozmayız
+            // updateSarkiLobbyMessage bunu yönetir
+        }
+    }
+    
     function updateSarkiLobbyMessage() {
         const lobbyMsg = $("sarkiLobbyMsg");
         const startBtn = $("sarkiStartBtn");
         const playerCount = document.querySelectorAll("#sarkiPlayersList li").length;
         
-        // Havuz hazır değilse HERKESTE aynı mesaj (yüzde ile)
+        // ✨ ARKA PLAN YÜKLEME KONTROLÜ
+        const isBackgroundLoading = sarkiPoolReady && window._sarkiBackgroundLoading;
+        
+        // Havuz hazır değilse HERKESTE aynı mesaj (yüzde ile animasyonlu)
         if (!sarkiPoolReady) {
             if (lobbyMsg) {
-                const pct = Math.max(0, Math.min(100, sarkiPoolPercent || 0));
-                lobbyMsg.innerHTML = `🎵 Şarkı havuzu hazırlanıyor... <span style="color:#fff; background:rgba(255,212,59,0.2); padding:2px 10px; border-radius:12px; font-family:monospace; font-weight:bold; margin-left:8px;">%${pct}</span>`;
+                // Hedef yüzdeyi güncelle
+                _sarkiTargetPercent = Math.max(0, Math.min(100, sarkiPoolPercent || 0));
+                
+                // Animasyon çalışmıyorsa başlat
+                if (!_sarkiPercentAnimTimer) {
+                    _sarkiPercentAnimTimer = requestAnimationFrame(_sarkiAnimatePercent);
+                }
+                
                 lobbyMsg.style.color = "#ffd43b";
                 lobbyMsg.classList.add("sarkiPulseMsg");
                 lobbyMsg.classList.remove("sarkiWaitHostMsg");
@@ -474,7 +719,23 @@
             return;
         }
         
-        // Havuz HAZIR
+        // ✨ Havuz hazır ama arka planda YÜKLEME devam ediyor
+        if (isBackgroundLoading) {
+            _sarkiTargetPercent = Math.max(_sarkiDisplayPercent, sarkiPoolPercent || 30);
+            if (!_sarkiPercentAnimTimer) {
+                _sarkiPercentAnimTimer = requestAnimationFrame(_sarkiAnimatePercent);
+            }
+        } else {
+            // ✨ Havuz TAMAMEN hazır → %100'e çık ve animasyonu durdur
+            _sarkiTargetPercent = 100;
+            _sarkiDisplayPercent = 100;
+            if (_sarkiPercentAnimTimer) {
+                cancelAnimationFrame(_sarkiPercentAnimTimer);
+                _sarkiPercentAnimTimer = null;
+            }
+        }
+        
+        // Havuz HAZIR (arka plan yükleme mesajı kaldırıldı)
         if (sarkiIsHost) {
             // Host için
             if (playerCount < 2) {
@@ -501,7 +762,7 @@
                 }
             }
         } else {
-            // Misafir için: kırmızı animasyonlu "Host'un oyunu başlatması bekleniyor..."
+            // Misafir için
             if (lobbyMsg) {
                 lobbyMsg.textContent = "Host'un oyunu başlatması bekleniyor...";
                 lobbyMsg.style.color = "#ff6b6b";
@@ -797,16 +1058,33 @@
         if (progressFill) {
             progressFill.style.transition = "none";
             progressFill.style.width = "100%";
-            // Reflow için
             void progressFill.offsetWidth;
             progressFill.style.transition = `width ${msg.song_duration}s linear`;
             progressFill.style.width = "0%";
         }
 
-        playSarkiAudio(msg.preview_url, msg.song_duration);
-
         const totalTime = msg.song_duration + msg.answer_duration;
-        startSarkiTimer(totalTime);
+        
+        // ✨ ÖNCE TIMER'I BAŞLAT (ses yüklenmesi timer'ı geciktirmesin)
+        // Ses'ten önce başlat çünkü audio.play() 100-500ms sürebilir
+        if (msg.server_start_ts) {
+            // Server timestamp'e göre gerçek kalan süreyi hesapla
+            const now = Date.now() / 1000;
+            const elapsed = now - msg.server_start_ts;
+            const remainingTime = Math.max(1, totalTime - elapsed);
+            
+            if (elapsed > 0.3) {
+                console.log(`[SARKI SYNC] Ağ gecikmesi: ${(elapsed * 1000).toFixed(0)}ms, kalan: ${remainingTime.toFixed(1)}s`);
+            }
+            
+            // ✨ Precision için ondalık saniye kullan (Math.ceil yerine round)
+            startSarkiTimer(Math.round(remainingTime));
+        } else {
+            startSarkiTimer(totalTime);
+        }
+        
+        // ✨ Timer başladıktan SONRA sesi çal (asenkron - block etmez)
+        playSarkiAudio(msg.preview_url, msg.song_duration);
 
         $("sarkiStatusMsg").textContent = "";
     }
@@ -1398,11 +1676,13 @@
             list.appendChild(li);
         });
 
+        // ✨ Rematch butonu artık gösterilmiyor (istek üzerine kaldırıldı)
+        $("sarkiRematchBtn").classList.add("hidden");
+        
+        // Lobiye Dön sadece host'a
         if (sarkiIsHost) {
-            $("sarkiRematchBtn").classList.remove("hidden");
             $("sarkiBackToLobbyBtn").classList.remove("hidden");
         } else {
-            $("sarkiRematchBtn").classList.add("hidden");
             $("sarkiBackToLobbyBtn").classList.add("hidden");
         }
 
@@ -1410,13 +1690,73 @@
     }
 
     function onBackToLobby() {
+        console.log("[SARKI] onBackToLobby çağrıldı - müzik durduruluyor");
+        
+        // ✨ Müziği KESİN durdur (birden fazla yerden)
         stopSarkiAudio();
         stopSarkiTimer();
+        
+        // ✨ Play ID'yi resetle - devam eden play() call'ları iptal olsun
+        window._sarkiPlayId = (window._sarkiPlayId || 0) + 1;
+        
+        // ✨ HTML audio element'ini agresif durdur
+        const audioEl = document.getElementById("sarkiAudio");
+        if (audioEl) {
+            try {
+                audioEl.pause();
+                audioEl.currentTime = 0;
+                audioEl.loop = false;
+                audioEl.volume = 0;
+                audioEl.muted = true;
+                audioEl.removeAttribute("src");
+                audioEl.load();
+                // Muted flag'ini kaldır (bir sonraki tur için)
+                setTimeout(() => {
+                    if (audioEl) audioEl.muted = false;
+                }, 100);
+            } catch(e) {
+                console.warn("[SARKI] Audio durdurma hatası:", e);
+            }
+        }
+        
+        // ✨ Aktif stop timer varsa iptal
+        if (sarkiAudioStopTimer) {
+            clearTimeout(sarkiAudioStopTimer);
+            sarkiAudioStopTimer = null;
+        }
+        
+        // ✨ sarkiAudio referansını da temizle
+        if (sarkiAudio) {
+            try {
+                sarkiAudio.pause();
+                sarkiAudio.currentTime = 0;
+                sarkiAudio.loop = false;
+                sarkiAudio.muted = true;
+                sarkiAudio.removeAttribute("src");
+                sarkiAudio.load();
+            } catch(e) {}
+            sarkiAudio = null;
+        }
+        
+        // ✨ Phase'i sıfırla ki başka bir yerden ses başlamasın
+        sarkiCurrentPhase = "waiting";
+        sarkiHasAnswered = false;
+        
+        // Popupları kapat
         $("sarkiGameOverBox").classList.add("hidden");
         $("sarkiRoundResultBox").classList.add("hidden");
-        // ✨ Skor animasyonu için önceki skorları sıfırla
+        
+        // Overlay'i de kapat (turn intro açık kalabilir)
+        const overlay = $("sarkiBigOverlay");
+        if (overlay) overlay.classList.add("hidden");
+        
+        // Skor animasyonu için önceki skorları sıfırla
         window._sarkiPrevScores = {};
+        
+        // Lobiye geç
         showSarkiScreen("sarkiLobby");
+        
+        console.log("[SARKI] Müzik durduruldu, lobiye geçildi ✓");
     }
 
     // ==========================================
@@ -1734,7 +2074,7 @@
             return;
         }
 
-        // ✨ Havuz status (arka planda hazırlanıyor)
+        // ✨ Havuz status (arka planda hazırlanıyor - sessizce)
         if (msg.type === "sarki_pool_status") {
             sarkiPoolReady = !!msg.ready;
             if (typeof msg.percent === "number") {
@@ -1742,7 +2082,14 @@
             } else if (msg.ready) {
                 sarkiPoolPercent = 100;
             }
+            // Arka plan yükleme flag'ini sakla (dahili kullanım için)
+            window._sarkiBackgroundLoading = !!msg.background_loading;
+            window._sarkiPoolCount = msg.count || 0;
+            
+            // Lobi mesajını güncelle
             updateSarkiLobbyMessage();
+            
+            // ✨ Toast KALDIRILDI - kullanıcıya bildirme, arka planda sessizce hallet
             return;
         }
 

@@ -252,8 +252,18 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
     const mod = card.dataset.mod;
     if (mod === "haritadan_bul") {
         card.addEventListener("click", () => {
+            // ✨ Normal giriş: isim + buton normale döndür
+            const nameInput = document.getElementById("createHaritaNameInput");
+            if (nameInput) {
+                const nameBox = nameInput.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            const createBtnEl = document.getElementById("createHaritaBtn");
+            if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
+            window._pendingModeChangeCtx = null;
+
             showScreen("createHarita");
-            document.getElementById("createHaritaNameInput").focus();
+            if (nameInput) nameInput.focus();
         });
     }
 });
@@ -266,22 +276,50 @@ if (_savedNameHarita) {
 
 // Oda oluştur butonu
 document.getElementById("createHaritaBtn").onclick = () => {
-    const name = document.getElementById("createHaritaNameInput").value.trim();
-    if (!name) {
-        document.getElementById("createHaritaMsg").textContent = "İsim gir.";
-        document.getElementById("createHaritaMsg").style.color = "#ff6b6b";
-        return;
-    }
-    localStorage.setItem("playerName", name);
-    myName = name;
-    
+    const nameInput = document.getElementById("createHaritaNameInput");
+    const enteredName = nameInput ? nameInput.value.trim() : "";
+    const msgEl = document.getElementById("createHaritaMsg");
+
     const turnSec = parseInt(document.getElementById("haritaTurnSecondsSelect").value);
     const difficulty = document.getElementById("haritaDifficultySelect").value || "karisik";
     const maxPlayers = parseInt(document.getElementById("haritaMaxPlayersSelect").value) || 2;
     const totalRounds = parseInt(document.getElementById("haritaTotalRoundsSelect").value) || 10;
+
+    // ✨ MOD DEĞİŞİMİ mi?
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "haritadan_bul" && pendingModeChange.createScreen === "createHarita") {
+        console.log("[MODE CHANGE] Haritadan Bul için mod_change_room gönderiliyor");
+        if (msgEl) {
+            msgEl.textContent = "Mod değiştiriliyor...";
+            msgEl.style.color = "#51cf66";
+        }
+        send({
+            type: "mod_change_room",
+            new_mode: "haritadan_bul",
+            mode_settings: {
+                turn_seconds: isNaN(turnSec) ? 30 : turnSec,
+                difficulty: difficulty,
+                max_players: maxPlayers,
+                total_rounds: totalRounds
+            }
+        });
+        return;
+    }
+
+    // Normal akış
+    if (!enteredName) {
+        if (msgEl) {
+            msgEl.textContent = "İsim gir.";
+            msgEl.style.color = "#ff6b6b";
+        }
+        return;
+    }
+    localStorage.setItem("playerName", enteredName);
+    myName = enteredName;
+
     send({
         type: "harita_create_room",
-        name: name,
+        name: enteredName,
         turn_seconds: turnSec,
         difficulty: difficulty,
         max_players: maxPlayers,
@@ -290,6 +328,20 @@ document.getElementById("createHaritaBtn").onclick = () => {
 };
 
 document.getElementById("createHaritaBackBtn").onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "haritadan_bul" && pendingModeChange.createScreen === "createHarita") {
+        const returnScreen = pendingModeChange.returnScreen || "haritaLobby";
+        window._pendingModeChangeCtx = null;
+        const msgEl = document.getElementById("createHaritaMsg");
+        if (msgEl) msgEl.textContent = "";
+
+        showScreen(returnScreen);
+
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") openChangeModeModal();
+        }, 200);
+        return;
+    }
     showScreen("modselect");
 };
 
@@ -321,6 +373,7 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: haritaData.maxPlayers || 2,
+                minValue: (haritaData.players && haritaData.players.length > 2) ? haritaData.players.length : null,
                 options: [
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},

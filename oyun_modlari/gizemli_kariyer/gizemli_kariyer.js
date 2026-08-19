@@ -214,10 +214,19 @@ showScreen = function(screenName) {
 const gizemCard = document.querySelector('[data-mod="gizemli_kariyer"]');
 if (gizemCard) {
     gizemCard.addEventListener("click", () => {
+        // ✨ Normal giriş: isim + buton normale döndür
+        const nameInput = document.getElementById("createGizemNameInput");
+        if (nameInput) {
+            const nameBox = nameInput.closest(".centerBox");
+            if (nameBox) nameBox.style.display = "";
+        }
+        const createBtnEl = document.getElementById("createGizemBtn");
+        if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
+        window._pendingModeChangeCtx = null;
+
         showScreen("createGizem");
         setTimeout(() => {
-            const input = document.getElementById("createGizemNameInput");
-            if (input) input.focus();
+            if (nameInput) nameInput.focus();
         }, 100);
     });
 }
@@ -253,6 +262,20 @@ document.getElementById("createGizemBtn").onclick = () => {
 };
 
 document.getElementById("createGizemBackBtn").onclick = () => {
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "gizemli_kariyer" && pendingModeChange.createScreen === "createGizem") {
+        const returnScreen = pendingModeChange.returnScreen || "gizemLobby";
+        window._pendingModeChangeCtx = null;
+        const msgEl = document.getElementById("createGizemMsg");
+        if (msgEl) msgEl.textContent = "";
+
+        showScreen(returnScreen);
+
+        setTimeout(() => {
+            if (typeof openChangeModeModal === "function") openChangeModeModal();
+        }, 200);
+        return;
+    }
     showScreen("modselect");
 };
 
@@ -282,6 +305,7 @@ document.getElementById("gizemRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: gizemData.maxPlayers || 2,
+                minValue: (gizemData.players && gizemData.players.length > 2) ? gizemData.players.length : null,
                 options: [
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},

@@ -201,23 +201,45 @@ showScreen = function(screenName) {
 
 // Oda oluştur butonu
 document.getElementById("createTakimBtn").onclick = () => {
-    const name = document.getElementById("createTakimNameInput").value.trim();
-    if (!name) {
-        document.getElementById("createTakimMsg").textContent = "İsim gir.";
-        document.getElementById("createTakimMsg").style.color = "#ff6b6b";
-        return;
-    }
-    localStorage.setItem("playerName", name);
-    myName = name;
-    
+    const nameInput = document.getElementById("createTakimNameInput");
+    const enteredName = nameInput ? nameInput.value.trim() : "";
+
     const difficulty = document.getElementById("takimDifficultySelect").value;
     const _turnSecRaw = parseInt(document.getElementById("takimTurnSecondsSelect").value);
     const turnSeconds = isNaN(_turnSecRaw) ? 60 : _turnSecRaw;
     const maxPlayers = parseInt(document.getElementById("takimMaxPlayersSelect").value) || 2;
     const totalQuestions = parseInt(document.getElementById("takimTotalQuestionsSelect").value) || 12;
+
+    // ✨ MOD DEĞİŞİMİ mi?
+    const pendingModeChange = window._pendingModeChangeCtx;
+    if (pendingModeChange && pendingModeChange.newMode === "takim_bilmece" && pendingModeChange.createScreen === "createTakim") {
+        console.log("[MODE CHANGE] Takım Bilmece için mod_change_room gönderiliyor");
+        document.getElementById("createTakimMsg").textContent = "Mod değiştiriliyor...";
+        document.getElementById("createTakimMsg").style.color = "#51cf66";
+        send({
+            type: "mod_change_room",
+            new_mode: "takim_bilmece",
+            mode_settings: {
+                difficulty: difficulty,
+                turn_seconds: turnSeconds,
+                max_players: maxPlayers,
+                total_questions: totalQuestions
+            }
+        });
+        return;
+    }
+
+    // Normal akış
+    if (!enteredName) {
+        document.getElementById("createTakimMsg").textContent = "İsim gir.";
+        document.getElementById("createTakimMsg").style.color = "#ff6b6b";
+        return;
+    }
+    localStorage.setItem("playerName", enteredName);
+    myName = enteredName;
     send({
         type: "takim_create_room",
-        name: name,
+        name: enteredName,
         difficulty: difficulty,
         turn_seconds: turnSeconds,
         max_players: maxPlayers,
@@ -252,6 +274,7 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: takimData.maxPlayers || 2,
+                minValue: (takimData.players && takimData.players.length > 2) ? takimData.players.length : null,
                 options: [
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},

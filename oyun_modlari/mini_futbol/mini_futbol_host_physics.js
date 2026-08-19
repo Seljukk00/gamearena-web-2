@@ -1394,30 +1394,28 @@ const HP = {  // Host Physics namespace
                 }
                 
                 if (bs > this.HARD_BALL_THRESHOLD) {
-                    // Hızlı top - her zaman yansır + oyuncuyu iter (kaleci gibi tutmasın)
+                    // Hızlı top - her zaman yansır (oyuncu YERİNDEN OYNAMASIN)
                     const dot = ball.vx * nx + ball.vy * ny;
                     
-                    // ✨ ÖNCE topu oyuncunun dışına zorla it (dot kontrolüne bakma)
-                    // Bu her durumda çalışsın - yapışma bug'ının kesin çözümü
+                    // ✨ Topu oyuncunun dışına zorla it (yapışma engeli)
                     const safeDistance = this.PLAYER_RADIUS + this.BALL_RADIUS + 5;
                     ball.x = p.x + nx * safeDistance;
                     ball.y = p.y + ny * safeDistance;
                     
                     if (dot < 0) {
-                        // ✨ Topu oyuncuyu itiyor - oyuncuya kuvvet ver (geriye itilsin)
-                        const impactForce = Math.abs(dot) * 0.4;
-                        p.vx += -nx * impactForce;
-                        p.vy += -ny * impactForce;
+                        // ✨ Sert top oyuncuya çarptı → sadece top seksin, oyuncu itilmesin
+                        // (impactForce satırları KALDIRILDI - oyuncu geri gitmeyecek)
                         
-                        // ✨ Sekme (0.85 sekme oranı)
-                        ball.vx = (ball.vx - 2 * dot * nx) * 0.85;
-                        ball.vy = (ball.vy - 2 * dot * ny) * 0.85;
+                        // ✨ Sekme (0.90 - daha güçlü sekme)
+                        ball.vx = (ball.vx - 2 * dot * nx) * 0.90;
+                        ball.vy = (ball.vy - 2 * dot * ny) * 0.90;
+                        // Oyuncunun hızını hafif transfer et (blok yaparken kontrol)
                         ball.vx += p.vx * 0.2;
                         ball.vy += p.vy * 0.2;
                         
                         // ✨ Minimum sekme hızı (yapışmasın)
                         const newSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                        const MIN_BOUNCE = 7.0;  // Daha güçlü minimum (6 → 7)
+                        const MIN_BOUNCE = 7.0;
                         if (newSpeed < MIN_BOUNCE) {
                             ball.vx = -nx * MIN_BOUNCE;
                             ball.vy = -ny * MIN_BOUNCE;

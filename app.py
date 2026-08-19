@@ -298,7 +298,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "gizemli_kariyer": "🎭 Gizemli Kariyer",
                     "ilk_11_challenge": "⚽ İlk 11 Challenge",
                     "stadyum_tanima": "🏟️ Stadyum Tanıma",
-                    "meme_arena": "🎭 Meme Arena",
                     "sarkidan_bul": "🎵 Şarkıdan Bul",
                     "mini_futbol": "⚽ Mini Futbol",
                     "jokerli_satranc": "♟️ Jokerli Satranç"
@@ -480,8 +479,6 @@ async def websocket_endpoint(websocket: WebSocket):
                                     from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
                                 elif room_mode == "stadyum_tanima":
                                     from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
-                                elif room_mode == "meme_arena":
-                                    from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
                                 elif room_mode == "sarkidan_bul":
                                     from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                                 elif room_mode == "mini_futbol":
@@ -512,10 +509,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     await safe_send(websocket, {"type": "error", "message": "Sadece lobide mod değiştirilebilir."})
                     continue
                 
-                new_mode = data.get("new_mode", "").strip()
+                new_mode = data.get("new_mode") or ""
+                new_mode = str(new_mode).strip()
                 valid_modes = ["bil_bakalim", "takim_bilmece", "kim_milyoner", "haritadan_bul",
-                              "gizemli_kariyer", "ilk_11_challenge", "stadyum_tanima", "meme_arena",
+                              "gizemli_kariyer", "ilk_11_challenge", "stadyum_tanima",
                               "sarkidan_bul", "mini_futbol", "jokerli_satranc"]
+                if not new_mode:
+                    await safe_send(websocket, {"type": "error", "message": "Mod seçilmedi."})
+                    continue
                 if new_mode not in valid_modes:
                     await safe_send(websocket, {"type": "error", "message": "Geçersiz mod."})
                     continue
@@ -524,7 +525,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task"]:
+                                 "sarki_task", "mini_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
                         task.cancel()
@@ -551,58 +552,141 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # Her modun default ayarları
                 if new_mode == "bil_bakalim":
+                    # ✨ Host özel ayar gönderdiyse kullan
+                    ms = data.get("mode_settings", {})
+                    _ts = int(ms.get("turn_seconds", 45))
+                    if _ts not in [30, 45, 60, 90]: _ts = 45
+                    _gl = int(ms.get("guess_limit", 0))
+                    if _gl < 0 or _gl > 15: _gl = 0
+                    
                     new_room.update({
                         "footballer_indices": [], "footballers": [], "selections": {},
                         "remaining": {1: 32, 2: 32}, "turn": 1, "question_pack": [],
-                        "pending_question": None, "turn_seconds": 45, "guess_limit": 0,
-                        "guesses_left": {1: 0, 2: 0},
+                        "pending_question": None, "turn_seconds": _ts, "guess_limit": _gl,
+                        "guesses_left": {1: _gl, 2: _gl},
                         "turn_task": None, "selection_task": None, "answer_task": None
                     })
                 elif new_mode == "takim_bilmece":
+                    ms = data.get("mode_settings", {})
+                    _mp = int(ms.get("max_players", 2))
+                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    _tq = int(ms.get("total_questions", 12))
+                    if _tq not in [6, 9, 12, 15, 20, 25]: _tq = 12
+                    _ts = int(ms.get("turn_seconds", 60))
+                    if _ts not in [0, 15, 30, 45, 60, 120]: _ts = 60
+                    _diff = ms.get("difficulty", "klasik")
+                    if _diff not in ["kolay", "orta", "zor", "klasik"]: _diff = "klasik"
+                    
                     new_room.update({
-                        "difficulty": "kolay", "turn_seconds": 60, "max_players": 2,
-                        "total_questions": 12, "turn": 1, "takim_task": None
+                        "difficulty": _diff, "turn_seconds": _ts, "max_players": _mp,
+                        "total_questions": _tq, "turn": 1, "takim_task": None
                     })
                 elif new_mode == "kim_milyoner":
+                    ms = data.get("mode_settings", {})
+                    _mp = int(ms.get("ml_max_players", 2))
+                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    _tq = int(ms.get("ml_total_questions", 12))
+                    if _tq not in [6, 8, 10, 12, 15, 20, 25]: _tq = 12
+                    _cat = ms.get("ml_category", "futbol")
+                    if _cat not in ["futbol", "genel_kultur", "karisik"]: _cat = "futbol"
+                    _diff = ms.get("ml_difficulty", "karisik")
+                    if _diff not in ["kolay", "orta", "zor", "cok_zor", "karisik"]: _diff = "karisik"
+                    _ts = int(ms.get("ml_turn_seconds", 60))
+                    if _ts not in [15, 30, 45, 60, 120]: _ts = 60
+                    
                     new_room.update({
-                        "ml_max_players": 2, "ml_category": "futbol", "ml_difficulty": "karisik",
-                        "ml_total_questions": 12, "ml_turn_seconds": 60,
+                        "ml_max_players": _mp, "ml_category": _cat, "ml_difficulty": _diff,
+                        "ml_total_questions": _tq, "ml_turn_seconds": _ts,
                         "ml_task": None, "ml_ai_generation_task": None,
                         "ml_current_player": 1, "ml_jokers": {}, "ml_player_q_idx": {}
                     })
                 elif new_mode == "haritadan_bul":
+                    ms = data.get("mode_settings", {})
+                    _mp = int(ms.get("max_players", 2))
+                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    _tr = int(ms.get("total_rounds", 10))
+                    if _tr not in [5, 10, 15, 20]: _tr = 10
+                    _diff = ms.get("difficulty", "karisik")
+                    if _diff not in ["kolay", "orta", "zor", "karisik"]: _diff = "karisik"
+                    _ts = int(ms.get("turn_seconds", 30))
+                    if _ts not in [0, 15, 20, 30, 45, 60, 90, 120]: _ts = 30
+                    
                     new_room.update({
-                        "max_players": 2, "total_rounds": 10, "difficulty": "karisik",
-                        "turn_seconds": 30, "turn": 1, "harita_task": None
+                        "max_players": _mp, "total_rounds": _tr, "difficulty": _diff,
+                        "turn_seconds": _ts, "turn": 1, "harita_task": None
                     })
                 elif new_mode == "gizemli_kariyer":
+                    ms = data.get("mode_settings", {})
+                    _mp = int(ms.get("max_players", 2))
+                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    _tr = int(ms.get("total_rounds", 10))
+                    if _tr not in [5, 10, 15, 20]: _tr = 10
+                    _diff = ms.get("difficulty", "karisik")
+                    if _diff not in ["kolay", "orta", "zor", "karisik"]: _diff = "karisik"
+                    _ts = int(ms.get("turn_seconds", 60))
+                    if _ts not in [30, 45, 60, 90, 120]: _ts = 60
+                    
                     new_room.update({
-                        "max_players": 2, "total_rounds": 10, "difficulty": "karisik",
-                        "turn_seconds": 60, "turn": 1, "gizem_task": None,
+                        "max_players": _mp, "total_rounds": _tr, "difficulty": _diff,
+                        "turn_seconds": _ts, "turn": 1, "gizem_task": None,
                         "gizem_round": 0, "gizem_answered": False,
                         "gizem_used_indices": [], "gizem_hidden_indices": [],
                         "gizem_current_q": None, "gizem_jokers": {},
                         "gizem_history_indices": set(), "left_players": {}
                     })
                 elif new_mode == "ilk_11_challenge":
+                    ms = data.get("mode_settings", {})
+                    _ts = int(ms.get("turn_seconds", 120))
+                    if _ts not in [60, 90, 120, 180, 240]: _ts = 120
+                    
                     new_room.update({
-                        "turn_seconds": 120, "ilk11_task": None
+                        "turn_seconds": _ts, "ilk11_task": None
                     })
                 elif new_mode == "stadyum_tanima":
+                    ms = data.get("mode_settings", {})
+                    _mp = int(ms.get("max_players", 2))
+                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    _tr = int(ms.get("total_rounds", 10))
+                    if _tr not in [5, 10, 15, 20]: _tr = 10
+                    _ts = int(ms.get("turn_seconds", 20))
+                    if _ts not in [15, 20, 30, 45]: _ts = 20
+                    
                     new_room.update({
-                        "max_players": 2, "total_rounds": 10, "turn_seconds": 20,
+                        "max_players": _mp, "total_rounds": _tr, "turn_seconds": _ts,
                         "stad_current_player": 1, "stad_task": None,
                         "stad_jokers_left": {}, "stad_used_jokers": {}
                     })
-                elif new_mode == "meme_arena":
-                    new_room.update({
-                        "max_players": 2, "total_rounds": 5,
-                        "turn_seconds": 45, "vote_seconds": 15, "meme_task": None
-                    })
                 elif new_mode == "sarkidan_bul":
+                    # ✨ Host özel ayarlar gönderdiyse onları kullan, yoksa default
+                    sarki_settings = data.get("sarki_settings", {})
+                    
+                    # Ayarları güvenli çevir
+                    _max_p = int(sarki_settings.get("max_players", 2))
+                    if _max_p not in [2, 3, 4, 5]: _max_p = 2
+                    
+                    _dil = sarki_settings.get("dil", "karisik")
+                    if _dil not in ["tr", "yabanci", "karisik"]: _dil = "karisik"
+                    
+                    _total = int(sarki_settings.get("total_songs", 10))
+                    if _total not in [5, 6, 10, 12, 15, 20, 25, 30]: _total = 10
+                    
+                    _song_dur = int(sarki_settings.get("song_duration", 10))
+                    if _song_dur not in [5, 10, 15, 20, 30]: _song_dur = 10
+                    
+                    _ans_dur = int(sarki_settings.get("answer_duration", 10))
+                    if _ans_dur not in [5, 10, 15, 20, 30]: _ans_dur = 10
+                    
+                    _tur = sarki_settings.get("tur")
+                    valid_turler = ["pop", "rap", "rock", "arabesk", "electronic", "klasikler"]
+                    if _tur and _tur not in valid_turler: _tur = None
+                    
                     new_room.update({
-                        "max_players": 2, "dil": "karisik",
-                        "total_songs": 10, "song_duration": 10, "answer_duration": 10,
+                        "max_players": _max_p,
+                        "dil": _dil,
+                        "tur": _tur,
+                        "total_songs": _total,
+                        "song_duration": _song_dur,
+                        "answer_duration": _ans_dur,
                         "current_round": 0, "song_pool": [],
                         "current_song": None, "current_options": [],
                         "current_correct_index": 0, "song_start_time": 0,
@@ -614,12 +698,33 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Oyuncuların skorlarını sıfırla
                     for pid in new_room["players"]:
                         new_room["players"][pid]["score"] = 0
+                    
+                    print(f"[SARKI MOD DEĞİŞTİRME] Yeni ayarlar: max={_max_p}, dil={_dil}, tur={_tur}, total={_total}, song={_song_dur}s, ans={_ans_dur}s")
                 elif new_mode == "jokerli_satranc":
+                    ms = data.get("mode_settings", {})
+                    _tm = ms.get("time_mode", "blitz")
+                    if _tm not in ["bullet", "blitz", "rapid", "klasik", "suresiz"]: _tm = "blitz"
+                    _jc = int(ms.get("joker_count", 3))
+                    if _jc < 0 or _jc > 6: _jc = 3
+                    _pm = ms.get("pick_mode", "karisik")
+                    if _pm not in ["karisik", "manuel"]: _pm = "karisik"
+                    _ps = int(ms.get("pick_seconds", 60))
+                    if _ps not in [0, 30, 60, 90, 120, 180, 300]: _ps = 60
+                    _lm = ms.get("lock_mode", "off")
+                    if _lm not in ["off", "pieces", "time"]: _lm = "off"
+                    _lp = int(ms.get("lock_pieces", 3))
+                    if _lp < 1 or _lp > 10: _lp = 3
+                    _lmn = int(ms.get("lock_minutes", 2))
+                    if _lmn < 1 or _lmn > 10: _lmn = 2
+                    
                     new_room.update({
-                        "satranc_time_mode": "blitz",
-                        "satranc_joker_count": 3,
-                        "satranc_pick_mode": "karisik",
-                        "satranc_pick_seconds": 60,
+                        "satranc_time_mode": _tm,
+                        "satranc_joker_count": _jc,
+                        "satranc_pick_mode": _pm,
+                        "satranc_pick_seconds": _ps,
+                        "satranc_lock_mode": _lm,
+                        "satranc_lock_pieces": _lp,
+                        "satranc_lock_minutes": _lmn,
                         "satranc_game": None,
                         "satranc_turn": None,
                         "satranc_white": None,
@@ -632,13 +737,44 @@ async def websocket_endpoint(websocket: WebSocket):
                         "satranc_selection_task": None,
                     })
                 elif new_mode == "mini_futbol":
+                    ms = data.get("mode_settings", {})
+                    _pc = int(ms.get("player_count", 2))
+                    if _pc not in [2, 4, 6, 8, 10]: _pc = 2
+                    _sc = int(ms.get("spectator_count", 0))
+                    if _sc < 0 or _sc > 5: _sc = 0
+                    _gt = int(ms.get("goal_target", 3))
+                    if _gt < 1 or _gt > 9999: _gt = 3
+                    _md = int(ms.get("match_duration", 180))
+                    if _md < 1 or _md > 99999: _md = 180
+                    _gs = ms.get("game_speed", "normal")
+                    if _gs not in ["yavas", "normal", "hizli"]: _gs = "normal"
+                    _kt = int(ms.get("kickoff_timeout", 10))
+                    if _kt not in [5, 10, 15, 20, 30, 60, 999]: _kt = 10
+                    _ap = bool(ms.get("allow_plase", True))
+                    _bs = bool(ms.get("ball_stick", True))
+                    _se = bool(ms.get("sprint_enabled", True))
+                    
+                    # Saha boyutlarını player_count'a göre ayarla
+                    _field_sizes = {
+                        2:  {"width": 1000, "height": 500, "goal_width": 180},
+                        4:  {"width": 1200, "height": 600, "goal_width": 200},
+                        6:  {"width": 1400, "height": 700, "goal_width": 220},
+                        8:  {"width": 1600, "height": 800, "goal_width": 240},
+                        10: {"width": 1800, "height": 900, "goal_width": 260},
+                    }
+                    _fs = _field_sizes.get(_pc, _field_sizes[2])
+                    
                     new_room.update({
-                        "max_players": 10, "player_count": 2,
-                        "goal_target": 3, "match_duration": 180,
-                        "game_speed": "normal", "red_team_name": "Kırmızı Takım",
-                        "blue_team_name": "Mavi Takım", "allow_plase": True,
-                        "ball_stick": True, "sprint_enabled": True,
-                        "kickoff_timeout": 10, "mini_task": None
+                        "max_players": _pc + _sc, "player_count": _pc,
+                        "spectator_count": _sc,
+                        "goal_target": _gt, "match_duration": _md,
+                        "game_speed": _gs, "red_team_name": "Kırmızı Takım",
+                        "blue_team_name": "Mavi Takım", "allow_plase": _ap,
+                        "ball_stick": _bs, "sprint_enabled": _se,
+                        "kickoff_timeout": _kt, "mini_task": None,
+                        "field_width": _fs["width"],
+                        "field_height": _fs["height"],
+                        "field_goal_width": _fs["goal_width"]
                     })
                     # Mini Futbol'da tüm oyuncuları spectator yap
                     for pid in new_room["players"]:
@@ -672,8 +808,6 @@ async def websocket_endpoint(websocket: WebSocket):
                         from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
                     elif new_mode == "stadyum_tanima":
                         from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
-                    elif new_mode == "meme_arena":
-                        from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
                     elif new_mode == "sarkidan_bul":
                         from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                     elif new_mode == "mini_futbol":
@@ -704,7 +838,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # ==========================================
             if msg_type in ["join_room", "takim_join_room", "ml_join_room", 
                            "harita_join_room", "gizem_join_room", 
-                           "ilk11_join_room", "stad_join_room", "meme_join_room",
+                           "ilk11_join_room", "stad_join_room",
                            "sarki_join_room", "mini_join_room", "satranc_join_room"]:
                 join_code = (data.get("room_code") or "").strip().upper()
                 join_name = (data.get("name") or "").strip()
@@ -853,7 +987,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task",
+                                 "sarki_task", "mini_task",
                                  "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
@@ -870,7 +1004,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task",
+                                 "sarki_task", "mini_task",
                                  "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
@@ -1276,7 +1410,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     for task_key in ["turn_task", "selection_task", "answer_task",
                                      "takim_task", "ml_task", "ml_ai_generation_task",
                                      "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                     "meme_task", "sarki_task", "mini_task"]:
+                                     "sarki_task", "mini_task"]:
                         task = room.get(task_key)
                         if task and not task.done():
                             task.cancel()
@@ -1289,7 +1423,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     for task_key in ["turn_task", "selection_task", "answer_task",
                                      "takim_task", "ml_task",
                                      "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                     "meme_task", "sarki_task",
+                                     "sarki_task",
                                      "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                         task = room.get(task_key)
                         if task and not task.done():
@@ -1323,8 +1457,6 @@ async def websocket_endpoint(websocket: WebSocket):
                             from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
                         elif room_mode == "stadyum_tanima":
                             from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
-                        elif room_mode == "meme_arena":
-                            from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
                         elif room_mode == "sarkidan_bul":
                             from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                         elif room_mode == "jokerli_satranc":
@@ -1348,7 +1480,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
                                  "harita_task", "gizem_task", "ilk11_task", "stad_task",
-                                 "meme_task", "sarki_task", "mini_task",
+                                 "sarki_task", "mini_task",
                                  "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
@@ -1386,9 +1518,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     await slu(room, broadcast)
                 elif room_mode == "stadyum_tanima":
                     from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
-                    await slu(room, broadcast)
-                elif room_mode == "meme_arena":
-                    from oyun_modlari.meme_arena.meme_handler import send_meme_lobby_update as slu
                     await slu(room, broadcast)
                 elif room_mode == "sarkidan_bul":
                     from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu

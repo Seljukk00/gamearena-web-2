@@ -326,7 +326,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 70,         // ✨ 1v1 için daha düşük buffer: daha az input lag, daha canlı top
+    interpDelay: 40,         // ✨ Düşük buffer: input lag minimum (30-50ms optimal, jitter riski var)
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -1410,6 +1410,22 @@ function handleMiniMessage(msg) {
         // 💬 Chat'i göster (odadaysa her zaman görünmeli)
         showMiniChat();
         
+        // ✨ WebRTC'yi ERKEN kur (oyun başlamadan önce P2P hazır olsun)
+        // Host için: misafir varsa ve WebRTC bağlı değilse → offer başlat
+        if (miniData.playerId === 1 && !MiniRTC.connected && !MiniRTC.pc) {
+            const guestCount = msg.players ? msg.players.filter(p => p.id !== 1).length : 0;
+            if (guestCount > 0) {
+                console.log("[WebRTC] Lobby'de misafir var, P2P erken kurulacak...");
+                setTimeout(() => {
+                    if (!MiniRTC.connected && !MiniRTC.pc) {
+                        MiniRTC.createAsHost().catch(e => {
+                            console.warn("[WebRTC] Lobby offer hatası:", e);
+                        });
+                    }
+                }, 200);
+            }
+        }
+        
         // ✨ Host (player_id=1) listede yoksa → kullanıcı için oda kapandı, katıl ekranına at
         const hasHost = msg.players && msg.players.some(p => p.id === 1);
         if (!hasHost && miniData.playerId !== 1 && inRoom) {
@@ -1704,17 +1720,15 @@ function handleMiniMessage(msg) {
         miniData.playerNames = msg.players;
         miniData.fieldConfig = msg.field;
         
-        // ✨ WebRTC bağlantısını başlat
-        // Host offer oluşturur, misafir bekler
-        setTimeout(() => {
-            if (miniData.playerId === 1) {
-                // Host: offer başlat
+        // ✨ WebRTC zaten lobby'de kurulmuş olmalı, ama garanti için tekrar dene
+        if (!MiniRTC.connected && miniData.playerId === 1) {
+            console.log("[WebRTC] Oyun başladı ama P2P henüz kurulmadı, deniyor...");
+            setTimeout(() => {
                 MiniRTC.createAsHost().catch(e => {
-                    console.warn("[WebRTC] Offer oluşturulamadı:", e);
+                    console.warn("[WebRTC] Oyun başlangıcı offer hatası:", e);
                 });
-            }
-            // Misafir: offer gelince handleOffer çağrılacak (aşağıda)
-        }, 500);
+            }, 100);
+        }
         miniData.goalTarget = msg.goal_target;
         miniData.matchDuration = msg.match_duration;
         // ✨ Split-screen bilgileri
@@ -2554,6 +2568,13 @@ function openMiniRoomSettings() {
                 id: "playerCount",
                 label: "👥 Oyuncu Sayısı",
                 current: miniData.playerCount || 2,
+                minValue: (function() {
+                    // Sadece aktif oyuncular (spectator hariç)
+                    if (!miniData.players || miniData.players.length === 0) return null;
+                    const activePlayers = miniData.players.filter(p => p.team === "red" || p.team === "blue");
+                    return activePlayers.length > 2 ? activePlayers.length : null;
+                })(),
+                valueMapping: function(v) { return v; },  // 2→2, 4→4, ...
                 options: [
                     {value: 2, label: "1v1"},
                     {value: 4, label: "2v2"},
@@ -4971,6 +4992,16 @@ setTimeout(() => {
     const miniCard = document.querySelector('.mod-card[data-mod="mini_futbol"]');
     if (miniCard) {
         miniCard.addEventListener("click", () => {
+            // ✨ Normal giriş: isim + buton normale döndür
+            const nameInputR = document.getElementById("createMiniNameInput");
+            if (nameInputR) {
+                const nameBox = nameInputR.closest(".centerBox");
+                if (nameBox) nameBox.style.display = "";
+            }
+            const createBtnEl = document.getElementById("createMiniBtn");
+            if (createBtnEl) createBtnEl.textContent = "🎮 Oda Oluştur";
+            window._pendingModeChangeCtx = null;
+
             showScreen("createMini");
             const nameInput = document.getElementById("createMiniNameInput");
             if (nameInput) {
@@ -5066,25 +5097,35 @@ setTimeout(() => {
         }
         
         createBtn.onclick = async () => {
-            const name = document.getElementById("createMiniNameInput").value.trim();
-            if (!name) {
-                const msg = document.getElementById("createMiniMsg");
-                msg.textContent = "İsim gir.";
-                msg.style.color = "#ff6b6b";
-                return;
-            }
+            const nameInputEl = document.getElementById("createMiniNameInput");
+            const name = nameInputEl ? nameInputEl.value.trim() : "";
             
-            // 🔒 SELJUK KORUMASI
-            if (isSeljukName(name) && !isSeljukVerified()) {
-                const ok = await showSeljukPasswordPopup();
-                if (!ok) {
-                    // İptal veya kilit → ismi temizle
-                    document.getElementById("createMiniNameInput").value = "";
+            // ✨ MOD DEĞİŞİMİ mi? (isim boş olabilir, host zaten odada)
+            const _pendingModeChangeEarly = window._pendingModeChangeCtx;
+            const _isModeChange = _pendingModeChangeEarly && 
+                                  _pendingModeChangeEarly.newMode === "mini_futbol" && 
+                                  _pendingModeChangeEarly.createScreen === "createMini";
+            
+            if (!_isModeChange) {
+                // Normal akış → isim zorunlu
+                if (!name) {
+                    const msg = document.getElementById("createMiniMsg");
+                    msg.textContent = "İsim gir.";
+                    msg.style.color = "#ff6b6b";
                     return;
                 }
+                
+                // 🔒 SELJUK KORUMASI (sadece normal akışta)
+                if (isSeljukName(name) && !isSeljukVerified()) {
+                    const ok = await showSeljukPasswordPopup();
+                    if (!ok) {
+                        nameInputEl.value = "";
+                        return;
+                    }
+                }
+                
+                localStorage.setItem("playerName", name);
             }
-            
-            localStorage.setItem("playerName", name);
             
             // ✨ Gelişmiş toggle
             const advToggle = document.getElementById("createMiniAdvancedToggle");
@@ -5219,13 +5260,59 @@ setTimeout(() => {
                 localStorage.setItem("miniPlayerCount", String(playerCount));
                 localStorage.setItem("miniSpectatorCount", String(spectatorCount));
             } catch(e) {}
+
+            // ✨ MOD DEĞİŞİMİ mi? (advanced yok, sadece temel ayarlar)
+            const pendingModeChange = window._pendingModeChangeCtx;
+            if (pendingModeChange && pendingModeChange.newMode === "mini_futbol" && pendingModeChange.createScreen === "createMini") {
+                console.log("[MODE CHANGE] Mini Futbol için mod_change_room gönderiliyor");
+                const msgEl = document.getElementById("createMiniMsg");
+                if (msgEl) {
+                    msgEl.textContent = "Mod değiştiriliyor...";
+                    msgEl.style.color = "#51cf66";
+                }
+                send({
+                    type: "mod_change_room",
+                    new_mode: "mini_futbol",
+                    mode_settings: {
+                        goal_target: goalTarget,
+                        match_duration: matchDuration,
+                        game_speed: gameSpeed,
+                        split_screen: splitScreen,
+                        allow_plase: allowPlase,
+                        ball_stick: ballStick,
+                        sprint_enabled: sprintEnabled,
+                        player_count: playerCount,
+                        spectator_count: spectatorCount,
+                        kickoff_timeout: savedKickoffTimeout,
+                        red_team_name: savedRedName,
+                        blue_team_name: savedBlueName
+                    }
+                });
+                return;
+            }
             
             send(payload);
         };
     }
     
     const backBtn = document.getElementById("createMiniBackBtn");
-    if (backBtn) backBtn.onclick = () => showScreen("modselect");
+    if (backBtn) backBtn.onclick = () => {
+        const pendingModeChange = window._pendingModeChangeCtx;
+        if (pendingModeChange && pendingModeChange.newMode === "mini_futbol" && pendingModeChange.createScreen === "createMini") {
+            const returnScreen = pendingModeChange.returnScreen || "miniLobby";
+            window._pendingModeChangeCtx = null;
+            const msgEl = document.getElementById("createMiniMsg");
+            if (msgEl) msgEl.textContent = "";
+
+            showScreen(returnScreen);
+
+            setTimeout(() => {
+                if (typeof openChangeModeModal === "function") openChangeModeModal();
+            }, 200);
+            return;
+        }
+        showScreen("modselect");
+    };
     
     const leaveBtn = document.getElementById("miniLobbyLeaveBtn");
     if (leaveBtn) leaveBtn.onclick = () => window._showLeaveConfirmPopup();

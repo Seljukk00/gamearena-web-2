@@ -107,7 +107,7 @@ async def prefetch_song_pool(room, broadcast):
 async def _fetch_pool(room, broadcast=None):
     """
     Deezer'dan şarkıları çeker ve room['song_pool']'a kaydeder.
-    ✨ Yeni: Sanatçı dict formatı (name+tier) kullanır, şarkılara tier bilgisi ekler.
+    ✨ Kademeli yükleme: İlk 5 şarkı gelince oyun başlayabilir, gerisi arka planda yüklenir.
     """
     dil = room.get("dil", "karisik")
     tur = room.get("tur", None)
@@ -121,41 +121,124 @@ async def _fetch_pool(room, broadcast=None):
     
     print(f"[SARKI] 🎯 Havuz hedefi: {target_count} sanatçı, {total_needed} tur için")
     
-    songs = []
+    # ✨ İLK PARTİ: 5 sanatçıdan hızlıca şarkı çek (oyun başlayabilsin)
+    first_batch_artists = selected_artists[:5]
+    remaining_artists = selected_artists[5:]
+    
+    print(f"[SARKI] 🚀 İlk parti: {len(first_batch_artists)} sanatçı (hızlı başlangıç)")
+    
+    # ✨ İlerleme bildirimi - başlangıç
+    if broadcast:
+        try:
+            await broadcast(room, {
+                "type": "sarki_pool_status",
+                "ready": False,
+                "percent": 5,
+                "message": "🎵 Deezer'a bağlanılıyor... (%5)"
+            })
+        except:
+            pass
+    
+    # ==========================================
+    # FAZ 1: İlk parti (5 sanatçı) - HIZLI
+    # ==========================================
+    first_songs = await asyncio.to_thread(
+        fetch_songs_by_artists, first_batch_artists, 6
+    )
+    
+    # Duplicate temizle
     seen_ids = set()
-    chunk_size = 5  # Her seferinde 5 sanatçı çek (biraz daha hızlı)
-    total_chunks = (len(selected_artists) + chunk_size - 1) // chunk_size
+    songs = []
+    for s in first_songs:
+        if s["id"] not in seen_ids:
+            seen_ids.add(s["id"])
+            songs.append(s)
     
-    for i in range(0, len(selected_artists), chunk_size):
-        chunk = selected_artists[i:i + chunk_size]
-        # ✨ songs_per_artist=6: aynı sanatçı tuzağı için gerekli
-        chunk_songs = await asyncio.to_thread(
-            fetch_songs_by_artists, chunk, 6
+    # Havuza hemen ekle (oyun başlayabilir)
+    random.shuffle(songs)
+    room["song_pool"] = songs
+    room["_pool_ready"] = True  # ✨ HAZIR flag'i - oyun başlayabilir!
+    
+    print(f"[SARKI] ⚡ FAZ 1 tamam: {len(songs)} şarkı hazır (oyun başlayabilir)")
+    
+    # Bildir: hazır ama arka planda yükleme devam ediyor
+    if broadcast:
+        try:
+            await broadcast(room, {
+                "type": "sarki_pool_status",
+                "ready": True,
+                "count": len(songs),
+                "percent": 30,
+                "background_loading": True,
+                "message": f"🚀 Oyun başlayabilir! ({len(songs)} şarkı hazır, arka planda daha çok yükleniyor)"
+            })
+        except:
+            pass
+    
+    # ==========================================
+    # FAZ 2: Kalan sanatçılar - ARKA PLANDA
+    # ==========================================
+    if not remaining_artists:
+        return
+    
+    print(f"[SARKI] 🔄 FAZ 2 başlıyor: {len(remaining_artists)} sanatçı daha (arka planda)")
+    
+    # Fake progress ticker (arka plan yükleme sırasında)
+    progress_task_done = asyncio.Event()
+    
+    async def progress_ticker():
+        """Arka planda yükleme sırasında %30'dan %90'a yavaş yavaş çık"""
+        pct = 30
+        try:
+            while not progress_task_done.is_set() and pct < 90:
+                if broadcast:
+                    try:
+                        await broadcast(room, {
+                            "type": "sarki_pool_status",
+                            "ready": True,
+                            "count": len(room.get("song_pool", [])),
+                            "percent": pct,
+                            "background_loading": True,
+                            "message": f"🎵 Arka planda yükleniyor... (%{pct})"
+                        })
+                    except:
+                        pass
+                await asyncio.sleep(0.6)
+                pct += random.randint(2, 4)
+                if pct > 90:
+                    pct = 90
+        except asyncio.CancelledError:
+            pass
+    
+    ticker = asyncio.create_task(progress_ticker())
+    
+    try:
+        # Kalan sanatçıları çek
+        more_songs = await asyncio.to_thread(
+            fetch_songs_by_artists, remaining_artists, 6
         )
-        for s in chunk_songs:
-            if s["id"] not in seen_ids:
-                seen_ids.add(s["id"])
-                songs.append(s)
-        
-        # Progress broadcast
-        current_chunk = (i // chunk_size) + 1
-        percent = int((current_chunk / total_chunks) * 100)
-        if percent > 90:
-            percent = 90
-        
-        if broadcast:
-            try:
-                await broadcast(room, {
-                    "type": "sarki_pool_status",
-                    "ready": False,
-                    "percent": percent,
-                    "message": f"🎵 Şarkı havuzu hazırlanıyor... (%{percent})"
-                })
-            except:
-                pass
+    finally:
+        progress_task_done.set()
+        try:
+            ticker.cancel()
+            await asyncio.sleep(0)
+        except:
+            pass
     
-    # Yetersizse ek çek
-    if len(songs) < total_needed * 4 and len(artist_objs) > target_count:
+    # Yeni şarkıları mevcut havuza ekle
+    added_count = 0
+    for s in more_songs:
+        if s["id"] not in seen_ids:
+            seen_ids.add(s["id"])
+            room["song_pool"].append(s)
+            added_count += 1
+    
+    print(f"[SARKI] ✅ FAZ 2 tamam: +{added_count} şarkı eklendi, toplam: {len(room['song_pool'])}")
+    
+    # ==========================================
+    # FAZ 3: Yetersizse ek çek (yine paralel)
+    # ==========================================
+    if len(room["song_pool"]) < total_needed * 4 and len(artist_objs) > target_count:
         extra_artists = artist_objs[target_count:target_count + 20]
         extra_songs = await asyncio.to_thread(
             fetch_songs_by_artists, extra_artists, 6
@@ -163,21 +246,26 @@ async def _fetch_pool(room, broadcast=None):
         for s in extra_songs:
             if s["id"] not in seen_ids:
                 seen_ids.add(s["id"])
-                songs.append(s)
-        
-        if broadcast:
-            try:
-                await broadcast(room, {
-                    "type": "sarki_pool_status",
-                    "ready": False,
-                    "percent": 95,
-                    "message": "🎵 Şarkı havuzu hazırlanıyor... (%95)"
-                })
-            except:
-                pass
+                room["song_pool"].append(s)
     
-    random.shuffle(songs)
-    room["song_pool"] = songs
+    # Son karıştırma
+    random.shuffle(room["song_pool"])
+    
+    # ✨ %100 bildirimi
+    if broadcast:
+        try:
+            await broadcast(room, {
+                "type": "sarki_pool_status",
+                "ready": True,
+                "count": len(room["song_pool"]),
+                "percent": 100,
+                "background_loading": False,
+                "message": f"✅ Havuz tamamen hazır! ({len(room['song_pool'])} şarkı)"
+            })
+        except:
+            pass
+    
+    print(f"[SARKI] 🎉 TÜM havuz hazır: {len(room['song_pool'])} şarkı")
     
     # ✨ Tier istatistikleri yazdır
     tier_stats = {"efsane": 0, "cok_populer": 0, "populer": 0, "bilinen": 0}
@@ -591,23 +679,26 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         room["current_turn"] = room["turn_order"][0]
         print(f"[SARKI] Turn order: {room['turn_order']}, ilk sıra: {room['current_turn']}")
         
-        # ✨ Havuz hazır mı kontrol et
-        needed = room["total_songs"] * 2
+        # ✨ Havuz hazır mı kontrol et (kademeli sistem için minimum: total_songs kadar)
+        needed = room["total_songs"]  # ✨ 2 katı değil, tam sayı yeterli (arka planda dolacak)
         current_pool = len(room.get("song_pool", []))
         
         if room.get("_pool_ready") and current_pool >= needed:
-            # ✅ Havuz hazır, HEMEN başla (bekleme yok!)
-            print(f"[SARKI] ✅ Havuz zaten hazır ({current_pool} şarkı), oyun HEMEN başlıyor")
+            # ✅ Havuz hazır, HEMEN başla
+            print(f"[SARKI] ✅ Havuz hazır ({current_pool} şarkı, gerekli: {needed}), oyun BAŞLIYOR")
+        elif room.get("_pool_ready") and current_pool >= 5:
+            # ✅ En az 5 şarkı var, kademeli sistemde başlayabiliriz
+            print(f"[SARKI] ⚡ Kademeli başlangıç: {current_pool} şarkı hazır, arka planda daha çok geliyor")
         else:
-            # ❌ Havuz hazır değil, bekleme mesajı gönder + hazırlaması bekle
-            print(f"[SARKI] ⏳ Havuz hazır değil, hazırlanıyor... (mevcut: {current_pool}, gerekli: {needed})")
+            # ❌ Yeterli şarkı yok, bekleme mesajı
+            print(f"[SARKI] ⏳ Havuz yetersiz, bekleniyor... (mevcut: {current_pool}, gerekli en az: 5)")
             await broadcast(room, {
                 "type": "sarki_preparing",
                 "message": "🎵 Şarkı havuzu hazırlanıyor..."
             })
             pool_size = await prepare_song_pool(room, safe_send, broadcast)
             
-            if pool_size < room["total_songs"]:
+            if pool_size < 5:
                 await broadcast(room, {
                     "type": "error",
                     "message": f"Yeterli şarkı bulunamadı ({pool_size}). Farklı dil seçmeyi deneyin."
@@ -637,7 +728,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         await handle_sarki_answer(room, player_id, answer_index, safe_send, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
-    # BACK TO LOBBY (rematch)
+    # BACK TO LOBBY
     if msg_type == "sarki_back_to_lobby":
         if room_code not in rooms:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -667,8 +758,28 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             room["players"][pid]["correct_count"] = 0
             room["players"][pid]["wrong_count"] = 0
         
-        await broadcast(room, {"type": "sarki_back_to_lobby"})
+        # ✨ Havuz cache'ini de sıfırla ki yeni oyunda taze havuz gelsin
+        room["_pool_ready"] = False
+        room["_pool_cache_key"] = None
+        
+        # ✨ MISAFIRLERE ÖNCE gönder (host zaten kendi ekranını çevirdi)
+        # Sıralı await yerine PARALEL gönder → tüm misafirler eş zamanlı alır
+        import asyncio as _asyncio
+        back_msg = {"type": "sarki_back_to_lobby"}
+        send_tasks = []
+        for pid, pdata in room["players"].items():
+            ws_target = pdata.get("ws")
+            if ws_target:
+                send_tasks.append(safe_send(ws_target, back_msg))
+        if send_tasks:
+            await _asyncio.gather(*send_tasks, return_exceptions=True)
+        
+        # ✨ Lobby update de paralel
         await send_sarki_lobby_update(room, broadcast)
+        
+        # ✨ Arka planda yeni havuzu hazırla (oda hazır olsun)
+        _asyncio.create_task(prefetch_song_pool(room, broadcast))
+        
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     # CHAT MESAJI
@@ -920,6 +1031,10 @@ async def start_sarki_round(room, safe_send, broadcast):
     room["song_start_time"] = time.time()  # Sıfırla (intro sonrası)
     
     song_tur = get_tur_of_artist(correct_song.get("artist", ""))
+    # ✨ Server timestamp gönder (senkronizasyon için)
+    server_start_ts = time.time()
+    room["_round_start_ts"] = server_start_ts
+    
     await broadcast(room, {
         "type": "sarki_round_start",
         "round_no": room["current_round"],
@@ -932,7 +1047,8 @@ async def start_sarki_round(room, safe_send, broadcast):
         "current_turn": current_turn_pid,
         "current_turn_name": current_turn_name,
         "song_tur": song_tur,
-        "difficulty": room.get("current_difficulty", "orta")  # ✨ Progresif zorluk
+        "difficulty": room.get("current_difficulty", "orta"),
+        "server_start_ts": server_start_ts  # ✨ Timer başlangıç zamanı
     })
     
     # Timer başlat: şarkı süresi + cevap süresi = toplam süre
