@@ -303,8 +303,17 @@ async def websocket_endpoint(websocket: WebSocket):
                     "jokerli_satranc": "♟️ Jokerli Satranç"
                 }
                 for code, room in rooms.items():
-                    if room.get("phase") != "lobby":
-                        continue
+                    phase = room.get("phase")
+                    mode = room.get("mode", "bil_bakalim")
+                    
+                    # ✨ Mini Futbol: oyun içinde de göster (izleyici katılabilir)
+                    if mode == "mini_futbol":
+                        if phase not in ("lobby", "playing"):
+                            continue
+                    else:
+                        if phase != "lobby":
+                            continue
+                    
                     player_count = len(room.get("players", {}))
                     max_players = room.get("max_players", room.get("ml_max_players", 2))
                     if isinstance(max_players, str):
