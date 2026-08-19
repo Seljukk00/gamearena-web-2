@@ -21,16 +21,13 @@ const MiniRTC = {
         this.isHost = true;
         this.reset();
         
-        // ✨ 10 saniye timeout - bağlantı kurulamazsa fallback
+        // ✨ 20 saniye timeout - bağlantı kurulamazsa sessizce fallback
         this._connectTimeout = setTimeout(() => {
             if (!this.connected) {
-                console.warn("[WebRTC] ⏱️ 10 sn içinde bağlantı kurulamadı, Render WS fallback kullanılacak.");
-                if (typeof showToast === "function") {
-                    showToast("⚠️ P2P Kurulamadı", "Sunucu üzerinden oynanıyor (gecikme olabilir)", null, "warning");
-                }
+                console.warn("[WebRTC] ⏱️ 20 sn içinde bağlantı kurulamadı, Render WS fallback aktif.");
                 this.reset();
             }
-        }, 10000);
+        }, 20000);
         
         this.pc = new RTCPeerConnection(this.config);
         
@@ -56,8 +53,7 @@ const MiniRTC = {
             console.log("[WebRTC] Bağlantı durumu:", this.pc.connectionState);
             if (this.pc.connectionState === "connected") {
                 this.connected = true;
-                console.log("[WebRTC] ✅ P2P bağlantı kuruldu! Gecikme azaldı.");
-                showToast("🚀 P2P Bağlantı", "Direkt bağlantı kuruldu! Gecikme azaldı.", null, "success");
+                console.log("[WebRTC] ✅ P2P bağlantı kuruldu!");
             } else if (this.pc.connectionState === "failed" || 
                        this.pc.connectionState === "disconnected") {
                 this.connected = false;
@@ -133,7 +129,6 @@ const MiniRTC = {
             if (this.pc.connectionState === "connected") {
                 this.connected = true;
                 console.log("[WebRTC] ✅ P2P bağlantı kuruldu!");
-                showToast("🚀 P2P Bağlantı", "Direkt bağlantı kuruldu! Gecikme azaldı.", null, "success");
             } else if (this.pc.connectionState === "failed" ||
                        this.pc.connectionState === "disconnected") {
                 this.connected = false;
@@ -3943,6 +3938,68 @@ function miniRender() {
             updateMiniPrediction();
         }
         
+        // 🎉 GOL SEVİNCİ KUYRUKLARI (oyunculardan önce çizilir, arka planda kalır)
+        // ✨ SADECE goal_wait state'inde VE celebrating true ise çiz
+        const allowTrail = (state.game_state === "goal_wait");
+        
+        if (allowTrail) {
+            for (const pid in state.players) {
+                const pData = state.players[pid];
+                if (pData.celebrating && pData.trail && pData.trail.length > 0) {
+                    const trail = pData.trail;
+                    const timeShift = (Date.now() / 100) % 360;
+                    
+                    // ✨ Seljuk kontrolü → takım rengi + beyaz kuyruk
+                    const pname_trail = miniData.playerNames[pid] || "";
+                    const isSeljukTrail = (pname_trail === "Seljuk" || pname_trail === "seljuk" || pname_trail === "SELJUK");
+                    
+                    // ✨ Takım rengi bul
+                    let trailTeam = null;
+                    const trailPlayer = miniData.players.find(p => p.id === parseInt(pid));
+                    if (trailPlayer) trailTeam = trailPlayer.team;
+                    
+                    for (let i = 0; i < trail.length; i++) {
+                        const pt = trail[i];
+                        const age = (trail.length - i) / trail.length;
+                        const alpha = 1 - age * 0.85;
+                        const size = cfg.player_radius * (0.9 - age * 0.7);
+                        
+                        if (isSeljukTrail) {
+                            // 🇹🇷 Seljuk: takım rengi + beyaz dalgalı (bayrak tarzı)
+                            const wave = Math.sin((i * 0.8) + (Date.now() / 150)) * 0.5 + 0.5;  // 0-1 arası dalga
+                            
+                            let teamR, teamG, teamB;
+                            if (trailTeam === "blue") {
+                                teamR = 77; teamG = 171; teamB = 247;   // Mavi
+                            } else {
+                                teamR = 255; teamG = 107; teamB = 107;  // Kırmızı
+                            }
+                            
+                            // Takım rengi ↔ beyaz arası geçiş (dalga ile)
+                            const r = Math.round(teamR + (255 - teamR) * wave);
+                            const g = Math.round(teamG + (255 - teamG) * wave);
+                            const b = Math.round(teamB + (255 - teamB) * wave);
+                            
+                            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.8})`;
+                            ctx.shadowBlur = 12;
+                            ctx.shadowColor = `rgba(${teamR}, ${teamG}, ${teamB}, ${alpha * 0.6})`;
+                        } else {
+                            // 🌈 Normal oyuncu: gökkuşağı
+                            const hue = (i * 25 + timeShift) % 360;
+                            ctx.fillStyle = `hsla(${hue}, 100%, 55%, ${alpha * 0.7})`;
+                            ctx.shadowBlur = 15;
+                            ctx.shadowColor = `hsla(${hue}, 100%, 60%, ${alpha})`;
+                        }
+                        
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.shadowBlur = 0;
+                }
+            }
+        }
+        
         // Oyuncular
         for (const pid in state.players) {
             // ✨ Interpolated pozisyonu kullan (fallback)
@@ -4030,17 +4087,25 @@ function miniRender() {
             ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
             ctx.stroke();
             
-            // 2) DOLU kısım (sarı enerji - saat yönü tersine)
+            // 2) DOLU kısım (sarı enerji, Seljuk için karakter rengi)
+            let energyColor = "#ffd43b";  // Default sarı
+            const pname_energy = miniData.playerNames[pid] || "";
+            const isSeljukEnergy = (pname_energy === "Seljuk" || pname_energy === "seljuk" || pname_energy === "SELJUK");
+            if (isSeljukEnergy) {
+                if (playerTeam === "red") energyColor = "#ff6b6b";      // Karakterle aynı kırmızı
+                else if (playerTeam === "blue") energyColor = "#4dabf7"; // Karakterle aynı mavi
+            }
+            
             // ✨ %1'den az ise hiç çizme (0'da tam boş kalsın)
             if (energyPercent > 0.01) {
-                ctx.strokeStyle = "#ffd43b";
+                ctx.strokeStyle = energyColor;
                 ctx.lineWidth = lineW;
                 ctx.lineCap = "round";
                 
                 // Sprint aktifse glow
                 if (sprintActive) {
                     ctx.shadowBlur = 12;
-                    ctx.shadowColor = "#ffd43b";
+                    ctx.shadowColor = energyColor;
                 }
                 
                 const startAngle = -Math.PI / 2;
@@ -4060,7 +4125,7 @@ function miniRender() {
                 // Parlama kalınlığı ve blur - enerji oranında
                 const glowStrength = Math.max(0.15, kickEnergyPercent);
                 
-                // ✨ Takım rengi (kırmızı/mavi)
+                // ✨ Takım rengi (kırmızı/mavi) - iç parlama için normal ton
                 const teamColor = playerTeam === "blue" ? "#4dabf7" : "#ff6b6b";
                 const teamColorRGB = playerTeam === "blue" ? "77, 171, 247" : "255, 107, 107";
                 
@@ -4079,10 +4144,25 @@ function miniRender() {
                 ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // ⚡ Dış sarı halka (mevcut - dokunulmadı)
+                // ⚡ Dış halka - Seljuk için karakter rengi, normal oyuncu için sarı
+                const pname_kick = miniData.playerNames[pid] || "";
+                const isSeljukKick = (pname_kick === "Seljuk" || pname_kick === "seljuk" || pname_kick === "SELJUK");
+                
+                let kickGlowColor = "#ffd43b";  // Default sarı
+                let kickGlowRGB = "255, 212, 59";
+                if (isSeljukKick) {
+                    if (playerTeam === "red") {
+                        kickGlowColor = "#ff6b6b";      // Karakterle aynı kırmızı
+                        kickGlowRGB = "255, 107, 107";
+                    } else if (playerTeam === "blue") {
+                        kickGlowColor = "#4dabf7";      // Karakterle aynı mavi
+                        kickGlowRGB = "77, 171, 247";
+                    }
+                }
+                
                 ctx.shadowBlur = 30 * glowStrength;
-                ctx.shadowColor = "#ffd43b";
-                ctx.strokeStyle = `rgba(255, 212, 59, ${glowStrength})`;
+                ctx.shadowColor = kickGlowColor;
+                ctx.strokeStyle = `rgba(${kickGlowRGB}, ${glowStrength})`;
                 ctx.lineWidth = 4 + (2 * glowStrength);
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
@@ -4092,7 +4172,7 @@ function miniRender() {
             
             // 🇹🇷 AY-YILDIZ (en son çizilir ki üstüne başka şey gelmesin)
             const pname_check = miniData.playerNames[pid] || "";
-            if (pname_check === "Seljuk" || pname_check === "seljuk") {
+            if (pname_check === "Seljuk" || pname_check === "seljuk" || pname_check === "SELJUK") {
                 // Şut çekince ay-yıldız %100 parlasın (enerjiden bağımsız)
                 const kickGlow = justKicked ? 1.0 : 0;
                 drawTurkishStar(ctx, p.x, p.y, cfg.player_radius, kickGlow);
@@ -4292,6 +4372,12 @@ function miniRender() {
     
     // ✨ Kaydırılmış koordinat sistemini geri yükle
     ctx.restore();
+    
+    // ✨ Gol şarkısı ses seviyesi anlık güncelle
+    if (miniData._goalSongAudio && !miniData._goalSongAudio.paused) {
+        const vol = (typeof window.getGlobalVolume === "function") ? window.getGlobalVolume() : 0.5;
+        miniData._goalSongAudio.volume = Math.max(0, Math.min(1, vol));
+    }
     
     // HUD güncelle
     updateMiniHUD();
@@ -4513,6 +4599,31 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     
     const isOwnGoal = celebration.own_goal === true;
     const assistId = celebration.assist_id;
+    
+    // 🎉 Gol şarkısı (sadece Seljuk + kendi kalesine DEĞİLSE + yeni gol ise)
+    if (!isOwnGoal && miniData._lastGoalSignature === goalSignature && !celebration.silent) {
+        if (!miniData._goalSongPlayed || miniData._goalSongPlayed !== goalSignature) {
+            // ✨ Sadece Seljuk/seljuk/SELJUK gol attıysa çal
+            const scorerNameCheck = scorerName || "";
+            const isSeljukGoal = (scorerNameCheck === "Seljuk" || scorerNameCheck === "seljuk" || scorerNameCheck === "SELJUK");
+            
+            if (isSeljukGoal) {
+                miniData._goalSongPlayed = goalSignature;
+                // ✨ Ses seviyesini global slider'dan al + anlık değişebilsin
+                const vol = (typeof window.getGlobalVolume === "function") ? window.getGlobalVolume() : 0.5;
+                if (vol > 0) {
+                    // Eski şarkı varsa durdur
+                    if (miniData._goalSongAudio) {
+                        try { miniData._goalSongAudio.pause(); } catch(e) {}
+                    }
+                    const song = new Audio("/oyun_modlari/mini_futbol/sounds/goal_song_1.wav");
+                    song.volume = vol;
+                    song.play().catch(() => {});
+                    miniData._goalSongAudio = song;  // ✨ Referansı tut (volume güncellemek için)
+                }
+            }
+        }
+    }
     // Asist ismini de gerçek oyuncudan al
     let assistName = null;
     if (assistId) {
@@ -4534,21 +4645,28 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     ctx.shadowBlur = 35;
     
     if (isOwnGoal) {
-        // Kendi kalesine → hepsi KIRMIZI (uyarı rengi)
-        ctx.shadowColor = "#ff3333";
-        ctx.fillStyle = "#ff6b6b";
+        // ✨ Kendi kalesine → GOL ATAN takımın rengi (utanç rengi)
+        // scorerTeamId = puan ALAN takım (kırmızı kendine attı → mavi puan alır → scorerTeamId=2)
+        // Gol atan takım = tersi
+        const ownGoalTeamId = scorerTeamId === 1 ? 2 : 1;
+        if (ownGoalTeamId === 1) {
+            // Kırmızı kendi kalesine attı → kırmızı ekran
+            ctx.shadowColor = "#ff6b6b";
+            ctx.fillStyle = "#ff6b6b";
+        } else {
+            // Mavi kendi kalesine attı → mavi ekran
+            ctx.shadowColor = "#4dabf7";
+            ctx.fillStyle = "#4dabf7";
+        }
     } else {
         // ✨ Gol atan takımın rengine göre
         if (scorerTeamId === 1) {
-            // Kırmızı takım gol attı
             ctx.shadowColor = "#ff6b6b";
             ctx.fillStyle = "#ff6b6b";
         } else if (scorerTeamId === 2) {
-            // Mavi takım gol attı
             ctx.shadowColor = "#4dabf7";
             ctx.fillStyle = "#4dabf7";
         } else {
-            // Fallback → sarı
             ctx.shadowColor = "#ffd43b";
             ctx.fillStyle = "#ffd43b";
         }
@@ -4563,15 +4681,22 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     
     // ============ ALT BİLGİ ============
     if (isOwnGoal) {
-        // "SELÇUK Kendi Kalesine Attı" (hepsi kırmızı)
+        // ✨ "SELÇUK Kendi Kalesine Attı" → GOL ATANIN takım rengi (utanç rengi)
+        // scorerPid backend'den geliyor, gerçek gol atan oyuncu ID'si
+        // Onun takım rengini bulalım
+        let ownColor = "#ff6b6b";  // Default kırmızı
+        const scorerPlayerObj = miniData.players.find(p => p.id === scorerPid);
+        if (scorerPlayerObj) {
+            if (scorerPlayerObj.team === "blue") ownColor = "#4dabf7";
+            else if (scorerPlayerObj.team === "red") ownColor = "#ff6b6b";
+        }
         ctx.font = `bold ${Math.round(28 * fontScale)}px Segoe UI`;
         ctx.shadowBlur = 20;
-        ctx.shadowColor = "#ff3333";
-        ctx.fillStyle = "#ff6b6b";
+        ctx.shadowColor = ownColor;
+        ctx.fillStyle = ownColor;
         ctx.fillText(`${scorerName} Kendi Kalesine Attı`, 0, 20);
     } else {
-        // "Golü Atan: SELÇUK" (isim kırmızı/mavi)
-        // "Asist: MEHMET" (sarı, varsa)
+        // "Golü Atan: SELÇUK" ve "Asist: MEHMET" - hepsi gol atan takımın rengi
         
         const scorerTeamColor = scorerTeamId === 1 ? "#ff6b6b" : "#4dabf7";
         
@@ -4580,26 +4705,24 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         ctx.shadowBlur = 0;
         ctx.textAlign = "center";
         
-        // "Golü Atan: " kısmı (beyaz)
+        // ✨ "Golü Atan: " kısmı (takım rengi)
         const label1 = "Golü Atan: ";
         const label1W = ctx.measureText(label1).width;
         const nameW = ctx.measureText(scorerName).width;
         const totalW = label1W + nameW;
         
         ctx.textAlign = "left";
-        ctx.fillStyle = "#fff";
-        ctx.fillText(label1, -totalW / 2, 15);
-        
-        // İsim (renkli, gölgeli)
         ctx.shadowBlur = 15;
         ctx.shadowColor = scorerTeamColor;
         ctx.fillStyle = scorerTeamColor;
+        ctx.fillText(label1, -totalW / 2, 15);
+        
+        // İsim (aynı renk)
         ctx.fillText(scorerName, -totalW / 2 + label1W, 15);
         
         // Asist satırı (varsa)
         if (assistName) {
             ctx.font = `bold ${Math.round(22 * fontScale)}px Segoe UI`;
-            ctx.shadowBlur = 0;
             
             const label2 = "Asist: ";
             const label2W = ctx.measureText(label2).width;
@@ -4607,13 +4730,13 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             const totalW2 = label2W + assistW;
             
             ctx.textAlign = "left";
-            ctx.fillStyle = "#fff";
+            // ✨ "Asist: " kısmı da takım rengi
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = scorerTeamColor;
+            ctx.fillStyle = scorerTeamColor;
             ctx.fillText(label2, -totalW2 / 2, 55);
             
-            // Asist ismi (sarı, gölgeli)
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#ffd43b";
-            ctx.fillStyle = "#ffd43b";
+            // Asist ismi (aynı renk)
             ctx.fillText(assistName, -totalW2 / 2 + label2W, 55);
         }
     }
@@ -7560,7 +7683,8 @@ const MiniAudio = {
             "goal_1.wav", "goal_2.wav", "goal_3.wav",
             "whistle.wav",
             "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
-            "kick_1.wav", "kick_2.wav"
+            "kick_1.wav", "kick_2.wav",
+            "goal_song_1.wav"
         ];
         files.forEach(f => this.preload(f));
         console.log("[SES] Sesler preload edildi ✓");
@@ -7842,10 +7966,15 @@ function drawTurkishStar(ctx, cx, cy, radius, glowIntensity) {
     ctx.save();
     ctx.translate(cx, cy);
     
-    // Parlama efekti (şut çekince - sadece ay-yıldız glow)
+    // ✨ Parlama efekti (şut çekince - ay-yıldız güçlü glow)
     if (glowIntensity > 0.01) {
-        ctx.shadowBlur = 30 * glowIntensity;
-        ctx.shadowColor = "#ffffff";
+        // Kırmızı parlama halkası (dış - bayrak rengi)
+        ctx.shadowBlur = 25 * glowIntensity;
+        ctx.shadowColor = "#e30a17";  // Türk bayrağı kırmızısı
+        
+        // İç beyaz parlama
+        ctx.fillStyle = "#ffffff";
+        // Ay-yıldız çizilirken shadow otomatik uygulanacak
     }
     
     ctx.fillStyle = "#ffffff";
@@ -7898,7 +8027,7 @@ const SELJUK_VERIFIED_KEY = "seljukVerified";
 
 function isSeljukName(name) {
     const n = (name || "").trim();
-    return n === "Seljuk" || n === "seljuk";
+    return n === "Seljuk" || n === "seljuk" || n === "SELJUK";
 }
 
 function isSeljukLocked() {
