@@ -2590,6 +2590,11 @@ document.addEventListener("keydown", (e) => {
 connectWS();
 showScreen("home");
 
+// ✨ WS bağlantısı kurulunca açık sunucuları hemen çek (katıl ekranında hazır olsun)
+setTimeout(() => {
+    fetchPublicRooms();
+}, 1500);
+
 // URL'de ?join=XXXX varsa otomatik oda kod inputuna doldur
 const urlParams = new URLSearchParams(window.location.search);
 const joinCode = urlParams.get("join");
@@ -2768,6 +2773,8 @@ window.getGlobalVolume = getGlobalVolume;
         const v = Math.max(0, Math.min(100, parseInt(this.value, 10) || 0));
         applyUI(v);
         try { localStorage.setItem("gameArenaVolume", String(v)); } catch(e) {}
+        
+        
     });
 })();
 
