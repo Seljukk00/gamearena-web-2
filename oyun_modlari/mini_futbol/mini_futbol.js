@@ -1607,6 +1607,18 @@ function handleMiniMessage(msg) {
     // ✨ Yeni biri odaya katıldı (oyunda VEYA lobide - fark etmez)
     if (msg.type === "mini_new_player_joined_room") {
         showToast("👋 Odaya Katıldı", `${msg.player_name} odaya katıldı!`, null, "success");
+        
+        // ✨ Host için: yeni misafir geldi → WebRTC hemen kurmak için lobby update'i bekle
+        // (mini_lobby_update handler'ı zaten WebRTC'yi başlatacak)
+        // Ping'i temizle (yeni ölçüm başlasın)
+        if (miniData.pings) {
+            // Diğer oyuncuların eski ping değerlerini sıfırla
+            const cleaned = {};
+            cleaned[miniData.playerId] = miniData.pings[miniData.playerId] || 0;
+            miniData.pings = cleaned;
+        }
+        updateMiniPingDisplay();
+        
         return;
     }
     
@@ -1646,6 +1658,24 @@ function handleMiniMessage(msg) {
             // Snapshot'ları temizle
             miniData.snapshots = [];
             miniData.currentPositions = {};
+        }
+        
+        // ✨ Bu ayrılan bendim değilse ve odada kimse kalmadıysa WebRTC'yi kapat
+        // (Yeni misafir katılınca tekrar kurulacak)
+        const remainingOthers = miniData.players ? 
+            miniData.players.filter(p => p.id !== miniData.playerId && p.id !== msg.left_player_id).length : 0;
+        
+        if (remainingOthers === 0 && miniData.playerId === 1) {
+            console.log("[WebRTC] Tüm misafirler ayrıldı, P2P kapatılıyor (host tek başına)");
+            MiniRTC.reset();
+            
+            // Ping'i sıfırla
+            if (miniData.pings) {
+                miniData.pings = {};
+                miniData.pings[miniData.playerId] = 0;
+            }
+            updateMiniPingDisplay();
+            updateMiniConnectionBadge();
         }
         
         return;
@@ -4626,6 +4656,18 @@ function updateMiniConnectionBadge() {
     
     badge.style.display = "block";
     
+    // ✨ Host tek başına ise
+    const isHost = miniData.playerId === 1;
+    const otherCount = miniData.players ? miniData.players.filter(p => p.id !== miniData.playerId).length : 0;
+    
+    if (isHost && otherCount === 0) {
+        badge.innerHTML = "🏠 Yalnız (Local)";
+        badge.style.background = "rgba(148, 168, 255, 0.9)";
+        badge.style.color = "#fff";
+        badge.title = "Sen tek başınasın, herhangi bir sunucuya bağlanmıyorsun";
+        return;
+    }
+    
     if (MiniRTC.connected) {
         badge.innerHTML = "🚀 P2P Direkt";
         badge.style.background = "rgba(81, 207, 102, 0.9)";
@@ -7169,8 +7211,26 @@ function showMiniRestartConfirm() {
 // ========================================
 function startMiniPing() {
     if (miniData.pingInterval) return;
+    
+    // ✨ Host tek başınaysa ping ATMA (kendi kendine ping = 0)
+    function _shouldPing() {
+        const isHost = miniData.playerId === 1;
+        const otherCount = miniData.players ? miniData.players.filter(p => p.id !== miniData.playerId).length : 0;
+        
+        if (isHost && otherCount === 0) {
+            // Host + kimse yok → ping'i sıfırla, gönderme
+            if (!miniData.pings) miniData.pings = {};
+            miniData.pings[miniData.playerId] = 0;
+            updateMiniPingDisplay();
+            return false;
+        }
+        return true;
+    }
+    
     // Her 3 saniyede bir ping at
     miniData.pingInterval = setInterval(() => {
+        if (!_shouldPing()) return;
+        
         // ✨ P2P bağlıysa DataChannel'dan ping ölç (daha doğru)
         if (MiniRTC.connected) {
             MiniRTC.sendMessage({ type: "mini_ping_p2p", ts: Date.now() });
@@ -7178,8 +7238,11 @@ function startMiniPing() {
             send({ type: "mini_ping", ts: Date.now() });
         }
     }, 3000);
+    
     // İlk ping'i hemen at
     setTimeout(() => {
+        if (!_shouldPing()) return;
+        
         if (MiniRTC.connected) {
             MiniRTC.sendMessage({ type: "mini_ping_p2p", ts: Date.now() });
         } else if (ws && ws.readyState === WebSocket.OPEN) {
