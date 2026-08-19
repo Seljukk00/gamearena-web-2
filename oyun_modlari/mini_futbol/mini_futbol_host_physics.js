@@ -591,10 +591,22 @@ const HP = {  // Host Physics namespace
         
         // Oyuncu pozisyonları (integer - yeterli hassasiyet)
         for (const pid in gs.players) {
-            stateMsg.players[String(pid)] = {
-                x: Math.round(gs.players[pid].x),
-                y: Math.round(gs.players[pid].y)
+            const pp = gs.players[pid];
+            const playerData = {
+                x: Math.round(pp.x),
+                y: Math.round(pp.y)
             };
+            // 🎉 Sevinç durumu ve iz noktaları
+            if (pp.celebrating) {
+                playerData.celebrating = true;
+                if (pp.celebration_trail && pp.celebration_trail.length > 0) {
+                    playerData.trail = pp.celebration_trail.map(t => ({
+                        x: Math.round(t.x),
+                        y: Math.round(t.y)
+                    }));
+                }
+            }
+            stateMsg.players[String(pid)] = playerData;
         }
         
         // ✨ Opsiyonel alanlar - sadece varsa gönder
@@ -683,6 +695,16 @@ const HP = {  // Host Physics namespace
         if (gs._pendingKickoffReset && now >= gs._pendingKickoffReset) {
             this.resetPositions();
             delete gs._pendingKickoffReset;
+            
+            // 🎉 Sevinci ve kuyrukları da temizle
+            for (const pid in gs.players) {
+                const p = gs.players[pid];
+                if (p.celebrating) {
+                    p.celebrating = false;
+                    p.celebration_trail = [];
+                }
+            }
+            
             console.log("[HP] Santra pozisyonları sıfırlandı (gol sonrası bekleme)");
         }
         
@@ -693,7 +715,17 @@ const HP = {  // Host Physics namespace
             gs.countdown_end = now + 3.5;
             gs.pause_time = now;
             delete gs._pendingCountdownStart;
-            console.log("[HP] Countdown başladı (gol sonrası)");
+            
+            // 🎉 Gol sevinci bitir + kuyrukları temizle (santra başlıyor)
+            for (const pid in gs.players) {
+                const p = gs.players[pid];
+                if (p.celebrating) {
+                    p.celebrating = false;
+                    p.celebration_trail = [];
+                }
+            }
+            
+            console.log("[HP] Countdown başladı (gol sonrası) - sevinç bitti");
         }
         
         // ✨ Ek bekleme aktifse (gol sonrası, santra öncesi) gol algılamayı devre dışı bırak
@@ -782,6 +814,30 @@ const HP = {  // Host Physics namespace
             let delta = this.FRAME_TIME;
             p.last_frame_time = now;
             
+            // 🎉 GOL SEVİNCİ - süre bittiyse flag'i temizle
+            if (p.celebrating && now >= (p.celebration_until || 0)) {
+                p.celebrating = false;
+                p.celebration_trail = [];
+            }
+            
+            // 🎉 Sevinç sırasında iz noktası kaydet (her frame değil, 3 frame'de bir)
+            if (p.celebrating) {
+                if (!p.celebration_trail) p.celebration_trail = [];
+                p._trail_frame = (p._trail_frame || 0) + 1;
+                if (p._trail_frame >= 2) {  // 30 FPS trail (60 FPS'nin yarısı)
+                    p._trail_frame = 0;
+                    p.celebration_trail.push({
+                        x: p.x,
+                        y: p.y,
+                        t: now
+                    });
+                    // Max 20 nokta tut
+                    if (p.celebration_trail.length > 20) {
+                        p.celebration_trail.shift();
+                    }
+                }
+            }
+            
             // Sprint
             let isSprinting = false;
             let currentEnergy = (typeof p.sprint_energy === "number") ? p.sprint_energy : this.SPRINT_MAX_ENERGY;
@@ -789,7 +845,11 @@ const HP = {  // Host Physics namespace
             // ✨ Sprint etkin mi? (kapalıysa hiç sprint yok)
             const sprintEnabled = this.settings.sprintEnabled !== false;
             
-            if (sprintEnabled && keys.sprint && currentEnergy > 0) {
+            if (p.celebrating && keys.sprint && sprintEnabled) {
+                // 🎉 Sevinç + shift basılı → sprint SINIRSIZ (enerji tüketme, dolu tut)
+                isSprinting = true;
+                currentEnergy = this.SPRINT_MAX_ENERGY;
+            } else if (sprintEnabled && keys.sprint && currentEnergy > 0) {
                 // Shift basılı VE enerji var → tüket
                 isSprinting = true;
                 currentEnergy -= ADV_SPRINT_DRAIN * delta;
@@ -802,10 +862,12 @@ const HP = {  // Host Physics namespace
             // Shift basılı ama enerji 0 → hiçbir şey yapma (0'da kalsın, normal hızla koşsun)
             p.sprint_energy = currentEnergy;
             
-            // İvme (sprint bölgesinde biraz düşer)
+            // İvme (sprint bölgesinde biraz düşer, sevinçte artar)
             const cs = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
             let accel = PLAYER_ACCEL;
-            if (isSprinting && cs > PLAYER_SPEED * 0.95) {
+            if (p.celebrating) {
+                accel = PLAYER_ACCEL * 2.0;  // 🎉 Sevinçte ivme 2x
+            } else if (isSprinting && cs > PLAYER_SPEED * 0.95) {
                 accel = PLAYER_ACCEL * 0.75;
             }
             
@@ -814,8 +876,14 @@ const HP = {  // Host Physics namespace
             if (keys.left) p.vx -= accel;
             if (keys.right) p.vx += accel;
             
-            // Max hız
-            const maxSpeed = PLAYER_SPEED * (isSprinting ? ADV_SPRINT_MULT : 1.0);
+            // Max hız (sevinç sırasında 3x, sprint ile 4x)
+            let maxSpeed = PLAYER_SPEED * (isSprinting ? ADV_SPRINT_MULT : 1.0);
+            if (p.celebrating) {
+                maxSpeed *= 3.0;  // 🎉 Gol sevinci - 3 kat hız
+                if (isSprinting) {
+                    maxSpeed *= 1.3;  // 🎉 Sprint ile ekstra %30 (toplam ~4x)
+                }
+            }
             const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
             if (speed > maxSpeed) {
                 p.vx = (p.vx / speed) * maxSpeed;
@@ -987,6 +1055,9 @@ const HP = {  // Host Physics namespace
             const second = gs.second_last_toucher;
             let own = false, assist = null;
             
+            // ✨ Gol sevinci - gol atan oyuncuya flag koy (own goal DEĞİLSE)
+            // Sevinç aşağıda "if (!own)" bloğunda başlatılacak
+            
             if (isLeft) {
                 // ✨ Sol kaleye gol → topa son değen kırmızı takımdaysa OWN GOAL
                 const lastTeam = (last && this.room.players[last]) ? this.room.players[last].team : null;
@@ -1042,9 +1113,19 @@ const HP = {  // Host Physics namespace
             gs.last_goal_own = own;
             gs.last_goal_assist = assist;
             gs._silentGoalWait = false;  // ✨ Gerçek gol → ses çalsın
+            gs._savedTimeLeft = gs.time_left;  // ✨ Süre fix: kalan süreyi kaydet
             gs.state = "goal_wait";
-            gs.goal_wait_until = now + 4.0;
+            gs.goal_wait_until = now + 5.0;
             gs.pause_time = now;
+            
+            // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
+            if (!own && last && gs.players[last]) {
+                gs.players[last].celebrating = true;
+                gs.players[last].celebration_until = now + 5.0;
+                gs.players[last].celebration_trail = [];  // Kuyruk için iz noktaları
+                gs.players[last].celebration_start = now;
+            }
+            
             // ✨ SAVE bayrağını temizle (gol oldu, kimse kurtaramadı)
             ball._shotTargetGoal = null;
             ball._shotBy = null;
@@ -1505,9 +1586,19 @@ const HP = {  // Host Physics namespace
                 }
                 gs.last_goal_own = own;
                 gs.last_goal_assist = assist;
+                gs._savedTimeLeft = gs.time_left;  // ✨ Kalan süreyi kaydet
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 4.0;
+                gs.goal_wait_until = now + 5.0;
                 gs.pause_time = now;
+                
+                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
+                if (!own && last && gs.players[last]) {
+                    gs.players[last].celebrating = true;
+                    gs.players[last].celebration_until = now + 5.0;
+                    gs.players[last].celebration_trail = [];
+                    gs.players[last].celebration_start = now;
+                }
+                
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
             } else if (!ballInLeftGoalMouth) {
                 // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin
@@ -1537,10 +1628,12 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "blue") {
                     own = true;
                     gs.last_goal_scorer = 2;
+                    gs.last_goal_scorer_pid = last;  // ✨ FIX: Gerçek oyuncu ID (mavi kendine attı)
                     gs.kickoff_restricted_team_override = 1;
                     gs.kickoff_receiving_team_override = 2;
                 } else {
                     gs.last_goal_scorer = 1;
+                    gs.last_goal_scorer_pid = last;  // ✨ FIX: Gerçek oyuncu ID
                     gs.kickoff_restricted_team_override = null;
                     gs.kickoff_receiving_team_override = null;
                     if (last && this.room.players[last]) {
@@ -1557,9 +1650,19 @@ const HP = {  // Host Physics namespace
                 }
                 gs.last_goal_own = own;
                 gs.last_goal_assist = assist;
+                gs._savedTimeLeft = gs.time_left;  // ✨ Kalan süreyi kaydet
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 4.0;
+                gs.goal_wait_until = now + 5.0;
                 gs.pause_time = now;
+                
+                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
+            if (!own && last && gs.players[last]) {
+                gs.players[last].celebrating = true;
+                gs.players[last].celebration_until = now + 5.0;
+                    gs.players[last].celebration_trail = [];
+                    gs.players[last].celebration_start = now;
+                }
+                
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
             } else if (!ballInRightGoalMouth) {
                 // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin
