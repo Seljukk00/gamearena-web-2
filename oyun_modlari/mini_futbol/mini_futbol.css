@@ -276,7 +276,10 @@
     background: #2f7d3f;
     border-radius: 4px;
     max-width: 100%;
+    max-height: 100%; /* 🎯 Dikeyde taşmayı engellemek için */
+    width: auto;
     height: auto;
+    object-fit: contain; /* Aspect ratio'yu koruyarak sığdır */
 }
 
 /* Kontrol bilgisi */
@@ -905,3 +908,179 @@
 }
 
 .miniGameOverSpecRow:last-child { border-bottom: none; }
+
+/* ==========================================================================
+   📱 MİNİ FUTBOL MOBİL KONTROLLER & YATAY EKRAN TASARIMI
+   ========================================================================== */
+
+/* Sadece dokunmatik ekranlı mobil cihazlarda göster */
+#miniMobileControls {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Arkadaki canvasın tıklanmasını engellemesin */
+    z-index: 99999;
+}
+
+/* Dokunmatik desteği olan küçük ekranlarda aktif et */
+@media (pointer: coarse) {
+    #miniMobileControls {
+        display: block;
+    }
+}
+
+/* 🕹️ Sol Alt Joystick */
+#miniJoystickContainer {
+    position: absolute;
+    bottom: 30px;
+    left: 40px;
+    width: 110px;
+    height: 110px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 3px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    pointer-events: auto;
+    touch-action: none; /* Sayfa kaydırmasını engelle */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+#miniJoystickKnob {
+    width: 48px;
+    height: 48px;
+    background: radial-gradient(circle, #ffd43b 0%, #f59f00 100%);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    position: absolute;
+    transition: transform 0.05s ease-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* 🏃 ⚽ Sağ Butonlar Grubu */
+#miniMobileButtons {
+    position: absolute;
+    bottom: 25px;
+    right: 40px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    pointer-events: auto;
+}
+
+.mobileBtn {
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    touch-action: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: transform 0.1s active, background 0.2s;
+}
+
+/* 🏃 Sprint Butonu (Daha küçük ve yukarıda konumlandırılabilir) */
+#miniBtnSprint {
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+    width: 65px;
+    height: 65px;
+    font-size: 24px;
+    margin-bottom: 25px; /* Şut butonundan biraz daha üstte dursun */
+}
+
+/* ⚽ Şut Butonu (Büyük ve baskın) */
+#miniBtnKick {
+    background: linear-gradient(135deg, #ff6b6b 0%, #e03131 100%);
+    width: 80px;
+    height: 80px;
+    font-size: 32px;
+}
+
+/* Dokunma Hissiyatı (Tıklanınca parlasın/büyüsün) */
+.mobileBtn:active {
+    transform: scale(0.9);
+    filter: brightness(1.2);
+    border-color: #fff;
+}
+
+/* 🔄 Dikey Ekran Uyarı Overlay'i */
+#miniOrientationWarning {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #10121a;
+    z-index: 1000000;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: white;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Mobilde ve sadece dikey (portrait) modda uyarıyı göster */
+@media (pointer: coarse) and (orientation: portrait) {
+    #miniOrientationWarning {
+        display: flex;
+    }
+}
+
+.warning-content {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 30px;
+    border-radius: 16px;
+    border: 2px solid #ffd43b;
+    box-shadow: 0 0 30px rgba(255, 212, 59, 0.2);
+    max-width: 400px;
+}
+
+.warning-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+    animation: phoneRotate 2s infinite ease-in-out;
+    display: inline-block;
+}
+
+@keyframes phoneRotate {
+    0% { transform: rotate(0deg); }
+    50% { transform: rotate(-90deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* ==========================================================================
+   📱 MOBİL YATAY (LANDSCAPE) MOD SIKIŞTIRMA VE TAM SIĞDIRMA
+   ========================================================================== */
+/* ==========================================================================
+   📱 MOBİL YATAY (LANDSCAPE) MOD SIKIŞTIRMA VE TAM SIĞDIRMA
+   ========================================================================== */
+@media (max-height: 600px) and (orientation: landscape) {
+    /* 🎯 Sitenin alt footer/yasal bilgi kısmını mobilde tamamen gizle */
+    footer, .footer, #footer, .site-footer {
+        display: none !important;
+    }
+
+    /* 🎯 Mobilde ses simgesini ve slider'ı gizle (Telefonun kendi ses tuşları esas alınır) */
+    #mlVolumeRange, 
+    #mlVolumeBtn, 
+    #volumeContainer, 
+    .volume-container, 
+    .volume-control, 
+    .sound-toggle-btn {
+        display: none !important;
+    }
+
+    /* Oyun ekranını tam pencere yap, footer vb. her şeyin GİZLENMESİ/ALTTA KALMASI için */

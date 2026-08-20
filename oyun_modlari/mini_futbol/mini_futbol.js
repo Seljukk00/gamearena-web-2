@@ -2945,6 +2945,213 @@ function startMiniLocalPhysicsIfNeeded() {
     return true;
 }
 
+// ==========================================================================
+// 📱 MOBİL KONTROLLER VE SOKET TETİKLEYİCİSİ
+// ==========================================================================
+const MiniMobileInput = {
+    joystickActive: false,
+    joystickTouchId: null,
+    joystickStart: { x: 0, y: 0 },
+    JOYSTICK_MAX_DIST: 45, // sanal topun ne kadar sürüklenebileceği (px)
+    
+    // Mobil kontrol panelini ekrana bas
+    init() {
+        this.destroy(); // Eski kalıntı varsa sil
+        
+        // 1. Ekran Yan Çevirme Uyarısı Ekle
+        const warning = document.createElement("div");
+        warning.id = "miniOrientationWarning";
+        warning.innerHTML = `
+            <div class="warning-content">
+                <span class="warning-icon">🔄</span>
+                <h3 style="color:#ffd43b; margin:10px 0;">Cihazı Yan Döndürün</h3>
+                <p style="font-size:14px; color:#adb5bd; line-height:1.5;">
+                    Mini Futbol oynamak için cihazınızı yan döndürün (Landscape) ve otomatik döndürmeyi açın.
+                </p>
+            </div>
+        `;
+        document.body.appendChild(warning);
+        
+        // 2. Joystick ve Butonları Ekle
+        const controls = document.createElement("div");
+        controls.id = "miniMobileControls";
+        controls.innerHTML = `
+            <div id="miniJoystickContainer">
+                <div id="miniJoystickKnob"></div>
+            </div>
+            <div id="miniMobileButtons">
+                <div id="miniBtnSprint" class="mobileBtn">🏃</div>
+                <div id="miniBtnKick" class="mobileBtn">⚽</div>
+            </div>
+        `;
+        document.body.appendChild(controls);
+        
+        this.setupListeners();
+    },
+    
+    setupListeners() {
+        const container = document.getElementById("miniJoystickContainer");
+        const knob = document.getElementById("miniJoystickKnob");
+        const btnSprint = document.getElementById("miniBtnSprint");
+        const btnKick = document.getElementById("miniBtnKick");
+        
+        if (!container || !knob) return;
+        
+        // === 🕹️ JOYSTICK HAREKETLERİ ===
+        container.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            if (this.joystickTouchId !== null) return;
+            
+            const touch = e.changedTouches[0];
+            this.joystickTouchId = touch.identifier;
+            this.joystickActive = true;
+            
+            const rect = container.getBoundingClientRect();
+            this.joystickStart = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+        }, { passive: false });
+        
+        window.addEventListener("touchmove", (e) => {
+            if (!this.joystickActive || this.joystickTouchId === null) return;
+            
+            let touch = null;
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === this.joystickTouchId) {
+                    touch = e.touches[i];
+                    break;
+                }
+            }
+            if (!touch) return;
+            
+            const dx = touch.clientX - this.joystickStart.x;
+            const dy = touch.clientY - this.joystickStart.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            let knobX = dx;
+            let knobY = dy;
+            
+            if (dist > this.JOYSTICK_MAX_DIST) {
+                knobX = (dx / dist) * this.JOYSTICK_MAX_DIST;
+                knobY = (dy / dist) * this.JOYSTICK_MAX_DIST;
+            }
+            
+            knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+            
+            // Hassas yön tayini (threshold: deadzone katsayısı)
+            const threshold = 0.35;
+            const moveRight = dx > this.JOYSTICK_MAX_DIST * threshold;
+            const moveLeft  = dx < -this.JOYSTICK_MAX_DIST * threshold;
+            const moveDown  = dy > this.JOYSTICK_MAX_DIST * threshold;
+            const moveUp    = dy < -this.JOYSTICK_MAX_DIST * threshold;
+            
+            this.sendMobileKey("left", moveLeft);
+            this.sendMobileKey("right", moveRight);
+            this.sendMobileKey("up", moveUp);
+            this.sendMobileKey("down", moveDown);
+        }, { passive: false });
+        
+        const resetJoystick = (e) => {
+            if (this.joystickTouchId === null) return;
+            
+            // Bu event biten touch ile mi alakalı kontrol et
+            let touchFinished = false;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === this.joystickTouchId) {
+                    touchFinished = true;
+                    break;
+                }
+            }
+            
+            if (touchFinished) {
+                this.joystickTouchId = null;
+                this.joystickActive = false;
+                knob.style.transform = `translate(0px, 0px)`;
+                
+                this.sendMobileKey("left", false);
+                this.sendMobileKey("right", false);
+                this.sendMobileKey("up", false);
+                this.sendMobileKey("down", false);
+            }
+        };
+        
+        container.addEventListener("touchend", resetJoystick, { passive: false });
+        container.addEventListener("touchcancel", resetJoystick, { passive: false });
+        
+        // === 🏃 DEPAR BUTONU ===
+        if (btnSprint) {
+            btnSprint.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                this.sendMobileKey("sprint", true);
+            }, { passive: false });
+            
+            const releaseSprint = (e) => {
+                e.preventDefault();
+                this.sendMobileKey("sprint", false);
+            };
+            btnSprint.addEventListener("touchend", releaseSprint, { passive: false });
+            btnSprint.addEventListener("touchcancel", releaseSprint, { passive: false });
+        }
+        
+        // === ⚽ ŞUT BUTONU ===
+        if (btnKick) {
+            btnKick.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                this.sendMobileKey("kick", true);
+            }, { passive: false });
+            
+            const releaseKick = (e) => {
+                e.preventDefault();
+                this.sendMobileKey("kick", false);
+            };
+            btnKick.addEventListener("touchend", releaseKick, { passive: false });
+            btnKick.addEventListener("touchcancel", releaseKick, { passive: false });
+        }
+    },
+    
+    // Klavyeyi taklit eden soket ve yerel HP tetikleyicisi
+    sendMobileKey(key, pressed) {
+        const keyList = miniData.keysPressed;
+        if (keyList[key] === pressed) return; // Değişiklik yoksa es geç (Spam engeli)
+        
+        keyList[key] = pressed;
+        
+        // 1. Yerel HP fizik motoruna anlık bildir (0 Gecikme hissi)
+        if (typeof HP !== 'undefined' && HP.running) {
+            HP.setKey(miniData.playerId, key, pressed);
+        }
+        
+        // 2. Şut çekilirse misafir için prediction süresini başlat
+        if (key === "kick" && pressed && miniData.playerId !== 1) {
+            miniData._recentKickTime = performance.now();
+            miniData._shotPredictionUntil = performance.now() + 200;
+            miniData._wasNearBall = true;
+        }
+        
+        // 3. WebRTC veya Render WS üzerinden sunucuya gönder
+        const msg = { type: "mini_key", key: key, pressed: pressed };
+        if (MiniRTC.connected && miniData.playerId !== 1) {
+            msg.from_player_id = miniData.playerId;
+            msg.target_pid = miniData.playerId;
+            MiniRTC.sendMessage(msg);
+        } else {
+            send(msg);
+        }
+    },
+    
+    destroy() {
+        this.joystickTouchId = null;
+        this.joystickActive = false;
+        
+        const warning = document.getElementById("miniOrientationWarning");
+        if (warning) warning.remove();
+        
+        const controls = document.getElementById("miniMobileControls");
+        if (controls) controls.remove();
+    }
+};
+
 // ========================================
 // OYUN BAŞLATMA
 // ========================================
@@ -2952,6 +3159,11 @@ function startMiniGame() {
     console.log("[MINI] Oyun başladı! Player ID:", miniData.playerId, "Split:", miniData.splitScreen);
     miniData.keysPressed = {};
     miniData.keysPressed2 = {};
+
+    // 🎯 Sitenin footer / Yasal Bilgi kısmını oyun esnasında gizle
+    document.querySelectorAll("footer, .footer, #footer, .site-footer").forEach(el => {
+        el.style.setProperty("display", "none", "important");
+    });
     
     // ✨ HOST ise sekmeyi canlı tut
     if (miniData.playerId === 1) {
@@ -2982,6 +3194,9 @@ function startMiniGame() {
     // Klavye dinle
     window.addEventListener("keydown", miniKeyDown, true);
     window.addEventListener("keyup", miniKeyUp, true);
+    
+    // Mobil Dokunmatik Kontrolleri Başlat
+    MiniMobileInput.init();
     
     // ✨ Gamepad bağlı VE etkinse polling başlat
     if (miniGamepad.connected && miniGamepad.enabled) {
@@ -3377,6 +3592,9 @@ function stopMiniGame() {
     window.removeEventListener("keyup", miniKeyUp, true);
     window.removeEventListener("contextmenu", miniPreventContextMenu, true);
     
+    // Mobil Dokunmatik Kontrolleri Kaldır
+    MiniMobileInput.destroy();
+    
     // ✨ Blur + visibilitychange listener'larını kaldır (memory leak fix)
     if (miniData._blurHandler) {
         window.removeEventListener("blur", miniData._blurHandler, true);
@@ -3448,6 +3666,11 @@ function stopMiniGame() {
     // ✨ Render smoothing state'ini temizle
     miniData._renderSmoothed = {};
     miniData._ballRenderPos = null;
+
+    // 🎯 Oyundan çıkınca footer'ı geri göster
+    document.querySelectorAll("footer, .footer, #footer, .site-footer").forEach(el => {
+        el.style.removeProperty("display");
+    });
 }
 
 // ========================================
@@ -4606,7 +4829,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             // ✨ Sadece Seljuk/seljuk/SELJUK gol attıysa çal
             const scorerNameCheck = scorerName || "";
             const isSeljukGoal = (scorerNameCheck === "Seljuk" || scorerNameCheck === "seljuk" || scorerNameCheck === "SELJUK");
-            
+
             if (isSeljukGoal) {
                 miniData._goalSongPlayed = goalSignature;
                 // ✨ Ses seviyesini global slider'dan al + anlık değişebilsin
@@ -4616,7 +4839,17 @@ function drawGoalCelebration(ctx, cfg, celebration) {
                     if (miniData._goalSongAudio) {
                         try { miniData._goalSongAudio.pause(); } catch(e) {}
                     }
-                    const song = new Audio("/oyun_modlari/mini_futbol/sounds/goal_song_1.wav");
+
+                    // ✨ Gol müziklerini maçtaki toplam gol sayısına göre HER KULLANICIDA SENKRONİZE çal
+                    const seljukGoalSongs = ["goal_song_1.wav", "goal_song_2.wav"];
+                    const currentScores = miniData.gameState?.scores || {};
+                    const totalGoals = (currentScores["1"] || 0) + (currentScores["2"] || 0);
+                    
+                    // Maçtaki toplam gole göre index seç (1. Gol -> Song 1, 2. Gol -> Song 2...)
+                    const songIndex = Math.max(0, totalGoals - 1) % seljukGoalSongs.length;
+                    const selectedSong = seljukGoalSongs[songIndex];
+
+                    const song = new Audio(`/oyun_modlari/mini_futbol/sounds/${selectedSong}`);
                     song.volume = vol;
                     song.play().catch(() => {});
                     miniData._goalSongAudio = song;  // ✨ Referansı tut (volume güncellemek için)
@@ -7684,7 +7917,7 @@ const MiniAudio = {
             "whistle.wav",
             "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
             "kick_1.wav", "kick_2.wav",
-            "goal_song_1.wav"
+            "goal_song_1.wav", "goal_song_2.wav"
         ];
         files.forEach(f => this.preload(f));
         console.log("[SES] Sesler preload edildi ✓");
@@ -7755,7 +7988,8 @@ function updateMiniPrediction() {
     }
     
     const p = miniData.predictedSelf;
-    const keys = miniData.predictedKeys;
+    // 🎯 BUG FIX: predictedKeys yerine her zaman güncel olan keysPressed kullanılarak mobildeki ağırlık çözüldü
+    const keys = miniData.keysPressed;
     
     // Hız ayarı
     const speedMode = miniData.gameSpeed || "normal";
