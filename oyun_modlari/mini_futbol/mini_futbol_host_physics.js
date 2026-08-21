@@ -460,6 +460,21 @@ const HP = {  // Host Physics namespace
     
     tick() {
         if (!this.running || !this.room) return;
+
+        // ✨ SEKME UYKU KORUMASI: 
+        // Eğer Admin sekmeye geri döndüğünde çok büyük bir zaman farkı oluşmuşsa (0.1sn'den fazla),
+        // Fiziğin sapıtmaması için o süreyi yoksay ve normal adımdan devam et.
+        const nowMs = performance.now();
+        if (this._lastTickTime) {
+            const dt = (nowMs - this._lastTickTime) / 1000;
+            if (dt > 0.1) {
+                // Admin geri geldiğinde "zaman patlaması" yaşanmasın diye match_start'ı güncelle
+                if (this.room.gameState && this.room.gameState.state === "playing") {
+                    this.room.gameState.match_start += (dt - this.FRAME_TIME);
+                }
+            }
+        }
+        this._lastTickTime = nowMs;
         
         const goalEvent = this.updatePhysics();
         const gs = this.room.gameState;
@@ -577,8 +592,9 @@ const HP = {  // Host Physics namespace
             stats: statsInfo,
             players: {},
             ball: {
-                x: Math.round(gs.ball.x),
-                y: Math.round(gs.ball.y),
+                // ✨ Sub-pixel hassasiyet (2 ondalık) — integer yuvarlama titremeyi öldürüyordu
+                x: Math.round(gs.ball.x * 100) / 100,
+                y: Math.round(gs.ball.y * 100) / 100,
                 vx: Math.round(gs.ball.vx * 100) / 100,
                 vy: Math.round(gs.ball.vy * 100) / 100,
                 spin: Math.round((gs.ball.spin || 0) * 100) / 100,
@@ -589,20 +605,20 @@ const HP = {  // Host Physics namespace
             game_state: gs.state
         };
         
-        // Oyuncu pozisyonları (integer - yeterli hassasiyet)
+        // Oyuncu pozisyonları (sub-pixel — akıcı hareket)
         for (const pid in gs.players) {
             const pp = gs.players[pid];
             const playerData = {
-                x: Math.round(pp.x),
-                y: Math.round(pp.y)
+                x: Math.round(pp.x * 100) / 100,
+                y: Math.round(pp.y * 100) / 100
             };
             // 🎉 Sevinç durumu ve iz noktaları
             if (pp.celebrating) {
                 playerData.celebrating = true;
                 if (pp.celebration_trail && pp.celebration_trail.length > 0) {
                     playerData.trail = pp.celebration_trail.map(t => ({
-                        x: Math.round(t.x),
-                        y: Math.round(t.y)
+                        x: Math.round(t.x * 10) / 10,
+                        y: Math.round(t.y * 10) / 10
                     }));
                 }
             }
@@ -1028,26 +1044,101 @@ const HP = {  // Host Physics namespace
                 break;  // Substep loop'undan çık
             }
             
-            // ✨ Substep içinde SADECE tunneling kontrolü (hızlı top içeri girmesin)
-            // Normal çarpışma aşağıdaki ana blokta yapılır (çakışma engeli)
+            // ✨ Substep içinde Anlık Çarpışma & Sekme Kontrolü (Yakından Sert Şut Yapışma Fix)
             let hit = false;
             for (const pid in gs.players) {
                 const p = gs.players[pid];
+                
+                // ✨ Şut çeken oyuncu 0.15 sn boyunca kendi şutuna takılmasın
+                if (p.last_kick_time && (now - p.last_kick_time) < 0.15) continue;
+
                 const dx = ball.x - p.x;
                 const dy = ball.y - p.y;
                 let dist = Math.sqrt(dx * dx + dy * dy);
                 const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
+                
                 if (dist < minDist) {
-                    // Sadece topu oyuncunun kenarına al, HIZLA OYNAMA
-                    // (ana çarpışma kodu hız transferini halledecek)
+                    // 🧤 SAVE: Sadece kaleyi BULACAK şutlar (gol çizgisi + kale Y aralığı projeksiyonu)
+                    const pidInt = parseInt(pid);
+                    const saverInfo = this.room.players[pidInt] || this.room.players[pid];
+                    const saverTeam = saverInfo ? saverInfo.team : null;
+
+                    if (saverTeam && (saverTeam === "red" || saverTeam === "blue")) {
+                        const lastToucherPid = gs.last_ball_toucher || gs.second_last_toucher;
+                        const lastToucherInfo = lastToucherPid ? (this.room.players[lastToucherPid] || this.room.players[String(lastToucherPid)]) : null;
+                        const lastToucherTeam = lastToucherInfo ? lastToucherInfo.team : (ball._shotByTeam || null);
+
+                        const isOpponentBall = (!lastToucherTeam || lastToucherTeam !== saverTeam) ||
+                                               (ball._shotByTeam && ball._shotByTeam !== saverTeam);
+
+                        if (isOpponentBall && (now - (ball._lastSaveTime || 0) > 1.0)) {
+                            const defenderGoalSide = (saverTeam === "red") ? "left" : "right";
+                            const goalLineX = (defenderGoalSide === "left") ? 0 : this.FIELD_WIDTH;
+                            // Top kendi kalesine doğru mu?
+                            const headingToOwnGoal =
+                                (defenderGoalSide === "left" && ball.vx < -0.15) ||
+                                (defenderGoalSide === "right" && ball.vx > 0.15);
+
+                            let wouldBeGoal = false;
+                            // ⚠️ Math.abs(ball.vx) > 0.01 -> Sıfıra bölünme (Infinity) koruması eklendi!
+                            if (headingToOwnGoal && Math.abs(ball.vx) > 0.01) {
+                                const t = (goalLineX - ball.x) / ball.vx;
+                                if (t > 0 && t < 90) {
+                                    const yAtLine = ball.y + ball.vy * t;
+                                    const pad = this.BALL_RADIUS;
+                                    if (yAtLine > this.GOAL_Y_TOP - pad && yAtLine < this.GOAL_Y_BOTTOM + pad) {
+                                        wouldBeGoal = true;
+                                    }
+                                }
+                            }
+                            // Alternatif: şut bayrağı + top kale çizgisine çok yakın ve Y tam ağzında
+                            if (!wouldBeGoal && ball._shotTargetGoal === defenderGoalSide) {
+                                const nearLine = (defenderGoalSide === "left")
+                                    ? (ball.x < this.FIELD_WIDTH * 0.28)
+                                    : (ball.x > this.FIELD_WIDTH * 0.72);
+                                if (nearLine && ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM) {
+                                    wouldBeGoal = true;
+                                }
+                            }
+
+                            if (wouldBeGoal) {
+                                saverInfo.saves = (saverInfo.saves || 0) + 1;
+                                ball._lastSaveTime = now;
+                                ball._shotTargetGoal = null;
+                                ball._shotBy = null;
+                                ball._shotByTeam = null;
+                                console.log(`[SUBSTEP SAVE] Oyuncu ${pidInt} (${saverInfo.name}) KALEYİ BULACAK şutu kesti! Save: ${saverInfo.saves}`);
+                            }
+                        }
+                    }
+
                     let nx, ny;
                     if (dist < 0.1) { nx = 1; ny = 0; }
                     else { nx = dx / dist; ny = dy / dist; }
-                    // Sadece pozisyon düzelt (çakışmayı engelle)
-                    ball.x = p.x + nx * minDist;
-                    ball.y = p.y + ny * minDist;
-                    hit = true;
-                    break;
+                    
+                    const currentBs = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                    const dot = ball.vx * nx + ball.vy * ny;
+                    
+                    // ✨ SERT / ALEVLİ ŞUT: Yakından bile atılsa anında sektir!
+                    if (currentBs > this.HARD_BALL_THRESHOLD && dot < 0) {
+                        ball.vx = (ball.vx - 2 * dot * nx) * 0.10;
+                        ball.vy = (ball.vy - 2 * dot * ny) * 0.10;
+                        
+                        const newSpd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                        if (newSpd < 1.5) {
+                            ball.vx = nx * 1.5;
+                            ball.vy = ny * 1.5;
+                        }
+                        
+                        ball.x = p.x + nx * (minDist + 2);
+                        ball.y = p.y + ny * (minDist + 2);
+                        hit = true;
+                        break;
+                    } else {
+                        // ✨ YAVAŞ SÜRÜŞ: Substep topun pozisyonunu yumuşakça ayarlasın, hızı bozmasın!
+                        ball.x = p.x + nx * minDist;
+                        ball.y = p.y + ny * minDist;
+                    }
                 }
             }
             if (hit) break;
@@ -1372,6 +1463,58 @@ const HP = {  // Host Physics namespace
             const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
             
             if (dist < minDist) {
+                // 🧤 SAVE: Sadece kaleyi BULACAK şutlar (gol çizgisi Y projeksiyonu)
+                const pidInt = parseInt(pid);
+                const saverInfo = this.room.players[pidInt] || this.room.players[pid];
+                const saverTeam = saverInfo ? saverInfo.team : null;
+
+                if (saverTeam && (saverTeam === "red" || saverTeam === "blue")) {
+                    const lastToucherPid = gs.last_ball_toucher || gs.second_last_toucher;
+                    const lastToucherInfo = lastToucherPid ? (this.room.players[lastToucherPid] || this.room.players[String(lastToucherPid)]) : null;
+                    const lastToucherTeam = lastToucherInfo ? lastToucherInfo.team : (ball._shotByTeam || null);
+
+                    const isOpponentBall = (!lastToucherTeam || lastToucherTeam !== saverTeam) ||
+                                           (ball._shotByTeam && ball._shotByTeam !== saverTeam);
+
+                    if (isOpponentBall && (now - (ball._lastSaveTime || 0) > 1.0)) {
+                        const defenderGoalSide = (saverTeam === "red") ? "left" : "right";
+                        const goalLineX = (defenderGoalSide === "left") ? 0 : this.FIELD_WIDTH;
+                        const headingToOwnGoal =
+                            (defenderGoalSide === "left" && ball.vx < -0.15) ||
+                            (defenderGoalSide === "right" && ball.vx > 0.15);
+
+                        let wouldBeGoal = false;
+                        // ⚠️ Math.abs(ball.vx) > 0.01 -> Sıfıra bölünme ile çökme engellendi!
+                        if (headingToOwnGoal && Math.abs(ball.vx) > 0.01) {
+                            const t = (goalLineX - ball.x) / ball.vx;
+                            if (t > 0 && t < 90) {
+                                const yAtLine = ball.y + ball.vy * t;
+                                const pad = this.BALL_RADIUS;
+                                if (yAtLine > this.GOAL_Y_TOP - pad && yAtLine < this.GOAL_Y_BOTTOM + pad) {
+                                    wouldBeGoal = true;
+                                }
+                            }
+                        }
+                        if (!wouldBeGoal && ball._shotTargetGoal === defenderGoalSide) {
+                            const nearLine = (defenderGoalSide === "left")
+                                ? (ball.x < this.FIELD_WIDTH * 0.28)
+                                : (ball.x > this.FIELD_WIDTH * 0.72);
+                            if (nearLine && ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM) {
+                                wouldBeGoal = true;
+                            }
+                        }
+
+                        if (wouldBeGoal) {
+                            saverInfo.saves = (saverInfo.saves || 0) + 1;
+                            ball._lastSaveTime = now;
+                            ball._shotTargetGoal = null;
+                            ball._shotBy = null;
+                            ball._shotByTeam = null;
+                            console.log(`[INSTANT SAVE] Oyuncu ${pidInt} (${saverInfo.name}) KALEYİ BULACAK şutu kesti! Save: ${saverInfo.saves}`);
+                        }
+                    }
+                }
+
                 let nx, ny;
                 if (dist < 0.1) { nx = 1; ny = 0; dist = 0.1; }
                 else { nx = dx / dist; ny = dy / dist; }
@@ -1405,38 +1548,6 @@ const HP = {  // Host Physics namespace
                         const currTeam = this.room.players[pid].team;
                         if (prevTeam === currTeam && ["red", "blue"].includes(prevTeam)) {
                             this.room.players[prev].passes = (this.room.players[prev].passes || 0) + 1;
-                        }
-                    }
-                    
-                    // ✨ SAVE KONTROL: Şut kaleye gidiyordu, karşı takımdan biri dokundu → SAVE
-                    if (ball._shotTargetGoal && ball._shotBy && ball._shotBy !== parseInt(pid)) {
-                        // ✨ TIMEOUT: Şut atılalı 2 sn'den fazla olduysa save sayma
-                        const shotAge = now - (ball._shotTime || 0);
-                        const SAVE_TIMEOUT = 2.0;
-                        
-                        if (shotAge > SAVE_TIMEOUT) {
-                            // Şut çok eski → save sayma, sadece bayrakları temizle
-                            console.log(`[SAVE TIMEOUT] Şut ${shotAge.toFixed(1)}sn önce atılmıştı, save iptal`);
-                            ball._shotTargetGoal = null;
-                            ball._shotBy = null;
-                            ball._shotByTeam = null;
-                        } else {
-                            const saverTeam = this.room.players[pid] ? this.room.players[pid].team : null;
-                            const shooterTeam = ball._shotByTeam;
-                            
-                            // Debug
-                            console.log(`[SAVE DEBUG] shooter=${ball._shotBy}(${shooterTeam}) saver=${pid}(${saverTeam}) target=${ball._shotTargetGoal} age=${shotAge.toFixed(1)}s`);
-                            
-                            // ✨ Basit şart: Farklı takım + top kaleye gidiyordu
-                            if (saverTeam && shooterTeam && saverTeam !== shooterTeam) {
-                                this.room.players[pid].saves = (this.room.players[pid].saves || 0) + 1;
-                                console.log(`[SAVE] Oyuncu ${pid} kurtardı! (${this.room.players[pid].saves})`);
-                            }
-                            
-                            // Bayrağı temizle (bir şut = bir save şansı)
-                            ball._shotTargetGoal = null;
-                            ball._shotBy = null;
-                            ball._shotByTeam = null;
                         }
                     }
                 }
@@ -1483,53 +1594,34 @@ const HP = {  // Host Physics namespace
                 }
                 
                 if (bs > this.HARD_BALL_THRESHOLD) {
-                    // Hızlı top - her zaman yansır (oyuncu YERİNDEN OYNAMASIN)
+                    // Hızlı top - yumuşak sekme
                     const dot = ball.vx * nx + ball.vy * ny;
                     
-                    // ✨ Topu oyuncunun dışına zorla it (yapışma engeli)
-                    const safeDistance = this.PLAYER_RADIUS + this.BALL_RADIUS + 5;
+                    const safeDistance = this.PLAYER_RADIUS + this.BALL_RADIUS + 2;
                     ball.x = p.x + nx * safeDistance;
                     ball.y = p.y + ny * safeDistance;
                     
                     if (dot < 0) {
-                        // ✨ Sert top oyuncuya çarptı → sadece top seksin, oyuncu itilmesin
-                        // (impactForce satırları KALDIRILDI - oyuncu geri gitmeyecek)
-                        
-                        // ✨ Sekme (0.90 - daha güçlü sekme)
-                        ball.vx = (ball.vx - 2 * dot * nx) * 0.90;
-                        ball.vy = (ball.vy - 2 * dot * ny) * 0.90;
-                        // Oyuncunun hızını hafif transfer et (blok yaparken kontrol)
+                        ball.vx = (ball.vx - 2 * dot * nx) * 0.10;
+                        ball.vy = (ball.vy - 2 * dot * ny) * 0.10;
                         ball.vx += p.vx * 0.2;
                         ball.vy += p.vy * 0.2;
                         
-                        // ✨ Minimum sekme hızı (yapışmasın)
                         const newSpeed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-                        const MIN_BOUNCE = 7.0;
-                        if (newSpeed < MIN_BOUNCE) {
-                            ball.vx = -nx * MIN_BOUNCE;
-                            ball.vy = -ny * MIN_BOUNCE;
+                        if (newSpeed < 1.5) {
+                            ball.vx = nx * 1.5;
+                            ball.vy = ny * 1.5;
                         }
-                    } else {
-                        // ✨ Top oyuncudan uzaklaşıyor ama içindeydi (bug durumu)
-                        // Küçük bir sekme ver, yapışmasın
-                        ball.vx = -nx * 5.0;
-                        ball.vy = -ny * 5.0;
                     }
                     ball.spin = (ball.spin || 0) * 0.3;
-                } else if (stickPower > 0.01) {
-                    // Yavaş top - yapışma (güç oranında)
-                    ball.vx = ball.vx * (1 - stickPower) + p.vx * stickPower;
-                    ball.vy = ball.vy * (1 - stickPower) + p.vy * stickPower;
-                    ball.spin = 0;
                 } else {
-                    // Yapışma KAPALI (0) - top oyuncuya değince hafif iter, yapışmaz
-                    const dot = ball.vx * nx + ball.vy * ny;
-                    if (dot < 0) {
-                        ball.vx = (ball.vx - 2 * dot * nx) * 0.6;
-                        ball.vy = (ball.vy - 2 * dot * ny) * 0.6;
-                    }
-                    ball.vx += p.vx * 0.15;
-                    ball.vy += p.vy * 0.15;
+                    // ✨ SAF YAPIŞKAN TOP SÜRÜŞÜ (İTME YOK, TAM KONTROL):
+                    // Topu oyuncunun tam sınırında tut ve hızını oyuncuyla birebir eşitle
+                    ball.x = p.x + nx * (this.PLAYER_RADIUS + this.BALL_RADIUS);
+                    ball.y = p.y + ny * (this.PLAYER_RADIUS + this.BALL_RADIUS);
+                    
+                    ball.vx = p.vx;
+                    ball.vy = p.vy;
                     ball.spin = 0;
                 }
                 
