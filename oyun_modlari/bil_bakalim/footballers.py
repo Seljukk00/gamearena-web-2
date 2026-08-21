@@ -318,7 +318,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": True, "number9": False,
      "number7": False},
 
-    {"name": "MarioGomez", "img": "mariogomez", "nationality": "Almanya", "continent": "Avrupa",
+    {"name": "Mario Gomez", "img": "mariogomez", "nationality": "Almanya", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": True, "beard": False,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
@@ -339,7 +339,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
-    {"name": "Salah", "img": "salah", "nationality": "Misir", "continent": "Afrika",
+    {"name": "M.Salah", "img": "salah", "nationality": "Misir", "continent": "Afrika",
      "position": "Forvet", "league": "Premier", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": True,
      "leftfoot": True, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,

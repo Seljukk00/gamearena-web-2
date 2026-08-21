@@ -1046,7 +1046,7 @@ def update_physics(room):
             gs["last_goal_own"] = own_goal
             gs["last_goal_assist"] = assist_pid
             gs["state"] = "goal_wait"
-            gs["goal_wait_until"] = now + 4.0
+            gs["goal_wait_until"] = now + 15.0  # ✨ 15 saniye (5sn sevinç + 10sn replay)
             gs["pause_time"] = now
             return {
                 "scorer": gs["last_goal_scorer"],
@@ -1100,7 +1100,7 @@ def update_physics(room):
             gs["last_goal_own"] = own_goal
             gs["last_goal_assist"] = assist_pid
             gs["state"] = "goal_wait"
-            gs["goal_wait_until"] = now + 4.0
+            gs["goal_wait_until"] = now + 15.0  # ✨ 15 saniye (5sn sevinç + 10sn replay)
             gs["pause_time"] = now
             return {
                 "scorer": gs["last_goal_scorer"],

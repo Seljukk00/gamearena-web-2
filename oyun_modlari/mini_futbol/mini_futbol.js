@@ -340,6 +340,16 @@ let miniData = {
 let miniAnimFrame = null;
 
 // ========================================
+// 🎥 REPLAY SİSTEMİ (v10 Özel - 10 Saniye Tamponlu)
+// ========================================
+let miniReplay = {
+    buffer: [],          // Frame kayıtları
+    lockedBuffer: null,  // Gol anında dondurulan klip
+    replayStartTime: 0,  // Replay başlangıç zamanı
+    maxDuration: 10000   // 10 saniyelik net tampon (8.2sn gol öncesi + 1.8sn gol sonrası)
+};
+
+// ========================================
 // 💬 CHAT SİSTEMİ
 // ========================================
 let miniChat = {
@@ -998,6 +1008,9 @@ function handleMiniMessage(msg) {
         // Oyun sonu popup'ı varsa kapat + butonları resetle
         const overBox = document.getElementById("miniGameOverBox");
         if (overBox) overBox.classList.add("hidden");
+        
+        // Replay kaydını sıfırla
+        miniReplay.buffer = [];
         
         // ✨ "Dönülüyor..." takılı kalmasın - butonu resetle
         const menuBtn = document.getElementById("miniGameOverMenuBtn");
@@ -1777,6 +1790,9 @@ function handleMiniMessage(msg) {
         
         const overBox = document.getElementById("miniGameOverBox");
         if (overBox) overBox.classList.add("hidden");
+        
+        // Replay kaydını sıfırla
+        miniReplay.buffer = [];
         
         // ✨ Buton state'ini resetle
         const menuBtn = document.getElementById("miniGameOverMenuBtn");
@@ -3265,14 +3281,9 @@ function startMiniGame() {
     if (miniAnimFrame) cancelAnimationFrame(miniAnimFrame);
     miniAnimFrame = requestAnimationFrame(miniRender);
     
-    // ✨ MİSAFİR ise prediction başlat (host için gerek yok)
-    if (miniData.playerId !== 1) {
-        miniData.predictionActive = true;
-        miniData.predictedSelf = null;  // İlk state gelince set edilecek
-        console.log("[PREDICTION] Misafir prediction aktif");
-    } else {
-        miniData.predictionActive = false;
-    }
+    // ✨ MİSAFİR için ilkel prediction kapatıldı. Local HP fizik motoru artık tek başına yetkilidir ✓
+    miniData.predictionActive = false;
+    miniData.predictedSelf = null;
 }
 
 // ✨ Kontrol bilgisini güncelle (klavye + gamepad + kullanıcı ayarlarına göre)
@@ -3666,6 +3677,7 @@ function stopMiniGame() {
     // ✨ Render smoothing state'ini temizle
     miniData._renderSmoothed = {};
     miniData._ballRenderPos = null;
+    miniData._hostRenderSmoothed = null; // ✨ Host interpolasyon önbelleğini temizle
 
     // 🎯 Oyundan çıkınca footer'ı geri göster
     document.querySelectorAll("footer, .footer, #footer, .site-footer").forEach(el => {
@@ -3829,8 +3841,6 @@ function miniRender() {
         return;
     }
     
-    // (Sürekli top reconciliation kaldırıldı - artık interpolation buffer kullanılıyor)
-    
     const ctx = canvas.getContext("2d");
     const cfg = miniData.fieldConfig;
     if (!cfg) {
@@ -3838,24 +3848,24 @@ function miniRender() {
         return;
     }
     
-    // ✨ Canvas boyutu - sahadan biraz geniş (oyuncu tam sığsın)
-    const OUT_MARGIN = 55;  // Oyuncu çıkışı (30px) + oyuncu yarıçapı (20) + biraz margin (5)
+    // ✨ Canvas boyutu - sahadan biraz geniş
+    const OUT_MARGIN = 55;
     canvas.width = cfg.width + OUT_MARGIN * 2;
     canvas.height = cfg.height + OUT_MARGIN * 2;
     
-    // ✨ Koordinat sistemini kaydır (saha 100 px içeriden başlasın)
+    // ✨ Koordinat sistemini kaydır
     ctx.save();
     ctx.translate(OUT_MARGIN, OUT_MARGIN);
     
     // === DIŞ ALAN (Saha dışı, koyu yeşil) ===
-    ctx.fillStyle = "#1e5828";  // Koyu yeşil
+    ctx.fillStyle = "#1e5828";
     ctx.fillRect(-OUT_MARGIN, -OUT_MARGIN, cfg.width + OUT_MARGIN * 2, cfg.height + OUT_MARGIN * 2);
     
     // === SAHA (İç alan) ===
     ctx.fillStyle = "#2f7d3f";
     ctx.fillRect(0, 0, cfg.width, cfg.height);
     
-    // Çizgili desen (alternatif yeşil şeritler)
+    // Çizgili desen
     ctx.fillStyle = "rgba(255,255,255,0.03)";
     for (let i = 0; i < cfg.width; i += 60) {
         if ((i / 60) % 2 === 0) {
@@ -3871,10 +3881,9 @@ function miniRender() {
     ctx.lineTo(cfg.width / 2, cfg.height);
     ctx.stroke();
     
-    // Orta yuvarlak (santra aktifse kırmızı)
+    // Orta yuvarlak
     const kickoffActive = miniData.gameState && miniData.gameState.kickoff && miniData.gameState.kickoff.active;
     if (kickoffActive) {
-        // Kısıtlı bölge - kırmızı
         ctx.strokeStyle = "rgba(255, 107, 107, 0.7)";
         ctx.lineWidth = 4;
         ctx.setLineDash([8, 6]);
@@ -3882,9 +3891,9 @@ function miniRender() {
     ctx.beginPath();
     ctx.arc(cfg.width / 2, cfg.height / 2, 60, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.setLineDash([]);  // reset
+    ctx.setLineDash([]);
     
-    // Orta çizgi (santra aktifse kısıtlı tarafın yarısı kırmızı)
+    // Orta çizgi (santra kısıtlaması)
     if (kickoffActive && miniData.gameState && miniData.gameState.kickoff) {
         const restrictedTeam = miniData.gameState.kickoff.restricted_team;
         ctx.strokeStyle = "rgba(255, 107, 107, 0.6)";
@@ -3892,37 +3901,30 @@ function miniRender() {
         ctx.setLineDash([10, 8]);
         ctx.beginPath();
         if (restrictedTeam === 1) {
-            // Kırmızı kısıtlı → sol yarıda kırmızı çizgi
             ctx.moveTo(cfg.width / 2, 0);
             ctx.lineTo(cfg.width / 2, cfg.height);
         } else {
-            // Mavi kısıtlı → sağ yarıda kırmızı çizgi  
             ctx.moveTo(cfg.width / 2, 0);
             ctx.lineTo(cfg.width / 2, cfg.height);
         }
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // ✨ Kısıtlı tarafın yarısını hafif kırmızı overlay ile boya
         ctx.fillStyle = "rgba(255, 80, 80, 0.08)";
         if (restrictedTeam === 1) {
-            // Kırmızı kısıtlı → sol yarıyı kırmızıya boya
             ctx.fillRect(0, 0, cfg.width / 2, cfg.height);
         } else {
-            // Mavi kısıtlı → sağ yarıyı kırmızıya boya
             ctx.fillRect(cfg.width / 2, 0, cfg.width / 2, cfg.height);
         }
     }
     
-    // ✨ KALELER - Haxball tarzı (2 küçük daire + kavisli çizgi)
+    // === KALELER ===
     const goalY = (cfg.height - cfg.goal_width) / 2;
-    const postRadius = 6;      // Direk daire yarıçapı
-    const goalCurve = 60;      // ✨ Kavis derinliği (40 → 60, file arkaya daha uzun)
+    const postRadius = 6;
+    const goalCurve = 60;
     
-    // === SOL KALE (Kırmızı) ===
+    // Sol Kale
     const leftGoalX = 0;
-    
-    // Üst direk (küçük pembe daire)
     ctx.fillStyle = "#ffcccc";
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 2;
@@ -3931,18 +3933,15 @@ function miniRender() {
     ctx.fill();
     ctx.stroke();
     
-    // Alt direk
     ctx.beginPath();
     ctx.arc(leftGoalX, goalY + cfg.goal_width, postRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     
-    // Kavisli file çizgisi (siyah, kalın)
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(leftGoalX, goalY);
-    // Bezier curve - sola doğru kavis
     ctx.bezierCurveTo(
         leftGoalX - goalCurve, goalY + 15,
         leftGoalX - goalCurve, goalY + cfg.goal_width - 15,
@@ -3950,10 +3949,8 @@ function miniRender() {
     );
     ctx.stroke();
     
-    // === SAĞ KALE (Mavi) ===
+    // Sağ Kale
     const rightGoalX = cfg.width;
-    
-    // Üst direk (küçük mavi/lila daire)
     ctx.fillStyle = "#ccddff";
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 2;
@@ -3962,13 +3959,11 @@ function miniRender() {
     ctx.fill();
     ctx.stroke();
     
-    // Alt direk
     ctx.beginPath();
     ctx.arc(rightGoalX, goalY + cfg.goal_width, postRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     
-    // Kavisli file çizgisi
     ctx.strokeStyle = "#000";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -3983,13 +3978,152 @@ function miniRender() {
     // === OYUNCULAR ve TOP ===
     const state = miniData.gameState;
     if (state) {
-        // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok eder
-        // Render zamanı: şu an - 100ms (gecikmeli render, paketler arası yumuşak)
+        // === 🎥 REPLAY KONTROLÜ (10 SANİYE AKICI + SES) ===
+        let isReplayMode = false;
+        let replayFrameData = null;
+        
+        const isGoalWait = (state.game_state === "goal_wait" && state.goal_celebration);
+        const waitRemaining = isGoalWait ? state.goal_celebration.wait_remaining : 999;
+        
+        // Kayıt: Oyun esnasında + gol sonrası ilk 1.8 saniyede (15.0 - 1.8 = 13.2)
+        if (state.game_state === "playing" || (isGoalWait && waitRemaining > 13.2)) {
+            if (state.game_state === "playing") {
+                miniReplay.lockedBuffer = null;
+                miniReplay.replayStartTime = 0;
+                miniReplay.playedReplayEvents = null;
+            }
+            
+            const currentFrame = {
+                ball: {
+                    x: (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.ball) ? HP.room.gameState.ball.x : (miniData.currentPositions.ball?.x || state.ball.x),
+                    y: (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.ball) ? HP.room.gameState.ball.y : (miniData.currentPositions.ball?.y || state.ball.y),
+                    on_fire: state.ball.on_fire,
+                    warning: state.ball.warning,
+                    warning_team: state.ball.warning_team
+                },
+                players: {},
+                kick_effects: (state.kick_effects || []).map(k => ({ ...k })),
+                hit_events: (state.hit_events || []).map(h => ({ ...h }))
+            };
+            for (const pid in state.players) {
+                const smoothPos = (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players?.[pid])
+                    ? HP.room.gameState.players[pid]
+                    : (miniData.currentPositions["p" + pid] || state.players[pid]);
+                if (smoothPos) {
+                    currentFrame.players[pid] = {
+                        x: smoothPos.x,
+                        y: smoothPos.y,
+                        sprint: state.sprint?.[pid]
+                    };
+                }
+            }
+            miniReplay.buffer.push({ t: Date.now(), data: currentFrame });
+            const cutoff = Date.now() - (miniReplay.maxDuration || 10000);
+            miniReplay.buffer = miniReplay.buffer.filter(f => f.t >= cutoff);
+        }
+        
+        // 1.8 saniye gol sonrası kayıt dolunca klibi dondur
+        if (isGoalWait && waitRemaining <= 13.2 && !miniReplay.lockedBuffer && miniReplay.buffer.length > 0) {
+            miniReplay.lockedBuffer = miniReplay.buffer.slice();
+        }
+        
+        // Replay Oynat (Son 10 saniye - Sinematik Gecikmeli Akıcı Oynatıcı)
+        if (isGoalWait && waitRemaining <= 10.0) {
+            const clip = miniReplay.lockedBuffer || miniReplay.buffer;
+            if (clip && clip.length > 0) {
+                if (!miniReplay.replayStartTime) {
+                    miniReplay.replayStartTime = Date.now();
+                    miniReplay.playedReplayEvents = new Set();
+                }
+                
+                const elapsed = Date.now() - miniReplay.replayStartTime;
+                const totalClipDuration = clip[clip.length - 1].t - clip[0].t; // Klibin gerçek uzunluğu (ms)
+                
+                const maxReplayWindow = 10000; // Replay yayın süresi penceresi (10 saniye)
+                const playbackDurationLimit = Math.min(maxReplayWindow, totalClipDuration);
+                
+                // Klip 10 saniyeden kısaysa, aradaki fark kadar başlangıçta ilk karede donarak beklesin
+                const startDelay = Math.max(0, maxReplayWindow - playbackDurationLimit);
+                
+                let targetTimeOffset = 0;
+                let activePlaybackStarted = false;
+                
+                if (elapsed < startDelay) {
+                    // Sinematik Başlangıç: Maç başı / santra karesinde donarak bekle
+                    targetTimeOffset = 0;
+                    activePlaybackStarted = false;
+                } else {
+                    const activeElapsed = elapsed - startDelay;
+                    const replaySpeed = 1.0; 
+                    targetTimeOffset = activeElapsed * replaySpeed;
+                    
+                    if (targetTimeOffset > totalClipDuration) {
+                        targetTimeOffset = totalClipDuration; // Drift toleransı
+                    }
+                    activePlaybackStarted = true;
+                }
+                
+                // Binary Search ile hedef zamana en yakın frame'i anında bul (Takılmayı önler)
+                let low = 0;
+                let high = clip.length - 1;
+                let frameIndex = 0;
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    const frameOffset = clip[mid].t - clip[0].t;
+                    if (frameOffset <= targetTimeOffset) {
+                        frameIndex = mid;
+                        low = mid + 1;
+                    } else {
+                        high = mid - 1;
+                    }
+                }
+                
+                replayFrameData = clip[frameIndex].data;
+                isReplayMode = true;
+
+                // 🔊 Replay Sesleri - Sadece donma süresi bittiğinde ve gerçek akış başladığında çal
+                if (replayFrameData && activePlaybackStarted) {
+                    if (!miniReplay.playedReplayEvents) miniReplay.playedReplayEvents = new Set();
+
+                    if (replayFrameData.kick_effects && replayFrameData.kick_effects.length > 0) {
+                        replayFrameData.kick_effects.forEach(k => {
+                            const key = `k_${k.player_id}_${k.time}`;
+                            if (!miniReplay.playedReplayEvents.has(key)) {
+                                miniReplay.playedReplayEvents.add(key);
+                                if (k.hit_ball) {
+                                    const isFire = replayFrameData.ball && replayFrameData.ball.on_fire;
+                                    if (isFire) {
+                                        MiniAudio.playRandom("fire_kick", ["fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav"], 0.7);
+                                    } else {
+                                        MiniAudio.playRandom("kick", ["kick_1.wav", "kick_2.wav"], 0.5);
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    if (replayFrameData.hit_events && replayFrameData.hit_events.length > 0) {
+                        replayFrameData.hit_events.forEach(h => {
+                            const key = `h_${h.type}_${h.time}`;
+                            if (!miniReplay.playedReplayEvents.has(key)) {
+                                miniReplay.playedReplayEvents.add(key);
+                                if (h.type === "wall") {
+                                    MiniAudio.playRandom("wall", ["wall_hit_1.wav", "wall_hit_2.wav"], 0.4);
+                                } else if (h.type === "post") {
+                                    MiniAudio.play("post_hit.wav", 0.6);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        // ✨ SNAPSHOT INTERPOLATION
         const renderTime = performance.now() - miniData.interpDelay;
         const snaps = miniData.snapshots;
         
         if (snaps.length >= 2) {
-            // renderTime'ı içeren iki snapshot bul (before ve after)
             let before = null;
             let after = null;
             for (let i = 0; i < snaps.length - 1; i++) {
@@ -4001,11 +4135,9 @@ function miniRender() {
             }
             
             if (before && after) {
-                // İki snapshot arasında lineer interpolation
                 const span = after.t - before.t;
                 const alpha = span > 0 ? (renderTime - before.t) / span : 0;
                 
-                // Oyuncular
                 for (const pid in after.players) {
                     if (before.players[pid]) {
                         const bx = before.players[pid].x;
@@ -4017,7 +4149,6 @@ function miniRender() {
                             y: by + (ay - by) * alpha
                         };
                     } else {
-                        // Yeni oyuncu - direkt son pozisyonu kullan
                         miniData.currentPositions["p" + pid] = {
                             x: after.players[pid].x,
                             y: after.players[pid].y
@@ -4025,7 +4156,6 @@ function miniRender() {
                     }
                 }
                 
-                // Top
                 if (before.ball && after.ball) {
                     miniData.currentPositions.ball = {
                         x: before.ball.x + (after.ball.x - before.ball.x) * alpha,
@@ -4033,8 +4163,6 @@ function miniRender() {
                     };
                 }
             } else if (snaps.length > 0) {
-                // renderTime buffer aralığı dışında (çok yeni veya çok eski)
-                // Son snapshot'ı kullan (extrapolation olmasın, dursun)
                 const last = snaps[snaps.length - 1];
                 for (const pid in last.players) {
                     miniData.currentPositions["p" + pid] = {
@@ -4048,10 +4176,9 @@ function miniRender() {
             }
         }
         
-        // ✨ Şut efekti - hangi oyuncular şut çekti + hangi enerjiyle
-        const kickedPlayers = {};  // {playerId: energyPercent}
+        // ✨ Şut efekti
+        const kickedPlayers = {};  
         if (state.kick_effects && state.kick_effects.length > 0) {
-            // ✨ HP fizik motoru performance.now() kullanıyor, biz de aynısını kullanmalıyız
             const now = performance.now() / 1000;
             state.kick_effects.forEach(k => {
                 if (now - k.time < 0.3) {
@@ -4061,32 +4188,25 @@ function miniRender() {
         }
         const kickedPlayerIds = new Set(Object.keys(kickedPlayers).map(k => parseInt(k)));
 
-        // 🔊 ŞUT SESİ (her yeni şut için bir kez çal - SADECE TOPA DEĞDIYSE)
+        // 🔊 ŞUT SESİ
         if (kickedPlayerIds.size > 0) {
             if (!miniData._lastKickFrame) miniData._lastKickFrame = new Set();
 
-            // hit_ball bilgisini kick_effects'ten al
             const hitMap = {};
             const sprintMap = {};
             if (state.kick_effects) {
                 state.kick_effects.forEach(k => {
                     if (k.hit_ball) hitMap[k.player_id] = true;
-                    // Sprint şut mu? (energy_at_kick > 0 ise sprint aktifti demek değil, 
-                    // ama şut anında topun on_fire olması sprint göstergesi)
                     if (k.energy_at_kick !== undefined) sprintMap[k.player_id] = k.energy_at_kick;
                 });
             }
 
             kickedPlayerIds.forEach(pid => {
-                // Bu frame'de zaten ses çaldıysak tekrar çalma
                 if (miniData._lastKickFrame.has(pid)) return;
-                
-                // ✨ Sadece topa DEĞDİYSE ses çal (boşa şutta ses yok)
                 if (!hitMap[pid]) return;
                 
                 miniData._lastKickFrame.add(pid);
 
-                // Alevli mi normal mi?
                 const isFireKick = state.ball && state.ball.on_fire === true;
                 if (isFireKick) {
                     MiniAudio.playRandom("fire_kick",
@@ -4096,7 +4216,6 @@ function miniRender() {
                         ["kick_1.wav", "kick_2.wav"], 0.5);
                 }
                 
-                // ✨ TİTREŞİM - sadece benim şutumsa
                 if (pid === miniData.playerId) {
                     if (isFireKick) {
                         MiniVibration.firekick();
@@ -4107,8 +4226,7 @@ function miniRender() {
                 }
             });
         }
-        // ✨ Eski kick_effects'lerin id'lerini _lastKickFrame'den de sil
-        // (yoksa aynı şut için tekrar tekrar ses çalar)
+        
         if (miniData._lastKickFrame) {
             const activeIds = new Set();
             if (state.kick_effects) {
@@ -4117,7 +4235,6 @@ function miniRender() {
                     if (now - k.time < 0.3) activeIds.add(k.player_id);
                 });
             }
-            // Aktif olmayan pid'leri sil
             for (const pid of miniData._lastKickFrame) {
                 if (!activeIds.has(pid)) miniData._lastKickFrame.delete(pid);
             }
@@ -4129,40 +4246,39 @@ function miniRender() {
             const nowHit = performance.now() / 1000;
 
             state.hit_events.forEach(h => {
-                // Her event'e benzersiz key ver (time'ı hash gibi kullan)
                 const key = `${h.type}_${h.time}`;
                 if (miniData._playedHits.has(key)) return;
-                if (nowHit - h.time > 0.3) return;  // Eski event'leri atla
+                if (nowHit - h.time > 0.3) return;
 
                 miniData._playedHits.add(key);
 
                 if (h.type === "wall") {
                     MiniAudio.playRandom("wall",
                         ["wall_hit_1.wav", "wall_hit_2.wav"], 0.4);
-                    // ✨ Titreşim - sadece benim son dokunduğum toptaysa
                     if (state.ball && state.ball.last_toucher === miniData.playerId) {
                         MiniVibration.wallHit();
                     }
                 } else if (h.type === "post") {
                     MiniAudio.play("post_hit.wav", 0.6);
-                    // ✨ Direk her zaman titretsin (kim çarpmış olursa olsun heyecanlı)
                     MiniVibration.postHit();
                 }
             });
 
-            // Set'i çok büyümesin diye ara sıra temizle (100 elemandan fazla olunca)
             if (miniData._playedHits.size > 100) {
                 miniData._playedHits.clear();
             }
         }
         
-        // ✨ PREDICTION - misafirse kendi karakterimi tahmin edip güncelle
         if (miniData.predictionActive) {
             updateMiniPrediction();
         }
         
-        // 🎉 GOL SEVİNCİ KUYRUKLARI (oyunculardan önce çizilir, arka planda kalır)
-        // ✨ SADECE goal_wait state'inde VE celebrating true ise çiz
+        // ✨ GUEST RECONCILIATION: Yerel fizik motorunu sunucu state'i ile eşle (sapmaları yok eder)
+        if (miniData.playerId !== 1) {
+            syncLocalHPWithServer();
+        }
+        
+        // 🎉 GOL SEVİNCİ KUYRUKLARI
         const allowTrail = (state.game_state === "goal_wait");
         
         if (allowTrail) {
@@ -4172,11 +4288,9 @@ function miniRender() {
                     const trail = pData.trail;
                     const timeShift = (Date.now() / 100) % 360;
                     
-                    // ✨ Seljuk kontrolü → takım rengi + beyaz kuyruk
                     const pname_trail = miniData.playerNames[pid] || "";
                     const isSeljukTrail = (pname_trail === "Seljuk" || pname_trail === "seljuk" || pname_trail === "SELJUK");
                     
-                    // ✨ Takım rengi bul
                     let trailTeam = null;
                     const trailPlayer = miniData.players.find(p => p.id === parseInt(pid));
                     if (trailPlayer) trailTeam = trailPlayer.team;
@@ -4188,17 +4302,15 @@ function miniRender() {
                         const size = cfg.player_radius * (0.9 - age * 0.7);
                         
                         if (isSeljukTrail) {
-                            // 🇹🇷 Seljuk: takım rengi + beyaz dalgalı (bayrak tarzı)
-                            const wave = Math.sin((i * 0.8) + (Date.now() / 150)) * 0.5 + 0.5;  // 0-1 arası dalga
+                            const wave = Math.sin((i * 0.8) + (Date.now() / 150)) * 0.5 + 0.5;
                             
                             let teamR, teamG, teamB;
                             if (trailTeam === "blue") {
-                                teamR = 77; teamG = 171; teamB = 247;   // Mavi
+                                teamR = 77; teamG = 171; teamB = 247;
                             } else {
-                                teamR = 255; teamG = 107; teamB = 107;  // Kırmızı
+                                teamR = 255; teamG = 107; teamB = 107;
                             }
                             
-                            // Takım rengi ↔ beyaz arası geçiş (dalga ile)
                             const r = Math.round(teamR + (255 - teamR) * wave);
                             const g = Math.round(teamG + (255 - teamG) * wave);
                             const b = Math.round(teamB + (255 - teamB) * wave);
@@ -4207,7 +4319,6 @@ function miniRender() {
                             ctx.shadowBlur = 12;
                             ctx.shadowColor = `rgba(${teamR}, ${teamG}, ${teamB}, ${alpha * 0.6})`;
                         } else {
-                            // 🌈 Normal oyuncu: gökkuşağı
                             const hue = (i * 25 + timeShift) % 360;
                             ctx.fillStyle = `hsla(${hue}, 100%, 55%, ${alpha * 0.7})`;
                             ctx.shadowBlur = 15;
@@ -4225,45 +4336,57 @@ function miniRender() {
         
         // Oyuncular
         for (const pid in state.players) {
-            // ✨ Interpolated pozisyonu kullan (fallback)
             const pidInt = parseInt(pid, 10);
             let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             
-            if (miniData.playerId === 1) {
-                // ✨ HOST: herkesi local HP'den çiz
+            if (isReplayMode && replayFrameData && replayFrameData.players[pid]) {
+                smoothPos = {
+                    x: replayFrameData.players[pid].x,
+                    y: replayFrameData.players[pid].y
+                };
+            } else if (miniData.playerId === 1) {
+                if (typeof HP !== 'undefined' && HP.running &&
+                    HP.room && HP.room.gameState && HP.room.gameState.players &&
+                    HP.room.gameState.players[pid]) {
+                    const hpPlayer = HP.room.gameState.players[pid];
+                    
+                    // ✨ Host Kendi Karakteri ise (id === 1): 0ms Gecikme Standardı!
+                    // Kendi parmak hareketimizin ekrana yansımasında milisaniyelik bile jöleleşme hissi olmasın.
+                    if (parseInt(pid) === 1) {
+                        smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
+                    } else {
+                        // ✨ Host ekranındaki DİĞER oyuncular: Titremeyi önlemek için pürüzsüz akmaya devam etsinler.
+                        if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
+                        if (!miniData._hostRenderSmoothed.players[pid]) {
+                            miniData._hostRenderSmoothed.players[pid] = { x: hpPlayer.x, y: hpPlayer.y };
+                        }
+                        
+                        const smoothed = miniData._hostRenderSmoothed.players[pid];
+                        smoothed.x += (hpPlayer.x - smoothed.x) * 0.45;
+                        smoothed.y += (hpPlayer.y - smoothed.y) * 0.45;
+                        
+                        smoothPos = { x: smoothed.x, y: smoothed.y };
+                    }
+                }
+            } else if (pidInt === miniData.playerId) {
+                // ✨ GUEST (Misafir) Kendi Karakteri: 0ms Gecikme Standardı!
+                // Kendi bilgisayarında çalışan yerel fizik motorunun (HP) ham koordinatlarını anında çiz.
                 if (typeof HP !== 'undefined' && HP.running &&
                     HP.room && HP.room.gameState && HP.room.gameState.players &&
                     HP.room.gameState.players[pid]) {
                     const hpPlayer = HP.room.gameState.players[pid];
                     smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
                 }
-            } else if (pidInt === miniData.playerId) {
-                // ✨ MİSAFİR: sadece KENDİ oyuncusunu prediction/local HP'den çiz
-                if (miniData.predictedSelf) {
-                    smoothPos = {
-                        x: miniData.predictedSelf.x,
-                        y: miniData.predictedSelf.y
-                    };
-                } else if (typeof HP !== 'undefined' && HP.running &&
-                           HP.room && HP.room.gameState && HP.room.gameState.players &&
-                           HP.room.gameState.players[pid]) {
-                    const hpPlayer = HP.room.gameState.players[pid];
-                    smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
-                }
             }
             
             const p = { x: smoothPos.x, y: smoothPos.y };
-            
             const isMe = pidInt === miniData.playerId;
             
-            // ✨ Takıma göre renk (ID'ye göre değil!)
-            // Önce miniData.players'dan bak, yoksa aktif oyuncu ID'sine bak
             let playerTeam = null;
             const playerInfo = miniData.players.find(pl => pl.id === parseInt(pid));
             if (playerInfo) {
                 playerTeam = playerInfo.team;
             } else {
-                // Fallback: aktif oyuncu ID'sinden çıkar
                 if (parseInt(pid) === (miniData.gameState?.red_pid)) playerTeam = "red";
                 else if (parseInt(pid) === (miniData.gameState?.blue_pid)) playerTeam = "blue";
             }
@@ -4283,10 +4406,6 @@ function miniRender() {
             ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
             ctx.fill();
             
-            // (Ay-yıldız aşağıda şut parlamasından SONRA çizilecek)
-            
-            // ✨ Sprint enerji bilgisi
-            // ✨ HOST + kendi karakterim ise HP'den direkt oku
             let energyPercent = 1.0;
             let sprintActive = false;
             if (parseInt(pid) === miniData.playerId && miniData.playerId === 1 && 
@@ -4300,32 +4419,27 @@ function miniRender() {
                 sprintActive = sprintData.active && sprintData.energy > 1;
             }
             
-            // ✨ İÇ KENAR = ENERJI HALKASI (sarı dolu, koyu boş)
             const lineW = isMe ? 3 : 2;
             
-            // 1) BOŞ kısım (siyah/koyu)
             ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
             ctx.lineWidth = lineW;
             ctx.beginPath();
             ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
             ctx.stroke();
             
-            // 2) DOLU kısım (sarı enerji, Seljuk için karakter rengi)
-            let energyColor = "#ffd43b";  // Default sarı
+            let energyColor = "#ffd43b";
             const pname_energy = miniData.playerNames[pid] || "";
             const isSeljukEnergy = (pname_energy === "Seljuk" || pname_energy === "seljuk" || pname_energy === "SELJUK");
             if (isSeljukEnergy) {
-                if (playerTeam === "red") energyColor = "#ff6b6b";      // Karakterle aynı kırmızı
-                else if (playerTeam === "blue") energyColor = "#4dabf7"; // Karakterle aynı mavi
+                if (playerTeam === "red") energyColor = "#ff6b6b";
+                else if (playerTeam === "blue") energyColor = "#4dabf7";
             }
             
-            // ✨ %1'den az ise hiç çizme (0'da tam boş kalsın)
             if (energyPercent > 0.01) {
                 ctx.strokeStyle = energyColor;
                 ctx.lineWidth = lineW;
                 ctx.lineCap = "round";
                 
-                // Sprint aktifse glow
                 if (sprintActive) {
                     ctx.shadowBlur = 12;
                     ctx.shadowColor = energyColor;
@@ -4342,18 +4456,12 @@ function miniRender() {
                 ctx.lineCap = "butt";
             }
             
-            // 3) ✨ ŞUT PARLAMASI - Enerji kadar parlar
             if (justKicked) {
                 const kickEnergyPercent = kickedPlayers[parseInt(pid)] || 1.0;
-                // Parlama kalınlığı ve blur - enerji oranında
                 const glowStrength = Math.max(0.15, kickEnergyPercent);
                 
-                // ✨ Takım rengi (kırmızı/mavi) - iç parlama için normal ton
-                const teamColor = playerTeam === "blue" ? "#4dabf7" : "#ff6b6b";
                 const teamColorRGB = playerTeam === "blue" ? "77, 171, 247" : "255, 107, 107";
                 
-                // 🔥 İç parlama (ortadan dışa doğru takım renginde gradient)
-                // ✨ Kırmızı/mavi parlama sadece %5 opacity (çok hafif)
                 const innerGlow = glowStrength * 0.05;
                 const innerGrad = ctx.createRadialGradient(
                     p.x, p.y, 0,
@@ -4367,18 +4475,17 @@ function miniRender() {
                 ctx.arc(p.x, p.y, cfg.player_radius, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // ⚡ Dış halka - Seljuk için karakter rengi, normal oyuncu için sarı
                 const pname_kick = miniData.playerNames[pid] || "";
                 const isSeljukKick = (pname_kick === "Seljuk" || pname_kick === "seljuk" || pname_kick === "SELJUK");
                 
-                let kickGlowColor = "#ffd43b";  // Default sarı
+                let kickGlowColor = "#ffd43b";
                 let kickGlowRGB = "255, 212, 59";
                 if (isSeljukKick) {
                     if (playerTeam === "red") {
-                        kickGlowColor = "#ff6b6b";      // Karakterle aynı kırmızı
+                        kickGlowColor = "#ff6b6b";
                         kickGlowRGB = "255, 107, 107";
                     } else if (playerTeam === "blue") {
-                        kickGlowColor = "#4dabf7";      // Karakterle aynı mavi
+                        kickGlowColor = "#4dabf7";
                         kickGlowRGB = "77, 171, 247";
                     }
                 }
@@ -4393,29 +4500,23 @@ function miniRender() {
                 ctx.shadowBlur = 0;
             }
             
-            // 🇹🇷 AY-YILDIZ (en son çizilir ki üstüne başka şey gelmesin)
             const pname_check = miniData.playerNames[pid] || "";
             if (pname_check === "Seljuk" || pname_check === "seljuk" || pname_check === "SELJUK") {
-                // Şut çekince ay-yıldız %100 parlasın (enerjiden bağımsız)
                 const kickGlow = justKicked ? 1.0 : 0;
                 drawTurkishStar(ctx, p.x, p.y, cfg.player_radius, kickGlow);
             }
             
-            // İsim (üstte) - takım rengi
             let pname = miniData.playerNames[pid] || `P${pid}`;
             const nameColor = playerTeam === "blue" ? "#7abfff" : "#ff8a8a";
-            // ✨ Font boyutu saha büyüklüğüne göre ölçekle (1v1=14px, 5v5=22px)
             let nameFontSize = 14;
-            if (cfg.width >= 1800) nameFontSize = 22;       // 5v5
-            else if (cfg.width >= 1600) nameFontSize = 20;  // 4v4
-            else if (cfg.width >= 1400) nameFontSize = 18;  // 3v3
-            else if (cfg.width >= 1200) nameFontSize = 16;  // 2v2
+            if (cfg.width >= 1800) nameFontSize = 22;
+            else if (cfg.width >= 1600) nameFontSize = 20;
+            else if (cfg.width >= 1400) nameFontSize = 18;
+            else if (cfg.width >= 1200) nameFontSize = 16;
             
-            // ✨ İsim genişliği oyuncu çapına sığmıyorsa font küçült
-            const maxNameWidth = cfg.player_radius * 2.4;  // top çapından biraz büyük olabilir
+            const maxNameWidth = cfg.player_radius * 2.4;
             ctx.font = `bold ${nameFontSize}px Segoe UI`;
             let measuredW = ctx.measureText(pname).width;
-            // Kademeli küçült (min 8px)
             while (measuredW > maxNameWidth && nameFontSize > 8) {
                 nameFontSize -= 1;
                 ctx.font = `bold ${nameFontSize}px Segoe UI`;
@@ -4423,8 +4524,6 @@ function miniRender() {
             }
             
             ctx.textAlign = "center";
-            
-            // Gölge (okunabilir olsun)
             ctx.shadowBlur = 5;
             ctx.shadowColor = "#000";
             ctx.fillStyle = nameColor;
@@ -4432,38 +4531,48 @@ function miniRender() {
             ctx.shadowBlur = 0;
         }
         
-        // Top - HERKES için HP'den direkt (host + misafir aynı)
-        // HP motoru her tarayıcıda 60 FPS fizik hesaplıyor, server sadece reconcile ediyor
+        // Top
         let bSmooth;
-        if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running &&
+        if (isReplayMode && replayFrameData) {
+            bSmooth = replayFrameData.ball;
+        } else if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running &&
             HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // ✨ SADECE HOST: topu local HP'den çiz
-            bSmooth = HP.room.gameState.ball;
+            const hpBall = HP.room.gameState.ball;
+            
+            // ✨ Host Ball Render Interpolation (Topun kayma efektini pürüzsüzleştirir)
+            if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
+            if (!miniData._hostRenderSmoothed.ball) {
+                miniData._hostRenderSmoothed.ball = { x: hpBall.x, y: hpBall.y };
+            }
+            
+            const smoothedBall = miniData._hostRenderSmoothed.ball;
+            // ✨ Topun hızlanma tepkisini neredeyse anlık (0.80 Lerp) yapıyoruz.
+            // Bu sayede şut çekildiğinde gecikme hissi sıfırlanır, top yağ gibi pürüzsüz gider.
+            smoothedBall.x += (hpBall.x - smoothedBall.x) * 0.80;
+            smoothedBall.y += (hpBall.y - smoothedBall.y) * 0.80;
+            
+            bSmooth = { x: smoothedBall.x, y: smoothedBall.y };
         } else {
-            // ✨ MİSAFİR: topu her zaman interpolation buffer'dan çiz
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
             x: bSmooth.x,
             y: bSmooth.y,
-            on_fire: state.ball.on_fire,
-            warning: state.ball.warning
+            on_fire: isReplayMode ? (replayFrameData?.ball?.on_fire) : state.ball.on_fire,
+            warning: isReplayMode ? (replayFrameData?.ball?.warning) : state.ball.warning
         };
         const onFire = b.on_fire === true;
         const warning = b.warning === true;
         
-        // ✨ SANTRA UYARISI - Top hangi takıma gidecekse o renkte yanıp söner
         if (warning) {
             const blink = Math.floor(Date.now() / 200) % 2 === 0;
             if (blink) {
                 const warningTeam = state.ball.warning_team;
                 let warningColor, warningColorLight;
                 if (warningTeam === 2) {
-                    // Top maviye gidecek → mavi yanıp sönsün
                     warningColor = "#4dabf7";
                     warningColorLight = "rgba(77, 171, 247, 0.5)";
                 } else {
-                    // Top kırmızıya gidecek → kırmızı yanıp sönsün
                     warningColor = "#ff3333";
                     warningColorLight = "rgba(255, 51, 51, 0.5)";
                 }
@@ -4478,10 +4587,8 @@ function miniRender() {
             }
         }
         
-        // ✨ ALEV EFEKTİ (şut çeken oyuncunun rengiyle)
         if (onFire) {
             const lastToucher = state.ball.last_toucher;
-            // ✨ Takıma göre alev rengi (ID'ye göre değil!)
             let toucherTeam = null;
             if (lastToucher) {
                 const toucherInfo = miniData.players.find(pl => pl.id === lastToucher);
@@ -4489,11 +4596,9 @@ function miniRender() {
             }
             let flameR, flameG, flameB, glowColor;
             if (toucherTeam === "blue") {
-                // Mavi alev
                 flameR = 77; flameG = 171; flameB = 247;
                 glowColor = "#4dabf7";
             } else {
-                // Kırmızı alev (default)
                 flameR = 255; flameG = 107; flameB = 0;
                 glowColor = "#ff6b00";
             }
@@ -4511,16 +4616,13 @@ function miniRender() {
             ctx.shadowBlur = 0;
         }
         
-        // Gölge
         ctx.fillStyle = "rgba(0,0,0,0.4)";
         ctx.beginPath();
         ctx.arc(b.x + 2, b.y + 2, cfg.ball_radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Top (alev varsa oyuncu rengiyle, uyarı varsa kırmızı, yoksa beyaz)
         if (onFire) {
             const lastToucher = state.ball.last_toucher;
-            // ✨ Takıma göre
             let toucherTeam2 = null;
             if (lastToucher) {
                 const toucherInfo2 = miniData.players.find(pl => pl.id === lastToucher);
@@ -4528,12 +4630,10 @@ function miniRender() {
             }
             const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, cfg.ball_radius);
             if (toucherTeam2 === "blue") {
-                // Mavi alev
                 grad.addColorStop(0, "#fff");
                 grad.addColorStop(0.6, "#a5d8ff");
                 grad.addColorStop(1, "#1971c2");
             } else {
-                // Kırmızı alev (default)
                 grad.addColorStop(0, "#fff");
                 grad.addColorStop(0.6, "#ffd43b");
                 grad.addColorStop(1, "#ff6b00");
@@ -4551,7 +4651,6 @@ function miniRender() {
         ctx.arc(b.x, b.y, cfg.ball_radius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Top deseni (siyah beşgen simülasyonu)
         if (!onFire) {
             ctx.fillStyle = "#333";
             ctx.beginPath();
@@ -4559,11 +4658,9 @@ function miniRender() {
             ctx.fill();
         }
         
-        // Top kenarı
         let ballBorderColor = "#000";
         if (onFire) {
             const lastToucher = state.ball.last_toucher;
-            // ✨ Takıma göre
             let toucherTeam3 = null;
             if (lastToucher) {
                 const toucherInfo3 = miniData.players.find(pl => pl.id === lastToucher);
@@ -4578,14 +4675,12 @@ function miniRender() {
         ctx.stroke();
     }
     
-    // ✨ COUNTDOWN veya GOL KUTLAMASI overlay (server state'inden)
     if (state) {
         if (state.game_state === "countdown" && state.countdown !== null && state.countdown !== undefined) {
             drawCountdownOverlay(ctx, cfg, state.countdown);
         } else if (state.game_state === "goal_wait" && state.goal_celebration) {
             drawGoalCelebration(ctx, cfg, state.goal_celebration);
         } else {
-            // Gol bitince imzayı sıfırla (bir sonraki golde tekrar ses çalsın)
             miniData._lastGoalSignature = null;
         }
         if (state.kickoff && state.kickoff.active) {
@@ -4593,18 +4688,14 @@ function miniRender() {
         }
     }
     
-    // ✨ Kaydırılmış koordinat sistemini geri yükle
     ctx.restore();
     
-    // ✨ Gol şarkısı ses seviyesi anlık güncelle
     if (miniData._goalSongAudio && !miniData._goalSongAudio.paused) {
         const vol = (typeof window.getGlobalVolume === "function") ? window.getGlobalVolume() : 0.5;
         miniData._goalSongAudio.volume = Math.max(0, Math.min(1, vol));
     }
     
-    // HUD güncelle
     updateMiniHUD();
-    
     miniAnimFrame = requestAnimationFrame(miniRender);
 }
 
@@ -4755,6 +4846,27 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     // ✨ Font ölçekleme
     const fontScale = Math.max(1, cfg.width / 1000);
     
+    // ✨ GOL REPLAY GEÇİŞİ (Son 10 Saniye) - Sadece Replay Yazısı kalır
+    const isReplayMode = celebration.wait_remaining <= 10.0;
+    if (isReplayMode) {
+        ctx.save();
+        
+        // Sol üst köşede sabit kırmızı nokta ve Replay yazısı (Efektsiz, Tertemiz)
+        ctx.fillStyle = "#ff3333";
+        ctx.beginPath();
+        ctx.arc(15, 20, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px 'Segoe UI', sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Replay", 30, 20);
+        
+        ctx.restore();
+        return; // Ortadaki GOOOL yazısını ve isim kartlarını çizmeyi atla
+    }
+
     // ✨ DEBUG
     console.log("[GOL DEBUG]",
         "scorer_pid:", celebration.scorer_pid,
@@ -4823,41 +4935,42 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     const isOwnGoal = celebration.own_goal === true;
     const assistId = celebration.assist_id;
     
-    // 🎉 Gol şarkısı (sadece Seljuk + kendi kalesine DEĞİLSE + yeni gol ise)
+    // 🎉 Gol şarkısı (Kendi kalesine DEĞİLSE + yeni gol ise herkes için çal)
     if (!isOwnGoal && miniData._lastGoalSignature === goalSignature && !celebration.silent) {
         if (!miniData._goalSongPlayed || miniData._goalSongPlayed !== goalSignature) {
-            // ✨ Sadece Seljuk/seljuk/SELJUK gol attıysa çal
-            const scorerNameCheck = scorerName || "";
-            const isSeljukGoal = (scorerNameCheck === "Seljuk" || scorerNameCheck === "seljuk" || scorerNameCheck === "SELJUK");
-
-            if (isSeljukGoal) {
-                miniData._goalSongPlayed = goalSignature;
-                // ✨ Ses seviyesini global slider'dan al + anlık değişebilsin
-                const vol = (typeof window.getGlobalVolume === "function") ? window.getGlobalVolume() : 0.5;
-                if (vol > 0) {
-                    // Eski şarkı varsa durdur
-                    if (miniData._goalSongAudio) {
-                        try { miniData._goalSongAudio.pause(); } catch(e) {}
-                    }
-
-                    // ✨ Gol müziklerini maçtaki toplam gol sayısına göre HER KULLANICIDA SENKRONİZE çal
-                    const seljukGoalSongs = ["goal_song_1.wav", "goal_song_2.wav"];
-                    const currentScores = miniData.gameState?.scores || {};
-                    const totalGoals = (currentScores["1"] || 0) + (currentScores["2"] || 0);
-                    
-                    // Maçtaki toplam gole göre index seç (1. Gol -> Song 1, 2. Gol -> Song 2...)
-                    const songIndex = Math.max(0, totalGoals - 1) % seljukGoalSongs.length;
-                    const selectedSong = seljukGoalSongs[songIndex];
-
-                    const song = new Audio(`/oyun_modlari/mini_futbol/sounds/${selectedSong}`);
-                    song.volume = vol;
-                    song.play().catch(() => {});
-                    miniData._goalSongAudio = song;  // ✨ Referansı tut (volume güncellemek için)
+            miniData._goalSongPlayed = goalSignature;
+            
+            // ✨ Ses seviyesini global slider'dan al
+            const vol = (typeof window.getGlobalVolume === "function") ? window.getGlobalVolume() : 0.5;
+            if (vol > 0) {
+                // Eski şarkı çalıyorsa hemen durdur ve sıfırla
+                if (miniData._goalSongAudio) {
+                    try { miniData._goalSongAudio.pause(); } catch(e) {}
                 }
+
+                // Kullanmak istediğin tüm gol müziklerinin listesi (yeni eklediklerin dahil)
+                const availableGoalSongs = ["goal_song_1.wav", "goal_song_2.wav", "goal_song_3.wav", "goal_song_4.wav"];
+                
+                // 🌀 Senkronize-Rastgele Matematiksel Karma (Deterministic Hash):
+                // goalSignature her iki oyuncuda da aynıdır (örn: "2_3-1" -> Scorer ID 2, Skor 3-1).
+                // Bu string değerini sayısal bir değere dönüştürüp şarkı listesine mod alarak eşliyoruz.
+                // Böylece seçim her golde farklı ve rastgele olur ama rakiple %100 senkronize çalışır!
+                let signatureHash = 0;
+                for (let i = 0; i < goalSignature.length; i++) {
+                    signatureHash = goalSignature.charCodeAt(i) + ((signatureHash << 5) - signatureHash);
+                }
+                const deterministicIndex = Math.abs(signatureHash) % availableGoalSongs.length;
+                const selectedSong = availableGoalSongs[deterministicIndex];
+
+                const song = new Audio(`/oyun_modlari/mini_futbol/sounds/${selectedSong}`);
+                song.volume = vol;
+                song.play().catch(() => {});
+                miniData._goalSongAudio = song;  // ✨ Referansı tut (ses seviyesi güncellemeleri için)
             }
         }
     }
-    // Asist ismini de gerçek oyuncudan al
+    
+    // Asist ismini al
     let assistName = null;
     if (assistId) {
         const assistPlayer = miniData.players.find(p => p.id === assistId);
@@ -4879,8 +4992,6 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     
     if (isOwnGoal) {
         // ✨ Kendi kalesine → GOL ATAN takımın rengi (utanç rengi)
-        // scorerTeamId = puan ALAN takım (kırmızı kendine attı → mavi puan alır → scorerTeamId=2)
-        // Gol atan takım = tersi
         const ownGoalTeamId = scorerTeamId === 1 ? 2 : 1;
         if (ownGoalTeamId === 1) {
             // Kırmızı kendi kalesine attı → kırmızı ekran
@@ -4914,9 +5025,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     
     // ============ ALT BİLGİ ============
     if (isOwnGoal) {
-        // ✨ "SELÇUK Kendi Kalesine Attı" → GOL ATANIN takım rengi (utanç rengi)
-        // scorerPid backend'den geliyor, gerçek gol atan oyuncu ID'si
-        // Onun takım rengini bulalım
+        // ✨ "SELÇUK Kendi Kalesine Attı" → GOL ATANIN takım rengi
         let ownColor = "#ff6b6b";  // Default kırmızı
         const scorerPlayerObj = miniData.players.find(p => p.id === scorerPid);
         if (scorerPlayerObj) {
@@ -4930,7 +5039,6 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         ctx.fillText(`${scorerName} Kendi Kalesine Attı`, 0, 20);
     } else {
         // "Golü Atan: SELÇUK" ve "Asist: MEHMET" - hepsi gol atan takımın rengi
-        
         const scorerTeamColor = scorerTeamId === 1 ? "#ff6b6b" : "#4dabf7";
         
         // Golü Atan satırı
@@ -4963,7 +5071,6 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             const totalW2 = label2W + assistW;
             
             ctx.textAlign = "left";
-            // ✨ "Asist: " kısmı da takım rengi
             ctx.shadowBlur = 15;
             ctx.shadowColor = scorerTeamColor;
             ctx.fillStyle = scorerTeamColor;
@@ -6220,16 +6327,6 @@ document.addEventListener("keydown", (e) => {
     showMiniGuestEscMenu();
 }, true);
 
-function showMiniGuestEscMenu() {
-    const box = document.getElementById("miniGuestEscBox");
-    if (box) box.classList.remove("hidden");
-    miniReleaseAllKeys();
-    
-    // ✨ Eğer misafirsen ve ESC menüsünü açtıysan, Host'a oyunu durdurması için 
-    // bir sinyal gönderilebilir veya misafir ekranında "DURAKLATILDI" yazabilir.
-    // Şimdilik sadece sürenin akmaması için Host'un pause etmesi en temizi.
-}
-
 // ✨ Popup kapandığında (hidden class eklenince) kullanıcı ESC menüsünü geri getir
 function setupPopupReturnToPause(popupId) {
     // Sadece kullanıcı (host değil) için
@@ -6484,8 +6581,10 @@ function showMiniScoreboard() {
     let tabOpacity = 5;
     try {
         const saved = localStorage.getItem("miniTabOpacity");
-        if (saved !== null) tabOpacity = parseInt(saved);
-        if (isNaN(tabOpacity)) tabOpacity = 5;
+        if (saved !== null) {
+            const parsed = parseInt(saved);
+            tabOpacity = isNaN(parsed) ? 5 : parsed;
+        }
     } catch(e) {}
     
     // ✨ %0 ise scoreboard hiç açılmasın
@@ -7917,7 +8016,7 @@ const MiniAudio = {
             "whistle.wav",
             "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
             "kick_1.wav", "kick_2.wav",
-            "goal_song_1.wav", "goal_song_2.wav"
+            "goal_song_1.wav", "goal_song_2.wav", "goal_song_3.wav", "goal_song_4.wav"
         ];
         files.forEach(f => this.preload(f));
         console.log("[SES] Sesler preload edildi ✓");
@@ -8077,7 +8176,7 @@ function syncLocalHPWithServer() {
         }
     }
 
-    // 2) Oyuncuları senkronize et
+    // 2) Oyuncuları senkronize et (Loose Reconciliation - Sıfır Rubberbanding)
     if (serverGS.players) {
         for (const pid in serverGS.players) {
             const sP = serverGS.players[pid];
@@ -8088,12 +8187,17 @@ function syncLocalHPWithServer() {
             const dy = sP.y - lP.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
 
-            if (dist > 50) {
+            const isMe = parseInt(pid) === miniData.playerId;
+            // Kendi karakterimiz ise toleransı yüksek, diğer oyuncular ise dar tutuyoruz
+            const threshold = isMe ? 150 : 50; 
+            const lerpSpeed = isMe ? 0.12 : 0.35; // Kendi karakterimizde yumuşak senkronizasyon (titreşimi tamamen sıfırlar)
+
+            if (dist > threshold) {
                 lP.x = sP.x;
                 lP.y = sP.y;
             } else if (dist > 0.5) {
-                lP.x += dx * 0.35;
-                lP.y += dy * 0.35;
+                lP.x += dx * lerpSpeed;
+                lP.y += dy * lerpSpeed;
             }
         }
     }

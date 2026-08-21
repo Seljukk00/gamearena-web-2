@@ -783,6 +783,14 @@ const HP = {  // Host Physics namespace
         
         // Goal wait
         if (gs.state === "goal_wait") {
+            // Sevinç bittiğinde (Replay başlarken) sevinç kuyruklarını temizle
+            const waitRemaining = gs.goal_wait_until - now;
+            if (waitRemaining <= 10.0) {
+                for (const pid in gs.players) {
+                    gs.players[pid].celebrating = false;
+                    gs.players[pid].celebration_trail = [];
+                }
+            }
             if (now >= gs.goal_wait_until) {
                 const ovr_restricted = gs.kickoff_restricted_team_override;
                 const ovr_receiving = gs.kickoff_receiving_team_override;
@@ -1115,7 +1123,7 @@ const HP = {  // Host Physics namespace
             gs._silentGoalWait = false;  // ✨ Gerçek gol → ses çalsın
             gs._savedTimeLeft = gs.time_left;  // ✨ Süre fix: kalan süreyi kaydet
             gs.state = "goal_wait";
-            gs.goal_wait_until = now + 5.0;
+            gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
             gs.pause_time = now;
             
             // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
@@ -1588,7 +1596,7 @@ const HP = {  // Host Physics namespace
                 gs.last_goal_assist = assist;
                 gs._savedTimeLeft = gs.time_left;  // ✨ Kalan süreyi kaydet
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 5.0;
+                gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
                 gs.pause_time = now;
                 
                 // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
@@ -1652,7 +1660,7 @@ const HP = {  // Host Physics namespace
                 gs.last_goal_assist = assist;
                 gs._savedTimeLeft = gs.time_left;  // ✨ Kalan süreyi kaydet
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 5.0;
+                gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
                 gs.pause_time = now;
                 
                 // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver

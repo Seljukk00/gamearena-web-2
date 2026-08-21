@@ -38,6 +38,15 @@ GameArena_Web/
     ├── meme_arena/
     ├── sarkidan_bul/
     ├── mini_futbol/
+        ├── __pycache__
+        ├── sounds
+        ├── mini_futbol.js
+        ├── mini_futbol.css
+        ├── mini_futbol_host_physics.js
+        ├── mini_futbol_handler.py
+        ├── mini_futbol_ticker.js
+
+    
     └── jokerli_satranc/
         ├── satranc_handler.py    (~3000 satır)
         ├── jokerler.py           (28 joker)

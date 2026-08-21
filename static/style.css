@@ -1611,6 +1611,7 @@ body > .container {
     z-index: 100;
     width: 100%;
     box-sizing: border-box;
+    display: none; /* 🎯 Varsayılan gizli, sadece Ana Menüde JS ile gösterilir */
 }
 
 .footerContent {

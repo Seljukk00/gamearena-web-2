@@ -371,9 +371,11 @@ function _startLockCountdown() {
         const remaining = Math.max(0, totalSec - elapsed);
         
         if (remaining <= 0) {
+            if (!satrancData.jokersUnlocked && satrancData.lockMode === "time") {
+                showToast("🔓 Jokerler Açıldı!", "Artık jokerlerini kullanabilirsin!", null, "success");
+            }
             satrancData.jokersUnlocked = true;
             _stopLockCountdown();
-            showToast("🔓 Jokerler Açıldı!", "Artık jokerlerini kullanabilirsin!", null, "success");
         }
         
         // Panel başlıklarını güncelle
@@ -4772,10 +4774,12 @@ handleMessage = function(msg) {
         if (msg.lock_status) {
             satrancData.lockStatus = msg.lock_status;
             if (!msg.lock_status.locked) {
-                // Kilit açıldı!
+                // SADECE kilit daha önce kapalıysa VE kilit modu devre dışı ("off") değilse toast göster
+                if (!satrancData.jokersUnlocked && satrancData.lockMode !== "off") {
+                    showToast("🔓 Jokerler Açıldı!", "Artık jokerlerini kullanabilirsin!", null, "success");
+                }
                 satrancData.jokersUnlocked = true;
                 _stopLockCountdown();
-                showToast("🔓 Jokerler Açıldı!", "Artık jokerlerini kullanabilirsin!", null, "success");
             }
         }
         // ✨ Görünmez taş yenildiyse ÖNCE flash animasyonu göster, sonra board güncelle

@@ -32,6 +32,7 @@ ALL_TEAMS = {
     "Real Valladolid":          {"color": (139, 0, 195),   "tm_id": 366},
     "Rayo Vallecano":           {"color": (200, 16, 46),   "tm_id": 367},
     "Levante":                  {"color": (0, 100, 50),    "tm_id": 3368},
+    "Albacete":                 {"color": (255, 255, 255), "tm_id": 1532},
 
     # ============================================
     # INGILTERE - Premier League

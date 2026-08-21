@@ -169,6 +169,16 @@ function send(data) {
 
 // ============ EKRAN YÖNETİMİ ============
 function showScreen(screenName) {
+    // 🎯 Alt Bar (Footer / Yasal Bilgi) Sadece Ana Menüde (home) Görünsün
+    const footers = document.querySelectorAll("footer, .footer, #footer, .siteFooter, .site-footer, .legal-footer");
+    footers.forEach(f => {
+        if (screenName === "home") {
+            f.style.setProperty("display", "block", "important");
+        } else {
+            f.style.setProperty("display", "none", "important");
+        }
+    });
+
     homeScreen.classList.add("hidden");
     createScreen.classList.add("hidden");
     joinScreen.classList.add("hidden");
