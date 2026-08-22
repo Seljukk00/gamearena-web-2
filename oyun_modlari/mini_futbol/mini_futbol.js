@@ -4848,14 +4848,39 @@ function miniRender() {
     
     ctx.restore();
     
-    if (miniData._goalSongAudio && !miniData._goalSongAudio.paused) {
+    if (miniData._goalSongAudio && state && state.game_state === "goal_wait" && state.goal_celebration) {
         let vol = 0.5;
         if (typeof window.getGlobalVolume === "function") {
             const gv = window.getGlobalVolume();
             if (typeof gv === "number" && !isNaN(gv)) vol = gv;
         }
         try {
-            miniData._goalSongAudio.volume = Math.max(0, Math.min(1, vol));
+            const audio = miniData._goalSongAudio;
+            audio.volume = Math.max(0, Math.min(1, vol));
+
+            // 📺 CANLI YAYIN SENKRONİZASYONU
+            // Toplam gol süresi 15sn. wait_remaining sunucudan geliyor.
+            const targetTime = 15.0 - state.goal_celebration.wait_remaining;
+            
+            if (vol > 0) {
+                if (audio.paused) audio.play().catch(() => {});
+                
+                // Eğer şarkı 0.5 saniyeden fazla saptıysa (sekme arkada kaldıysa vs) anında eşitle
+                if (Math.abs(audio.currentTime - targetTime) > 0.5) {
+                    audio.currentTime = targetTime;
+                }
+            } else {
+                // Sesi kapalı olanlarda da arka planda saniyeyi ilerlet (sayarsın) 
+                // ama CPU yememesi için play yapma, sadece saniyeyi güncelle
+                audio.currentTime = targetTime;
+            }
+        } catch(e) {}
+    } else if (miniData._goalSongAudio && state && state.game_state !== "goal_wait") {
+        // Gol bittiğinde müziği kapat
+        try {
+            miniData._goalSongAudio.pause();
+            miniData._goalSongAudio.currentTime = 0;
+            miniData._goalSongAudio = null;
         } catch(e) {}
     }
     
@@ -5213,58 +5238,55 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         if (!miniData._goalSongPlayed || miniData._goalSongPlayed !== goalSignature) {
             miniData._goalSongPlayed = goalSignature;
             
-            // ✨ Ses seviyesini güvenli oku (NaN/Hata korumalı)
+            // ✨ Ses seviyesini güvenli oku (0 olsa bile şarkı nesnesini başlatacağız)
             let vol = 0.5;
             if (typeof window.getGlobalVolume === "function") {
                 const gv = window.getGlobalVolume();
                 if (typeof gv === "number" && !isNaN(gv)) vol = gv;
             }
             
-            if (vol > 0) {
-                // Eski şarkı çalıyorsa hemen durdur ve sıfırla
-                if (miniData._goalSongAudio) {
-                    try { 
-                        miniData._goalSongAudio.pause();
-                        miniData._goalSongAudio.currentTime = 0;
-                    } catch(e) {}
-                }
-
-                // ✨ Goal_Songs klasöründeki 11 adet mp3 müzik listesi
-                const availableGoalSongs = Array.from({ length: 11 }, (_, i) => `goal_song_${i + 1}.mp3`);
-                
-                // 🎲 Tamamen Rastgele Seçim (Üst üste aynı şarkı çalmaz):
-                let randomIndex;
-                if (miniData._lastGoalSongIndex === undefined) miniData._lastGoalSongIndex = -1;
-                
-                do {
-                    randomIndex = Math.floor(Math.random() * availableGoalSongs.length);
-                } while (randomIndex === miniData._lastGoalSongIndex && availableGoalSongs.length > 1);
-                
-                miniData._lastGoalSongIndex = randomIndex;
-                const selectedSong = availableGoalSongs[randomIndex];
-
-                const song = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/${selectedSong}`);
-                try {
-                    song.volume = Math.max(0, Math.min(1, vol));
-                } catch(e) {
-                    song.volume = 0.5;
-                }
-                
-                // 🛡️ OTOMATİK HATA KURTARMA (FALLBACK):
-                song.onerror = () => {
-                    console.warn(`[GOL MÜZİĞİ] Goal_Songs/${selectedSong} bulunamadı, varsayılan şarkıya geçiliyor...`);
-                    const fb = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/goal_song_1.mp3`);
-                    fb.volume = song.volume;
-                    fb.play().catch(() => {});
-                    miniData._goalSongAudio = fb;
-                };
-
-                song.play().catch(err => {
-                    console.warn("[GOL MÜZİĞİ] Otomatik oynatma engeli:", err);
-                });
-                
-                miniData._goalSongAudio = song;
+            // Eski şarkı çalıyorsa hemen durdur ve sıfırla
+            if (miniData._goalSongAudio) {
+                try { 
+                    miniData._goalSongAudio.pause();
+                    miniData._goalSongAudio.currentTime = 0;
+                } catch(e) {}
             }
+
+            // ✨ Goal_Songs klasöründeki 11 adet mp3 müzik listesi
+            const availableGoalSongs = Array.from({ length: 11 }, (_, i) => `goal_song_${i + 1}.mp3`);
+            
+            // 🌀 %100 Garantili Senkronize Seçim (Oda Kodu + Toplam Gol Sayısı):
+            const scoresObj = miniData.gameState?.scores || {};
+            const totalGoalsInMatch = (parseInt(scoresObj["1"] || 0) + parseInt(scoresObj["2"] || 0));
+            const syncSeed = (miniData.roomCode || "MINI").toUpperCase() + "_GOAL_" + totalGoalsInMatch;
+            
+            let signatureHash = 0;
+            for (let i = 0; i < syncSeed.length; i++) {
+                signatureHash = syncSeed.charCodeAt(i) + ((signatureHash << 5) - signatureHash);
+            }
+            const syncedIndex = Math.abs(signatureHash) % availableGoalSongs.length;
+            const selectedSong = availableGoalSongs[syncedIndex];
+
+            const song = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/${selectedSong}`);
+            song.loop = false;
+            
+            // ✨ Başlangıç senkronizasyonu: Şarkıyı o anki saniyesine kurşun gibi oturt
+            const elapsed = 15.0 - celebration.wait_remaining;
+            if (elapsed > 0 && elapsed < 15) {
+                song.currentTime = elapsed;
+            }
+
+            // 🛡️ OTOMATİK HATA KURTARMA (FALLBACK):
+            song.onerror = () => {
+                const fb = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/goal_song_1.mp3`);
+                fb.currentTime = song.currentTime;
+                fb.play().catch(() => {});
+                miniData._goalSongAudio = fb;
+            };
+
+            song.play().catch(() => {});
+            miniData._goalSongAudio = song;
         }
     }
     
@@ -8430,7 +8452,7 @@ const MiniAudio = {
         this.play(chosen, volume);
     },
 
-    // Tüm sesleri önceden yükle
+    // Tüm sesleri önceden yükle (Ağır gol müzikleri açılış hızını bozmaması için buraya konulmaz)
     preloadAll() {
         const files = [
             "post_hit.wav",
@@ -8439,13 +8461,12 @@ const MiniAudio = {
             "whistle.wav",
             "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
             "kick_1.wav", "kick_2.wav",
-            "goal_song_1.wav", "goal_song_2.wav", "goal_song_3.wav", "goal_song_4.wav",
             "own_goal.wav",
-            "player_join.mp3",  // ✨ Katılma sesi
-            "player_leave.mp3"  // ✨ Ayrılma sesi
+            "player_join.mp3",
+            "player_leave.mp3"
         ];
         files.forEach(f => this.preload(f));
-        console.log("[SES] Sesler preload edildi ✓");
+        console.log("[SES] Hafif sesler preload edildi ✓");
     }
 };
 

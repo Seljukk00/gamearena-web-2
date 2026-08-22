@@ -11,6 +11,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware  # ✨ GZip Sıkıştırması eklendi
 
 from oyun_modlari.bil_bakalim.footballers import ALL_FOOTBALLERS
 
@@ -28,6 +29,12 @@ from oyun_modlari.mini_futbol.mini_futbol_handler import handle_mini_message
 from oyun_modlari.jokerli_satranc.satranc_handler import handle_jokerli_satranc_message
 
 app = FastAPI()
+
+# ==========================================
+# GZIP (Sıkıştırma - Online Yükleme Hızı İçin)
+# ==========================================
+# 1000 byte'tan büyük JS, CSS ve HTML dosyalarını %70 oranında sıkıştırarak gönderir.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ==========================================
 # CORS
