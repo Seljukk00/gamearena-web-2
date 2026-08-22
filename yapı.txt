@@ -349,4 +349,4 @@ Jokerli Satranç son polish + kalan bug fix (Ajan flash, promosyon animasyonu, g
 
 v10 Özet: Sesler eklendi, chat sistemi entegre oldu, yansıma tam çalışıyor, 3 yeni joker (İyileştir + Taşımı Geri Ver + Ekstra Süre), UI iyileştirmeleri.
 
-kodları bul değiş olarak verirken bul u tam ver değiştiri tam ver karısıklık yaratma ve yanlış kod verip bana benim hata deme herşeyi dogru istiyorum 
+kodları bul değiş olarak verirken bul u tam ver değiştiri tam ver karısıklık yaratma ve yanlış kod verip bana benim hata deme herşeyi dogru istiyorum kod hatası istemiyorum tüm dosyaları gördükten sonra kesin kod ver

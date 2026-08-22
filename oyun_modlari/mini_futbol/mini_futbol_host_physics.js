@@ -531,7 +531,9 @@ const HP = {  // Host Physics namespace
                 own_goal: gs.last_goal_own || false,
                 assist_id: gs.last_goal_assist,
                 wait_remaining: Math.max(0, gs.goal_wait_until - now),
-                silent: gs._silentGoalWait === true  // ✨ Ses çalınmasın
+                silent: gs._silentGoalWait === true,  // ✨ Ses çalınmasın
+                speed: gs.last_goal_speed || 0,       // ✨ Şut hızı
+                dist: gs.last_goal_dist || 0          // ✨ Şut mesafesi
             };
         }
         
@@ -1213,6 +1215,18 @@ const HP = {  // Host Physics namespace
             gs.last_goal_assist = assist;
             gs._silentGoalWait = false;  // ✨ Gerçek gol → ses çalsın
             gs._savedTimeLeft = gs.time_left;  // ✨ Süre fix: kalan süreyi kaydet
+            
+            // ✨ Akıllı Hız ve Mesafe Hesaplama (Şut vs Sürüş Ayrımı)
+            const isRecentKick = (ball._shotTime && ball._lastTouchTime) ? (ball._shotTime >= ball._lastTouchTime - 0.1) : !!ball._shotX;
+            const originX = (isRecentKick && ball._shotX !== undefined) ? ball._shotX : (ball._lastTouchX || ball.x);
+            const originY = (isRecentKick && ball._shotY !== undefined) ? ball._shotY : (ball._lastTouchY || ball.y);
+
+            const bSpd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+            gs.last_goal_speed = Math.min(135, Math.max(12, Math.round((bSpd / 18) * 125)));
+            const dx = ball.x - originX;
+            const dy = ball.y - originY;
+            gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dx*dx + dy*dy) / 22));
+            
             gs.state = "goal_wait";
             gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
             gs.pause_time = now;
@@ -1235,8 +1249,8 @@ const HP = {  // Host Physics namespace
         ball.vx *= this.BALL_FRICTION;
         ball.vy *= this.BALL_FRICTION;
         
-        // After-touch
-        if (ball.last_kick_type === "plase") {
+        // After-touch (Düz veya plase fark etmeksizin vuruş sonrası falso imkanı)
+        if (ball.last_kick_type) {
             const kickerId = ball.kicker_id;
             const kickTime = ball.kick_time || 0;
             if (now - kickTime < ADV_AFTERTOUCH_TIME && gs.players[kickerId]) {
@@ -1348,8 +1362,59 @@ const HP = {  // Host Physics namespace
                             gs.kickoff_active = false;
                         }
                         
-                        const nx = dx / dist;
-                        const ny = dy / dist;
+                        let nx = dx / dist;
+                        let ny = dy / dist;
+                        
+                        // ✨ PAS YARDIMI (Pass Assistance)
+                        const passAssistEnabled = this.settings.passAssistance !== false; // default true
+                        const passAssistStr = (adv && adv.passAssistPower !== undefined) ? (adv.passAssistPower / 100.0) : 0.5; // default 50%
+                        
+                        if (passAssistEnabled && passAssistStr > 0) {
+                            let bestTarget = null;
+                            let bestScore = -Infinity;
+                            
+                            for (const tPid in gs.players) {
+                                if (tPid === pid) continue; // Kendine pas atamazsın
+                                const teammate = gs.players[tPid];
+                                
+                                if (teammate.team === p.team) {
+                                    const tdx = teammate.x - ball.x;
+                                    const tdy = teammate.y - ball.y;
+                                    const tDist = Math.sqrt(tdx*tdx + tdy*tdy);
+                                    
+                                    // Çok yakın (40px) veya çok uzak (900px) olanlara pas atma
+                                    if (tDist > 40 && tDist < 900) {
+                                        const tnx = tdx / tDist;
+                                        const tny = tdy / tDist;
+                                        
+                                        // Şut açısı ile takım arkadaşı açısı uyuşuyor mu? (Dot product)
+                                        // 1 = tam üstüne, 0 = 90 derece sağ/sol, -1 = tam arkada
+                                        const dot = nx * tnx + ny * tny;
+                                        
+                                        // Sadece baktığı yöne (yaklaşık 70 derece görüş açısı) olanlara pas atsın
+                                        if (dot > 0.4) {
+                                            // Puanlama: Açısal uyum çok önemli, mesafe de bir miktar etkili
+                                            const score = (dot * 100) - (tDist * 0.02);
+                                            if (score > bestScore) {
+                                                bestScore = score;
+                                                bestTarget = { x: tnx, y: tny };
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Eğer uygun bir takım arkadaşı bulunduysa, şut vektörünü ona doğru yumuşat (lerp)
+                            if (bestTarget) {
+                                nx = nx * (1.0 - passAssistStr) + bestTarget.x * passAssistStr;
+                                ny = ny * (1.0 - passAssistStr) + bestTarget.y * passAssistStr;
+                                
+                                // Vektörü tekrar normalize et (hız kaybı olmasın)
+                                const norm = Math.sqrt(nx*nx + ny*ny);
+                                nx /= norm;
+                                ny /= norm;
+                            }
+                        }
                         
                         // ✨ SAVE için: Bu şut hangi kaleye gidiyor?
                         const shooterId = parseInt(pid);
@@ -1370,6 +1435,8 @@ const HP = {  // Host Physics namespace
                         ball._shotByTeam = shooterTeam;
                         ball._shotTargetGoal = targetGoal;
                         ball._shotTime = now;
+                        ball._shotX = ball.x;    // ✨ Şut çekilen X noktası
+                        ball._shotY = ball.y;    // ✨ Şut çekilen Y noktası
                         
                         // Köşe kontrolü
                         const ball_at_left = ball.x < this.BALL_RADIUS + 8;
@@ -1431,6 +1498,11 @@ const HP = {  // Host Physics namespace
                                 ball.vx = nx * KICK_POWER * mult;
                                 ball.vy = ny * KICK_POWER * mult;
                                 ball.spin = 0;
+                                if (plaseAllowed) {
+                                    ball.last_kick_type = "kick";
+                                    ball.kick_time = now;
+                                    ball.kicker_id = parseInt(pid);
+                                }
                                 // ✨ Top oyuncudan uzağa it (bir sonraki frame'de yapışma tetiklenmesin)
                                 ball.x = p.x + nx * (this.PLAYER_RADIUS + this.BALL_RADIUS + 2);
                                 ball.y = p.y + ny * (this.PLAYER_RADIUS + this.BALL_RADIUS + 2);
@@ -1461,6 +1533,14 @@ const HP = {  // Host Physics namespace
             const dy = ball.y - p.y;
             let dist = Math.sqrt(dx * dx + dy * dy);
             const minDist = this.PLAYER_RADIUS + this.BALL_RADIUS;
+            
+            // ✨ SANTRA DOKUNMA KONTROLÜ (Topa sürerek yaklaşınca santra anında kalkar)
+            if (gs.kickoff_active) {
+                const toucherTeamId = p.team === "red" ? 1 : (p.team === "blue" ? 2 : null);
+                if (toucherTeamId === gs.kickoff_receiving_team && dist <= minDist + 6) {
+                    gs.kickoff_active = false;
+                }
+            }
             
             if (dist < minDist) {
                 // 🧤 SAVE: Sadece kaleyi BULACAK şutlar (gol çizgisi Y projeksiyonu)
@@ -1539,15 +1619,29 @@ const HP = {  // Host Physics namespace
                     }
                 }
                 
+                // ✨ Topa her dokunulduğunda/sürüldüğünde konumu kaydet
+                ball._lastTouchX = ball.x;
+                ball._lastTouchY = ball.y;
+                ball._lastTouchTime = now;
+
                 if (gs.last_ball_toucher !== parseInt(pid)) {
                     const prev = gs.last_ball_toucher;
                     gs.second_last_toucher = prev;
                     gs.last_ball_toucher = parseInt(pid);
-                    if (prev && prev !== parseInt(pid) && this.room.players[prev]) {
-                        const prevTeam = this.room.players[prev].team;
-                        const currTeam = this.room.players[pid].team;
-                        if (prevTeam === currTeam && ["red", "blue"].includes(prevTeam)) {
-                            this.room.players[prev].passes = (this.room.players[prev].passes || 0) + 1;
+                    if (prev && prev !== parseInt(pid)) {
+                        // ✨ Kurşun geçirmez takım tespiti (oyuncu takım değiştirdiyse anında güncel takımı alır)
+                        const pObj = gs.players[prev] || gs.players[String(prev)] || (this.room.players && (this.room.players[prev] || this.room.players[String(prev)]));
+                        const cObj = gs.players[pid] || gs.players[String(pid)] || (this.room.players && (this.room.players[pid] || this.room.players[String(pid)]));
+                        
+                        const prevTeam = pObj ? pObj.team : null;
+                        const currTeam = cObj ? cObj.team : null;
+                        
+                        if (prevTeam && currTeam && prevTeam === currTeam && ["red", "blue"].includes(prevTeam)) {
+                            const pKey = this.room.players[prev] ? prev : String(prev);
+                            if (this.room.players[pKey]) {
+                                this.room.players[pKey].passes = (this.room.players[pKey].passes || 0) + 1;
+                                console.log(`[HP PAS] ${prevTeam} takımında pas sayıldı! ${pKey} → ${pid} (Toplam Pas: ${this.room.players[pKey].passes})`);
+                            }
                         }
                     }
                 }
@@ -1593,8 +1687,36 @@ const HP = {  // Host Physics namespace
                     stickPower = (this.settings.ballStick !== false) ? this.BALL_STICK_FACTOR : 0;
                 }
                 
-                if (bs > this.HARD_BALL_THRESHOLD) {
-                    // Hızlı top - yumuşak sekme
+                if (stickPower === 0) {
+                    // 🎱 HAXBALL MODU (Top İtelenmez, Sadece Çarpar ve Sürüklenir)
+                    
+                    // 1. Önce overlap (çakışma) miktarını çöz, topu oyuncunun dışına al
+                    ball.x += nx * overlap;
+                    ball.y += ny * overlap;
+                    
+                    // 2. Oyuncunun hız vektörü ile çarpışma normali (nx, ny) üzerinden etkiyi hesapla
+                    const p_dot = p.vx * nx + p.vy * ny;
+                    const b_dot = ball.vx * nx + ball.vy * ny;
+
+                    // Eğer oyuncu topa doğru gidiyorsa veya top oyuncuya doğru geliyorsa (çarpışma)
+                    if (p_dot > b_dot) {
+                        // Topun o yöndeki hızını, oyuncunun hızıyla tamamen eşitleriz. 
+                        // Böylece top fırlamaz, sadece oyuncunun önünde sürüklenir.
+                        
+                        // Eski dot bileşenini sil
+                        ball.vx -= b_dot * nx;
+                        ball.vy -= b_dot * ny;
+                        
+                        // Yeni dot bileşeni olarak oyuncunun hızını ekle (biraz sekme payı +0.1)
+                        const bounceFactor = 1.05; 
+                        ball.vx += (p_dot * bounceFactor) * nx;
+                        ball.vy += (p_dot * bounceFactor) * ny;
+                    }
+                    
+                    ball.spin = 0; // Haxball'da spin yok
+
+                } else if (bs > this.HARD_BALL_THRESHOLD) {
+                    // ⚡ Hızlı top - yumuşak sekme (Yapışma Modu Açıkken)
                     const dot = ball.vx * nx + ball.vy * ny;
                     
                     const safeDistance = this.PLAYER_RADIUS + this.BALL_RADIUS + 2;
@@ -1615,8 +1737,7 @@ const HP = {  // Host Physics namespace
                     }
                     ball.spin = (ball.spin || 0) * 0.3;
                 } else {
-                    // ✨ SAF YAPIŞKAN TOP SÜRÜŞÜ (İTME YOK, TAM KONTROL):
-                    // Topu oyuncunun tam sınırında tut ve hızını oyuncuyla birebir eşitle
+                    // 🧲 Yavaş top - TAM YAPIŞIK SÜRÜŞ (Yapışma Modu Açıkken)
                     ball.x = p.x + nx * (this.PLAYER_RADIUS + this.BALL_RADIUS);
                     ball.y = p.y + ny * (this.PLAYER_RADIUS + this.BALL_RADIUS);
                     
@@ -1687,6 +1808,18 @@ const HP = {  // Host Physics namespace
                 gs.last_goal_own = own;
                 gs.last_goal_assist = assist;
                 gs._savedTimeLeft = gs.time_left;  // ✨ Kalan süreyi kaydet
+                
+                // ✨ Akıllı Hız ve Mesafe Hesaplama (Sol & Sağ Kale)
+                const isRecentKickG = (ball._shotTime && ball._lastTouchTime) ? (ball._shotTime >= ball._lastTouchTime - 0.1) : !!ball._shotX;
+                const originXG = (isRecentKickG && ball._shotX !== undefined) ? ball._shotX : (ball._lastTouchX || ball.x);
+                const originYG = (isRecentKickG && ball._shotY !== undefined) ? ball._shotY : (ball._lastTouchY || ball.y);
+
+                const bSpdG = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                gs.last_goal_speed = Math.min(135, Math.max(12, Math.round((bSpdG / 18) * 125)));
+                const dxG = ball.x - originXG;
+                const dyG = ball.y - originYG;
+                gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
+
                 gs.state = "goal_wait";
                 gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
                 gs.pause_time = now;
@@ -1751,6 +1884,18 @@ const HP = {  // Host Physics namespace
                 gs.last_goal_own = own;
                 gs.last_goal_assist = assist;
                 gs._savedTimeLeft = gs.time_left;  // ✨ Kalan süreyi kaydet
+                
+                // ✨ Akıllı Hız ve Mesafe Hesaplama (Sol & Sağ Kale)
+                const isRecentKickG = (ball._shotTime && ball._lastTouchTime) ? (ball._shotTime >= ball._lastTouchTime - 0.1) : !!ball._shotX;
+                const originXG = (isRecentKickG && ball._shotX !== undefined) ? ball._shotX : (ball._lastTouchX || ball.x);
+                const originYG = (isRecentKickG && ball._shotY !== undefined) ? ball._shotY : (ball._lastTouchY || ball.y);
+
+                const bSpdG = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+                gs.last_goal_speed = Math.min(135, Math.max(12, Math.round((bSpdG / 18) * 125)));
+                const dxG = ball.x - originXG;
+                const dyG = ball.y - originYG;
+                gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
+
                 gs.state = "goal_wait";
                 gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
                 gs.pause_time = now;

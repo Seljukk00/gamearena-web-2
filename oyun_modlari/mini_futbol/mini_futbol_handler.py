@@ -131,12 +131,15 @@ async def send_minifutbol_lobby_update(room, broadcast):
         "allow_plase": room.get("allow_plase", True),
         "ball_stick": room.get("ball_stick", True),
         "sprint_enabled": room.get("sprint_enabled", True),
+        "pass_assistance": room.get("pass_assistance", True),
         "player_count": room.get("player_count", 2),
         "spectator_count": room.get("spectator_count", 0),
         "kickoff_timeout": room.get("kickoff_timeout", 10),
         "field_width": _fd_lobby["width"],
         "field_height": _fd_lobby["height"],
-        "field_goal_width": _fd_lobby["goal_width"]
+        "field_goal_width": _fd_lobby["goal_width"],
+        "advanced_enabled": room.get("advanced_enabled", False),
+        "advanced": room.get("advanced_settings")
     }
     await broadcast(room, msg)
 
@@ -1446,6 +1449,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         allow_plase_init = bool(data.get("allow_plase", True))
         ball_stick_init = bool(data.get("ball_stick", True))
         sprint_enabled_init = bool(data.get("sprint_enabled", True))
+        pass_assistance_init = bool(data.get("pass_assistance", True))
         player_count_init = int(data.get("player_count", 2))
         # ✨ Takım isimleri (client'tan geliyorsa kullan, yoksa default)
         red_team_name_init = (data.get("red_team_name") or "Kırmızı Takım").strip()[:20]
@@ -1505,6 +1509,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "allow_plase": allow_plase_init,
             "ball_stick": ball_stick_init,
             "sprint_enabled": sprint_enabled_init,
+            "pass_assistance": pass_assistance_init,
             "player_count": player_count_init,
             "spectator_count": spectator_count_init,
             "field_width": _fs_create["width"],
@@ -1533,11 +1538,12 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 safe_adv["kickPower"]        = clamp(adv_vals.get("kickPower"), 8, 25, 14)
                 safe_adv["sprintKickBonus"]  = clamp(adv_vals.get("sprintKickBonus"), 0, 100, 30)
                 safe_adv["plasePower"]       = clamp(adv_vals.get("plasePower"), 40, 100, 75)
-                safe_adv["plaseSpin"]        = clamp(adv_vals.get("plaseSpin"), 10, 80, 35)
+                safe_adv["plaseSpin"]        = clamp(adv_vals.get("plaseSpin"), 10, 100, 35)
                 safe_adv["afterTouchTime"]   = clamp(adv_vals.get("afterTouchTime"), 0, 1000, 200)
                 safe_adv["ballMaxSpeed"]    = clamp(adv_vals.get("ballMaxSpeed"), 10, 35, 18)
                 safe_adv["sprintMultiplier"] = clamp(adv_vals.get("sprintMultiplier"), 100, 250, 150)
                 safe_adv["sprintDuration"]   = clamp(adv_vals.get("sprintDuration"), 1, 10, 3)
+                safe_adv["passAssistPower"]  = clamp(adv_vals.get("passAssistPower"), 0, 100, 50)  # ✨ Pas yardım gücü
                 safe_adv["ballStick"]        = clamp(adv_vals.get("ballStick"), 0, 100, 85)  # ✨ Top yapışma
                 
                 rooms[new_code]["advanced_enabled"] = True
@@ -1699,6 +1705,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         allow_plase = bool(data.get("allow_plase", True))
         ball_stick = bool(data.get("ball_stick", True))
         sprint_enabled = bool(data.get("sprint_enabled", True))
+        pass_assistance = bool(data.get("pass_assistance", True))
         new_player_count = int(data.get("player_count", room.get("player_count", 2)))
         advanced_enabled = bool(data.get("advanced_enabled", False))
         advanced_values = data.get("advanced", {}) or {}
@@ -1774,6 +1781,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         old_allow_plase = room.get("allow_plase", True)
         old_ball_stick = room.get("ball_stick", True)
         old_sprint_enabled = room.get("sprint_enabled", True)
+        old_pass_assistance = room.get("pass_assistance", True)
         old_kickoff_timeout = room.get("kickoff_timeout", 10)
         old_player_count = room.get("player_count", 2)
         
@@ -1783,6 +1791,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         room["allow_plase"] = allow_plase  # ✨ Falso izni
         room["ball_stick"] = ball_stick    # ✨ Top yapışma
         room["sprint_enabled"] = sprint_enabled  # ✨ Sprint aktif
+        room["pass_assistance"] = pass_assistance # ✨ Pas yardımı
         
         # ✨ Oyun içindeyse ve süre değiştiyse match_start'ı yeniden başlat
         if room.get("phase") == "playing" and old_match_duration != match_duration:
@@ -1819,6 +1828,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             safe_adv["ballMaxSpeed"]      = clamp(advanced_values.get("ballMaxSpeed"), 10, 35, 18)
             safe_adv["sprintMultiplier"]  = clamp(advanced_values.get("sprintMultiplier"), 100, 250, 150)
             safe_adv["sprintDuration"]    = clamp(advanced_values.get("sprintDuration"), 1, 10, 3)
+            safe_adv["passAssistPower"]   = clamp(advanced_values.get("passAssistPower"), 0, 100, 50)  # ✨ Pas yardım gücü
             safe_adv["ballStick"]         = clamp(advanced_values.get("ballStick"), 0, 100, 85)  # ✨ Top yapışma
             
             room["advanced_settings"] = safe_adv
@@ -1908,6 +1918,13 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 changes.append({"msg": "⚡ Sprint etkinleştirildi"})
             else:
                 changes.append({"msg": "⚡ Sprint devre dışı bırakıldı"})
+        
+        # Pas yardımı
+        if old_pass_assistance != pass_assistance:
+            if pass_assistance:
+                changes.append({"msg": "🤝 Pas Yardımı etkinleştirildi"})
+            else:
+                changes.append({"msg": "🤝 Pas Yardımı devre dışı bırakıldı"})
         
         # ✨ Gelişmiş Mod Toggle
         old_advanced_enabled = room.get("advanced_enabled", False)
@@ -2120,6 +2137,28 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
+    # ==========================================
+    # HOST SEKME DEĞİŞTİRDİ (Gecikme Uyarısı İçin)
+    # ==========================================
+    if msg_type == "mini_host_visibility":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if player_id != 1:  # Sadece host gönderebilir
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        is_hidden = bool(data.get("hidden", False))
+        
+        # Sadece misafirlere bildir
+        for pid, pdata in room["players"].items():
+            if pid != 1 and pdata.get("ws"):
+                await safe_send(pdata["ws"], {
+                    "type": "mini_host_visibility",
+                    "hidden": is_hidden
+                })
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+
     # ==========================================
     # P TUŞU - HIZLI PAUSE (Lobby açmaz, sadece durdur)
     # ==========================================
