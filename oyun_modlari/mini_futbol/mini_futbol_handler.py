@@ -1439,7 +1439,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
     """Mini Futbol mesajlarını işle"""
     
     # ==========================================
-    # 🌐 WEBRTC HEDEFLENMİŞ SİGNALİNG YÖNLENDİRİCİ (Star Topology - Güvenli)
+    # 🌐 WEBRTC HEDEFLENMİŞ SİGNALİNG YÖNLENDİRİCİ
     # ==========================================
     if msg_type in ["mini_webrtc_offer", "mini_webrtc_answer", "mini_webrtc_ice"]:
         if room_code not in rooms:
@@ -1450,7 +1450,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         
         if target_pid is not None:
             try:
-                # Hem int hem str formatını deneyerek key uyuşmazlığını çözüyoruz
                 pid_int = int(target_pid)
                 pid_str = str(target_pid)
                 
@@ -1461,14 +1460,10 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                     target_ws = room["players"][pid_str].get("ws")
                     
                 if target_ws:
-                    payload = {
-                        **data,
-                        "type": msg_type,
-                        "sender_id": player_id
-                    }
+                    payload = dict(data)
+                    payload["type"] = msg_type
+                    payload["sender_id"] = player_id
                     await safe_send(target_ws, payload)
-                else:
-                    print(f"[WebRTC Router] Hedef oyuncu {target_pid} odada bulunamadı! Mevcutlar: {list(room['players'].keys())}")
             except Exception as e:
                 print(f"[WebRTC Router Hata] {e}")
                 

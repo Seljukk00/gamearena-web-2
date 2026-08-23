@@ -1,5 +1,5 @@
 // ==========================================
-// 🌐 WEBRTC MANAGER (Mini Futbol P2P - %100 Kararlı Sürüm)
+// 🌐 WEBRTC MANAGER (Mini Futbol P2P - Kesin Çözüm)
 // ==========================================
 const MiniRTC = {
     pcs: {},            // playerId -> RTCPeerConnection
@@ -19,7 +19,7 @@ const MiniRTC = {
 
     // Peer bağlantısı kur (Host çağırır)
     async createConnectionFor(targetPid) {
-        const pid = parseInt(targetPid);
+        const pid = Number(targetPid);
         console.log(`[WebRTC] Host: ${pid} için P2P bağlantısı oluşturuluyor...`);
         this.isHost = true;
         
@@ -38,17 +38,17 @@ const MiniRTC = {
         const pc = new RTCPeerConnection(this.config);
         this.pcs[pid] = pc;
         
-        // Kararlı DataChannel (%100 tarayıcı uyumlu)
         const channel = pc.createDataChannel("mini");
         this.channels[pid] = channel;
         this._setupChannel(channel, pid);
         
         pc.onicecandidate = (e) => {
             if (e.candidate) {
+                const candData = e.candidate.toJSON ? e.candidate.toJSON() : e.candidate;
                 send({
                     type: "mini_webrtc_ice",
                     target_id: pid,
-                    candidate: e.candidate
+                    candidate: candData
                 });
             }
         };
@@ -64,19 +64,23 @@ const MiniRTC = {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         
+        const offerData = pc.localDescription ? (pc.localDescription.toJSON ? pc.localDescription.toJSON() : pc.localDescription) : offer;
         send({
             type: "mini_webrtc_offer",
             target_id: pid,
-            offer: offer
+            offer: offerData
         });
     },
     
     // Offer al (Misafir tarafı)
     async handleOffer(offer, senderId) {
-        const sid = parseInt(senderId);
+        const sid = Number(senderId);
         console.log(`[WebRTC] Misafir: Host'tan (${sid}) Offer alındı.`);
         this.isHost = false;
-        this.reset();
+        
+        if (this.pcs[sid]) {
+            this.closeConnectionFor(sid);
+        }
         
         if (!this._iceQueues) this._iceQueues = {};
         this._iceQueues[sid] = [];
@@ -84,7 +88,7 @@ const MiniRTC = {
         this._connectTimeouts[sid] = setTimeout(() => {
             const chan = this.channels[sid];
             if (!chan || chan.readyState !== "open") {
-                console.warn("[WebRTC] Host P2P zaman aşımı. Sunucu aktif.");
+                console.warn("[WebRTC] P2P zaman aşımı. Sunucu aktif.");
                 this.reset();
             }
         }, 15000);
@@ -93,17 +97,18 @@ const MiniRTC = {
         this.pcs[sid] = pc;
         
         pc.ondatachannel = (e) => {
-            console.log("[WebRTC] Host'tan DataChannel alındı ve bağlandı ✓");
+            console.log("[WebRTC] Host'tan DataChannel bağlandı ✓");
             this.channels[sid] = e.channel;
             this._setupChannel(e.channel, sid);
         };
         
         pc.onicecandidate = (e) => {
             if (e.candidate) {
+                const candData = e.candidate.toJSON ? e.candidate.toJSON() : e.candidate;
                 send({
                     type: "mini_webrtc_ice",
                     target_id: sid,
-                    candidate: e.candidate
+                    candidate: candData
                 });
             }
         };
@@ -116,7 +121,6 @@ const MiniRTC = {
             }
         };
         
-        // Yerel nesneye dönüştür
         const sessionDesc = new RTCSessionDescription(offer);
         await pc.setRemoteDescription(sessionDesc);
         
@@ -125,16 +129,17 @@ const MiniRTC = {
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         
+        const answerData = pc.localDescription ? (pc.localDescription.toJSON ? pc.localDescription.toJSON() : pc.localDescription) : answer;
         send({
             type: "mini_webrtc_answer",
             target_id: sid,
-            answer: answer
+            answer: answerData
         });
     },
     
     // Answer al (Host tarafı)
     async handleAnswer(answer, senderId) {
-        const sid = parseInt(senderId);
+        const sid = Number(senderId);
         console.log(`[WebRTC] Host: Peer ${sid} Answer'ı alındı.`);
         const pc = this.pcs[sid];
         if (pc) {
@@ -146,7 +151,7 @@ const MiniRTC = {
     
     // ICE Adayı ekle
     async handleIce(candidate, senderId) {
-        const sid = parseInt(senderId);
+        const sid = Number(senderId);
         if (!this._iceQueues) this._iceQueues = {};
         if (!this._iceQueues[sid]) this._iceQueues[sid] = [];
         
@@ -161,13 +166,13 @@ const MiniRTC = {
             const iceCand = new RTCIceCandidate(candidate);
             await pc.addIceCandidate(iceCand);
         } catch(e) {
-            console.warn(`[WebRTC] ICE ekleme hatası (${sid}):`, e);
+            console.warn(`[WebRTC] ICE hatası (${sid}):`, e);
         }
     },
     
     // Bekleyen ICE adaylarını işle
     async _processIceQueue(senderId) {
-        const sid = parseInt(senderId);
+        const sid = Number(senderId);
         const pc = this.pcs[sid];
         if (!pc || !this._iceQueues || !this._iceQueues[sid]) return;
         
@@ -178,14 +183,14 @@ const MiniRTC = {
                 const iceCand = new RTCIceCandidate(candidate);
                 await pc.addIceCandidate(iceCand);
             } catch(e) {
-                console.warn(`[WebRTC Queue] ICE ekleme hatası (${sid}):`, e);
+                console.warn(`[WebRTC Queue] ICE hatası (${sid}):`, e);
             }
         }
     },
     
     // Kanal kurulumu
     _setupChannel(channel, peerId) {
-        const pid = parseInt(peerId);
+        const pid = Number(peerId);
         channel.onopen = () => {
             console.log(`[WebRTC] ✅ Peer ${pid} DataChannel AÇILDI!`);
             this.connected = true;
@@ -196,9 +201,6 @@ const MiniRTC = {
             }
             
             this._checkOverallConnection();
-            if (typeof updateMiniConnectionBadge === "function") {
-                updateMiniConnectionBadge();
-            }
         };
         
         channel.onclose = () => {
@@ -247,13 +249,13 @@ const MiniRTC = {
                 
                 handleMiniMessage(msg);
             } catch(err) {
-                console.warn("[WebRTC] Mesaj parse hatası:", err);
+                console.warn("[WebRTC] Parse hatası:", err);
             }
         };
     },
     
     sendToPeer(peerId, data) {
-        const pid = parseInt(peerId);
+        const pid = Number(peerId);
         const chan = this.channels[pid];
         if (chan && chan.readyState === "open") {
             try {
@@ -301,7 +303,7 @@ const MiniRTC = {
     },
 
     closeConnectionFor(peerId) {
-        const pid = parseInt(peerId);
+        const pid = Number(peerId);
         if (this._connectTimeouts[pid]) {
             clearTimeout(this._connectTimeouts[pid]);
             delete this._connectTimeouts[pid];
@@ -324,7 +326,7 @@ const MiniRTC = {
         this._connectTimeouts = {};
         if (this._iceQueues) this._iceQueues = {};
         for (const pid in this.pcs) {
-            this.closeConnectionFor(parseInt(pid));
+            this.closeConnectionFor(Number(pid));
         }
         this.pcs = {};
         this.channels = {};
@@ -347,44 +349,32 @@ let miniData = {
     goalTarget: 3,
     matchDuration: 180,
     gameSpeed: "normal",
-    playerCount: 2,  // ✨ Default 1v1
-    spectatorCount: 0,  // ✨ Default izleyici yok
+    playerCount: 2,
+    spectatorCount: 0,
     redTeamName: "Kırmızı Takım",
     blueTeamName: "Mavi Takım",
     splitScreen: false,
-    splitOwner: null,        // ✨ Split sahibi (playerId 1)
-    splitSlaveId: null,      // ✨ Split'in 2. oyuncu ID'si
-    keysPressed2: {},        // ✨ P2 için ayrı tuş takibi (split-screen)
-    // Oyun state
+    splitOwner: null,
+    splitSlaveId: null,
+    keysPressed2: {},
     playerNames: {},
     fieldConfig: null,
     gameState: null,
     keysPressed: {},
     currentPositions: {},
     targetPositions: {},
-    // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
-    snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 50,         // ✨ 50ms buffer: ağ jitter'ını yutar, akıcılık artar (hâlâ düşük gecikme)
-    serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
-    // ✨ PING sistemi
-    pings: {},           // {playerId: ping_ms}
-    pingInterval: null,  // setInterval handle
+    snapshots: [],
+    interpDelay: 50,
+    serverTimeOffset: null,
+    pings: {},
+    pingInterval: null,
     lastPingSent: 0,
-    
-    // ✨ CLIENT-SIDE PREDICTION (misafir için)
-    predictedSelf: null,     // {x, y, vx, vy} - kendi karakterimin tahmini pozisyonu
+    predictedSelf: null,
     predictedKeys: {up:false, down:false, left:false, right:false, sprint:false},
-    predictionActive: false, // Sadece misafirse aktif olur
-    
-    };
-
-
+    predictionActive: false
+};
 
 let miniAnimFrame = null;
-
-// ========================================
-// 🎥 REPLAY SİSTEMİ (v10 Özel - 10 Saniye Tamponlu)
-// ========================================
 let miniReplay = {
     buffer: [],          // Frame kayıtları
     lockedBuffer: null,  // Gol anında dondurulan klip
