@@ -161,6 +161,13 @@ function clearHaritaChatPopups() {
 }
 
 function addHaritaChatMessage(msg) {
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
+
     haritaChat.messages.push(msg);
     if (haritaChat.messages.length > haritaChat.maxMessages) haritaChat.messages.shift();
     
@@ -1097,6 +1104,7 @@ function renderHaritaAll() {
 const _prevHandleMessageHarita = handleMessage;
 handleMessage = function(msg) {
     if (msg.type === "harita_room_created" || msg.type === "harita_room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         haritaData.playerId = msg.player_id;
         haritaData.roomCode = msg.room_code;
         haritaData.turnSeconds = (msg.turn_seconds !== undefined && msg.turn_seconds !== null) ? msg.turn_seconds : 30;
@@ -1112,6 +1120,10 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "harita_lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (haritaData.players && msg.players && haritaData.players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         showHaritaChat();
         haritaData.roomCode = msg.room_code;
         haritaData.players = msg.players;
@@ -1346,6 +1358,7 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "harita_player_left") {
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         // Bir oyuncu ayrıldı
         if (msg.players) haritaData.players = msg.players;
         if (msg.scores) haritaData.scores = msg.scores;

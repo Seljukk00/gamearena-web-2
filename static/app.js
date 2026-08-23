@@ -986,20 +986,11 @@ function openKickConfirm(targetId, targetName) {
     noBtn.onclick = closeBox;
 }
 
-// ============ CHAT BİLDİRİM SESİ (Ortak) ============
-let _chatNotifyAudio = null;
+// ============ CHAT BİLDİRİM SESİ (Ortak - Ses Seviyesinden Bağımsız) ============
 function _playChatNotifySound() {
     try {
-        if (!_chatNotifyAudio) {
-            _chatNotifyAudio = new Audio("/static/sounds/chat_notify.mp3");
-            _chatNotifyAudio.preload = "auto";
-        }
-        // Global ses seviyesini al
-        const volume = getGlobalVolume();
-        if (volume <= 0) return;
-
-        const sound = _chatNotifyAudio.cloneNode();
-        sound.volume = Math.min(1, Math.max(0, volume));
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
         sound.play().catch(() => {});
     } catch (e) {}
 }
@@ -1112,10 +1103,8 @@ function clearBilChatPopups() {
 }
 
 function addBilChatMessage(msg) {
-    // ✨ Bildirim sesi - sadece rakip yazınca çal
-    if (msg.sender_id !== playerId) {
-        try { _playChatNotifySound(); } catch(e) {}
-    }
+    // ✨ Bildirim sesi - Yazan dahil herkes duysun
+    try { _playChatNotifySound(); } catch(e) {}
 
     bilChat.messages.push(msg);
     if (bilChat.messages.length > bilChat.maxMessages) bilChat.messages.shift();
@@ -1260,6 +1249,7 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "room_created") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         playerId = msg.player_id;
         roomCode = msg.room_code;
         turnSeconds = msg.turn_seconds || 45;
@@ -1272,6 +1262,7 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         playerId = msg.player_id;
         roomCode = msg.room_code;
         turnSeconds = msg.turn_seconds || 45;
@@ -1284,6 +1275,10 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (players && msg.players && players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         showBilChat();
         roomCode = msg.room_code;
         players = msg.players;
@@ -1506,6 +1501,7 @@ function handleMessage(msg) {
 	
 	// ✨ Rakip oyun içinde ayrıldı → lobiye dön (oda açık)
     if (msg.type === "opponent_left_to_lobby") {
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         stopTimer();
         hideAnswerPanel();
         confirmBox.classList.add("hidden");
@@ -1579,12 +1575,12 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "player_left_lobby") {
-        // Rakip lobbyden ayrıldı ama oda açık kaldı
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         showToast("👋 Oyuncu Ayrıldı", msg.message, null);
     }
 
     if (msg.type === "you_were_kicked") {
-        // Sen atıldın — anında katıl ekranına git + toast göster
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         inRoom = false;
         document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));
         if (ws) { try { ws.close(); } catch(e) {} }
@@ -1595,7 +1591,7 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "player_kicked") {
-        // Başka bir oyuncu atıldı
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         showToast("⚠️ Oyuncu Atıldı", msg.message, null);
     }
 
@@ -2438,6 +2434,7 @@ window._showLeaveConfirmPopup = function() {
     
     document.getElementById("leaveConfirmYesBtn").onclick = () => {
         overlay.remove();
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         const wasHost = _isCurrentHost();
         inRoom = false;
         if (ws) { try { ws.close(); } catch(e) {} }
@@ -2458,6 +2455,7 @@ window._showLeaveConfirmPopup = function() {
 
 // Ortak: odadan ayrıl + ana menüye git
 function _leaveRoom(goHome) {
+    try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
     const wasHost = _isCurrentHost();
     
     inRoom = false;
@@ -4119,6 +4117,7 @@ handleMessage = function(msg) {
     // ✨ HOST ODAYI KAPATTI - Kullanıcı katıl ekranına atılır
     if (msg.type === "host_left_room") {
         console.log("[HOST LEFT] Oda kapatıldı");
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         
         // Tüm popup'ları kapat
         document.querySelectorAll(".overlay").forEach(o => o.classList.add("hidden"));

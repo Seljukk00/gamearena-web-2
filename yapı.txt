@@ -1,12 +1,14 @@
-🎮 GameArena Web - Proje Devam Promptu (v10 - Sesler + Chat + Yansıma + Bug Fixler)
+🎮 GameArena Web - Proje Devam Promptu (v10.1 - Güncel Yapı)
+
 📋 PROJE ÖZETİ
 Bu, çoklu mod destekleyen online multiplayer futbol bilgi/tahmin + real-time oyun web sitesidir.
 
-Backend: FastAPI + WebSocket (Python)
+Backend: FastAPI + WebSocket (Python 3.12)
 Frontend: HTML + CSS + JavaScript (vanilla, framework yok)
 Hosting: Render.com (Free Plan)
 Web Projesi: C:\Users\Seljuk\Desktop\GameArena_Web\
-📁 TAM KLASÖR YAPISI
+📁 TAM KLASÖR YAPISI (GERÇEK)
+
 text
 
 GameArena_Web/
@@ -14,46 +16,142 @@ GameArena_Web/
 ├── requirements.txt
 ├── runtime.txt
 ├── render.yaml
-├── .env (GEMINI_API_KEY + TURNSTILE_SECRET + SELJUK_PASSWORD)
+├── .env                          (GEMINI_API_KEY + TURNSTILE_SECRET + SELJUK_PASSWORD)
 ├── .gitignore
-├── venv/
+├── yapı.txt
+├── venv/                         (Python 3.12 sanal ortam - dokunma)
+│
 ├── batlar/
+│   ├── guncelle_ve_gonder.bat
+│   └── test_lokal.bat
+│
+├── mod_resimleri/                (10 mod PNG — meme_arena.png yok!)
+│   ├── bil_bakalim.png
+│   ├── gizemli_kariyer.png
+│   ├── haritadan_bul.png
+│   ├── ilk_11.png
+│   ├── jokerli_satranc.png
+│   ├── kim_milyoner.png
+│   ├── mini_futbol.png
+│   ├── sarkidan_bul.png
+│   ├── stadyum_tanima.png
+│   └── takim_bilmece.png
+│
 ├── static/
+│   ├── ads.txt
 │   ├── index.html
 │   ├── style.css
 │   ├── app.js
-│   ├── images/
-│   └── sounds/
-│       └── chat_notify.mp3       (Global chat bildirim sesi)
-├── mod_resimleri/
+│   ├── images/                   (600+ futbolcu resmi .webp — futbolcu portreleri)
+│   │                             Örnek: messi.webp, ronaldo.webp, hakansukur.webp vb.
+│   └── sounds/                   (3 global ses)
+│       ├── chat_notify.mp3       (Rakip chat mesaj bildirimi)
+│       ├── player_join.mp3       (Oyuncu odaya girdiğinde)
+│       └── player_leave.mp3      (Oyuncu odadan çıktığında)
+│
 └── oyun_modlari/
     ├── __init__.py
+    │
     ├── bil_bakalim/
+    │   ├── __init__.py
+    │   ├── bil_bakalim_handler.py
+    │   ├── footballers.py
+    │   └── questions.py
+    │
     ├── takim_bilmece/
+    │   ├── __init__.py
+    │   ├── takim_bilmece.css
+    │   ├── takim_bilmece.js
+    │   ├── takim_handler.py
+    │   ├── teams.py
+    │   └── flags/                (58 ülke bayrağı .png — turkiye, almanya, brezilya vb.)
+    │
     ├── kim_milyoner/
+    │   ├── __init__.py
+    │   ├── ai_soru_uretici.py
+    │   ├── kim_milyoner.css
+    │   ├── kim_milyoner.js
+    │   ├── milyoner_handler.py
+    │   ├── questions.py
+    │   └── assets/               (4 ses dosyası)
+    │       ├── correct.mp3
+    │       ├── menu.mp3
+    │       ├── question.WAV
+    │       └── wrong.mp3
+    │
     ├── haritadan_bul/
+    │   ├── __init__.py
+    │   ├── haritadan_bul.css
+    │   ├── haritadan_bul.js
+    │   ├── harita_data.py
+    │   ├── harita_handler.py
+    │   ├── world.svg
+    │   └── flags/                (250+ ülke bayrağı .svg — ISO kodları: tr.svg, de.svg vb.)
+    │
     ├── gizemli_kariyer/
+    │   ├── __init__.py
+    │   ├── futbolcular.py
+    │   ├── gizemli_kariyer.css
+    │   ├── gizemli_kariyer.js
+    │   ├── gizem_handler.py
+    │   ├── takimlar.py
+    │   └── takim_logolari/       (270+ kulüp logosu .png — galatasaray, real_madrid vb.)
+    │
     ├── ilk_11_challenge/
+    │   ├── __init__.py
+    │   ├── ilk11_handler.py
+    │   ├── ilk_11.css
+    │   └── ilk_11.js
+    │
     ├── stadyum_tanima/
-    ├── meme_arena/
+    │   ├── __init__.py
+    │   ├── stadyum.py
+    │   ├── stadyumlar.py
+    │   ├── stadyum_handler.py
+    │   ├── stadyum_tanima.css
+    │   ├── stadyum_tanima.js
+    │   └── images/               (48 stadyum .webp — camp_nou, ali_sami_yen vb.)
+    │
     ├── sarkidan_bul/
+    │   ├── __init__.py
+    │   ├── deezer_api.py
+    │   ├── playlists.py
+    │   ├── sarkidan_bul.css
+    │   ├── sarkidan_bul.js
+    │   └── sarki_handler.py
+    │
     ├── mini_futbol/
-        ├── __pycache__
-        ├── sounds
-        ├── mini_futbol.js
-        ├── mini_futbol.css
-        ├── mini_futbol_host_physics.js
-        ├── mini_futbol_handler.py
-        ├── mini_futbol_ticker.js
-
-    
+    │   ├── __init__.py
+    │   ├── mini_futbol.css
+    │   ├── mini_futbol.js
+    │   ├── mini_futbol_handler.py
+    │   ├── mini_futbol_host_physics.js
+    │   ├── mini_futbol_ticker.js
+    │   └── sounds/
+    │       ├── whistle.wav, whistle2.wav
+    │       ├── kick_1.wav, kick_2.wav
+    │       ├── fire_kick_1.wav, fire_kick_2.wav, fire_kick_3.wav
+    │       ├── goal_1.wav, goal_2.wav, goal_3.wav
+    │       ├── own_goal.wav
+    │       ├── post_hit.wav
+    │       ├── wall_hit_1.wav, wall_hit_2.wav
+    │       └── Goal_Songs/       (goal_song_1.mp3 → goal_song_12.mp3)
+    │
     └── jokerli_satranc/
-        ├── satranc_handler.py    (~3000 satır)
-        ├── jokerler.py           (28 joker)
-        ├── jokerli_satranc.js
+        ├── __init__.py
+        ├── ayarlar.py            (Ayar sabitleri)
+        ├── jokerler.py           (30 joker tanımı)
         ├── jokerli_satranc.css
-        ├── vendor/
-        └── sounds/               (11 dosya)
+        ├── jokerli_satranc.js
+        ├── satranc_handler.py    (~3000 satır)
+        ├── vendor/               (chessboard.js + chess.js + jQuery)
+        │   ├── chess.min.js
+        │   ├── chessboard-1.0.0.css / .min.css
+        │   ├── chessboard-1.0.0.js / .min.js
+        │   ├── jquery-3.7.1.min.js
+        │   └── img/chesspieces/wikipedia/
+        │       └── (bB.png, bK.png, bN.png, bP.png, bQ.png, bR.png + w karşılıkları)
+        └── sounds/               (18 ses dosyası)
             ├── carkifelek.wav
             ├── tas_hareket.wav
             ├── tas_yeme.wav
@@ -62,6 +160,9 @@ GameArena_Web/
             ├── oyun_bitti.wav
             ├── isinlanma.wav
             ├── sah.wav
+            ├── kasa_acilma.wav
+            ├── rulet.mp3
+            ├── zar.mp3
             ├── joker_secildi.mp3
             ├── joker_iptal.mp3
             ├── joker_onay.mp3
@@ -70,6 +171,7 @@ GameArena_Web/
             ├── kilit.mp3
             └── geri_al.mp3
 🎯 11 MOD - TÜMÜ AKTİF ✅
+
 Bil Bakalım
 Takım Bilmece
 Kim Milyoner (Turnstile)
@@ -79,15 +181,17 @@ Gizemli Kariyer
 Stadyum Tanıma
 Meme Arena
 🎵 Şarkıdan Bul (Deezer)
-Mini Futbol (Haxball tarzı)
-♟️ Jokerli Satranç (28 joker + polish v10)
+⚽ Mini Futbol (Haxball tarzı)
+♟️ Jokerli Satranç (30 joker + polish v10)
 ♟️ JOKERLİ SATRANÇ - v10 GÜNCEL DURUM
+
 ✅ v10'DA EKLENEN / DÜZELTİLEN
+
 Yenilen Taşlar Paneli: Sol dışta yeşil "Yediklerim", sağ dışta kırmızı "Kaybettiklerim". Toplam sayaç. Her hamlede anlık güncellenir.
 Piyon Promosyon: Popup her zaman 4 tür göster (Vezir/Kale/Fil/At). Yediklerinde varsa ×N rozeti. Sade fade animasyonu.
 Menü Butonları: Tahtanın altında, ortalı. Menüye Dön solda, 🏳️ Terk Et sağda.
 Süresiz modda: Zaman Çal, Zamanı Durdur, Ekstra Süre → seçim ekranında kilit + gri. Rastgele dağıtımda hariç.
-Süre Modu: ⚡ 1 Dakika / 🔥 3 Dakika / 🏃 10 Dakika / 🎩 30 Dakika / ♾️ Süresiz (net saniye/dakika)
+Süre Modu: ⚡ 1 Dakika / 🔥 3 Dakika / 🏃 10 Dakika / 🎩 30 Dakika / ♾️ Süresiz
 Karışık modda Joker Seçim Süresi alanı gizli.
 Karşılıklı Ekstra Joker: Hediye kutusu 🎁 animasyonu (hem sende hem rakipte açılır)
 Piyon Katliamı: 5-6 piyon rastgele silinir.
@@ -98,15 +202,21 @@ Karşılıklı Ekstra + Sen Ekstra + Joker Değişimi: Önce Başla + süresiz s
 Taşımı Geri Ver jokeri (yeni): Rakibin senden yediği taşlardan birini piyon satırına geri koyar. Hamle sayılır.
 Ekstra Süre jokeri (yeni): Kendi saatine +2 dakika ekler. Süresiz modda kapalı.
 8 Diş Renk Paleti: 5+ yeşil, 4 turuncu, 3 sarı, 2 kırmızı, 1 kıpkırmızı (nabız atar).
-Görünmez ↔ Ajan çift efekt yasağı: Ajan olan taşa Görünmez, görünmez olan taşa Ajan eklenemiyor (uyarı verir).
-Kullanılmış joker kartı: Üstü çizik kaldırıldı, sadece soluk gri kalıyor (kendi + rakip).
+Görünmez ↔ Ajan çift efekt yasağı: Ajan olan taşa Görünmez, görünmez olan taşa Ajan eklenemiyor.
+Kullanılmış joker kartı: Üstü çizik kaldırıldı, sadece soluk gri kalıyor.
 Aynı isim kontrolü: Odaya katılırken case-insensitive uyarı.
 Mod Değiştir popup kartları: Boyut düzeltildi, tam görünüyor.
 Klon: 8 komşu kare (4 yön + 4 çapraz), hamle sayılır, sıra rakibe.
-Yer Değiştir / Dondur / Sansür / Kilitle / Görünmez / Kalkan: Hepsi hamle sayılır (sıra rakibe).
-Bomba: Sadece rakip taş hedeflenebilir (kendi taş yasak).
+Yer Değiştir / Dondur / Sansür / Kilitle / Görünmez / Kalkan: Hepsi hamle sayılır.
+Bomba: Sadece rakip taş hedeflenebilir.
 Yer Değiştir: Animasyonlu — iki taş hareket ederek yer değiştirir + 🌀 puf + ışınlanma sesi.
-YANSIMA TAM MANTIĞI: Aşağıdaki jokerler artık gerçekten yansır:
+YANSIMA TAM MANTIĞI (aşağıda detaylı).
+Sansür süresi: 3 tur. Kilit süresi: 3 tur.
+Ses Sistemi: 18 ses dosyası (satranç) + 3 global ses.
+Chat Sistemi: Bil Bakalım backend'i tüm modlar için ortak.
+Şah Sesi: Şah çekilince sah.wav çalar.
+🌀 YANSIMA JOKERİ - Şu 9 jokere karşı çalışır:
+
 💣 Bomba (aynı tür kendi taş)
 ⏰ Zaman Çal (kendi süre azalır)
 ⛓️ Kilitle (kendi rastgele taş)
@@ -117,68 +227,37 @@ YANSIMA TAM MANTIĞI: Aşağıdaki jokerler artık gerçekten yansır:
 💀 Joker Hırsızlığı (rakip senden çalar)
 👁️ Joker Gör (rakip senin jokerlerini görür)
 Yansıma popup: Zarar gören oyuncuya büyük 🌀 YANSIMA! popup + Tamam butonu.
-Sansür süresi: 3 tur (6 half-move'dan düşürüldü).
-Kilit süresi: 3 tur (6 half-move'dan düşürüldü).
-Ses Sistemi: 15 ses dosyası (satranç) + 1 global chat sesi. Sağ alt volume slider'ına bağlı.
-Chat Sistemi: Bil Bakalım backend'i tüm modlar için ortak (bil_chat_send/msg). Satranç chat'i toggle + T tuşu + Enter ile kapat + dışarı tıklayınca kapat. Kapalıyken baloncuk popup + badge sayacı.
-Şah Sesi: Şah çekilince sah.wav çalar (mat değil).
+
 🔊 SES SİSTEMİ (v10)
-Satranç Sesleri: /satranc_sounds/
 
-carkifelek.wav, tas_hareket.wav, tas_yeme.wav, bomba.wav
-oyun_baslangic.wav, oyun_bitti.wav, isinlanma.wav, sah.wav
-joker_secildi.mp3 (kart tıklama)
-joker_iptal.mp3 (ESC / X butonu)
-joker_onay.mp3 (Uygula / Tamamla ve Başla)
-kalkan_1.mp3 / kalkan_2.mp3 (kalkan → %50 rastgele)
-kilit.mp3 (kilitle jokeri)
-geri_al.mp3 (geri al jokeri)
-Global Chat Sesi: /static/sounds/chat_notify.mp3 — Rakip mesaj yazınca çalar.
+Satranç Sesleri (18 dosya): /satranc_sounds/ mount edilir.
 
+Hareket/yeme: tas_hareket.wav, tas_yeme.wav
+Oyun: oyun_baslangic.wav, oyun_bitti.wav, sah.wav
+Efektler: bomba.wav, isinlanma.wav, carkifelek.wav, kasa_acilma.wav, rulet.mp3, zar.mp3
+Joker UI: joker_secildi.mp3, joker_iptal.mp3, joker_onay.mp3
+Özel jokerler: kalkan_1.mp3 / kalkan_2.mp3 (%50 rastgele), kilit.mp3, geri_al.mp3
+Global Sesler (3 dosya): /static/sounds/
+
+chat_notify.mp3 — Rakip mesaj yazınca
+player_join.mp3 — Oyuncu odaya girince
+player_leave.mp3 — Oyuncu odadan çıkınca
 Ses özellikleri:
 
 Tüm sesler mlVolumeRange (sağ alt hoparlör) ile kontrol edilir
 clone.node() ile üst üste çalabilir
 playSatrancSound(name) ve _playChatNotifySound()
-🐛 v10'DA HÂLÂ AÇIK BUG'LAR
-Ajan taşı hareket ederken flash (chessboard.js body'ye taşırken src override tam bitmiyor)
-Rakip hamle yapınca ajan taşı kısa flash
-Görünmez taş hamle sonrası rakipte belli olabilir
-Tahta animasyonu z-index (moveSpeed=500ms iken)
-28 JOKER (Güncel İsimler)
-⏰ Zaman Çal
-🔄 Geri Al
-🔀 Pas Ver
-🎁 Karşılıklı Ekstra Joker (🎁 hediye kutusu animasyonu)
-👁️ Joker Gör (sağ panelde kalıcı)
-👑 Vezire Yükselt (hamle sayılır, animasyonlu)
-🛡️ Kalkan (hamle sayılır, yeme engelli, 2 ses rastgele)
-🧊 Dondur (hamle sayılır)
-🔮 Işınlanma
-💣 Bomba (hamle sayılır, sadece rakip taş)
-🎭 Klon (hamle sayılır, 8 komşu)
-🧙 Görünmez (hamle sayılır, sol üstte 🧙 emoji, 8 diş şarj)
-🃏 Taş Dönüştür (hamle sayılır)
-🎯 Rakip Taş Yerleştir (hamle sayılır, ışınlanma sesi)
-🌀 Yer Değiştir (animasyonlu, hamle sayılır, ışınlanma sesi)
-⚔️ İki Hamle (aynı taşla 2 kez)
-⛓️ Kilitle (hamle sayılır, 3 tur, kilit sesi)
-🕵️ Ajan (görsel sahte renk, 6 tur, hamle sayılır)
-🌪️ Hızlı Kaçış
-✋ Hakkını Bana Ver
-🛑 Zamanı Durdur
-🎬 Önce Başla (her durumda üstü çizik)
-🎰 Rulet
-🌀 Yansıma (TAM ÇALIŞIYOR - 9 jokere karşı)
-💀 Joker Hırsızlığı
-⛔ Sansür (hamle sayılır, 3 tur)
-🎡 Çarkıfelek
-🔧 İyileştir (YENİ - aktif jokere +3 tur)
-♻️ Taşımı Geri Ver (YENİ - piyon satırına)
-⏱️ Ekstra Süre (YENİ - +2 dk, süresiz modda kapalı)
-(Not: 28 idi ama 3 yeni eklendi → 30 aslında, jokerler.py güncel)
 
-26 JOKER STATE'LERİ (satranc_handler.py room state)
+
+30 JOKER (Güncel İsimler)
+
+⏰ Zaman Çal · 🔄 Geri Al · 🔀 Pas Ver · 🎁 Karşılıklı Ekstra Joker · 👁️ Joker Gör · 👑 Vezire Yükselt · 🛡️ Kalkan · 🧊 Dondur · 🔮 Işınlanma · 💣 Bomba · 🎭 Klon · 🧙 Görünmez · 🃏 Taş Dönüştür · 🎯 Rakip Taş Yerleştir · 🌀 Yer Değiştir · ⚔️ İki Hamle · ⛓️ Kilitle · 🕵️ Ajan · 🌪️ Hızlı Kaçış · ✋ Hakkını Bana Ver · 🛑 Zamanı Durdur · 🎬 Önce Başla · 🎰 Rulet · 🌀 Yansıma · 💀 Joker Hırsızlığı · ⛔ Sansür · 🎡 Çarkıfelek · 🔧 İyileştir · ♻️ Taşımı Geri Ver · ⏱️ Ekstra Süre
+
+
+
+
+JOKER STATE'LERİ (satranc_handler.py room state)
+
 text
 
 satranc_shielded: {square: turns_left}
@@ -195,49 +274,42 @@ satranc_yansima: {pid: bool}
 satranc_sansur: {pid: turns_left}
 satranc_captured_pieces: {pid: [{"type": "q", "color": "w"}, ...]}
 satranc_pending_promotion: None | {"pid": X, "from": "a7", "to": "a8"}
-⬜ HENÜZ YAPILMAYAN
-Ajan flash tam fix (hem kendi hem rakip hamle sonrası)
-Vezire Yükseltme + Işınlanma ekstra polish animasyonları
-Işınlanma animasyonu (kendi görsel efekti)
-Görünmez taş hamle sonrası rakipte belli olma tam fix
-Tahta animasyonu z-index
-Alt hamle geçmişi barını kaldır
-Süresiz modda Zaman Çal disable ✅ (yapıldı ama test lazım)
-Önce Başla → Zar / Taş-Kağıt-Makas seçim ekranı
-Dondurulmuş taş rakipte tıklanmasın ✅ (yapıldı)
+
+
 🔄 MOD DEĞİŞTİRME SİSTEMİ ✅
+
 Her lobide "🔄 Mod Değiştir" (sadece host)
-11 mod kartı popup, aktif yeşil çerçeveli, boyutlar sığdı
+11 mod kartı popup, aktif yeşil çerçeveli
 Oda kodu + oyuncular + chat geçmişi korunur
 Şarkıdan Bul'a geçince backend prefetch başlatır
-🎵 ŞARKIDAN BUL (Değişmedi)
-Deezer, 100+ TR + 100+ yabancı sanatçı, sıralı oyuncu, prefetch
 
-⚽ MİNİ FUTBOL (Değişmedi)
-Haxball tarzı, 60 FPS host fizik, WASD + Space + Shift, sprint sistemi
 
 ⚠️ ÖNEMLİ TEKNİK NOTLAR
+
 JS Wrap Sistemi
+
 Her mod kendi JS'de showScreen ve handleMessage'ı wrap eder
 Satranç: satrancData global, _prevShowScreenSatranc / _prevHandleSatranc wrap
 Modern Popup
+
 satrancConfirm({...}), satrancInfo({...}), satrancChoice({...})
 Özel: showCapturedPromotionPopup, showYansimaDamagePopup, showGiftBoxAnimation, showIyilestirMenu, showTasimiGeriMenu, showMiniCarkifelek
 Satranç Board
+
 chessboard.js config: draggable: false, moveSpeed: 500
 Tıklama: $(boardEl).on("click.satrancMove", ".square-55d63", ...)
-Her hamlede her oyuncuya kendi görüşüne göre FEN (Görünmez + Ajan için)
+Her hamlede her oyuncuya kendi görüşüne göre FEN
 get_effect_state_for_player(room, pid) → rakip görünmez/ajan taşları filtreler
-Rakibe ajan taşı fake renkli FEN gönderilir
 Ajan Görsel Override
+
 applyAjanDisguiseVisuals(effects) her board update sonrası çağrılır
-Body'ye taşınan animasyon img'i override edilmeye çalışılır (interval 20ms, 900ms boyunca)
-#satrancBoard'daki tüm ajan kareleri sürekli sahte src ile zorlanır
-Chat Sistemi (v10 YENİ)
-Backend'de app.py içinde ortak bil_chat_send handler var (tüm modlar)
-Frontend'de her modun kendi chat panel'i var ama aynı mesaj tipini kullanır
+Body'ye taşınan animasyon img'i override edilmeye çalışılır (interval 20ms, 900ms)
+Chat Sistemi (v10)
+
+Backend'de app.py içinde ortak bil_chat_send handler
 Rakip mesaj gelince chat_notify.mp3 çalar
 Diğer
+
 Gemini AI: google-genai, gemini-flash-lite-latest
 Turnstile Site Key: 0x4AAAAAAEBYi6PHf6n7Q2Pn
 Deezer API: Public
@@ -245,7 +317,10 @@ Static Cache: 30 gün (StaticCacheMiddleware)
 Falsy Bug: x || default yerine isNaN(x) ? default : x
 Satranç Vendor Mount: /satranc_vendor
 Satranç Sesler Mount: /satranc_sounds
+Python: 3.12 (venv), Render'da 3.12
+.pyc dosyaları hem 3.12 hem 3.14 için var (eski Python temizlenebilir)
 🔒 GÜVENLİK
+
 IP rate limiting (oda:5/dk, katıl:15/dk, WS:20/dk)
 Otomatik 10 dk BAN
 sanitize_string, is_valid_room_code
@@ -254,7 +329,10 @@ kicked_names listesi
 Seljuk şifre: .env'den, 3 yanlış → 1 saat lokal kilit
 Aynı isim kontrolü (v10)
 🎯 ÇALIŞMA KURALLARI
+
 BUL ve DEĞİŞTİR formatı kullan (tam dosya yerine)
+BUL bloğu tam ve eksiksiz olacak, DEĞİŞTİR bloğu tam ve eksiksiz olacak
+Mesaj içinde blok blok satır karıştırma
 Adım adım, küçük parçalar
 Türkçe, samimi dil
 Kullanıcı test etmeden GitHub'a atma
@@ -267,73 +345,18 @@ EKLE değil, BUL ve DEĞİŞTİR (yanlış girinti/duplicate önlemek için)
 Bir kere test edilmemiş kodu tekrar tekrar değiştirme
 Hata verirse F12 + CMD çıktısı iste
 Frontend'de x || default bug'ına dikkat (0 falsy)
-BUL/DEĞİŞTİR blokları sadece kendi bloğunda olacak, mesaj içinde blok blok satırlar yazma
 Uzun kod verirken 2. parça beklemek
 Kullanıcı "bekle" derse gerçekten bekle
+Kod hatası verip kullanıcıyı suçlama — tüm dosyaları gördükten sonra kesin kod ver
 🎬 YEREL ÇALIŞTIRMA
 batlar/test_lokal.bat → http://127.0.0.1:8000
 
-📌 YAPILACAKLAR LİSTESİ
-Jokerli Satranç (öncelik)
-⬜ Ajan taş hareket ederken flash tam fix
-⬜ Ajan rakip hamle yapınca flash tam fix
-⬜ Promosyon sonrası animasyonlu dönüşüm
-⬜ Görünmez taş hamle sonrası rakipte belli olma
-⬜ Tahta animasyonu z-index
-⬜ Alt hamle geçmişi barını kaldır
-⬜ Işınlanma animasyonu
-⬜ Önce Başla → Zar / Taş-Kağıt-Makas
-⬜ Zamanı Durdur edge case'ler
-Mini Futbol
-⬜ Top tunneling fix (CCD)
-⬜ 2v2/3v3/4v4/5v5 gerçek multi-player fizik senkronizasyonu
-Genel
-⬜ Mobil optimizasyon
-⬜ Domain + Cloudflare
-⬜ PWA
-⬜ Arkadaş sistemi (belirsiz - kullanıcı düşünüyor)
-Yeni Modlar
-⬜ 🎮 Tetris Multiplayer
-⬜ 🎡 Çarkıfelek (klasik TV show)
-✅ TAMAMLANANLAR (v10 EKLEMELER)
-11 mod tamamı
-Jokerli Satranç (30 joker + polish v10)
-Haxball tarzı mod değiştirme
-Şarkıdan Bul (Deezer, prefetch, cache)
-İzleyici sayısı (Mini Futbol)
-Sınırsız süre (Takım Bilmece)
-Seljuk özel isim koruması
-Gizemli Kariyer lokal logolar
-Meme Arena preload
-Static cache middleware
-Chat sistemi (tüm modlar - ortak backend)
-İki Hamle aynı taşla
-Hakkını Bana Ver + Zamanı Durdur ayrı jokerler
-Joker Gör kalıcı panel
-Ajan sahte renk sistemi
-Piyon promosyon yenilen taş menüsü
-v10: Yenilen taş panelleri (sol/sağ)
-v10: Ses sistemi (15 satranç + 1 global chat)
-v10: Yansıma tam mantığı (9 joker)
-v10: Hediye kutusu animasyonu
-v10: Mini çarkıfelek (Taşlarından Birisi Silinecek)
-v10: İyileştir + Taşımı Geri Ver + Ekstra Süre jokerleri
-v10: 8 diş şarj çubuğu + renk paleti
-v10: Yer Değiştir animasyonu
-v10: Chat toggle + T tuşu + dışarı tıklayınca kapat
-v10: Chat notify sesi (rakip mesajında)
-v10: Yansıma hasar popup
-v10: Aynı isim kontrolü
-v10: Mod değiştir kart boyutları fix
-v10: Kalkan/Dondur/Sansür/Kilitle/Görünmez → hamle sayılır
-v10: Bomba → sadece rakip taş
-v10: Süresiz modda saat jokerleri kilit
-v10: Karışık modda süre alanı gizli
-v10: Süre modları net dakika olarak
+
 🎯 SEN NE YAPACAKSIN?
+
 Selamla, hazır olduğunu belirt
 Ne istediğini sor
-Klasör yapısını biliyor gibi davran
+Klasör yapısını biliyor gibi davran (yukarıdaki gerçek yapıyı bil)
 Kod isteğinde BUL ve DEĞİŞTİR formatı
 Kullanıcı Windows + Notepad++, basit anlat
 Test etmeden push isteme
@@ -344,9 +367,3 @@ Büyük iş ise adımlara böl
 Tüm kodları BUL/DEĞİŞTİR olarak vereceksin
 Kullanıcı "bekle" derse gerçekten bekle, kod verme
 Uzun kod paylaşımı yaparsa "2. parça bekle" de
-🎯 ŞU AN AKTİF PLAN
-Jokerli Satranç son polish + kalan bug fix (Ajan flash, promosyon animasyonu, görünmez taş belli olma)
-
-v10 Özet: Sesler eklendi, chat sistemi entegre oldu, yansıma tam çalışıyor, 3 yeni joker (İyileştir + Taşımı Geri Ver + Ekstra Süre), UI iyileştirmeleri.
-
-kodları bul değiş olarak verirken bul u tam ver değiştiri tam ver karısıklık yaratma ve yanlış kod verip bana benim hata deme herşeyi dogru istiyorum kod hatası istemiyorum tüm dosyaları gördükten sonra kesin kod ver

@@ -154,6 +154,13 @@ function clearGizemChatPopups() {
 }
 
 function addGizemChatMessage(msg) {
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
+
     gizemChat.messages.push(msg);
     if (gizemChat.messages.length > gizemChat.maxMessages) gizemChat.messages.shift();
     
@@ -735,6 +742,7 @@ function setGizemStatus(text, type) {
 const _prevHandleMessageGizem = handleMessage;
 handleMessage = function(msg) {
     if (msg.type === "gizem_room_created" || msg.type === "gizem_room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         gizemData.playerId = msg.player_id;
         gizemData.roomCode = msg.room_code;
         gizemData.turnSeconds = msg.turn_seconds || 60;
@@ -750,6 +758,10 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "gizem_lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (gizemData.players && msg.players && gizemData.players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         showGizemChat();
         gizemData.roomCode = msg.room_code;
         gizemData.players = msg.players;
@@ -902,6 +914,7 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "gizem_player_left") {
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         if (msg.players) gizemData.players = msg.players;
         if (msg.scores) gizemData.scores = msg.scores;
         if (msg.jokers_left) gizemData.jokersLeft = msg.jokers_left;

@@ -4278,10 +4278,12 @@ function _addSatrancChatMessage(msg) {
     const text = msg.text || msg.message || "";
     const isMe = msg.sender_id === satrancData.playerId;
 
-    // ✨ Rakip yazdıysa bildirim sesi (app.js'deki genel fonksiyon)
-    if (!isMe && typeof _playChatNotifySound === "function") {
-        _playChatNotifySound();
-    }
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
 
     const div = document.createElement("div");
     div.className = "miniChatMsg";
@@ -4559,6 +4561,7 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "satranc_room_created") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         satrancData.playerId = msg.player_id;
         satrancData.roomCode = msg.room_code;
         satrancData.timeMode = msg.time_mode;
@@ -4579,6 +4582,7 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "satranc_room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         satrancData.playerId = msg.player_id;
         satrancData.roomCode = msg.room_code;
         satrancData.timeMode = msg.time_mode;
@@ -4599,6 +4603,10 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "satranc_lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (satrancData.players && msg.players && satrancData.players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         satrancData.roomCode = msg.room_code;
         satrancData.players = msg.players;
         satrancData.timeMode = msg.time_mode;
@@ -4925,6 +4933,7 @@ handleMessage = function(msg) {
 
     // ✨ Lobiye dön (herkese)
     if (msg.type === "satranc_back_to_lobby_broadcast") {
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         // Board'u temizle
         if (satrancData.board) {
             try { satrancData.board.destroy(); } catch(e) {}

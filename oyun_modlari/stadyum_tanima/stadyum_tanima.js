@@ -156,6 +156,13 @@ function clearStadChatPopups() {
 }
 
 function addStadChatMessage(msg) {
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
+
     stadChat.messages.push(msg);
     if (stadChat.messages.length > stadChat.maxMessages) stadChat.messages.shift();
     
@@ -774,6 +781,7 @@ function showStadResultMessage(msg) {
 const _prevHandleMessageStad = handleMessage;
 handleMessage = function(msg) {
     if (msg.type === "stad_room_created" || msg.type === "stad_room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         stadData.playerId = msg.player_id;
         stadData.roomCode = msg.room_code;
         stadData.turnSeconds = msg.turn_seconds || 20;
@@ -788,6 +796,10 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "stad_lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (stadData.players && msg.players && stadData.players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         showStadChat();
         stadData.roomCode = msg.room_code;
         stadData.players = msg.players;
@@ -929,6 +941,7 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "stad_player_left") {
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         if (msg.players) stadData.players = msg.players;
         if (msg.scores) stadData.scores = msg.scores;
         if (msg.jokers_left) stadData.jokersLeft = msg.jokers_left;

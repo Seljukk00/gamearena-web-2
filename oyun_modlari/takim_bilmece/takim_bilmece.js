@@ -143,6 +143,13 @@ function clearTakimChatPopups() {
 }
 
 function addTakimChatMessage(msg) {
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
+
     takimChat.messages.push(msg);
     if (takimChat.messages.length > takimChat.maxMessages) takimChat.messages.shift();
     
@@ -944,6 +951,7 @@ function updateTakimTimerDisplay() {
 const _originalHandleMessageTakim = handleMessage;
 handleMessage = function(msg) {
     if (msg.type === "takim_room_created" || msg.type === "takim_room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         takimData.playerId = msg.player_id;
         takimData.roomCode = msg.room_code;
         takimData.difficulty = msg.difficulty || "klasik";
@@ -959,6 +967,10 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "takim_lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (takimData.players && msg.players && takimData.players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         showTakimChat();
         takimData.roomCode = msg.room_code;
         takimData.players = msg.players;
@@ -1162,6 +1174,7 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "takim_player_left") {
+        try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         // Bir oyuncu ayrıldı - listeden sil ve UI'ı güncelle
         if (msg.players) {
             takimData.players = msg.players;

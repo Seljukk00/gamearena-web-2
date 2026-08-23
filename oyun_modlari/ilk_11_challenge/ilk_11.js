@@ -140,6 +140,13 @@ function clearIlk11ChatPopups() {
 }
 
 function addIlk11ChatMessage(msg) {
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
+
     ilk11Chat.messages.push(msg);
     if (ilk11Chat.messages.length > ilk11Chat.maxMessages) ilk11Chat.messages.shift();
     
@@ -766,6 +773,7 @@ const _prevHandleMessageIlk11 = handleMessage;
 handleMessage = function(msg) {
 
     if (msg.type === "ilk11_room_created" || msg.type === "ilk11_room_joined") {
+        try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
         ilk11Data.playerId = msg.player_id;
         ilk11Data.roomCode = msg.room_code;
         ilk11Data.turnSeconds = msg.turn_seconds || 120;
@@ -778,6 +786,10 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "ilk11_lobby_update") {
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        if (ilk11Data.players && msg.players && ilk11Data.players.length < msg.players.length && msg.players.length > 1) {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+        }
         showIlk11Chat();
         ilk11Data.roomCode = msg.room_code;
         ilk11Data.players = msg.players;

@@ -293,6 +293,8 @@ const MiniRTC = {
     }
 };
 
+
+
 // ========================================
 // MİNİ FUTBOL - FRONTEND
 // ========================================
@@ -333,7 +335,68 @@ let miniData = {
     predictedKeys: {up:false, down:false, left:false, right:false, sprint:false},
     predictionActive: false, // Sadece misafirse aktif olur
     
-    };
+    // ✨ AKICILIK ÖNBELLEĞİ
+    _lastRenderTime: 0
+};
+
+// ✨ GUEST RECONCILIATION: Yerel fizik motorunu sunucu state'i ile tam senkron tutar
+function syncLocalHPWithServer() {
+    if (typeof HP === 'undefined' || !HP.running || !HP.room || !HP.room.gameState || !miniData.gameState) return;
+    const lgs = HP.room.gameState;
+    const sgs = miniData.gameState;
+    
+    lgs.state = sgs.game_state;
+    lgs.time_left = sgs.time_left;
+    
+    if (sgs.scores) {
+        lgs.scores[1] = sgs.scores["1"] || 0;
+        lgs.scores[2] = sgs.scores["2"] || 0;
+    }
+    
+    // Rakiplerin ve kendimizin HP player objelerini sunucuyla senkronize et / eksikse anında oluştur
+    if (sgs.players && lgs.players) {
+        for (const pid in sgs.players) {
+            const pidInt = parseInt(pid);
+            if (!lgs.players[pidInt]) {
+                // ✨ Oyuncu HP'de yoksa otomatik oluştur (sonradan takıma alınan oyuncular için çökme zırhı)
+                lgs.players[pidInt] = {
+                    x: sgs.players[pid].x,
+                    y: sgs.players[pid].y,
+                    vx: 0, vy: 0,
+                    keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
+                    last_kick_time: 0,
+                    sprint_energy: HP.SPRINT_MAX_ENERGY || 100,
+                    last_frame_time: 0,
+                    team: "red"
+                };
+            }
+            if (pidInt !== miniData.playerId) {
+                lgs.players[pidInt].x = sgs.players[pid].x;
+                lgs.players[pidInt].y = sgs.players[pid].y;
+            }
+        }
+    }
+    
+    // Top uzaktaysa yerel fizikteki topu sunucuyla tam senkron yap
+    if (sgs.ball && lgs.ball) {
+        let iAmNearBall = false;
+        const myLocalPlayer = lgs.players[miniData.playerId];
+        if (myLocalPlayer) {
+            const pdx = sgs.ball.x - myLocalPlayer.x;
+            const pdy = sgs.ball.y - myLocalPlayer.y;
+            const pdist = Math.sqrt(pdx*pdx + pdy*pdy);
+            iAmNearBall = pdist < 90;
+        }
+        
+        if (!iAmNearBall) {
+            lgs.ball.x = sgs.ball.x;
+            lgs.ball.y = sgs.ball.y;
+            lgs.ball.vx = sgs.ball.vx;
+            lgs.ball.vy = sgs.ball.vy;
+            lgs.ball.spin = sgs.ball.spin || 0;
+        }
+    }
+}
 
 
 
@@ -364,6 +427,416 @@ let miniChat = {
 // ✨ Drag & Drop state
 let miniDragPlayerId = null;
 let miniDragFromTeam = null;
+
+// ========================================
+// 🔊 SES SİSTEMİ (MiniAudio - En Üst Tanım)
+// ========================================
+const MiniAudio = {
+    _unlocked: false,
+    _cache: {},
+    _lastPlayed: {},
+
+    preload(name) {
+        if (this._cache[name]) return;
+        const isGlobal = ["player_join.mp3", "player_leave.mp3", "chat_notify.mp3"].includes(name);
+        const path = isGlobal ? `/static/sounds/${name}` : `/oyun_modlari/mini_futbol/sounds/${name}`;
+        const audio = new Audio(path);
+        audio.preload = "auto";
+        this._cache[name] = audio;
+    },
+
+    unlock() {
+        if (this._unlocked) return;
+        try {
+            const a = new Audio("/oyun_modlari/mini_futbol/sounds/kick_1.wav");
+            a.volume = 0.01;
+            a.play().then(() => {
+                this._unlocked = true;
+            }).catch(() => {
+                this._unlocked = true;
+            });
+        } catch(e) {
+            this._unlocked = true;
+        }
+    },
+
+    play(name, volume) {
+        try {
+            const isGlobal = ["player_join.mp3", "player_leave.mp3", "chat_notify.mp3"].includes(name);
+            const path = isGlobal ? `/static/sounds/${name}` : `/oyun_modlari/mini_futbol/sounds/${name}`;
+            
+            const audio = new Audio(path);
+            if (name === "chat_notify.mp3") {
+                audio.volume = 1.0;
+            } else {
+                audio.volume = (volume !== undefined) ? volume : 0.6;
+            }
+            audio.play().catch(() => {});
+        } catch(e) {}
+    },
+
+    playRandom(group, files, volume) {
+        if (!files || files.length === 0) return;
+        let available = files;
+        const last = this._lastPlayed[group];
+        if (files.length > 1 && last) {
+            available = files.filter(f => f !== last);
+        }
+        const chosen = available[Math.floor(Math.random() * available.length)];
+        this._lastPlayed[group] = chosen;
+        this.play(chosen, volume);
+    },
+
+    preloadAll() {
+        const files = [
+            "post_hit.wav", "wall_hit_1.wav", "wall_hit_2.wav",
+            "goal_1.wav", "goal_2.wav", "goal_3.wav", "whistle.wav",
+            "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
+            "kick_1.wav", "kick_2.wav", "own_goal.wav",
+            "player_join.mp3", "player_leave.mp3", "chat_notify.mp3"
+        ];
+        files.forEach(f => this.preload(f));
+    }
+};
+
+setTimeout(() => MiniAudio.preloadAll(), 500);
+document.addEventListener("click", () => MiniAudio.unlock(), { once: false });
+document.addEventListener("keydown", () => MiniAudio.unlock(), { once: false });
+
+// ========================================
+// 📳 GAMEPAD TİTREŞİM SİSTEMİ (MiniVibration - En Üst Tanım)
+// ========================================
+const MiniVibration = {
+    lastVibration: 0,
+    minInterval: 20,
+    
+    isEnabled() {
+        try {
+            return localStorage.getItem("miniVibrationEnabled") !== "false";
+        } catch(e) { return true; }
+    },
+    
+    getPower(type) {
+        const defaults = {
+            kick: 25, firekick: 50, wall: 15, post: 90, goal: 50, whistle: 10
+        };
+        try {
+            const raw = localStorage.getItem("miniVibrationPower_" + type);
+            if (raw !== null) {
+                const val = parseInt(raw);
+                if (!isNaN(val) && val >= 0 && val <= 100) return val;
+            }
+        } catch(e) {}
+        return defaults[type] || 50;
+    },
+    
+    vibrate(strong, weak, duration) {
+        if (!this.isEnabled()) return;
+        if (typeof miniGamepad === "undefined" || !miniGamepad.connected || !miniGamepad.enabled) return;
+        if (strong <= 0.01 && weak <= 0.01) return;
+        
+        const now = performance.now();
+        if (now - this.lastVibration < this.minInterval) return;
+        this.lastVibration = now;
+        
+        try {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const pad = pads[miniGamepad.index];
+            if (!pad) return;
+            
+            if (pad.vibrationActuator && pad.vibrationActuator.playEffect) {
+                pad.vibrationActuator.playEffect("dual-rumble", {
+                    startDelay: 0,
+                    duration: duration,
+                    strongMagnitude: Math.min(1.0, Math.max(0, strong)),
+                    weakMagnitude: Math.min(1.0, Math.max(0, weak))
+                }).catch(() => {});
+            } else if (pad.hapticActuators && pad.hapticActuators.length > 0) {
+                pad.hapticActuators[0].pulse(Math.max(strong, weak), duration).catch(() => {});
+            }
+        } catch(e) {}
+    },
+    
+    kick(sprintActive) {
+        const p = this.getPower("kick") / 100;
+        if (sprintActive) this.vibrate(0.8 * p, 0.6 * p, 100);
+        else this.vibrate(0.6 * p, 0.4 * p, 80);
+    },
+    
+    firekick() {
+        const p = this.getPower("firekick") / 100;
+        this.vibrate(1.0 * p, 0.8 * p, 150);
+    },
+    
+    ballTouch() {
+        const p = this.getPower("kick") / 100;
+        this.vibrate(0.3 * p, 0.5 * p, 40);
+    },
+    
+    wallHit() {
+        const p = this.getPower("wall") / 100;
+        this.vibrate(0.8 * p, 0.7 * p, 80);
+    },
+    
+    postHit() {
+        const p = this.getPower("post") / 100;
+        this.vibrate(1.0 * p, 0.9 * p, 200);
+    },
+    
+    goalScored() {
+        const p = this.getPower("goal") / 100;
+        this.vibrate(0.9 * p, 0.7 * p, 250);
+        setTimeout(() => { this.vibrate(0.7 * p, 0.5 * p, 180); }, 350);
+    },
+    
+    goalConceded() {
+        const p = this.getPower("goal") / 100;
+        this.vibrate(0.6 * p, 0.4 * p, 200);
+    },
+    
+    playerCollision() {
+        this.vibrate(0.2, 0.15, 60);
+    },
+    
+    countdown() {
+        const p = this.getPower("whistle") / 100;
+        this.vibrate(0.6 * p, 0.8 * p, 30);
+    },
+    
+    whistle() {
+        const p = this.getPower("whistle") / 100;
+        this.vibrate(0.8 * p, 1.0 * p, 100);
+    },
+    
+    _testInterval: null,
+    testVibrate(type, durationMs) {
+        const p = this.getPower(type) / 100;
+        if (p <= 0) return;
+        if (this._testInterval) {
+            clearInterval(this._testInterval);
+            this._testInterval = null;
+        }
+        const callPreset = () => {
+            switch(type) {
+                case "kick": this.kick(false); break;
+                case "firekick": this.firekick(); break;
+                case "wall": this.wallHit(); break;
+                case "post": this.postHit(); break;
+                case "goal": this.goalScored(); break;
+                case "whistle": this.whistle(); break;
+            }
+        };
+        callPreset();
+        const intervalMap = { kick: 150, firekick: 200, wall: 130, post: 250, goal: 400, whistle: 180 };
+        const interval = intervalMap[type] || 200;
+        const totalDuration = durationMs || 3000;
+        const endTime = Date.now() + totalDuration;
+        
+        this._testInterval = setInterval(() => {
+            if (Date.now() >= endTime) {
+                clearInterval(this._testInterval);
+                this._testInterval = null;
+                return;
+            }
+            callPreset();
+        }, interval);
+    },
+    
+    stop() {
+        if (this._testInterval) {
+            clearInterval(this._testInterval);
+            this._testInterval = null;
+        }
+        if (typeof miniGamepad === "undefined" || !miniGamepad.connected) return;
+        try {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const pad = pads[miniGamepad.index];
+            if (pad && pad.vibrationActuator) {
+                pad.vibrationActuator.reset();
+            }
+        } catch(e) {}
+    }
+};
+
+// ========================================
+// 🔒 SELJUK İSİM KORUMASI (En Üst Tanım)
+// ========================================
+const SELJUK_LOCK_KEY = "seljukLockUntil";
+const SELJUK_ATTEMPTS_KEY = "seljukAttempts";
+const SELJUK_VERIFIED_KEY = "seljukVerified";
+
+function isSeljukName(name) {
+    const n = (name || "").trim();
+    return n === "Seljuk" || n === "seljuk" || n === "SELJUK";
+}
+
+function isSeljukLocked() {
+    try {
+        const until = parseInt(localStorage.getItem(SELJUK_LOCK_KEY) || "0");
+        if (until && Date.now() < until) return until - Date.now();
+    } catch(e) {}
+    return 0;
+}
+
+function isSeljukVerified() {
+    try {
+        const verifiedUntil = parseInt(localStorage.getItem(SELJUK_VERIFIED_KEY) || "0");
+        if (verifiedUntil && Date.now() < verifiedUntil) return true;
+    } catch(e) {}
+    return false;
+}
+
+function markSeljukVerified() {
+    try {
+        const until = Date.now() + (24 * 60 * 60 * 1000);
+        localStorage.setItem(SELJUK_VERIFIED_KEY, String(until));
+        localStorage.setItem(SELJUK_ATTEMPTS_KEY, "0");
+    } catch(e) {}
+}
+
+function formatLockTime(ms) {
+    const mins = Math.ceil(ms / 60000);
+    if (mins >= 60) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h} saat ${m} dakika`;
+    }
+    return `${mins} dakika`;
+}
+
+function showSeljukPasswordPopup() {
+    return new Promise((resolve) => {
+        const lockedMs = isSeljukLocked();
+        if (lockedMs > 0) {
+            showSeljukLockedPopup(lockedMs);
+            resolve(false);
+            return;
+        }
+        
+        const existing = document.getElementById("seljukPasswordBox");
+        if (existing) existing.remove();
+        
+        const attempts = parseInt(localStorage.getItem(SELJUK_ATTEMPTS_KEY) || "0");
+        const remaining = 3 - attempts;
+        
+        const overlay = document.createElement("div");
+        overlay.id = "seljukPasswordBox";
+        overlay.className = "overlay";
+        overlay.style.zIndex = "9999999";
+        overlay.innerHTML = `
+            <div class="overlayCard" style="max-width:450px; border:2px solid #ff6b6b; box-shadow: 0 0 40px rgba(255,107,107,0.5);">
+                <div style="font-size:60px; margin:10px 0;">🔒</div>
+                <h2 style="color:#ff6b6b; margin:10px 0 15px 0;">Korumalı İsim</h2>
+                <p style="color:#adb5bd; font-size:14px; margin:0 0 20px 0; line-height:1.5;">
+                    <b style="color:#fff;">Seljuk</b> ismi korumalı.<br>
+                    <span style="font-size:12px;">Devam etmek için şifre gir.</span>
+                </p>
+                <input id="seljukPwInput" type="password" placeholder="Şifre" maxlength="20"
+                       style="width:100%; padding:14px; font-size:20px; font-weight:bold; border-radius:10px; border:2px solid #ff6b6b; background:#1a1e2e; color:#fff; text-align:center; font-family:monospace; letter-spacing:5px; outline:none;">
+                <p style="color:#ffd43b; font-size:12px; text-align:center; margin:10px 0 15px 0;">
+                    Kalan hak: <b>${remaining}/3</b>
+                </p>
+                <div class="confirmButtons">
+                    <button id="seljukPwOkBtn" class="bigBtn greenBtn">✓ TAMAM</button>
+                    <button id="seljukPwCancelBtn" class="bigBtn redBtn">✗ İPTAL</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        const input = document.getElementById("seljukPwInput");
+        setTimeout(() => input.focus(), 50);
+        
+        input.addEventListener("keydown", (e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") {
+                e.preventDefault();
+                document.getElementById("seljukPwOkBtn").click();
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                document.getElementById("seljukPwCancelBtn").click();
+            }
+        });
+        
+        document.getElementById("seljukPwOkBtn").onclick = async () => {
+            const password = input.value.trim();
+            if (!password) {
+                input.style.borderColor = "#ff3333";
+                input.focus();
+                return;
+            }
+            try {
+                const resp = await fetch("/verify-seljuk", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ password: password })
+                });
+                const data = await resp.json();
+                if (data.ok) {
+                    markSeljukVerified();
+                    overlay.remove();
+                    resolve(true);
+                } else {
+                    let newAttempts = parseInt(localStorage.getItem(SELJUK_ATTEMPTS_KEY) || "0") + 1;
+                    localStorage.setItem(SELJUK_ATTEMPTS_KEY, String(newAttempts));
+                    if (newAttempts >= 3) {
+                        const lockUntil = Date.now() + (60 * 60 * 1000);
+                        localStorage.setItem(SELJUK_LOCK_KEY, String(lockUntil));
+                        localStorage.setItem(SELJUK_ATTEMPTS_KEY, "0");
+                        overlay.remove();
+                        showSeljukLockedPopup(60 * 60 * 1000);
+                        resolve(false);
+                    } else {
+                        const remaining = 3 - newAttempts;
+                        input.value = "";
+                        input.style.borderColor = "#ff3333";
+                        const warnP = overlay.querySelector("p[style*='ffd43b']");
+                        if (warnP) {
+                            warnP.innerHTML = `❌ Yanlış! Kalan hak: <b>${remaining}/3</b>`;
+                            warnP.style.color = "#ff6b6b";
+                        }
+                        input.focus();
+                    }
+                }
+            } catch(e) {
+                if (typeof showToast === "function") showToast("❌ Hata", "Bağlantı sorunu", null, "error");
+            }
+        };
+        
+        document.getElementById("seljukPwCancelBtn").onclick = () => {
+            overlay.remove();
+            resolve(false);
+        };
+    });
+}
+
+function showSeljukLockedPopup(remainingMs) {
+    const existing = document.getElementById("seljukLockedBox");
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement("div");
+    overlay.id = "seljukLockedBox";
+    overlay.className = "overlay";
+    overlay.style.zIndex = "9999999";
+    overlay.innerHTML = `
+        <div class="overlayCard" style="max-width:450px; border:2px solid #e03131; box-shadow: 0 0 40px rgba(224,49,49,0.5);">
+            <div style="font-size:60px; margin:10px 0;">⛔</div>
+            <h2 style="color:#e03131; margin:10px 0 15px 0;">Kilitli!</h2>
+            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
+                Çok fazla yanlış deneme yaptın.<br>
+                <b style="color:#ffd43b;">${formatLockTime(remainingMs)}</b> sonra tekrar dene.
+            </p>
+            <div class="confirmButtons">
+                <button id="seljukLockedOkBtn" class="bigBtn redBtn">Anladım</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    document.getElementById("seljukLockedOkBtn").onclick = () => {
+        overlay.remove();
+    };
+}
 
 // ========================================
 // 🎮 GAMEPAD DESTEĞİ
@@ -771,6 +1244,14 @@ function setupMiniDraggableRow(row, playerObj, teamKey) {
 // ========================================
 const _prevShowScreenMini = showScreen;
 showScreen = function(screenName) {
+    const miniScreens = ["createMini", "miniLobby", "miniGame"];
+    
+    // Admin odayı kapatıp ana menüye/mod seçimine dönüyorsa sesi hemen çal
+    const wasAdminInRoom = (miniData && miniData.playerId === 1 && miniData.roomCode !== "");
+    if (!miniScreens.includes(screenName) && wasAdminInRoom) {
+        MiniAudio.play("player_leave.mp3", 0.7);
+    }
+    
     _prevShowScreenMini(screenName);
     
     const screens = ["createMiniScreen", "miniLobbyScreen", "miniGameScreen"];
@@ -797,8 +1278,7 @@ showScreen = function(screenName) {
         stopMiniGame();
     }
     
-    // ✨ Mini futbol dışına çıktıysa ping'i de durdur
-    const miniScreens = ["createMini", "miniLobby", "miniGame"];
+    // ✨ Mini futbol dışına çıktıysa ping'i ve chat'i de durdur
     if (!miniScreens.includes(screenName)) {
         stopMiniPing();
         hideMiniChat();
@@ -1355,6 +1835,11 @@ function handleMiniMessage(msg) {
             console.log(`[HP MULTI] Sahada: ${redPids.length} kırmızı, ${bluePids.length} mavi`);
         }
         
+        // ✨ Misafir için local HP fizik motorunu başlat/tetikle
+        if (typeof startMiniLocalPhysicsIfNeeded === "function") {
+            startMiniLocalPhysicsIfNeeded();
+        }
+
         // HUD'ı güncelle
         updateMiniHUD();
         return;
@@ -1393,6 +1878,7 @@ function handleMiniMessage(msg) {
     
     if (msg.type === "mini_room_created" || msg.type === "mini_room_joined") {
         showMiniChat();
+        MiniAudio.play("player_join.mp3", 0.6);
         miniData.roomCode = msg.room_code;
         miniData.playerId = msg.player_id;
         miniData.goalTarget = msg.goal_target;
@@ -1626,6 +2112,12 @@ function handleMiniMessage(msg) {
         }
         
         updateMiniLobby();
+        
+        // ✨ Eğer oda oluşturma ekranındaysak otomatik Lobiye geç
+        const createScr = document.getElementById("createMiniScreen");
+        if (createScr && !createScr.classList.contains("hidden")) {
+            showScreen("miniLobby");
+        }
         
         // ✨ Misafir için local HP'yi başlatmayı dene (eğer oyun ekranındaysa)
         const gameScreen = document.getElementById("miniGameScreen");
@@ -2155,6 +2647,8 @@ function handleMiniMessage(msg) {
             team: msg.team,
             ts: msg.ts
         });
+        // Mesajı yazan dahil herkes için bildirim sesini çal
+        MiniAudio.play("chat_notify.mp3");
         return;
     }
 
@@ -3305,50 +3799,68 @@ const MiniMobileInput = {
 // OYUN BAŞLATMA
 // ========================================
 function startMiniGame() {
-    console.log("[MINI] Oyun başladı! Player ID:", miniData.playerId, "Split:", miniData.splitScreen);
+    console.log("[MINI] Oyun başladı! Player ID:", miniData.playerId);
     miniData.keysPressed = {};
     miniData.keysPressed2 = {};
-    miniData._ownGoalsTracker = {}; // ✨ Her yeni maç başında kendi kalesine gol sayaçlarını sıfırla
-    miniData._teamOwnGoalsCount = { red: 0, blue: 0 }; // ✨ Takım bazlı kendi kalesine gol sayacı
+    miniData._ownGoalsTracker = {}; 
+    miniData._teamOwnGoalsCount = { red: 0, blue: 0 }; 
 
-    // 🎯 Sitenin footer / Yasal Bilgi kısmını oyun esnasında gizle
     document.querySelectorAll("footer, .footer, #footer, .site-footer").forEach(el => {
         el.style.setProperty("display", "none", "important");
     });
     
-    // ✨ HOST SEKMESİ ZIRHI: Admin başka sekmeye geçse bile tarayıcının sekme uykusuna girmesini engeller (Chrome Throttling Zırhı)
+    // ✨ HOST SEKMESİ ZIRHI (Sekme Uykusunu Tamamen Engelleyen Yapı)
     if (miniData.playerId === 1) {
         if (!miniData._keepAliveAudio) {
             try {
-                // 1) Sessiz Medya Oynatıcı (Chrome'un pil/sekme uykusu tasarruf modunu tamamen kilitler)
                 const silentWav = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
                 const audioEl = new Audio(silentWav);
                 audioEl.loop = true;
-                audioEl.volume = 0.001;
-                audioEl.play().catch(() => {});
+                audioEl.volume = 0.0001;
+                
+                const playPromise = audioEl.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        // Otomatik oynatma engellendiyse tıklamada başlat
+                        const unlockFn = () => {
+                            audioEl.play().catch(() => {});
+                            document.removeEventListener("click", unlockFn);
+                            document.removeEventListener("keydown", unlockFn);
+                        };
+                        document.addEventListener("click", unlockFn, { once: true });
+                        document.addEventListener("keydown", unlockFn, { once: true });
+                    });
+                }
 
-                // 2) Web Audio API Döngüsü (CPU işlemcisini yüksek frekansta canlı tutar)
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 let ctxObj = null;
                 if (AudioCtx) {
                     const ctx = new AudioCtx();
-                    const oscillator = ctx.createOscillator();
+                    const noiseBuffer = ctx.createBuffer(1, 2 * ctx.sampleRate, ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < output.length; i++) { output[i] = Math.random() * 2 - 1; }
+                    
+                    const whiteNoise = ctx.createBufferSource();
+                    whiteNoise.buffer = noiseBuffer;
+                    whiteNoise.loop = true;
+                    
                     const gainNode = ctx.createGain();
                     gainNode.gain.value = 0.000001;
-                    oscillator.connect(gainNode);
+                    
+                    whiteNoise.connect(gainNode);
                     gainNode.connect(ctx.destination);
-                    oscillator.frequency.value = 1;
-                    oscillator.start();
+                    whiteNoise.start();
                     
                     const keepAliveInterval = setInterval(() => {
                         if (ctx.state === 'suspended') ctx.resume();
-                    }, 1000);
-                    ctxObj = { ctx, oscillator, interval: keepAliveInterval };
+                    }, 500);
+                    ctxObj = { ctx, whiteNoise, interval: keepAliveInterval };
                 }
-                
                 miniData._keepAliveAudio = { audioEl, webAudio: ctxObj };
-                console.log("[HOST-PHYSICS] Sekme Canlı Tutma Zırhı (Medya + WebAudio) Aktif ✓");
-            } catch(e) {}
+                console.log("[HOST-PHYSICS] 🛡️ Sekme Throttling Zırhı Aktif!");
+            } catch(e) {
+                console.warn("[HOST-PHYSICS] Sekme zırhı başlatılamadı:", e);
+            }
         }
     }
     
@@ -3370,16 +3882,13 @@ function startMiniGame() {
         startGamepadPolling();
     }
     
-    // ✨ Sağ tık → context menü açılmasın (oyun içi bug engeli)
-    // Ama isim değiştirme sağ tık'ı ekranın DIŞINDA çalışsın (canvas üzerinde engelle)
+    // ✨ Sağ tık → context menü açılmasın
     window.addEventListener("contextmenu", miniPreventContextMenu, true);
     
-    // ✨ Named function referansları (stopMiniGame'de kaldırılabilsin - memory leak fix)
-    // ✨ Focus kaybında AGRESSİF tuş bırakma (chrome sekme bar sağ tık bug'ı)
+    // ✨ Focus kaybında AGRESSİF tuş bırakma
     miniData._blurHandler = () => {
-        // TAB basılı bile olsa focus kaybında tuşları bırak (bug engeli)
         miniReleaseAllKeys();
-        miniTabHeld = false;  // TAB flag'ı sıfırla
+        miniTabHeld = false;
         hideMiniScoreboard();
         if (miniScoreboardInterval) {
             clearInterval(miniScoreboardInterval);
@@ -3396,47 +3905,45 @@ function startMiniGame() {
                 miniScoreboardInterval = null;
             }
         }
-        // ✨ Host sekme değiştirdiğinde misafirlere "Gecikme olabilir" bildirimi gönder
         if (miniData.playerId === 1) {
             send({ type: "mini_host_visibility", hidden: document.hidden });
         }
-    };
-    // ✨ Fare canvas dışına çıkarsa da tuşları bırak (extra güvenlik)
-    miniData._mouseLeaveHandler = () => {
-        // Sadece belirli koşullarda (opsiyonel - istersen aç)
-        // miniReleaseAllKeys();
     };
     
     window.addEventListener("blur", miniData._blurHandler, true);
     window.addEventListener("focusout", miniData._blurHandler, true);
     document.addEventListener("visibilitychange", miniData._visibilityHandler, true);
     
-    // ✨ Fare belge dışına çıktı (chrome title bar, tab bar, browser UI)
-    // → HEMEN tuşları bırak (Chrome native menu klavye focus'u çalıyor)
+    // ✨ Fare sekme dışına çıktığında tuş bırakma
     miniData._mouseLeaveHandler = (e) => {
-        // Fare gerçekten belge dışına çıktı mı? (e.relatedTarget null olur)
-        if (!e.relatedTarget && !e.toElement) {
+        miniReleaseAllKeys();
+    };
+    document.documentElement.addEventListener("mouseleave", miniData._mouseLeaveHandler, true);
+    window.addEventListener("mouseleave", miniData._mouseLeaveHandler, true);
+    document.addEventListener("mouseleave", miniData._mouseLeaveHandler, true);
+
+    // ✨ Fare üst sekme barına yaklaştığında tuşları sıfırla
+    miniData._mouseMoveTopHandler = (e) => {
+        if (e.clientY <= 5) {
             miniReleaseAllKeys();
         }
     };
-    document.documentElement.addEventListener("mouseleave", miniData._mouseLeaveHandler, true);
+    window.addEventListener("mousemove", miniData._mouseMoveTopHandler, true);
     
     // ✨ Ek güvenlik: her 500ms focus kontrolü
-    // Chrome context menu açıksa document.hasFocus() false döner
     miniData._focusCheckInterval = setInterval(() => {
         if (!document.hasFocus()) {
             miniReleaseAllKeys();
         }
     }, 500);
     
-    // ✨ Kontrol bilgisini güncelle (kullanıcı ayarlarına göre dinamik)
+    // Kontrol bilgisini güncelle
     updateMiniControlsInfo();
     
     // Render başlat
     if (miniAnimFrame) cancelAnimationFrame(miniAnimFrame);
     miniAnimFrame = requestAnimationFrame(miniRender);
     
-    // ✨ MİSAFİR için ilkel prediction kapatıldı. Local HP fizik motoru artık tek başına yetkilidir ✓
     miniData.predictionActive = false;
     miniData.predictedSelf = null;
 }
@@ -3761,7 +4268,11 @@ function stopMiniGame() {
     // Mobil Dokunmatik Kontrolleri Kaldır
     MiniMobileInput.destroy();
     
-    // ✨ Blur + visibilitychange listener'larını kaldır (memory leak fix)
+    // ✨ Blur + visibilitychange + mousemove listener'larını kaldır (memory leak fix)
+    if (miniData._mouseMoveTopHandler) {
+        window.removeEventListener("mousemove", miniData._mouseMoveTopHandler, true);
+        miniData._mouseMoveTopHandler = null;
+    }
     if (miniData._blurHandler) {
         window.removeEventListener("blur", miniData._blurHandler, true);
         window.removeEventListener("focusout", miniData._blurHandler, true);  // ✨ Ek
@@ -4479,25 +4990,32 @@ function miniRender() {
             }
         }
         
+        // ✨ Hz-Independent Delta-Time LERP Hesaplayıcı (60Hz standartlaştırılmış)
+        let nowRender = performance.now();
+        let dt = (nowRender - (miniData._lastRenderTime || nowRender)) / 1000;
+        if (dt > 0.1) dt = 1/60; // Sekme değiştirme koruması
+        miniData._lastRenderTime = nowRender;
+        const frameFactor = dt * 60; // 60Hz monitörde tam 1.0 olur, 144Hz'de ~0.41 olur
+
         // Oyuncular
         for (const pid in state.players) {
             const pidInt = parseInt(pid, 10);
-            let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+            const isSelf = (pidInt === miniData.playerId);
+            const isHost = (miniData.playerId === 1);
+            
+            let smoothPos;
             
             if (isReplayMode && replayFrameData && replayFrameData.players[pid]) {
                 smoothPos = {
                     x: replayFrameData.players[pid].x,
                     y: replayFrameData.players[pid].y
                 };
-            } else if (typeof HP !== 'undefined' && HP.running &&
-                       HP.room && HP.room.gameState && HP.room.gameState.players &&
-                       HP.room.gameState.players[pid]) {
-                // ✨ Host + Misafir: Yerel HP'den çiz, yüksek frekanslı EMA ile pürüzsüzleştir
-                // Kendi karakter: 0.75 (neredeyse anlık, jöle yok)
-                // Diğerleri: 0.55 (ağ/jitter yumuşatma)
+            } else if (isHost) {
+                // Host her zaman kendi yerel HP'sinden çizer (en güncel kaynak)
                 const hpPlayer = HP.room.gameState.players[pid];
-                const isSelf = (pidInt === miniData.playerId);
-                const lerpK = isSelf ? 0.75 : 0.55;
+                const targetLerp = isSelf ? 0.75 : 0.45;
+                // Hz bağımsız EMA formülü (1 - (1-lerpK)^frameFactor)
+                const currentLerpK = 1 - Math.pow(1 - targetLerp, frameFactor);
                 
                 if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
                 if (!miniData._hostRenderSmoothed.players[pid]) {
@@ -4506,15 +5024,45 @@ function miniRender() {
                 const smoothed = miniData._hostRenderSmoothed.players[pid];
                 const dx = hpPlayer.x - smoothed.x;
                 const dy = hpPlayer.y - smoothed.y;
-                // Teleport / takım değişimi → anında snap
                 if (dx * dx + dy * dy > 150 * 150) {
                     smoothed.x = hpPlayer.x;
                     smoothed.y = hpPlayer.y;
                 } else {
-                    smoothed.x += dx * lerpK;
-                    smoothed.y += dy * lerpK;
+                    smoothed.x += dx * currentLerpK;
+                    smoothed.y += dy * currentLerpK;
                 }
                 smoothPos = { x: smoothed.x, y: smoothed.y };
+            } else {
+                // Misafir (Guest) için render kuralları:
+                if (isSelf) {
+                    // Kendimizi local HP'den (Client-Side Prediction) Hz-bağımsız LERP ile çiziyoruz
+                    const hpPlayer = (typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players) ? HP.room.gameState.players[pid] : null;
+                    if (hpPlayer && typeof hpPlayer.x === "number" && typeof hpPlayer.y === "number") {
+                        const currentLerpK = 1 - Math.pow(1 - 0.75, frameFactor);
+                        
+                        if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
+                        if (!miniData._hostRenderSmoothed.players[pid]) {
+                            miniData._hostRenderSmoothed.players[pid] = { x: hpPlayer.x, y: hpPlayer.y };
+                        }
+                        const smoothed = miniData._hostRenderSmoothed.players[pid];
+                        const dx = hpPlayer.x - smoothed.x;
+                        const dy = hpPlayer.y - smoothed.y;
+                        if (dx * dx + dy * dy > 150 * 150) {
+                            smoothed.x = hpPlayer.x;
+                            smoothed.y = hpPlayer.y;
+                        } else {
+                            smoothed.x += dx * currentLerpK;
+                            smoothed.y += dy * currentLerpK;
+                        }
+                        smoothPos = { x: smoothed.x, y: smoothed.y };
+                    } else {
+                        smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+                    }
+                } else {
+                    // Rakipleri ve diğer oyuncuları doğrudan sunucunun pürüzsüz Snapshot Interpolation'ından çiz!
+                    // Çift prediksiyon çarpışması bittiği için internetteki rakip kaymak gibi akar.
+                    smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+                }
             }
             
             const p = { x: smoothPos.x, y: smoothPos.y };
@@ -4669,13 +5217,12 @@ function miniRender() {
             ctx.shadowBlur = 0;
         }
         
-        // Top
+        // Top Çizimi (Işınlanma ve Fırlama Kesin Engellendi)
         let bSmooth;
         if (isReplayMode && replayFrameData) {
             bSmooth = replayFrameData.ball;
-        } else if (typeof HP !== 'undefined' && HP.running &&
-            HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // ✨ Host + Misafir: topu yerel HP'den çiz (en akıcı kaynak)
+        } else if (miniData.playerId === 1) {
+            // Host için top yerel HP'den çizilir
             const hpBall = HP.room.gameState.ball;
             if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
             if (!miniData._hostRenderSmoothed.ball) {
@@ -4684,18 +5231,18 @@ function miniRender() {
             const smoothedBall = miniData._hostRenderSmoothed.ball;
             const bdx = hpBall.x - smoothedBall.x;
             const bdy = hpBall.y - smoothedBall.y;
-            // Büyük sıçrama (gol/santra) → snap
             if (bdx * bdx + bdy * bdy > 200 * 200) {
                 smoothedBall.x = hpBall.x;
                 smoothedBall.y = hpBall.y;
             } else {
-                // 0.70 = şut tepkisi keskin + göz yormayan akıcılık
-                smoothedBall.x += bdx * 0.70;
-                smoothedBall.y += bdy * 0.70;
+                const currentLerpK = 1 - Math.pow(1 - 0.70, frameFactor);
+                smoothedBall.x += bdx * currentLerpK;
+                smoothedBall.y += bdy * currentLerpK;
             }
             bSmooth = { x: smoothedBall.x, y: smoothedBall.y };
         } else {
-            // HP yoksa snapshot interpolasyonu
+            // Misafir (Guest): Top AĞ TAMPONUNDAN (Snapshot) yağ gibi kayarak çizilir.
+            // Sıçrama/Işınlanma çelişkisi %100 bitti!
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
@@ -4904,7 +5451,7 @@ function drawCountdownOverlay(ctx, cfg, countdown) {
         MiniAudio.play("whistle.wav", 0.6);
         miniData._whistlePlayed = true;
         // ✨ Düdükte çok hafif titreşim (santra)
-        MiniVibration.whistle();
+        if (typeof MiniVibration !== "undefined") MiniVibration.whistle();
     } else if (countdown > 0) {
         // Countdown başladığında flag'i sıfırla (yeni maç için tekrar çalsın)
         miniData._whistlePlayed = false;
@@ -4914,7 +5461,7 @@ function drawCountdownOverlay(ctx, cfg, countdown) {
         const tickKey = `count_${countdown}_${Math.floor(Date.now() / 1500)}`;
         if (!miniData._countdownTicked.has(tickKey)) {
             miniData._countdownTicked.add(tickKey);
-            MiniVibration.countdown();
+            if (typeof MiniVibration !== "undefined") MiniVibration.countdown();
             // Setı çok büyütmemek için temizle
             if (miniData._countdownTicked.size > 20) miniData._countdownTicked.clear();
         }
@@ -6042,7 +6589,13 @@ setTimeout(() => {
         
         createBtn.onclick = async () => {
             const nameInputEl = document.getElementById("createMiniNameInput");
-            const name = nameInputEl ? nameInputEl.value.trim() : "";
+            let name = nameInputEl ? nameInputEl.value.trim() : "";
+            
+            // ✨ İsim boşsa hafızadan al veya varsayılan at (kilitlenmeyi önler)
+            if (!name) {
+                name = localStorage.getItem("playerName") || "Oyuncu";
+                if (nameInputEl) nameInputEl.value = name;
+            }
             
             // ✨ MOD DEĞİŞİMİ mi? (isim boş olabilir, host zaten odada)
             const _pendingModeChangeEarly = window._pendingModeChangeCtx;
@@ -6051,19 +6604,11 @@ setTimeout(() => {
                                   _pendingModeChangeEarly.createScreen === "createMini";
             
             if (!_isModeChange) {
-                // Normal akış → isim zorunlu
-                if (!name) {
-                    const msg = document.getElementById("createMiniMsg");
-                    msg.textContent = "İsim gir.";
-                    msg.style.color = "#ff6b6b";
-                    return;
-                }
-                
                 // 🔒 SELJUK KORUMASI (sadece normal akışta)
                 if (isSeljukName(name) && !isSeljukVerified()) {
                     const ok = await showSeljukPasswordPopup();
                     if (!ok) {
-                        nameInputEl.value = "";
+                        if (nameInputEl) nameInputEl.value = "";
                         return;
                     }
                 }
@@ -6762,7 +7307,7 @@ document.addEventListener("keydown", (e) => {
     // Host pause popup açıksa (kullanıcı pause ekranı görüyor) → gizle ve menü aç
     const guestPausedBox = document.getElementById("miniGuestPausedBox");
     if (guestPausedBox && !guestPausedBox.classList.contains("hidden")) {
-        guestPausedBox.classList.add("hidden");  // Geçici gizle
+        guestPausedBox.classList.add("hidden");  // Pathological/temporary hide
         showMiniGuestEscMenu();
         return;
     }
@@ -7331,7 +7876,7 @@ function setupCreateMiniAdvancedFields() {
         };
     }
     
-    // Dışa Aktar / Yükle butonları (Adım 4'te backend'e bağlanacak)
+    // Dışa Aktar / Yükle butonları
     const exportBtn = document.getElementById("createMiniAdvExportBtn");
     const importBtn = document.getElementById("createMiniAdvImportBtn");
     if (exportBtn) exportBtn.onclick = () => alert("Dışa Aktar - Yakında Güncellenecek");
@@ -7349,7 +7894,6 @@ const DEFAULT_KEYS_P1 = {
 };
 
 function getSavedKeys(slot) {
-    // slot: "p1"
     try {
         const raw = localStorage.getItem("miniKeys_" + slot);
         if (raw) return JSON.parse(raw);
@@ -7364,7 +7908,6 @@ function saveKeys(slot, keys) {
 }
 
 function keyLabel(code) {
-    // Klavye code'unu okunabilir hale getir
     const map = {
         "Space": "SPACE",
         "ShiftLeft": "Sol SHIFT",
@@ -7381,13 +7924,11 @@ function keyLabel(code) {
 }
 
 function showMiniControlSettings() {
-    // Eski popup varsa kaldır
     const existing = document.getElementById("miniControlSettings");
     if (existing) existing.remove();
     
     const p1Keys = getSavedKeys("p1");
     
-    // Bağlı gamepad'leri al
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     let connectedPads = [];
     for (let i = 0; i < pads.length; i++) {
@@ -7396,7 +7937,6 @@ function showMiniControlSettings() {
         }
     }
     
-    // === GAMEPAD BÖLÜMÜ ===
     let gamepadHtml = "";
     if (connectedPads.length === 0) {
         gamepadHtml = `<p style="color:#adb5bd; font-size:13px; text-align:center; padding:15px;
@@ -7421,7 +7961,6 @@ function showMiniControlSettings() {
                         </span>
                     </div>
                     
-                    <!-- ✨ Kontrolcüyü Etkinleştir toggle -->
                     <label style="display:flex; align-items:center; cursor:pointer; user-select:none;
                                   padding:8px 10px; background:rgba(0,0,0,0.25); border-radius:6px;
                                   margin-top:4px;">
@@ -7440,7 +7979,6 @@ function showMiniControlSettings() {
         gamepadHtml += `</div>`;
     }
     
-    // === TİTREŞİM AYARLARI ===
     const vibrationEnabled = MiniVibration.isEnabled();
     const vibrationTypes = [
         { id: "kick",     label: "⚽ Şut Titreşimi",       default: 25 },
@@ -7453,7 +7991,6 @@ function showMiniControlSettings() {
     
     let vibrationHtml = "";
     if (connectedPads.length > 0) {
-        // Ana toggle
         vibrationHtml = `
             <label style="display:flex; align-items:center; cursor:pointer; user-select:none;
                           padding:10px 14px; background:rgba(255,169,77,0.1);
@@ -7507,7 +8044,6 @@ function showMiniControlSettings() {
         `;
     }
     
-    // Klavye kısayolları
     let keyBindHtml = `<div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px;">`;
     const keyDefs = [
         { id: "up", label: "⬆️ Yukarı" },
@@ -7533,7 +8069,6 @@ function showMiniControlSettings() {
     });
     keyBindHtml += `</div>`;
     
-    // ✨ TAB Görünürlüğü kayıtlı değeri yükle (default %5)
     let savedTabOpacity = 5;
     try {
         const saved = localStorage.getItem("miniTabOpacity");
@@ -7552,7 +8087,6 @@ function showMiniControlSettings() {
             <div style="font-size:50px; margin:10px 0;">⚙️</div>
             <h2 style="color:#0ca678; margin:5px 0 20px 0;">Ayarlar</h2>
             
-            <!-- KONTROLCÜ BİLGİSİ -->
             <div style="text-align:left; margin-bottom:20px;">
                 <h3 style="color:#c084fc; font-size:15px; margin:0 0 10px 0; text-align:center;">
                     🎮 Bağlı Kontrolcüler
@@ -7560,7 +8094,6 @@ function showMiniControlSettings() {
                 ${gamepadHtml}
             </div>
             
-            <!-- TİTREŞİM AYARLARI (Sadece kontrolcü varsa VE etkinse) -->
             <div id="miniVibrationSection" style="text-align:left; margin:20px 0 15px 0; padding-top:20px; 
                  border-top:1px dashed #3b4c63; display:${(connectedPads.length > 0 && miniGamepad.enabled) ? 'block' : 'none'};">
                 <h3 style="color:#ffa94d; font-size:15px; margin:0 0 10px 0; text-align:center;">
@@ -7569,7 +8102,6 @@ function showMiniControlSettings() {
                 ${vibrationHtml}
             </div>
             
-            <!-- TAB GÖRÜNÜRLÜĞÜ -->
             <div style="text-align:left; margin:20px 0 15px 0; padding-top:20px; border-top:1px dashed #3b4c63;">
                 <h3 style="color:#4dabf7; font-size:15px; margin:0 0 10px 0; text-align:center;">
                     📊 TAB Skorboard Görünürlüğü
@@ -7598,7 +8130,6 @@ function showMiniControlSettings() {
                 </div>
             </div>
             
-            <!-- KLAVYE KISAYOL TUŞLARI -->
             <div style="text-align:left; margin:25px 0 15px 0; padding-top:20px; border-top:1px dashed #3b4c63;">
                 <h3 style="color:#ffd43b; font-size:15px; margin:0 0 10px 0; text-align:center;">
                     ⌨️ Klavye Kısayolları
@@ -7621,22 +8152,18 @@ function showMiniControlSettings() {
     `;
     document.body.appendChild(overlay);
     
-    // ✨ TAB opaklığı slider dinleyicisi (canlı değiştir)
     const opacitySlider = document.getElementById("miniTabOpacityRange");
     const opacityVal = document.getElementById("miniTabOpacityVal");
     if (opacitySlider && opacityVal) {
         opacitySlider.addEventListener("input", () => {
             const val = parseInt(opacitySlider.value);
             opacityVal.textContent = `%${val}`;
-            // Anlık localStorage'a kaydet
             try { localStorage.setItem("miniTabOpacity", String(val)); } catch(e) {}
-            // Scoreboard varsa opacity'sini anlık güncelle
             const sb = document.getElementById("miniScoreboard");
             if (sb) sb.style.background = `rgba(15, 20, 30, ${val / 100})`;
         });
     }
 	
-	// ✨ GAMEPAD ETKİNLEŞTİRME TOGGLE
     const gpEnableToggle = document.getElementById("miniGamepadEnableToggle");
     if (gpEnableToggle) {
         gpEnableToggle.addEventListener("change", () => {
@@ -7644,20 +8171,17 @@ function showMiniControlSettings() {
             saveGamepadEnabled();
             
             if (miniGamepad.enabled) {
-                // Etkinleştirildi → polling'i başlat (oyun içindeyse)
                 const gameScreen = document.getElementById("miniGameScreen");
                 if (gameScreen && !gameScreen.classList.contains("hidden")) {
                     startGamepadPolling();
                 }
                 showToast("🎮 Kontrolcü", "Kontrolcü etkinleştirildi!", null, "success");
             } else {
-                // Devre dışı → polling'i durdur + titreşimi kes
                 stopGamepadPolling();
                 MiniVibration.stop();
                 showToast("⏸️ Kontrolcü", "Kontrolcü devre dışı bırakıldı", null, "info");
             }
             
-            // Popup'ı yenile (titreşim bölümü gizlensin/görünsün + border rengi vs)
             const overlay = document.getElementById("miniControlSettings");
             if (overlay) {
                 overlay.remove();
@@ -7666,7 +8190,6 @@ function showMiniControlSettings() {
         });
     }
     
-    // ✨ TİTREŞİM MASTER TOGGLE
     const vibToggle = document.getElementById("miniVibrationMasterToggle");
     const vibContent = document.getElementById("miniVibrationContent");
     if (vibToggle && vibContent) {
@@ -7689,7 +8212,6 @@ function showMiniControlSettings() {
         });
     }
     
-    // ✨ TİTREŞİM SLİDER'LARI (canlı % güncelle + localStorage + aktif teste yansıma)
     overlay.querySelectorAll('input[id^="miniVibRange_"]').forEach(slider => {
         const type = slider.dataset.vibType;
         const valSpan = document.getElementById("miniVibVal_" + type);
@@ -7700,10 +8222,8 @@ function showMiniControlSettings() {
                 localStorage.setItem("miniVibrationPower_" + type, String(val));
             } catch(e) {}
             
-            // ✨ Bu tipin aktif testi varsa titreşimi anlık güncelle
             const testBtn = overlay.querySelector(`.miniVibTestBtn[data-vib-type="${type}"]`);
             if (testBtn && testBtn.dataset.testing === "true") {
-                // Yeni % ile tekrar başlat (kalan süre kadar)
                 const remainingMs = testBtn._testEndTime ? Math.max(500, testBtn._testEndTime - Date.now()) : 3000;
                 MiniVibration.stop();
                 MiniVibration.testVibrate(type, remainingMs);
@@ -7711,7 +8231,6 @@ function showMiniControlSettings() {
         });
     });
     
-    // Diğer test butonlarını kilitle/aç
     function setOtherTestBtnsDisabled(activeBtn, disabled) {
         overlay.querySelectorAll(".miniVibTestBtn").forEach(b => {
             if (b === activeBtn) return;
@@ -7727,7 +8246,6 @@ function showMiniControlSettings() {
         });
     }
     
-    // Test butonunu normale döndürme fonksiyonu
     function resetTestBtn(btn) {
         btn.dataset.testing = "false";
         btn.textContent = "🔊 Test Et";
@@ -7737,68 +8255,54 @@ function showMiniControlSettings() {
             btn._testTimeout = null;
         }
         btn._testEndTime = null;
-        // Diğer butonları da serbest bırak
         setOtherTestBtnsDisabled(btn, false);
     }
     
-    // ✨ TEST BUTONLARI (3 saniye titret + kırmızı "Durdur" butonu)
     overlay.querySelectorAll(".miniVibTestBtn").forEach(btn => {
         btn.addEventListener("click", () => {
             const type = btn.dataset.vibType;
             
-            // ✨ Başka test aktifse (bu buton kilitliyse) bir şey yapma
             if (btn.dataset.locked === "true") {
                 showToast("⏸️ Bekle", "Önce diğer testi durdur!", null, "warning");
                 return;
             }
             
-            // Zaten aktif test var mı? (durdur modunda mı)
             if (btn.dataset.testing === "true") {
-                // Durdurma modu → titreşimi kes
                 MiniVibration.stop();
                 clearTimeout(btn._testTimeout);
                 resetTestBtn(btn);
                 return;
             }
             
-            // Kontrolcü bağlı mı?
             if (!miniGamepad.connected) {
                 showToast("⚠️ Kontrolcü Yok", "Test için kontrolcü bağla!", null, "warning");
                 return;
             }
             
-            // Titreşim etkin mi?
             if (!MiniVibration.isEnabled()) {
                 showToast("⚠️ Titreşim Kapalı", "Önce titreşimi etkinleştir!", null, "warning");
                 return;
             }
             
-            // Gamepad etkin mi?
             if (!miniGamepad.enabled) {
                 showToast("⚠️ Kontrolcü Kapalı", "Önce kontrolcüyü etkinleştir!", null, "warning");
                 return;
             }
             
-            // % 0 ise test etme
             const power = MiniVibration.getPower(type);
             if (power <= 0) {
                 showToast("⚠️ Güç 0", "Titreşim gücünü artır!", null, "warning");
                 return;
             }
             
-            // TEST BAŞLAT
             btn.dataset.testing = "true";
             btn.textContent = "⏹ Durdur";
             btn.style.background = "#e03131";
-            btn._testEndTime = Date.now() + 3000;  // ✨ Test bitiş zamanı
+            btn._testEndTime = Date.now() + 3000;
             
-            // ✨ Diğer test butonlarını kilitle
             setOtherTestBtnsDisabled(btn, true);
-            
-            // 3 saniye boyunca titret (uzun titreşim)
             MiniVibration.testVibrate(type, 3000);
             
-            // 3 saniye sonra otomatik geri dön
             btn._testTimeout = setTimeout(() => {
                 MiniVibration.stop();
                 resetTestBtn(btn);
@@ -7806,7 +8310,6 @@ function showMiniControlSettings() {
         });
     });
     
-    // Tuş değiştirme (bind)
     let waitingForKey = null;
     overlay.querySelectorAll(".miniKeyBindBtn").forEach(btn => {
         btn.onclick = () => {
@@ -7818,7 +8321,6 @@ function showMiniControlSettings() {
         };
     });
     
-    // Yeni tuş yakalama
     const keyListener = (e) => {
         if (!waitingForKey) return;
         e.preventDefault();
@@ -7836,13 +8338,10 @@ function showMiniControlSettings() {
         btn.style.color = "#000";
         waitingForKey = null;
         
-        // ✨ Oyun ekranındaki kontrol bilgisini de güncelle
         updateMiniControlsInfo();
     };
     window.addEventListener("keydown", keyListener, true);
 	
-	// ✨ Popup açıkken kontrolcü tuşu algılama (bağlı olmadığı durumda)
-    // Her 300ms'de bir gamepad kontrol et
     let gamepadCheckInterval = null;
     if (connectedPads.length === 0) {
         gamepadCheckInterval = setInterval(() => {
@@ -7850,12 +8349,10 @@ function showMiniControlSettings() {
             let foundNew = false;
             for (let i = 0; i < currentPads.length; i++) {
                 if (currentPads[i] && currentPads[i].connected) {
-                    // Bir buton basıldı mı kontrol et (aktif kullanım varsa algıla)
                     const hasActivity = currentPads[i].buttons.some(b => b.pressed) ||
                                        currentPads[i].axes.some(a => Math.abs(a) > 0.3);
                     
                     if (hasActivity || !miniGamepad.connected) {
-                        // Kontrolcü var VE aktivite var (veya ilk kez bağlanıyor)
                         miniGamepad.connected = true;
                         miniGamepad.index = currentPads[i].index;
                         miniGamepad.name = currentPads[i].id;
@@ -7868,7 +8365,6 @@ function showMiniControlSettings() {
             }
             
             if (foundNew) {
-                // Popup'ı yenile (kontrolcü göründüğü için)
                 clearInterval(gamepadCheckInterval);
                 gamepadCheckInterval = null;
                 overlay.remove();
@@ -7878,15 +8374,12 @@ function showMiniControlSettings() {
         }, 300);
     }
     
-    // Kapat
     overlay.querySelector("#miniCtrlCloseBtn").onclick = () => {
         window.removeEventListener("keydown", keyListener, true);
-        // Aktif titreşim testleri varsa durdur
         MiniVibration.stop();
         overlay.querySelectorAll(".miniVibTestBtn").forEach(b => {
             if (b._testTimeout) clearTimeout(b._testTimeout);
         });
-        // Gamepad check interval'i temizle
         if (gamepadCheckInterval) {
             clearInterval(gamepadCheckInterval);
             gamepadCheckInterval = null;
@@ -7894,13 +8387,11 @@ function showMiniControlSettings() {
         overlay.remove();
     };
     
-    // Sıfırla
     overlay.querySelector("#miniCtrlResetBtn").onclick = () => {
         if (!confirm("Ayarları varsayılana sıfırla?\n(Klavye tuşları + TAB görünürlüğü + Titreşim ayarları)")) return;
         try { 
             localStorage.removeItem("miniKeys_p1");
-            localStorage.setItem("miniTabOpacity", "5");  // ✨ Default %5
-            // ✨ Titreşim ayarlarını sıfırla
+            localStorage.setItem("miniTabOpacity", "5");
             localStorage.removeItem("miniVibrationEnabled");
             localStorage.removeItem("miniVibrationPower_kick");
             localStorage.removeItem("miniVibrationPower_firekick");
@@ -7920,7 +8411,6 @@ function showMiniControlSettings() {
 // MODERN CONFIRM POPUP - Lobbye Dön
 // ========================================
 function showMiniLobbyReturnConfirm() {
-    // Popup zaten varsa kaldır
     const existing = document.getElementById("miniLobbyReturnConfirm");
     if (existing) existing.remove();
     
@@ -7982,9 +8472,7 @@ function showMiniGuestLobbyConfirm() {
     
     document.getElementById("miniGuestLobbyYesBtn").onclick = () => {
         overlay.remove();
-        // Backend'e bildir: kullanıcı izleyici olsun
         send({ type: "mini_guest_return_lobby" });
-        // Lobby ekranına geç
         showScreen("miniLobby");
         updateMiniLobby();
     };
@@ -8112,13 +8600,11 @@ function showMiniRestartConfirm() {
 function startMiniPing() {
     if (miniData.pingInterval) return;
     
-    // ✨ Host tek başınaysa ping ATMA (kendi kendine ping = 0)
     function _shouldPing() {
         const isHost = miniData.playerId === 1;
         const otherCount = miniData.players ? miniData.players.filter(p => p.id !== miniData.playerId).length : 0;
         
         if (isHost && otherCount === 0) {
-            // Host + kimse yok → ping'i sıfırla, gönderme
             if (!miniData.pings) miniData.pings = {};
             miniData.pings[miniData.playerId] = 0;
             updateMiniPingDisplay();
@@ -8127,11 +8613,9 @@ function startMiniPing() {
         return true;
     }
     
-    // Her 3 saniyede bir ping at
     miniData.pingInterval = setInterval(() => {
         if (!_shouldPing()) return;
         
-        // ✨ P2P bağlıysa DataChannel'dan ping ölç (daha doğru)
         if (MiniRTC.connected) {
             MiniRTC.sendMessage({ type: "mini_ping_p2p", ts: Date.now() });
         } else if (ws && ws.readyState === WebSocket.OPEN) {
@@ -8139,7 +8623,6 @@ function startMiniPing() {
         }
     }, 3000);
     
-    // İlk ping'i hemen at
     setTimeout(() => {
         if (!_shouldPing()) return;
         
@@ -8159,7 +8642,6 @@ function stopMiniPing() {
 }
 
 function updateMiniPingDisplay() {
-    // Lobby ve pause popup'taki ping değerlerini güncelle
     const pingSpans = document.querySelectorAll(".miniPlayerPing");
     pingSpans.forEach(span => {
         const pid = parseInt(span.dataset.playerId);
@@ -8173,858 +8655,11 @@ function updateMiniPingDisplay() {
     });
 }
 
-// ========================================
-// 📳 GAMEPAD TİTREŞİM SİSTEMİ
-// ========================================
-const MiniVibration = {
-    lastVibration: 0,
-    minInterval: 20,  // ✨ Min 20ms arayla (test için biraz esnek)
-    
-    // Ayarları localStorage'dan oku
-    isEnabled() {
-        try {
-            return localStorage.getItem("miniVibrationEnabled") !== "false";
-        } catch(e) { return true; }
-    },
-    
-    getPower(type) {
-        // type: "kick", "firekick", "wall", "post", "goal", "whistle"
-        // Default değerler:
-        const defaults = {
-            kick: 25,       // Şut - hafif
-            firekick: 50,   // Alevli şut - orta
-            wall: 15,       // Duvara çarpma - hafif
-            post: 90,       // Direğe çarpma - güçlü
-            goal: 50,       // Gol - orta
-            whistle: 10     // Santra/düdük - çok hafif
-        };
-        try {
-            const raw = localStorage.getItem("miniVibrationPower_" + type);
-            if (raw !== null) {
-                const val = parseInt(raw);
-                if (!isNaN(val) && val >= 0 && val <= 100) return val;
-            }
-        } catch(e) {}
-        return defaults[type] || 50;
-    },
-    
-    // Titreşim gönder
-    // strong: güçlü motor (düşük frekans, sarsıntı)
-    // weak: zayıf motor (yüksek frekans, buzz)
-    // duration: milisaniye
-    vibrate(strong, weak, duration) {
-        if (!this.isEnabled()) return;
-        if (!miniGamepad.connected) return;
-        if (!miniGamepad.enabled) return;  // ✨ Gamepad kapalıysa titreşim yok
-        // Güç 0 ise titreşme
-        if (strong <= 0.01 && weak <= 0.01) return;
-        
-        // Spam engeli - çok sık titreşim gelmesin
-        const now = performance.now();
-        if (now - this.lastVibration < this.minInterval) return;
-        this.lastVibration = now;
-        
-        try {
-            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-            const pad = pads[miniGamepad.index];
-            if (!pad) return;
-            
-            // Modern API: dual-rumble
-            if (pad.vibrationActuator && pad.vibrationActuator.playEffect) {
-                pad.vibrationActuator.playEffect("dual-rumble", {
-                    startDelay: 0,
-                    duration: duration,
-                    strongMagnitude: Math.min(1.0, Math.max(0, strong)),
-                    weakMagnitude: Math.min(1.0, Math.max(0, weak))
-                }).catch(() => {});
-            }
-            // Eski API: hapticActuators
-            else if (pad.hapticActuators && pad.hapticActuators.length > 0) {
-                pad.hapticActuators[0].pulse(Math.max(strong, weak), duration).catch(() => {});
-            }
-        } catch(e) {
-            // Titreşim desteklemiyorsa sessizce geç
-        }
-    },
-    
-    // Preset titreşimler (kullanıcının % ayarını okur)
-    kick(sprintActive) {
-        const p = this.getPower("kick") / 100;
-        if (sprintActive) {
-            this.vibrate(0.8 * p, 0.6 * p, 100);
-        } else {
-            this.vibrate(0.6 * p, 0.4 * p, 80);
-        }
-    },
-    
-    firekick() {
-        const p = this.getPower("firekick") / 100;
-        this.vibrate(1.0 * p, 0.8 * p, 150);
-    },
-    
-    ballTouch() {
-        // Topa dokunma - kick ayarının 1/4'ü kadar
-        const p = this.getPower("kick") / 100;
-        this.vibrate(0.3 * p, 0.5 * p, 40);
-    },
-    
-    wallHit() {
-        const p = this.getPower("wall") / 100;
-        this.vibrate(0.8 * p, 0.7 * p, 80);
-    },
-    
-    postHit() {
-        const p = this.getPower("post") / 100;
-        this.vibrate(1.0 * p, 0.9 * p, 200);
-    },
-    
-    goalScored() {
-        const p = this.getPower("goal") / 100;
-        this.vibrate(0.9 * p, 0.7 * p, 250);
-        // Kısa ikinci pulse
-        setTimeout(() => {
-            this.vibrate(0.7 * p, 0.5 * p, 180);
-        }, 350);
-    },
-    
-    goalConceded() {
-        const p = this.getPower("goal") / 100;
-        this.vibrate(0.6 * p, 0.4 * p, 200);
-    },
-    
-    playerCollision() {
-        // Sabit hafif (ayar yok)
-        this.vibrate(0.2, 0.15, 60);
-    },
-    
-    countdown() {
-        const p = this.getPower("whistle") / 100;
-        this.vibrate(0.6 * p, 0.8 * p, 30);
-    },
-    
-    whistle() {
-        const p = this.getPower("whistle") / 100;
-        this.vibrate(0.8 * p, 1.0 * p, 100);
-    },
-    
-    // ✨ TEST fonksiyonu - Gerçek oyundaki preset'i çağırır, verilen süre boyunca tekrarlar
-    _testInterval: null,
-    testVibrate(type, durationMs) {
-        const p = this.getPower(type) / 100;
-        if (p <= 0) return;
-        
-        // Eski test intervalı varsa temizle
-        if (this._testInterval) {
-            clearInterval(this._testInterval);
-            this._testInterval = null;
-        }
-        
-        // Preset fonksiyonunu çağır (gerçek oyundaki gibi)
-        const callPreset = () => {
-            switch(type) {
-                case "kick": this.kick(false); break;
-                case "firekick": this.firekick(); break;
-                case "wall": this.wallHit(); break;
-                case "post": this.postHit(); break;
-                case "goal": this.goalScored(); break;
-                case "whistle": this.whistle(); break;
-            }
-        };
-        
-        // İlk pulse hemen
-        callPreset();
-        
-        // Preset sürelerine göre tekrar aralığı
-        // kick: 80ms, firekick: 150ms, wall: 80ms, post: 200ms, goal: 250ms, whistle: 100ms
-        const intervalMap = {
-            kick: 150,
-            firekick: 200,
-            wall: 130,
-            post: 250,
-            goal: 400,
-            whistle: 180
-        };
-        const interval = intervalMap[type] || 200;
-        
-        // Süre bitene kadar tekrarla
-        const totalDuration = durationMs || 3000;
-        const endTime = Date.now() + totalDuration;
-        
-        this._testInterval = setInterval(() => {
-            if (Date.now() >= endTime) {
-                clearInterval(this._testInterval);
-                this._testInterval = null;
-                return;
-            }
-            callPreset();
-        }, interval);
-    },
-    
-    // Titreşimi durdur
-    stop() {
-        // ✨ Aktif test intervalı varsa temizle
-        if (this._testInterval) {
-            clearInterval(this._testInterval);
-            this._testInterval = null;
-        }
-        
-        if (!miniGamepad.connected) return;
-        try {
-            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-            const pad = pads[miniGamepad.index];
-            if (pad && pad.vibrationActuator) {
-                pad.vibrationActuator.reset();
-            }
-        } catch(e) {}
-    }
-};
-
-// ✨ Ping başlatma & pause lobby update - handleMiniMessage içine gömdük (aşağıda)
-
-// ========================================
-// 🔊 SES SİSTEMİ (Audio Manager)
-// ========================================
-const MiniAudio = {
-    _unlocked: false,
-    _cache: {},       // Yüklenen ses dosyaları
-    _lastPlayed: {},  // Son çalınan ses (aynı grupta tekrar çalmayı önler)
-
-    // Ses dosyasını önceden yükle (cache'e al)
-    preload(name) {
-        if (this._cache[name]) return;
-        const audio = new Audio(`/oyun_modlari/mini_futbol/sounds/${name}`);
-        audio.preload = "auto";
-        this._cache[name] = audio;
-    },
-
-    // Kullanıcı ilk tıkladığında/dokunduğunda unlock et (Chrome autoplay fix)
-    unlock() {
-        if (this._unlocked) return;
-        // ✨ Gerçek bir ses dosyasını sessiz oynat → unlock olur
-        try {
-            const a = new Audio("/oyun_modlari/mini_futbol/sounds/kick_1.wav");
-            a.volume = 0.01;
-            a.play().then(() => {
-                this._unlocked = true;
-                console.log("[SES] Audio unlocked ✓");
-            }).catch((err) => {
-                // Yine de unlock kabul et (kullanıcı etkileşimi zaten oldu)
-                this._unlocked = true;
-                console.log("[SES] Audio unlocked (fallback) ✓");
-            });
-        } catch(e) {
-            this._unlocked = true;
-        }
-    },
-
-    // Tek ses çal
-    play(name, volume) {
-        if (!this._unlocked) return;
-        try {
-            let audio = this._cache[name];
-            if (!audio) {
-                audio = new Audio(`/oyun_modlari/mini_futbol/sounds/${name}`);
-                this._cache[name] = audio;
-            }
-            // Sesi başa sar (üst üste çalabilsin)
-            const clone = audio.cloneNode();
-            clone.volume = (volume !== undefined) ? volume : 0.6;
-            clone.play().catch(() => {});
-        } catch(e) {}
-    },
-
-    // Gruptan rastgele çal (arka arkaya aynısı çalmaz)
-    playRandom(group, files, volume) {
-        if (!this._unlocked) return;
-        if (!files || files.length === 0) return;
-
-        let available = files;
-
-        // Son çalınan aynıysa listeden çıkar
-        const last = this._lastPlayed[group];
-        if (files.length > 1 && last) {
-            available = files.filter(f => f !== last);
-        }
-
-        // Rastgele seç
-        const chosen = available[Math.floor(Math.random() * available.length)];
-        this._lastPlayed[group] = chosen;
-        this.play(chosen, volume);
-    },
-
-    // Tüm sesleri önceden yükle (Ağır gol müzikleri açılış hızını bozmaması için buraya konulmaz)
-    preloadAll() {
-        const files = [
-            "post_hit.wav",
-            "wall_hit_1.wav", "wall_hit_2.wav",
-            "goal_1.wav", "goal_2.wav", "goal_3.wav",
-            "whistle.wav",
-            "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
-            "kick_1.wav", "kick_2.wav",
-            "own_goal.wav",
-            "player_join.mp3",
-            "player_leave.mp3"
-        ];
-        files.forEach(f => this.preload(f));
-        console.log("[SES] Hafif sesler preload edildi ✓");
-    }
-};
-
-// Sayfa yüklenince sesleri cache'e al
+// Sayfa yüklendiğinde sesleri cache'e al
 setTimeout(() => MiniAudio.preloadAll(), 500);
 
-// Kullanıcı herhangi bir yere tıklayınca veya tuşa basınca unlock et
+// Kullanıcı etkileşimi ile sesleri unlock et
 document.addEventListener("click", () => MiniAudio.unlock(), { once: false });
 document.addEventListener("keydown", () => MiniAudio.unlock(), { once: false });
-
-// ========================================
-// ✨ CLIENT-SIDE PREDICTION (Misafir için)
-// ========================================
-
-// Prediction sabitleri (host physics ile aynı olmalı)
-const PRED_PLAYER_SPEED_MAP = {
-    "yavas": 2.0,
-    "normal": 2.8,
-    "hizli": 3.5
-};
-const PRED_PLAYER_ACCEL_MAP = {
-    "yavas": 0.4,
-    "normal": 0.55,
-    "hizli": 0.8
-};
-const PRED_FRICTION = 0.90;
-const PRED_SPRINT_MULT = 1.5;
-// ✨ Fallback default değerler (fieldConfig'ten gerçek boyut alınır)
-const PRED_FIELD_WIDTH = 1000;
-const PRED_FIELD_HEIGHT = 500;
-
-function getPredFieldWidth() {
-    if (miniData.fieldConfig && miniData.fieldConfig.width) return miniData.fieldConfig.width;
-    if (miniData.fieldWidth) return miniData.fieldWidth;
-    return PRED_FIELD_WIDTH;
-}
-function getPredFieldHeight() {
-    if (miniData.fieldConfig && miniData.fieldConfig.height) return miniData.fieldConfig.height;
-    if (miniData.fieldHeight) return miniData.fieldHeight;
-    return PRED_FIELD_HEIGHT;
-}
-const PRED_PLAYER_RADIUS = 20;
-const PRED_PLAYER_OUT_MARGIN = 55;
-const PRED_LERP_SPEED = 0.4;  // ✨ 0.25 → 0.4 (daha hızlı server sync)
-
-// Prediction her frame çalışır (~60fps)
-function updateMiniPrediction() {
-    if (!miniData.predictionActive) return;
-    if (!miniData.gameState) return;
-    if (!miniData.playerId) return;
-    
-    // Kendi ID'mizin gerçek pozisyonu server'dan
-    const serverPos = miniData.gameState.players[String(miniData.playerId)];
-    if (!serverPos) return;
-    
-    // İlk kez → server pozisyonundan başlat
-    if (!miniData.predictedSelf) {
-        miniData.predictedSelf = {
-            x: serverPos.x,
-            y: serverPos.y,
-            vx: 0,
-            vy: 0
-        };
-        return;
-    }
-    
-    const p = miniData.predictedSelf;
-    // 🎯 BUG FIX: predictedKeys yerine her zaman güncel olan keysPressed kullanılarak mobildeki ağırlık çözüldü
-    const keys = miniData.keysPressed;
-    
-    // Hız ayarı
-    const speedMode = miniData.gameSpeed || "normal";
-    const PLAYER_SPEED = PRED_PLAYER_SPEED_MAP[speedMode] || 2.8;
-    const PLAYER_ACCEL = PRED_PLAYER_ACCEL_MAP[speedMode] || 0.55;
-    
-    // Sprint kontrolü (basit - enerjiye bakmıyoruz)
-    const sprintActive = keys.sprint;
-    const maxSpeed = PLAYER_SPEED * (sprintActive ? PRED_SPRINT_MULT : 1.0);
-    
-    // İvme uygula
-    if (keys.up) p.vy -= PLAYER_ACCEL;
-    if (keys.down) p.vy += PLAYER_ACCEL;
-    if (keys.left) p.vx -= PLAYER_ACCEL;
-    if (keys.right) p.vx += PLAYER_ACCEL;
-    
-    // Max hız
-    const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-    if (spd > maxSpeed) {
-        p.vx = (p.vx / spd) * maxSpeed;
-        p.vy = (p.vy / spd) * maxSpeed;
-    }
-    
-    // Sürtünme
-    p.vx *= PRED_FRICTION;
-    p.vy *= PRED_FRICTION;
-    if (Math.abs(p.vx) < 0.1) p.vx = 0;
-    if (Math.abs(p.vy) < 0.1) p.vy = 0;
-    
-    // Pozisyon güncelle
-    p.x += p.vx;
-    p.y += p.vy;
-    
-    // Duvar sınırı (basit) - saha boyutları dinamik
-    const R = PRED_PLAYER_RADIUS;
-    const M = PRED_PLAYER_OUT_MARGIN;
-    const _pfw = getPredFieldWidth();
-    const _pfh = getPredFieldHeight();
-    if (p.x - R < -M) { p.x = -M + R; p.vx = 0; }
-    if (p.x + R > _pfw + M) { p.x = _pfw + M - R; p.vx = 0; }
-    if (p.y - R < -M) { p.y = -M + R; p.vy = 0; }
-    if (p.y + R > _pfh + M) { p.y = _pfh + M - R; p.vy = 0; }
-    
-    // ✨ SERVER RECONCILIATION - server pozisyonuna yumuşakça yaklaş
-    // Tahminim serverdan çok uzaksa → snap et
-    const dx = serverPos.x - p.x;
-    const dy = serverPos.y - p.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist > 40) {
-        // Çok uzak → snap (ışınlan)
-        p.x = serverPos.x;
-        p.y = serverPos.y;
-        p.vx = 0;
-        p.vy = 0;
-    } else if (dist > 2) {
-        // Ufak fark → hızlıca yaklaş
-        p.x += dx * 0.5;
-        p.y += dy * 0.5;
-    }
-}
-
-// ✨ RECONCILIATION: Yerel HP motorunu, server'dan gelen gerçek veriyle hizala
-function syncLocalHPWithServer() {
-    if (typeof HP === 'undefined' || !HP.running || !HP.room || !HP.room.gameState) return;
-    if (!miniData.gameState || miniData.playerId === 1) return; // Host zaten otorite, sync gerekmez
-
-    const localGS = HP.room.gameState;
-    const serverGS = miniData.gameState;
-
-    // 1) Topu senkronize et (Yumuşak lerp)
-    if (serverGS.ball && localGS.ball) {
-        const dx = serverGS.ball.x - localGS.ball.x;
-        const dy = serverGS.ball.y - localGS.ball.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-
-        if (dist > 80) {
-            localGS.ball.x = serverGS.ball.x;
-            localGS.ball.y = serverGS.ball.y;
-            localGS.ball.vx = serverGS.ball.vx || 0;
-            localGS.ball.vy = serverGS.ball.vy || 0;
-        } else if (dist > 1) {
-            localGS.ball.x += dx * 0.3;
-            localGS.ball.y += dy * 0.3;
-        }
-    }
-
-    // 2) Oyuncuları senkronize et (Loose Reconciliation - Sıfır Rubberbanding)
-    if (serverGS.players) {
-        for (const pid in serverGS.players) {
-            const sP = serverGS.players[pid];
-            const lP = localGS.players[pid];
-            if (!lP) continue;
-
-            const dx = sP.x - lP.x;
-            const dy = sP.y - lP.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-
-            const isMe = parseInt(pid) === miniData.playerId;
-            // Kendi karakterimiz ise toleransı yüksek, diğer oyuncular ise dar tutuyoruz
-            const threshold = isMe ? 150 : 50; 
-            const lerpSpeed = isMe ? 0.12 : 0.35; // Kendi karakterimizde yumuşak senkronizasyon (titreşimi tamamen sıfırlar)
-
-            if (dist > threshold) {
-                lP.x = sP.x;
-                lP.y = sP.y;
-            } else if (dist > 0.5) {
-                lP.x += dx * lerpSpeed;
-                lP.y += dy * lerpSpeed;
-            }
-        }
-    }
-}
-
-// ========================================
-// ⚙️ AYAR DEĞİŞİKLİĞİ TOAST (birden fazla ayarı alt alta gösterir)
-// ========================================
-function showMiniSettingsToast(changes) {
-    // Eski toast varsa kaldır
-    const existing = document.getElementById("miniSettingsToast");
-    if (existing) existing.remove();
-    
-    // Toast oluştur
-    const toast = document.createElement("div");
-    toast.id = "miniSettingsToast";
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        background: linear-gradient(135deg, rgba(30, 40, 60, 0.98), rgba(20, 30, 45, 0.98));
-        border: 2px solid #4dabf7;
-        border-radius: 12px;
-        padding: 16px 20px;
-        box-shadow: 0 10px 40px rgba(77, 171, 247, 0.4), 0 0 60px rgba(77, 171, 247, 0.2);
-        z-index: 100000;
-        min-width: 320px;
-        max-width: 450px;
-        color: #fff;
-        font-family: 'Segoe UI', sans-serif;
-        animation: settingsToastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    `;
-    
-    // Başlık
-    let html = `
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; 
-                    padding-bottom:10px; border-bottom:1px solid rgba(77,171,247,0.3);">
-            <span style="font-size:24px;">⚙️</span>
-            <div style="flex:1;">
-                <div style="color:#4dabf7; font-weight:700; font-size:15px;">
-                    Oda Ayarları Güncellendi
-                </div>
-                <div style="color:#adb5bd; font-size:11px;">
-                    ${changes.length} ayar değiştirildi
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Her değişiklik için satır
-    changes.forEach((change, i) => {
-        html += `
-            <div style="padding:6px 0; font-size:13px; color:#e0e0e0; line-height:1.5;
-                        animation: settingsRowFadeIn 0.3s ease-out ${i * 0.08}s both;">
-                ${change.msg}
-            </div>
-        `;
-    });
-    
-    toast.innerHTML = html;
-    document.body.appendChild(toast);
-    
-    // Animasyon CSS'i (yoksa ekle)
-    if (!document.getElementById("miniSettingsToastStyles")) {
-        const style = document.createElement("style");
-        style.id = "miniSettingsToastStyles";
-        style.textContent = `
-            @keyframes settingsToastSlideIn {
-                from { opacity: 0; transform: translateX(400px); }
-                to { opacity: 1; transform: translateX(0); }
-            }
-            @keyframes settingsToastSlideOut {
-                from { opacity: 1; transform: translateX(0); }
-                to { opacity: 0; transform: translateX(400px); }
-            }
-            @keyframes settingsRowFadeIn {
-                from { opacity: 0; transform: translateX(15px); }
-                to { opacity: 1; transform: translateX(0); }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    // ✨ Otomatik kapat (değişiklik sayısına göre süre ayarla - her satır +500ms)
-    const displayTime = Math.min(3000 + changes.length * 500, 8000);  // min 3s, max 8s
-    setTimeout(() => {
-        toast.style.animation = "settingsToastSlideOut 0.3s ease-in forwards";
-        setTimeout(() => toast.remove(), 300);
-    }, displayTime);
-}
-
-// ========================================
-// 🇹🇷 AY-YILDIZ ÇİZİM (Seljuk için özel)
-// Türk Bayrağı standartları:
-// Hilal dış çap = 1/2 bayrak yüksekliği
-// Hilal iç çap = 2/5 bayrak yüksekliği  
-// Yıldız çap = 1/4 bayrak yüksekliği
-// ========================================
-function drawTurkishStar(ctx, cx, cy, radius, glowIntensity) {
-    // radius = oyuncu yarıçapı (20)
-    // "bayrak yüksekliği" = radius * 2 (oyuncu çapı)
-    const flagH = radius * 2;
-    
-    ctx.save();
-    ctx.translate(cx, cy);
-    
-    // ✨ Parlama efekti (şut çekince - ay-yıldız güçlü glow)
-    if (glowIntensity > 0.01) {
-        // Kırmızı parlama halkası (dış - bayrak rengi)
-        ctx.shadowBlur = 25 * glowIntensity;
-        ctx.shadowColor = "#e30a17";  // Türk bayrağı kırmızısı
-        
-        // İç beyaz parlama
-        ctx.fillStyle = "#ffffff";
-        // Ay-yıldız çizilirken shadow otomatik uygulanacak
-    }
-    
-    ctx.fillStyle = "#ffffff";
-    
-    // === HİLAL (AY) ===
-    // Dış daire yarıçapı = flagH/2 * 0.5 = radius * 0.5
-    const moonOuterR = flagH * 0.25;  // = radius * 0.5
-    // İç daire yarıçapı (kesim) = 4/5 * dış daire
-    const moonInnerR = moonOuterR * 0.8;
-    // Hilal merkezi sola kaydırılmış
-    const moonCenterX = -radius * 0.15;
-    // İç kesim biraz sağa (hilal boşluğu oluştursun)
-    const moonCutOffset = moonOuterR * 0.25;
-    
-    ctx.beginPath();
-    ctx.arc(moonCenterX, 0, moonOuterR, 0, Math.PI * 2);
-    ctx.arc(moonCenterX + moonCutOffset, 0, moonInnerR, 0, Math.PI * 2, true);
-    ctx.fill();
-    
-    // === YILDIZ (5 köşeli) ===
-    // Dış yarıçap = flagH/4 / 2 = radius * 0.25
-    const starOuterR = flagH * 0.15;   // = radius * 0.3
-    const starInnerR = starOuterR * 0.38;  // 5-köşe yıldız için altın oran
-    // Yıldız hilal boşluğunun içinde (biraz daha sağa)
-    const starX = moonCenterX + moonOuterR * 1.1;
-    const starY = 0;
-    
-    ctx.beginPath();
-    for (let i = 0; i < 10; i++) {
-        const isOuter = (i % 2 === 0);
-        const r = isOuter ? starOuterR : starInnerR;
-        const angle = -Math.PI / 2 + (i * Math.PI / 5);
-        const x = starX + Math.cos(angle) * r;
-        const y = starY + Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    
-    ctx.restore();
-}
-
-// ========================================
-// 🔒 SELJUK ÖZEL İSİM KORUMASI
-// ========================================
-const SELJUK_LOCK_KEY = "seljukLockUntil";
-const SELJUK_ATTEMPTS_KEY = "seljukAttempts";
-const SELJUK_VERIFIED_KEY = "seljukVerified";
-
-function isSeljukName(name) {
-    const n = (name || "").trim();
-    return n === "Seljuk" || n === "seljuk" || n === "SELJUK";
-}
-
-function isSeljukLocked() {
-    try {
-        const until = parseInt(localStorage.getItem(SELJUK_LOCK_KEY) || "0");
-        if (until && Date.now() < until) {
-            return until - Date.now();  // Kalan ms
-        }
-    } catch(e) {}
-    return 0;
-}
-
-function isSeljukVerified() {
-    // Doğrulama 24 saat geçerli
-    try {
-        const verifiedUntil = parseInt(localStorage.getItem(SELJUK_VERIFIED_KEY) || "0");
-        if (verifiedUntil && Date.now() < verifiedUntil) {
-            return true;
-        }
-    } catch(e) {}
-    return false;
-}
-
-function markSeljukVerified() {
-    try {
-        // 24 saat geçerli
-        const until = Date.now() + (24 * 60 * 60 * 1000);
-        localStorage.setItem(SELJUK_VERIFIED_KEY, String(until));
-        localStorage.setItem(SELJUK_ATTEMPTS_KEY, "0");  // Denemeleri sıfırla
-    } catch(e) {}
-}
-
-function formatLockTime(ms) {
-    const mins = Math.ceil(ms / 60000);
-    if (mins >= 60) {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return `${h} saat ${m} dakika`;
-    }
-    return `${mins} dakika`;
-}
-
-// Şifre popup göster - Promise döner (true/false)
-function showSeljukPasswordPopup() {
-    return new Promise((resolve) => {
-        // Kilit kontrol
-        const lockedMs = isSeljukLocked();
-        if (lockedMs > 0) {
-            showSeljukLockedPopup(lockedMs);
-            resolve(false);
-            return;
-        }
-        
-        // Eski popup varsa kaldır
-        const existing = document.getElementById("seljukPasswordBox");
-        if (existing) existing.remove();
-        
-        const attempts = parseInt(localStorage.getItem(SELJUK_ATTEMPTS_KEY) || "0");
-        const remaining = 3 - attempts;
-        
-        const overlay = document.createElement("div");
-        overlay.id = "seljukPasswordBox";
-        overlay.className = "overlay";
-        overlay.style.zIndex = "9999999";
-        overlay.innerHTML = `
-            <div class="overlayCard" style="max-width:450px; border:2px solid #ff6b6b; 
-                                             box-shadow: 0 0 40px rgba(255,107,107,0.5);">
-                <div style="font-size:60px; margin:10px 0;">🔒</div>
-                <h2 style="color:#ff6b6b; margin:10px 0 15px 0;">Korumalı İsim</h2>
-                <p style="color:#adb5bd; font-size:14px; margin:0 0 20px 0; line-height:1.5;">
-                    <b style="color:#fff;">Seljuk</b> ismi korumalı.<br>
-                    <span style="font-size:12px;">Devam etmek için şifre gir.</span>
-                </p>
-                <input id="seljukPwInput" type="password" 
-                       placeholder="Şifre"
-                       maxlength="20"
-                       style="width:100%; padding:14px; font-size:20px; font-weight:bold;
-                              border-radius:10px; border:2px solid #ff6b6b; 
-                              background:#1a1e2e; color:#fff; text-align:center;
-                              font-family:monospace; letter-spacing:5px; outline:none;">
-                <p style="color:#ffd43b; font-size:12px; text-align:center; margin:10px 0 15px 0;">
-                    Kalan hak: <b>${remaining}/3</b>
-                </p>
-                <div class="confirmButtons">
-                    <button id="seljukPwOkBtn" class="bigBtn greenBtn">✓ TAMAM</button>
-                    <button id="seljukPwCancelBtn" class="bigBtn redBtn">✗ İPTAL</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        
-        const input = document.getElementById("seljukPwInput");
-        setTimeout(() => input.focus(), 50);
-        
-        input.addEventListener("keydown", (e) => {
-            e.stopPropagation();  // Oyun tuşları etkilenmesin
-            if (e.key === "Enter") {
-                e.preventDefault();
-                document.getElementById("seljukPwOkBtn").click();
-            } else if (e.key === "Escape") {
-                e.preventDefault();
-                document.getElementById("seljukPwCancelBtn").click();
-            }
-        });
-        
-        document.getElementById("seljukPwOkBtn").onclick = async () => {
-            const password = input.value.trim();
-            if (!password) {
-                input.style.borderColor = "#ff3333";
-                input.focus();
-                return;
-            }
-            
-            // Backend'e gönder
-            try {
-                const resp = await fetch("/verify-seljuk", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ password: password })
-                });
-                const data = await resp.json();
-                
-                if (data.ok) {
-                    // Doğru şifre
-                    markSeljukVerified();
-                    overlay.remove();
-                    resolve(true);
-                } else {
-                    // Yanlış şifre
-                    let newAttempts = parseInt(localStorage.getItem(SELJUK_ATTEMPTS_KEY) || "0") + 1;
-                    localStorage.setItem(SELJUK_ATTEMPTS_KEY, String(newAttempts));
-                    
-                    if (newAttempts >= 3) {
-                        // 3 yanlış → 1 saat kilit
-                        const lockUntil = Date.now() + (60 * 60 * 1000);  // 1 saat
-                        localStorage.setItem(SELJUK_LOCK_KEY, String(lockUntil));
-                        localStorage.setItem(SELJUK_ATTEMPTS_KEY, "0");
-                        overlay.remove();
-                        showSeljukLockedPopup(60 * 60 * 1000);
-                        resolve(false);
-                    } else {
-                        // Hala hak var
-                        const remaining = 3 - newAttempts;
-                        input.value = "";
-                        input.style.borderColor = "#ff3333";
-                        input.style.animation = "shake 0.4s";
-                        setTimeout(() => { input.style.animation = ""; }, 400);
-                        
-                        // Uyarı güncelle
-                        const warnP = overlay.querySelector("p[style*='ffd43b']");
-                        if (warnP) {
-                            warnP.innerHTML = `❌ Yanlış! Kalan hak: <b>${remaining}/3</b>`;
-                            warnP.style.color = "#ff6b6b";
-                        }
-                        input.focus();
-                    }
-                }
-            } catch(e) {
-                console.error("Şifre doğrulama hatası:", e);
-                showToast("❌ Hata", "Bağlantı sorunu, tekrar dene", null, "error");
-            }
-        };
-        
-        document.getElementById("seljukPwCancelBtn").onclick = () => {
-            overlay.remove();
-            resolve(false);
-        };
-    });
-}
-
-function showSeljukLockedPopup(remainingMs) {
-    const existing = document.getElementById("seljukLockedBox");
-    if (existing) existing.remove();
-    
-    const overlay = document.createElement("div");
-    overlay.id = "seljukLockedBox";
-    overlay.className = "overlay";
-    overlay.style.zIndex = "9999999";
-    overlay.innerHTML = `
-        <div class="overlayCard" style="max-width:450px; border:2px solid #e03131; 
-                                         box-shadow: 0 0 40px rgba(224,49,49,0.5);">
-            <div style="font-size:60px; margin:10px 0;">⛔</div>
-            <h2 style="color:#e03131; margin:10px 0 15px 0;">Kilitli!</h2>
-            <p style="color:#adb5bd; font-size:15px; margin:0 0 25px 0; line-height:1.5;">
-                Çok fazla yanlış deneme yaptın.<br>
-                <b style="color:#ffd43b;">${formatLockTime(remainingMs)}</b> sonra tekrar dene.
-            </p>
-            <div class="confirmButtons">
-                <button id="seljukLockedOkBtn" class="bigBtn redBtn">Anladım</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-    
-    document.getElementById("seljukLockedOkBtn").onclick = () => {
-        overlay.remove();
-    };
-}
-
-// Shake animasyonu için CSS
-(function addShakeStyle() {
-    if (document.getElementById("seljukShakeStyle")) return;
-    const style = document.createElement("style");
-    style.id = "seljukShakeStyle";
-    style.textContent = `
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
-        }
-    `;
-    document.head.appendChild(style);
-})();
 
 console.log("Mini Futbol JS yüklendi ✓");

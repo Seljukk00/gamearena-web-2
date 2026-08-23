@@ -1889,10 +1889,12 @@
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
 
-        // ✨ Rakip mesajıysa bildirim sesi çal
-        if (msg.sender_id !== sarkiPlayerId && typeof _playChatNotifySound === "function") {
-            _playChatNotifySound();
-        }
+        // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+        try {
+            const sound = new Audio("/static/sounds/chat_notify.mp3");
+            sound.volume = 1.0;
+            sound.play().catch(() => {});
+        } catch(e) {}
 
         const panel = $("sarkiChatPanel");
         const isOpen = panel && (panel.style.display === "flex");
@@ -2028,6 +2030,7 @@
         }
         
         if (msg.type === "sarki_room_created") {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
             sarkiRoomCode = msg.room_code;
             sarkiPlayerId = msg.player_id;
             sarkiIsHost = (msg.player_id === 1);
@@ -2046,6 +2049,7 @@
         }
 
         if (msg.type === "sarki_room_joined") {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
             sarkiRoomCode = msg.room_code;
             sarkiPlayerId = msg.player_id;
             sarkiIsHost = (msg.player_id === 1);
@@ -2064,6 +2068,11 @@
         }
 
         if (msg.type === "sarki_lobby_update") {
+            // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+            if (msg.players && (!sarkiSettings.players || sarkiSettings.players.length < msg.players.length) && msg.players.length > 1) {
+                try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            }
+            sarkiSettings.players = msg.players;
             updateSarkiLobby(msg);
             return;
         }
@@ -2107,6 +2116,7 @@
         
         // ✨ 3+ kişilik oyunda bir oyuncu ayrıldı → sıralamadan animasyonla sil
         if (msg.type === "sarki_player_left") {
+            try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
             const list = $("sarkiScoreboardList");
             if (list) {
                 const li = list.querySelector(`li[data-pid="${msg.player_id}"]`);

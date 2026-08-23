@@ -154,6 +154,13 @@ function clearMlChatPopups() {
 }
 
 function addMlChatMessage(msg) {
+    // ✨ Chat bildirim sesi (yazan dahil herkese tam ses)
+    try {
+        const sound = new Audio("/static/sounds/chat_notify.mp3");
+        sound.volume = 1.0;
+        sound.play().catch(() => {});
+    } catch(e) {}
+
     mlChat.messages.push(msg);
     if (mlChat.messages.length > mlChat.maxMessages) mlChat.messages.shift();
     
@@ -1160,6 +1167,7 @@ const _originalHandleMessageML = handleMessage;
 handleMessage = function(msg) {
     if (msg.type && msg.type.startsWith("ml_")) {
         if (msg.type === "ml_room_created" || msg.type === "ml_room_joined") {
+            try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
             mlData.playerId = msg.player_id; mlData.roomCode = msg.room_code;
             mlData.turnSeconds = msg.turn_seconds; 
             mlData.category = msg.category || "futbol";
@@ -1171,6 +1179,10 @@ handleMessage = function(msg) {
             showMlChat();
             showScreen("mlLobby"); updateMlLobby();
         } else if (msg.type === "ml_lobby_update") {
+            // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+            if (mlData.players && msg.players && mlData.players.length < msg.players.length && msg.players.length > 1) {
+                try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            }
             showMlChat();
             mlData.roomCode = msg.room_code;
             mlData.players = msg.players; 
@@ -1199,6 +1211,7 @@ handleMessage = function(msg) {
                 if (badge) badge.style.display = "none";
             }
         } else if (msg.type === "ml_player_left") {
+            try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
             // Bir oyuncu ayrıldı
             if (msg.players) mlData.players = msg.players;
             if (msg.scores) mlData.scores = msg.scores;
