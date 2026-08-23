@@ -46,11 +46,9 @@ const HP = {  // Host Physics namespace
     SPRINT_KICK_MULTIPLIER: 1.3,
     WALL_BOUNCE: 0.55,
     MIN_BOUNCE_SPEED: 3.0,
-     PLAYER_OUT_MARGIN: 55,
+    PLAYER_OUT_MARGIN: 55,
     
     // === HOST FİZİK STATE ===
-    accumulator: 0,       // ✨ Sekme Uyku Savar
-    lastTickTime: 0,      // ✨ Zaman Takipçisi
     room: null,           // {players, ball, scores, ...}
     settings: null,       // {goalTarget, matchDuration, gameSpeed, allowPlase, advanced, ...}
     running: false,
@@ -460,122 +458,194 @@ const HP = {  // Host Physics namespace
     // ANA TICK (60 FPS)
     // ==========================================
     
-    // ✨ Zaman Akümülatörü (Sekme Uyku Savar)
-    accumulator: 0,
-    lastTickTime: 0,
-
     tick() {
         if (!this.running || !this.room) return;
-        const nowMs = performance.now();
-        if (!this.lastTickTime) this.lastTickTime = nowMs;
-        
-        let dt = (nowMs - this.lastTickTime) / 1000;
-        this.lastTickTime = nowMs;
-        
-        this.accumulator += dt;
-        if (this.accumulator > 0.25) this.accumulator = 0.25;
-        
-        let lastGoalEvent = null;
-        while (this.accumulator >= this.FRAME_TIME) {
-            const ge = this.updatePhysics();
-            if (ge) lastGoalEvent = ge;
-            this.accumulator -= this.FRAME_TIME;
-        }
-        
-        this.finalizeTick(lastGoalEvent);
-    },
 
-    finalizeTick(goalEvent) {
-        if (!this.running || !this.room || !this.room.gameState) return;
+        // ✨ SEKME UYKU KORUMASI: 
+        // Eğer Admin sekmeye geri döndüğünde çok büyük bir zaman farkı oluşmuşsa (0.1sn'den fazla),
+        // Fiziğin sapıtmaması için o süreyi yoksay ve normal adımdan devam et.
+        const nowMs = performance.now();
+        if (this._lastTickTime) {
+            const dt = (nowMs - this._lastTickTime) / 1000;
+            if (dt > 0.1) {
+                // Admin geri geldiğinde "zaman patlaması" yaşanmasın diye match_start'ı güncelle
+                if (this.room.gameState && this.room.gameState.state === "playing") {
+                    this.room.gameState.match_start += (dt - this.FRAME_TIME);
+                }
+            }
+        }
+        this._lastTickTime = nowMs;
+        
+        const goalEvent = this.updatePhysics();
         const gs = this.room.gameState;
         const now = performance.now() / 1000;
         
+        // Süre güncelle
         if (gs.state === "playing") {
             const elapsed = now - gs.match_start;
-            gs.time_left = Math.max(0, this.settings.matchDuration - (elapsed < 0 ? 0 : elapsed));
-        } else if (gs.state === "countdown" && gs._savedTimeLeft !== undefined) {
-            gs.time_left = gs._savedTimeLeft;
-        }
-
-        gs.kick_effects = (gs.kick_effects || []).filter(k => now - k.time < 0.5);
-        gs.hit_events = (gs.hit_events || []).filter(h => now - h.time < 0.3);
-        
-        let countdownValue = null;
-        if (gs.state === "countdown") {
-            const remaining = gs.countdown_end - now;
-            if ((gs.countdown_start - now) <= 0) {
-                countdownValue = remaining > 0.5 ? Math.min(3, Math.floor(remaining) + 1) : 0;
+            if (elapsed < 0) {
+                gs.time_left = this.settings.matchDuration;
+            } else {
+                gs.time_left = Math.max(0, this.settings.matchDuration - elapsed);
+            }
+        } else if (gs.state === "countdown") {
+            if (gs._savedTimeLeft !== undefined) {
+                // ✨ Resume sonrası countdown → kaydedilmiş süreyi göster
+                gs.time_left = gs._savedTimeLeft;
+            } else if (gs.pause_time) {
+                // Gol sonrası countdown → mevcut değeri koru
+            } else {
+                // İlk başlangıç
+                gs.time_left = this.settings.matchDuration;
             }
         }
         
+        // Kick effects temizle
+        gs.kick_effects = (gs.kick_effects || []).filter(k => now - k.time < 0.5);
+        // ✨ Hit events temizle (0.3 sn'den eskiler)
+        gs.hit_events = (gs.hit_events || []).filter(h => now - h.time < 0.3);
+        
+        // Countdown value
+        let countdownValue = null;
+        if (gs.state === "countdown") {
+            const remaining = gs.countdown_end - now;
+            const timeUntilStart = gs.countdown_start - now;
+            
+            // ✨ Countdown henüz başlamadı (ek bekleme süresi var) → ekranda gösterme
+            if (timeUntilStart > 0) {
+                countdownValue = null;  // Boş
+            } else if (remaining > 0.5) {
+                countdownValue = Math.floor(remaining) + 1;
+                if (countdownValue > 3) countdownValue = 3;
+            } else {
+                countdownValue = 0;
+            }
+        }
+        
+        // Goal celebration
         let goalCelebration = null;
         if (gs.state === "goal_wait") {
             goalCelebration = {
                 scorer_id: gs.last_goal_scorer,
-                scorer_pid: gs.last_goal_scorer_pid,
+                scorer_pid: gs.last_goal_scorer_pid,  // ✨ Gerçek oyuncu ID
                 own_goal: gs.last_goal_own || false,
                 assist_id: gs.last_goal_assist,
                 wait_remaining: Math.max(0, gs.goal_wait_until - now),
-                silent: gs._silentGoalWait === true,
-                speed: gs.last_goal_speed || 0,
-                dist: gs.last_goal_dist || 0
+                silent: gs._silentGoalWait === true,  // ✨ Ses çalınmasın
+                speed: gs.last_goal_speed || 0,       // ✨ Şut hızı
+                dist: gs.last_goal_dist || 0          // ✨ Şut mesafesi
             };
         }
         
+        // Kickoff info
         let kickoffInfo = null;
-        let ballWarning = false, ballWarningTeam = null;
+        let ballWarning = false;
+        let ballWarningTeam = null;
         if (gs.kickoff_active && gs.state === "playing") {
-            const rem = gs.kickoff_timeout - now;
-            if (rem > 0) {
-                kickoffInfo = { active: true, restricted_team: gs.kickoff_restricted_team, receiving_team: gs.kickoff_receiving_team, time_remaining: Math.round(rem * 10) / 10 };
-                if (rem <= this.KICKOFF_WARNING_TIME) { ballWarning = true; ballWarningTeam = gs.kickoff_restricted_team; }
+            const remaining = gs.kickoff_timeout - now;
+            if (remaining > 0) {
+                kickoffInfo = {
+                    active: true,
+                    restricted_team: gs.kickoff_restricted_team,
+                    receiving_team: gs.kickoff_receiving_team,
+                    time_remaining: Math.round(remaining * 10) / 10
+                };
+                if (remaining <= this.KICKOFF_WARNING_TIME) {
+                    ballWarning = true;
+                    ballWarningTeam = gs.kickoff_restricted_team;
+                }
             }
         }
         
+        // Sprint info
         const sprintInfo = {};
         for (const pid in gs.players) {
             const p = gs.players[pid];
+            // ✨ typeof kontrolü (0 || 100 = 100 JS bugu)
             const energy = (typeof p.sprint_energy === "number") ? p.sprint_energy : this.SPRINT_MAX_ENERGY;
-            sprintInfo[String(pid)] = { energy: Math.round(energy * 10) / 10, max_energy: this.SPRINT_MAX_ENERGY, active: !!(p.keys && p.keys.sprint && energy > 0) };
+            const isActive = p.keys.sprint && energy > 0;
+            sprintInfo[String(pid)] = {
+                energy: Math.round(energy * 10) / 10,
+                max_energy: this.SPRINT_MAX_ENERGY,
+                active: isActive
+            };
         }
         
+        // Stats
         const statsInfo = {};
-        if (this.room.players) {
-            for (const pid in this.room.players) {
-                const p = this.room.players[pid];
-                statsInfo[String(pid)] = { goals: p.goals || 0, assists: p.assists || 0, passes: p.passes || 0, saves: p.saves || 0 };
-            }
+        for (const pid in this.room.players) {
+            const p = this.room.players[pid];
+            statsInfo[String(pid)] = {
+                goals: p.goals || 0,
+                assists: p.assists || 0,
+                passes: p.passes || 0,
+                saves: p.saves || 0  // ✨
+            };
         }
         
+        // Ball speed / on fire
         const ballSpeed = Math.sqrt(gs.ball.vx * gs.ball.vx + gs.ball.vy * gs.ball.vy);
+        const ballOnFire = ballSpeed > this.STRONG_KICK_THRESHOLD;
+        
+        // State message (küçültülmüş - sadece gerekli alanlar)
         const stateMsg = {
             type: "mini_state",
-            sprint: sprintInfo, stats: statsInfo,
-            ball: { x: Math.round(gs.ball.x * 100) / 100, y: Math.round(gs.ball.y * 100) / 100, vx: Math.round(gs.ball.vx * 100) / 100, vy: Math.round(gs.ball.vy * 100) / 100, spin: Math.round((gs.ball.spin || 0) * 100) / 100, last_toucher: gs.last_ball_toucher },
+            sprint: sprintInfo,
+            stats: statsInfo,
+            players: {},
+            ball: {
+                // ✨ Sub-pixel hassasiyet (2 ondalık) — integer yuvarlama titremeyi öldürüyordu
+                x: Math.round(gs.ball.x * 100) / 100,
+                y: Math.round(gs.ball.y * 100) / 100,
+                vx: Math.round(gs.ball.vx * 100) / 100,
+                vy: Math.round(gs.ball.vy * 100) / 100,
+                spin: Math.round((gs.ball.spin || 0) * 100) / 100,
+                last_toucher: gs.last_ball_toucher
+            },
             scores: { "1": gs.scores[1], "2": gs.scores[2] },
-            time_left: Math.round(gs.time_left * 10) / 10, game_state: gs.state,
-            players: {}
+            time_left: Math.round(gs.time_left * 10) / 10,
+            game_state: gs.state
         };
-
+        
+        // Oyuncu pozisyonları (sub-pixel — akıcı hareket)
         for (const pid in gs.players) {
             const pp = gs.players[pid];
-            const pData = { x: Math.round(pp.x * 100) / 100, y: Math.round(pp.y * 100) / 100 };
-            if (pp.celebrating) { pData.celebrating = true; if (pp.celebration_trail) pData.trail = pp.celebration_trail.map(t => ({x: Math.round(t.x * 10) / 10, y: Math.round(t.y * 10) / 10})); }
-            stateMsg.players[String(pid)] = pData;
+            const playerData = {
+                x: Math.round(pp.x * 100) / 100,
+                y: Math.round(pp.y * 100) / 100
+            };
+            // 🎉 Sevinç durumu ve iz noktaları
+            if (pp.celebrating) {
+                playerData.celebrating = true;
+                if (pp.celebration_trail && pp.celebration_trail.length > 0) {
+                    playerData.trail = pp.celebration_trail.map(t => ({
+                        x: Math.round(t.x * 10) / 10,
+                        y: Math.round(t.y * 10) / 10
+                    }));
+                }
+            }
+            stateMsg.players[String(pid)] = playerData;
         }
         
-        if (ballSpeed > this.STRONG_KICK_THRESHOLD) stateMsg.ball.on_fire = true;
-        if (ballWarning) { stateMsg.ball.warning = true; stateMsg.ball.warning_team = ballWarningTeam; }
+        // ✨ Opsiyonel alanlar - sadece varsa gönder
+        if (ballOnFire) stateMsg.ball.on_fire = true;
+        if (ballWarning) {
+            stateMsg.ball.warning = true;
+            stateMsg.ball.warning_team = ballWarningTeam;
+        }
         if (gs._silentWhistle === true) stateMsg.silent_whistle = true;
         if (countdownValue !== null) stateMsg.countdown = countdownValue;
         if (goalCelebration) stateMsg.goal_celebration = goalCelebration;
         if (kickoffInfo) stateMsg.kickoff = kickoffInfo;
         if (gs.kick_effects && gs.kick_effects.length > 0) stateMsg.kick_effects = gs.kick_effects;
         if (gs.hit_events && gs.hit_events.length > 0) stateMsg.hit_events = gs.hit_events;
+        
         if (goalEvent) stateMsg.goal = goalEvent;
         
+        // Callback ile dışarıya bildir (network gönderimi)
         if (this.onStateUpdate) this.onStateUpdate(stateMsg);
         
+        // Kazanma kontrolü
         const goalTarget = this.settings.goalTarget || 3;
         let winnerId = null;
         if (gs.scores[1] >= goalTarget) winnerId = 1;
@@ -588,7 +658,14 @@ const HP = {  // Host Physics namespace
         
         if (winnerId !== null) {
             this.stopGame();
-            if (this.onGameOver) this.onGameOver({ type: "mini_game_over", winner_id: winnerId, scores: { "1": gs.scores[1], "2": gs.scores[2] }, reason: (winnerId > 0 && (gs.scores[1] >= goalTarget || gs.scores[2] >= goalTarget)) ? "goal_target" : "time_up" });
+            if (this.onGameOver) {
+                this.onGameOver({
+                    type: "mini_game_over",
+                    winner_id: winnerId,
+                    scores: { "1": gs.scores[1], "2": gs.scores[2] },
+                    reason: (winnerId > 0 && (gs.scores[1] >= goalTarget || gs.scores[2] >= goalTarget)) ? "goal_target" : "time_up"
+                });
+            }
         }
     },
     
