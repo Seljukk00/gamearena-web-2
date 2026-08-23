@@ -1,12 +1,13 @@
 // ==========================================
-// 🌐 WEBRTC MANAGER (Mini Futbol P2P - Kesin Çözüm)
+// 🌐 WEBRTC MANAGER (Mini Futbol P2P)
 // ==========================================
 const MiniRTC = {
-    pcs: {},            // playerId -> RTCPeerConnection
-    channels: {},       // playerId -> RTCDataChannel
-    connected: false,   // Genel P2P bağlantı durumu
+    pc: null,           // RTCPeerConnection
+    channel: null,      // RTCDataChannel
+    connected: false,   // Bağlantı kuruldu mu
     isHost: false,      // Host mu misafir mi
     
+    // STUN server (ücretsiz Google)
     config: {
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -14,327 +15,281 @@ const MiniRTC = {
         ]
     },
     
-    _connectTimeouts: {},
-    _iceQueues: {},
-
-    // Peer bağlantısı kur (Host çağırır)
-    async createConnectionFor(targetPid) {
-        const pid = Number(targetPid);
-        console.log(`[WebRTC] Host: ${pid} için P2P bağlantısı oluşturuluyor...`);
+    // Bağlantı kur (host tarafı çağırır)
+    async createAsHost() {
+        console.log("[WebRTC] Host: bağlantı oluşturuluyor...");
         this.isHost = true;
+        this.reset();
         
-        this.closeConnectionFor(pid);
-        if (!this._iceQueues) this._iceQueues = {};
-        this._iceQueues[pid] = [];
-        
-        this._connectTimeouts[pid] = setTimeout(() => {
-            const chan = this.channels[pid];
-            if (!chan || chan.readyState !== "open") {
-                console.warn(`[WebRTC] ⏱️ ${pid} için P2P kurulamadı. Sunucu fallback aktif.`);
-                this.closeConnectionFor(pid);
+        // ✨ 20 saniye timeout - bağlantı kurulamazsa sessizce fallback
+        this._connectTimeout = setTimeout(() => {
+            if (!this.connected) {
+                console.warn("[WebRTC] ⏱️ 20 sn içinde bağlantı kurulamadı, Render WS fallback aktif.");
+                this.reset();
             }
-        }, 15000);
+        }, 20000);
         
-        const pc = new RTCPeerConnection(this.config);
-        this.pcs[pid] = pc;
+        this.pc = new RTCPeerConnection(this.config);
         
-        const channel = pc.createDataChannel("mini");
-        this.channels[pid] = channel;
-        this._setupChannel(channel, pid);
+        // DataChannel oluştur (host açar)
+        this.channel = this.pc.createDataChannel("mini", {
+            ordered: false,      // ✨ UDP gibi - sıra garantisi yok ama hızlı
+            maxRetransmits: 0    // ✨ Kayıp paket yeniden gönderilmez (oyun için doğru)
+        });
         
-        pc.onicecandidate = (e) => {
+        this._setupChannel(this.channel);
+        
+        // ICE candidate gelince Render'a gönder
+        this.pc.onicecandidate = (e) => {
             if (e.candidate) {
-                const candData = e.candidate.toJSON ? e.candidate.toJSON() : e.candidate;
                 send({
                     type: "mini_webrtc_ice",
-                    target_id: pid,
-                    candidate: candData
+                    candidate: e.candidate
                 });
             }
         };
         
-        pc.onconnectionstatechange = () => {
-            console.log(`[WebRTC] Peer ${pid} durumu: ${pc.connectionState}`);
-            this._checkOverallConnection();
-            if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-                this.closeConnectionFor(pid);
+        this.pc.onconnectionstatechange = () => {
+            console.log("[WebRTC] Bağlantı durumu:", this.pc.connectionState);
+            if (this.pc.connectionState === "connected") {
+                this.connected = true;
+                console.log("[WebRTC] ✅ P2P bağlantı kuruldu!");
+            } else if (this.pc.connectionState === "failed" || 
+                       this.pc.connectionState === "disconnected") {
+                this.connected = false;
+                console.log("[WebRTC] ❌ P2P bağlantı koptu, Render WS'e geçildi.");
+                if (typeof showToast === "function") {
+                    showToast("⚠️ P2P Koptu", "Sunucu üzerinden devam ediliyor", null, "warning");
+                }
+                
+                // ✨ 3 saniye sonra yeniden bağlanmayı dene (sadece host)
+                if (this.isHost && miniData.playerId === 1) {
+                    setTimeout(() => {
+                        const gameScreen = document.getElementById("miniGameScreen");
+                        if (gameScreen && !gameScreen.classList.contains("hidden") && !this.connected) {
+                            console.log("[WebRTC] 🔄 Yeniden bağlanmaya çalışılıyor...");
+                            this.createAsHost().catch(e => console.warn("[WebRTC] Reconnect hatası:", e));
+                        }
+                    }, 3000);
+                }
             }
         };
         
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+        // Offer oluştur
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
         
-        const offerData = pc.localDescription ? (pc.localDescription.toJSON ? pc.localDescription.toJSON() : pc.localDescription) : offer;
+        // Offer'ı Render üzerinden misafire gönder
         send({
             type: "mini_webrtc_offer",
-            target_id: pid,
-            offer: offerData
+            offer: offer
         });
+        
+        console.log("[WebRTC] Offer gönderildi, misafir bekleniyor...");
     },
     
-    // Offer al (Misafir tarafı)
-    async handleOffer(offer, senderId) {
-        const sid = Number(senderId);
-        console.log(`[WebRTC] Misafir: Host'tan (${sid}) Offer alındı.`);
+    // Misafir tarafı: offer aldı, answer gönder
+    async handleOffer(offer) {
+        console.log("[WebRTC] Misafir: offer alındı, answer hazırlanıyor...");
         this.isHost = false;
+        this.reset();
         
-        if (this.pcs[sid]) {
-            this.closeConnectionFor(sid);
-        }
-        
-        if (!this._iceQueues) this._iceQueues = {};
-        this._iceQueues[sid] = [];
-        
-        this._connectTimeouts[sid] = setTimeout(() => {
-            const chan = this.channels[sid];
-            if (!chan || chan.readyState !== "open") {
-                console.warn("[WebRTC] P2P zaman aşımı. Sunucu aktif.");
+        // ✨ 10 saniye timeout
+        this._connectTimeout = setTimeout(() => {
+            if (!this.connected) {
+                console.warn("[WebRTC] ⏱️ Bağlantı kurulamadı, fallback aktif.");
+                if (typeof showToast === "function") {
+                    showToast("⚠️ P2P Kurulamadı", "Sunucu üzerinden oynanıyor", null, "warning");
+                }
                 this.reset();
             }
-        }, 15000);
+        }, 10000);
         
-        const pc = new RTCPeerConnection(this.config);
-        this.pcs[sid] = pc;
+        this.pc = new RTCPeerConnection(this.config);
         
-        pc.ondatachannel = (e) => {
-            console.log("[WebRTC] Host'tan DataChannel bağlandı ✓");
-            this.channels[sid] = e.channel;
-            this._setupChannel(e.channel, sid);
+        // Host'un açtığı DataChannel'ı yakala
+        this.pc.ondatachannel = (e) => {
+            console.log("[WebRTC] DataChannel alındı");
+            this.channel = e.channel;
+            this._setupChannel(this.channel);
         };
         
-        pc.onicecandidate = (e) => {
+        // ICE candidate gelince Render'a gönder
+        this.pc.onicecandidate = (e) => {
             if (e.candidate) {
-                const candData = e.candidate.toJSON ? e.candidate.toJSON() : e.candidate;
                 send({
                     type: "mini_webrtc_ice",
-                    target_id: sid,
-                    candidate: candData
+                    candidate: e.candidate
                 });
             }
         };
         
-        pc.onconnectionstatechange = () => {
-            console.log(`[WebRTC] Host durumu: ${pc.connectionState}`);
-            this._checkOverallConnection();
-            if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-                this.reset();
+        this.pc.onconnectionstatechange = () => {
+            console.log("[WebRTC] Bağlantı durumu:", this.pc.connectionState);
+            if (this.pc.connectionState === "connected") {
+                this.connected = true;
+                console.log("[WebRTC] ✅ P2P bağlantı kuruldu!");
+            } else if (this.pc.connectionState === "failed" ||
+                       this.pc.connectionState === "disconnected") {
+                this.connected = false;
+                console.log("[WebRTC] ❌ P2P koptu, Render WS aktif.");
+                if (typeof showToast === "function") {
+                    showToast("⚠️ P2P Koptu", "Sunucu üzerinden devam ediliyor", null, "warning");
+                }
             }
         };
         
-        const sessionDesc = new RTCSessionDescription(offer);
-        await pc.setRemoteDescription(sessionDesc);
+        await this.pc.setRemoteDescription(offer);
         
-        await this._processIceQueue(sid);
+        const answer = await this.pc.createAnswer();
+        await this.pc.setLocalDescription(answer);
         
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        
-        const answerData = pc.localDescription ? (pc.localDescription.toJSON ? pc.localDescription.toJSON() : pc.localDescription) : answer;
+        // Answer'ı Render üzerinden host'a gönder
         send({
             type: "mini_webrtc_answer",
-            target_id: sid,
-            answer: answerData
+            answer: answer
         });
+        
+        console.log("[WebRTC] Answer gönderildi.");
     },
     
-    // Answer al (Host tarafı)
-    async handleAnswer(answer, senderId) {
-        const sid = Number(senderId);
-        console.log(`[WebRTC] Host: Peer ${sid} Answer'ı alındı.`);
-        const pc = this.pcs[sid];
-        if (pc) {
-            const sessionDesc = new RTCSessionDescription(answer);
-            await pc.setRemoteDescription(sessionDesc);
-            await this._processIceQueue(sid);
+    // Host: misafirin answer'ını al
+    async handleAnswer(answer) {
+        console.log("[WebRTC] Host: answer alındı.");
+        if (this.pc) {
+            await this.pc.setRemoteDescription(answer);
         }
     },
     
-    // ICE Adayı ekle
-    async handleIce(candidate, senderId) {
-        const sid = Number(senderId);
-        if (!this._iceQueues) this._iceQueues = {};
-        if (!this._iceQueues[sid]) this._iceQueues[sid] = [];
-        
-        const pc = this.pcs[sid];
-        
-        if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) {
-            this._iceQueues[sid].push(candidate);
-            return;
-        }
-        
-        try {
-            const iceCand = new RTCIceCandidate(candidate);
-            await pc.addIceCandidate(iceCand);
-        } catch(e) {
-            console.warn(`[WebRTC] ICE hatası (${sid}):`, e);
-        }
-    },
-    
-    // Bekleyen ICE adaylarını işle
-    async _processIceQueue(senderId) {
-        const sid = Number(senderId);
-        const pc = this.pcs[sid];
-        if (!pc || !this._iceQueues || !this._iceQueues[sid]) return;
-        
-        const queue = this._iceQueues[sid];
-        while (queue.length > 0) {
-            const candidate = queue.shift();
+    // ICE candidate ekle
+    async handleIce(candidate) {
+        if (this.pc && candidate) {
             try {
-                const iceCand = new RTCIceCandidate(candidate);
-                await pc.addIceCandidate(iceCand);
+                await this.pc.addIceCandidate(candidate);
             } catch(e) {
-                console.warn(`[WebRTC Queue] ICE hatası (${sid}):`, e);
+                console.warn("[WebRTC] ICE candidate eklenemedi:", e);
             }
         }
     },
     
-    // Kanal kurulumu
-    _setupChannel(channel, peerId) {
-        const pid = Number(peerId);
+    // DataChannel setup (host + misafir ortak)
+    _setupChannel(channel) {
         channel.onopen = () => {
-            console.log(`[WebRTC] ✅ Peer ${pid} DataChannel AÇILDI!`);
+            console.log("[WebRTC] DataChannel açık! Oyun trafiği P2P'ye geçiyor.");
             this.connected = true;
             
-            if (this._connectTimeouts[pid]) {
-                clearTimeout(this._connectTimeouts[pid]);
-                delete this._connectTimeouts[pid];
+            // ✨ Timeout iptal (bağlantı kuruldu)
+            if (this._connectTimeout) {
+                clearTimeout(this._connectTimeout);
+                this._connectTimeout = null;
             }
             
-            this._checkOverallConnection();
+            // ✨ HUD badge güncelle
+            if (typeof updateMiniConnectionBadge === "function") {
+                updateMiniConnectionBadge();
+            }
         };
         
         channel.onclose = () => {
-            console.log(`[WebRTC] Peer ${pid} DataChannel kapandı.`);
-            this.closeConnectionFor(pid);
+            console.log("[WebRTC] DataChannel kapandı.");
+            this.connected = false;
+            
+            // ✨ HUD badge güncelle
+            if (typeof updateMiniConnectionBadge === "function") {
+                updateMiniConnectionBadge();
+            }
         };
         
         channel.onerror = (e) => {
-            console.warn(`[WebRTC] Peer ${pid} DataChannel hatası:`, e);
+            console.warn("[WebRTC] DataChannel hata:", e);
         };
         
         channel.onmessage = (e) => {
             try {
                 const msg = JSON.parse(e.data);
                 
+                // ✨ P2P PING - direkt cevap ver
                 if (msg.type === "mini_ping_p2p") {
-                    this.sendToPeer(pid, { type: "mini_pong_p2p", ts: msg.ts });
+                    // Ping alındı, hemen pong dön
+                    MiniRTC.sendMessage({ type: "mini_pong_p2p", ts: msg.ts });
                     return;
                 }
                 
+                // ✨ P2P PONG - RTT hesapla
                 if (msg.type === "mini_pong_p2p") {
                     const rtt = Date.now() - msg.ts;
                     if (!miniData.pings) miniData.pings = {};
-                    miniData.pings[pid] = rtt;
-                    
-                    if (this.isHost) {
-                        send({ type: "mini_ping_report", ping: rtt, reporter_id: pid });
-                    } else {
-                        send({ type: "mini_ping_report", ping: rtt });
-                    }
+                    miniData.pings[miniData.playerId] = rtt;
+                    // Diğer oyunculara da bildir (host WS üzerinden)
+                    send({ type: "mini_ping_report", ping: rtt });
                     updateMiniPingDisplay();
                     return;
                 }
                 
+                // ✨ HOST: misafirin input'u geldi → HP'ye ilet
                 if (miniData.playerId === 1 && msg.type === "mini_key") {
-                    if (typeof HP !== 'undefined' && HP.running) {
-                        HP.setKey(pid, msg.key, msg.pressed);
+                    const targetPid = msg.for_player_id || msg.target_pid;
+                    if (targetPid && typeof HP !== 'undefined' && HP.running) {
+                        HP.setKey(targetPid, msg.key, msg.pressed);
+                    } else if (typeof HP !== 'undefined' && HP.running) {
+                        // target_pid yoksa gönderen kişinin pid'ini bulmaya çalış
+                        // DataChannel'dan gelen mesajda from_player_id olabilir
+                        const fromPid = msg.from_player_id;
+                        if (fromPid) {
+                            HP.setKey(fromPid, msg.key, msg.pressed);
+                        }
                     }
-                    return;
+                    return; // Render WS'e gitmesin
                 }
                 
+                // ✨ MİSAFİR: host'tan state geldi → normal işle
                 if (miniData.playerId !== 1 && msg.type === "mini_state") {
                     handleMiniMessage(msg);
                     return;
                 }
                 
+                // Diğer mesajlar
                 handleMiniMessage(msg);
             } catch(err) {
-                console.warn("[WebRTC] Parse hatası:", err);
+                console.warn("[WebRTC] Mesaj parse hatası:", err);
             }
         };
     },
     
-    sendToPeer(peerId, data) {
-        const pid = Number(peerId);
-        const chan = this.channels[pid];
-        if (chan && chan.readyState === "open") {
-            try {
-                chan.send(JSON.stringify(data));
-                return true;
-            } catch(e) {
-                console.warn(`[WebRTC] Peer ${pid} gönderim hatası:`, e);
-            }
-        }
-        return false;
-    },
-
+    // Mesaj gönder (DataChannel üzerinden)
+    // Eğer bağlantı yoksa Render WS fallback
     sendMessage(data) {
-        let sentAny = false;
-        if (this.isHost) {
-            for (const pid in this.channels) {
-                if (this.sendToPeer(pid, data)) {
-                    sentAny = true;
-                }
-            }
-        } else {
-            if (this.sendToPeer(1, data)) {
-                sentAny = true;
+        if (this.connected && this.channel && 
+            this.channel.readyState === "open") {
+            try {
+                this.channel.send(JSON.stringify(data));
+                return true; // P2P ile gönderildi
+            } catch(e) {
+                console.warn("[WebRTC] Gönderme hatası, fallback:", e);
             }
         }
-        
-        if (sentAny) return true;
-        
+        // Fallback: Render WS
         send(data);
         return false;
     },
     
-    _checkOverallConnection() {
-        let active = false;
-        for (const pid in this.channels) {
-            if (this.channels[pid] && this.channels[pid].readyState === "open") {
-                active = true;
-                break;
-            }
-        }
-        this.connected = active;
-        if (typeof updateMiniConnectionBadge === "function") {
-            updateMiniConnectionBadge();
-        }
-    },
-
-    closeConnectionFor(peerId) {
-        const pid = Number(peerId);
-        if (this._connectTimeouts[pid]) {
-            clearTimeout(this._connectTimeouts[pid]);
-            delete this._connectTimeouts[pid];
-        }
-        if (this.channels[pid]) {
-            try { this.channels[pid].close(); } catch(e) {}
-            delete this.channels[pid];
-        }
-        if (this.pcs[pid]) {
-            try { this.pcs[pid].close(); } catch(e) {}
-            delete this.pcs[pid];
-        }
-        this._checkOverallConnection();
-    },
-    
+    // Bağlantıyı kapat ve temizle
     reset() {
-        for (const pid in this._connectTimeouts) {
-            clearTimeout(this._connectTimeouts[pid]);
+        // ✨ Timeout varsa iptal
+        if (this._connectTimeout) {
+            clearTimeout(this._connectTimeout);
+            this._connectTimeout = null;
         }
-        this._connectTimeouts = {};
-        if (this._iceQueues) this._iceQueues = {};
-        for (const pid in this.pcs) {
-            this.closeConnectionFor(Number(pid));
+        if (this.channel) {
+            try { this.channel.close(); } catch(e) {}
+            this.channel = null;
         }
-        this.pcs = {};
-        this.channels = {};
+        if (this.pc) {
+            try { this.pc.close(); } catch(e) {}
+            this.pc = null;
+        }
         this.connected = false;
         this.isHost = false;
-        if (typeof updateMiniConnectionBadge === "function") {
-            updateMiniConnectionBadge();
-        }
     }
 };
 
@@ -349,32 +304,44 @@ let miniData = {
     goalTarget: 3,
     matchDuration: 180,
     gameSpeed: "normal",
-    playerCount: 2,
-    spectatorCount: 0,
+    playerCount: 2,  // ✨ Default 1v1
+    spectatorCount: 0,  // ✨ Default izleyici yok
     redTeamName: "Kırmızı Takım",
     blueTeamName: "Mavi Takım",
     splitScreen: false,
-    splitOwner: null,
-    splitSlaveId: null,
-    keysPressed2: {},
+    splitOwner: null,        // ✨ Split sahibi (playerId 1)
+    splitSlaveId: null,      // ✨ Split'in 2. oyuncu ID'si
+    keysPressed2: {},        // ✨ P2 için ayrı tuş takibi (split-screen)
+    // Oyun state
     playerNames: {},
     fieldConfig: null,
     gameState: null,
     keysPressed: {},
     currentPositions: {},
     targetPositions: {},
-    snapshots: [],
-    interpDelay: 50,
-    serverTimeOffset: null,
-    pings: {},
-    pingInterval: null,
+    // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
+    snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
+    interpDelay: 50,         // ✨ 50ms buffer: ağ jitter'ını yutar, akıcılık artar (hâlâ düşük gecikme)
+    serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
+    // ✨ PING sistemi
+    pings: {},           // {playerId: ping_ms}
+    pingInterval: null,  // setInterval handle
     lastPingSent: 0,
-    predictedSelf: null,
+    
+    // ✨ CLIENT-SIDE PREDICTION (misafir için)
+    predictedSelf: null,     // {x, y, vx, vy} - kendi karakterimin tahmini pozisyonu
     predictedKeys: {up:false, down:false, left:false, right:false, sprint:false},
-    predictionActive: false
-};
+    predictionActive: false, // Sadece misafirse aktif olur
+    
+    };
+
+
 
 let miniAnimFrame = null;
+
+// ========================================
+// 🎥 REPLAY SİSTEMİ (v10 Özel - 10 Saniye Tamponlu)
+// ========================================
 let miniReplay = {
     buffer: [],          // Frame kayıtları
     lockedBuffer: null,  // Gol anında dondurulan klip
@@ -914,24 +881,26 @@ handleMessage = function(msg) {
 
 function handleMiniMessage(msg) {
     // ==========================================
-    // ✨ WEBRTC SİGNALING mesajları (Star Topology)
+    // ✨ WEBRTC SİGNALING mesajları
     // ==========================================
     if (msg.type === "mini_webrtc_offer") {
-        MiniRTC.handleOffer(msg.offer, msg.sender_id).catch(e => {
+        console.log("[WebRTC] Offer alındı, answer hazırlanıyor...");
+        MiniRTC.handleOffer(msg.offer).catch(e => {
             console.warn("[WebRTC] handleOffer hatası:", e);
         });
         return;
     }
     
     if (msg.type === "mini_webrtc_answer") {
-        MiniRTC.handleAnswer(msg.answer, msg.sender_id).catch(e => {
+        console.log("[WebRTC] Answer alındı.");
+        MiniRTC.handleAnswer(msg.answer).catch(e => {
             console.warn("[WebRTC] handleAnswer hatası:", e);
         });
         return;
     }
     
     if (msg.type === "mini_webrtc_ice") {
-        MiniRTC.handleIce(msg.candidate, msg.sender_id).catch(e => {
+        MiniRTC.handleIce(msg.candidate).catch(e => {
             console.warn("[WebRTC] ICE hatası:", e);
         });
         return;
@@ -1501,27 +1470,19 @@ function handleMiniMessage(msg) {
         // 💬 Chat'i göster (odadaysa her zaman görünmeli)
         showMiniChat();
         
-        // ✨ WebRTC'yi ERKEN kur (oyun başlamadan önce P2P hazır olsun - Star Topology)
-        if (miniData.playerId === 1 && msg.players) {
-            msg.players.forEach(p => {
-                if (p.id !== 1 && !p.is_split_slave && !p.in_lobby && !MiniRTC.pcs[p.id]) {
-                    console.log(`[WebRTC] Lobby'de misafir algılandı (ID: ${p.id}), P2P erken kuruluyor...`);
-                    setTimeout(() => {
-                        if (!MiniRTC.pcs[p.id]) {
-                            MiniRTC.createConnectionFor(p.id).catch(e => {
-                                console.warn(`[WebRTC] Misafir ${p.id} için erken P2P hatası:`, e);
-                            });
-                        }
-                    }, 200);
-                }
-            });
-            // Ayrılanları temizle
-            const currentPids = new Set(msg.players.map(p => p.id));
-            for (const pid in MiniRTC.pcs) {
-                if (!currentPids.has(parseInt(pid))) {
-                    console.log(`[WebRTC] Oyuncu ${pid} lobiden ayrıldı, P2P temizleniyor.`);
-                    MiniRTC.closeConnectionFor(parseInt(pid));
-                }
+        // ✨ WebRTC'yi ERKEN kur (oyun başlamadan önce P2P hazır olsun)
+        // Host için: misafir varsa ve WebRTC bağlı değilse → offer başlat
+        if (miniData.playerId === 1 && !MiniRTC.connected && !MiniRTC.pc) {
+            const guestCount = msg.players ? msg.players.filter(p => p.id !== 1).length : 0;
+            if (guestCount > 0) {
+                console.log("[WebRTC] Lobby'de misafir var, P2P erken kurulacak...");
+                setTimeout(() => {
+                    if (!MiniRTC.connected && !MiniRTC.pc) {
+                        MiniRTC.createAsHost().catch(e => {
+                            console.warn("[WebRTC] Lobby offer hatası:", e);
+                        });
+                    }
+                }, 200);
             }
         }
         
@@ -1869,16 +1830,12 @@ function handleMiniMessage(msg) {
         miniData.playerNames = msg.players;
         miniData.fieldConfig = msg.field;
         
-        // ✨ WebRTC zaten lobby'de kurulmuş olmalı, ama garanti için tekrar dene (Star Topology)
-        if (!MiniRTC.connected && miniData.playerId === 1 && miniData.players) {
+        // ✨ WebRTC zaten lobby'de kurulmuş olmalı, ama garanti için tekrar dene
+        if (!MiniRTC.connected && miniData.playerId === 1) {
             console.log("[WebRTC] Oyun başladı ama P2P henüz kurulmadı, deniyor...");
             setTimeout(() => {
-                miniData.players.forEach(p => {
-                    if (p.id !== 1 && !p.is_split_slave && !p.in_lobby && !MiniRTC.pcs[p.id]) {
-                        MiniRTC.createConnectionFor(p.id).catch(e => {
-                            console.warn(`[WebRTC] Oyun başlangıcı offer hatası (P${p.id}):`, e);
-                        });
-                    }
+                MiniRTC.createAsHost().catch(e => {
+                    console.warn("[WebRTC] Oyun başlangıcı offer hatası:", e);
                 });
             }, 100);
         }

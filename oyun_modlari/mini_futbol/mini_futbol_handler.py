@@ -1439,37 +1439,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
     """Mini Futbol mesajlarını işle"""
     
     # ==========================================
-    # 🌐 WEBRTC HEDEFLENMİŞ SİGNALİNG YÖNLENDİRİCİ
-    # ==========================================
-    if msg_type in ["mini_webrtc_offer", "mini_webrtc_answer", "mini_webrtc_ice"]:
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        room = rooms[room_code]
-        target_pid = data.get("target_id")
-        
-        if target_pid is not None:
-            try:
-                pid_int = int(target_pid)
-                pid_str = str(target_pid)
-                
-                target_ws = None
-                if pid_int in room["players"]:
-                    target_ws = room["players"][pid_int].get("ws")
-                elif pid_str in room["players"]:
-                    target_ws = room["players"][pid_str].get("ws")
-                    
-                if target_ws:
-                    payload = dict(data)
-                    payload["type"] = msg_type
-                    payload["sender_id"] = player_id
-                    await safe_send(target_ws, payload)
-            except Exception as e:
-                print(f"[WebRTC Router Hata] {e}")
-                
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-    # ==========================================
     # ODA OLUŞTUR
     # ==========================================
     if msg_type == "mini_create_room":
