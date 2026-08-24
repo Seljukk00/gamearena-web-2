@@ -227,10 +227,20 @@ async def ads_txt():
     return FileResponse("static/ads.txt", media_type="text/plain")
 
 
-@app.get("/ads.txt")
-async def ads_txt():
-    """Google AdSense doğrulama dosyası"""
-    return FileResponse("static/ads.txt", media_type="text/plain")
+# === GOOGLE SEARCH CONSOLE & SEO ENDPOINTS ===
+@app.get("/robots.txt")
+async def robots():
+    return FileResponse("static/robots.txt", media_type="text/plain")
+
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    return FileResponse("static/sitemap.xml", media_type="application/xml")
+
+
+@app.get("/google{code}.html")
+async def google_verify(code: str):
+    return FileResponse(f"static/google{code}.html")
 
 
 @app.head("/")
@@ -404,52 +414,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 continue
                 
-            # ==========================================
-            # WEBRTC SİGNALING (Mini Futbol P2P için)
-            # ==========================================
-            if msg_type == "mini_webrtc_offer":
-                # Host misafire offer gönderdi
-                if room_code and room_code in rooms:
-                    room = rooms[room_code]
-                    if room.get("mode") == "mini_futbol":
-                        # Offer'ı misafire ilet (host değilse herkese, host ise herkese)
-                        for pid, pdata in room["players"].items():
-                            if pid != player_id:
-                                await safe_send(pdata["ws"], {
-                                    "type": "mini_webrtc_offer",
-                                    "offer": data.get("offer"),
-                                    "from_player_id": player_id
-                                })
-                continue
-
-            if msg_type == "mini_webrtc_answer":
-                # Misafir host'a answer gönderdi
-                if room_code and room_code in rooms:
-                    room = rooms[room_code]
-                    if room.get("mode") == "mini_futbol":
-                        for pid, pdata in room["players"].items():
-                            if pid != player_id:
-                                await safe_send(pdata["ws"], {
-                                    "type": "mini_webrtc_answer",
-                                    "answer": data.get("answer"),
-                                    "from_player_id": player_id
-                                })
-                continue
-
-            if msg_type == "mini_webrtc_ice":
-                # ICE candidate taşı (her iki yönde)
-                if room_code and room_code in rooms:
-                    room = rooms[room_code]
-                    if room.get("mode") == "mini_futbol":
-                        for pid, pdata in room["players"].items():
-                            if pid != player_id:
-                                await safe_send(pdata["ws"], {
-                                    "type": "mini_webrtc_ice",
-                                    "candidate": data.get("candidate"),
-                                    "from_player_id": player_id
-                                })
-                continue    
-
             # ==========================================
             # ORTAK KICK HANDLER (tüm modlar için)
             # ==========================================
