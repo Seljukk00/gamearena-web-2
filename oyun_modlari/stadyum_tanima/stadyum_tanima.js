@@ -796,9 +796,14 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "stad_lobby_update") {
-        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
         if (stadData.players && msg.players && stadData.players.length < msg.players.length && msg.players.length > 1) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            const oldPids = new Set(stadData.players.map(p => p.id));
+            const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+            if (newPlayer && newPlayer.id !== stadData.playerId) {
+                showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+            }
         }
         showStadChat();
         stadData.roomCode = msg.room_code;
@@ -902,6 +907,17 @@ handleMessage = function(msg) {
         stadData.answered = true;
         stadData.scores = msg.scores;
         stopStadTimer();
+
+        // 🔊 DOĞRU / YANLIŞ SESİ ÇAL
+        try {
+            let vol = 0.5;
+            if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+            const soundName = msg.correct ? "game_correct.mp3" : "game_wrong.mp3";
+            const audio = new Audio(`/static/sounds/${soundName}`);
+            audio.volume = vol;
+            audio.play().catch(() => {});
+        } catch(e) {}
+
         renderStadTopBar();
         showStadResultMessage(msg);
 

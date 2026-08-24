@@ -842,8 +842,12 @@
                     kickBtn.className = "kickBtnNew";
                     kickBtn.textContent = "Oyuncuyu At";
                     kickBtn.addEventListener('click', () => {
-                        if (confirm(`${p.name} adlı oyuncuyu atmak istediğine emin misin?`)) {
-                            send({ type: "kick_player", target_id: p.id });
+                        if (typeof openKickConfirm === "function") {
+                            openKickConfirm(p.id, p.name);
+                        } else {
+                            if (confirm(`${p.name} adlı oyuncuyu atmak istediğine emin misin?`)) {
+                                send({ type: "kick_player", target_id: p.id });
+                            }
                         }
                     });
                     li.appendChild(kickBtn);
@@ -1409,6 +1413,20 @@
     function onRoundResult(msg) {
         sarkiCurrentPhase = "result";
         stopSarkiTimer();
+
+        // 🔊 DOĞRU / YANLIŞ SESİ ÇAL
+        try {
+            const turnResult = msg.results ? msg.results.find(r => r.is_turn) : null;
+            if (turnResult) {
+                let vol = 0.5;
+                if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+                const isCorrect = (turnResult.status === "correct" || turnResult.status === "correct_fast");
+                const soundName = isCorrect ? "game_correct.mp3" : "game_wrong.mp3";
+                const audio = new Audio(`/static/sounds/${soundName}`);
+                audio.volume = vol;
+                audio.play().catch(() => {});
+            }
+        } catch(e) {}
         
         // ✨ Şarkıyı DURDURMA! Kısık sesle çalmaya devam etsin (turn intro'ya kadar)
         // Sadece cevap süresi bittiği için sesi mırıldanma seviyesinde tut
@@ -2068,9 +2086,14 @@
         }
 
         if (msg.type === "sarki_lobby_update") {
-            // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+            // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
             if (msg.players && (!sarkiSettings.players || sarkiSettings.players.length < msg.players.length) && msg.players.length > 1) {
                 try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+                const oldPids = new Set((sarkiSettings.players || []).map(p => p.id));
+                const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+                if (newPlayer && newPlayer.id !== sarkiPlayerId) {
+                    showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+                }
             }
             sarkiSettings.players = msg.players;
             updateSarkiLobby(msg);

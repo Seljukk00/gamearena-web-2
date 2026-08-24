@@ -1179,9 +1179,14 @@ handleMessage = function(msg) {
             showMlChat();
             showScreen("mlLobby"); updateMlLobby();
         } else if (msg.type === "ml_lobby_update") {
-            // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+            // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
             if (mlData.players && msg.players && mlData.players.length < msg.players.length && msg.players.length > 1) {
                 try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+                const oldPids = new Set(mlData.players.map(p => p.id));
+                const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+                if (newPlayer && newPlayer.id !== mlData.playerId) {
+                    showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+                }
             }
             showMlChat();
             mlData.roomCode = msg.room_code;

@@ -136,7 +136,11 @@ app.add_middleware(StaticCacheMiddleware)
 # ==========================================
 # STATIC MOUNTS
 # ==========================================
+import os
+os.makedirs("oyun_modlari/bil_bakalim/sounds", exist_ok=True)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/bil_bakalim_sounds", StaticFiles(directory="oyun_modlari/bil_bakalim/sounds"), name="bil_bakalim_sounds")
 app.mount("/oyun_modlari", StaticFiles(directory="oyun_modlari"), name="oyun_modlari")
 app.mount("/mod_resimleri", StaticFiles(directory="mod_resimleri"), name="mod_resimleri")
 app.mount("/flags", StaticFiles(directory="oyun_modlari/takim_bilmece/flags"), name="flags")

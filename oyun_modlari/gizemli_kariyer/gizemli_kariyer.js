@@ -758,9 +758,14 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "gizem_lobby_update") {
-        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
         if (gizemData.players && msg.players && gizemData.players.length < msg.players.length && msg.players.length > 1) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            const oldPids = new Set(gizemData.players.map(p => p.id));
+            const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+            if (newPlayer && newPlayer.id !== gizemData.playerId) {
+                showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+            }
         }
         showGizemChat();
         gizemData.roomCode = msg.room_code;
@@ -869,6 +874,16 @@ handleMessage = function(msg) {
         gizemData.scores = msg.scores;
         if (msg.jokers_left) gizemData.jokersLeft = msg.jokers_left;
         stopGizemTimer();
+
+        // 🔊 DOĞRU / YANLIŞ SESİ ÇAL
+        try {
+            let vol = 0.5;
+            if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+            const soundName = msg.correct ? "game_correct.mp3" : "game_wrong.mp3";
+            const audio = new Audio(`/static/sounds/${soundName}`);
+            audio.volume = vol;
+            audio.play().catch(() => {});
+        } catch(e) {}
 
         const buttons = document.querySelectorAll(".gizemOptBtn");
         buttons.forEach((btn, i) => {

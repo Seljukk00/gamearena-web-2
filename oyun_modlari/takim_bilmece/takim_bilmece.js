@@ -967,9 +967,14 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "takim_lobby_update") {
-        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
         if (takimData.players && msg.players && takimData.players.length < msg.players.length && msg.players.length > 1) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            const oldPids = new Set(takimData.players.map(p => p.id));
+            const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+            if (newPlayer && newPlayer.id !== takimData.playerId) {
+                showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+            }
         }
         showTakimChat();
         takimData.roomCode = msg.room_code;
@@ -1100,6 +1105,17 @@ handleMessage = function(msg) {
         takimData.answered = true;
         takimData.scores = msg.scores;
         stopTakimTimer();
+
+        // 🔊 DOĞRU / YANLIŞ SESİ ÇAL
+        try {
+            let vol = 0.5;
+            if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+            const soundName = msg.correct ? "game_correct.mp3" : "game_wrong.mp3";
+            const audio = new Audio(`/static/sounds/${soundName}`);
+            audio.volume = vol;
+            audio.play().catch(() => {});
+        } catch(e) {}
+
         const buttons = document.querySelectorAll(".takimOptBtn");
         buttons.forEach((btn, i) => {
             btn.disabled = true;

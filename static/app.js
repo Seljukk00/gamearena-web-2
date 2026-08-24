@@ -411,8 +411,13 @@ function createCard(f, index, mode) {
     const meta1 = document.createElement("div");
     meta1.className = "meta";
     meta1.textContent = f.position;
-    // ✨ Pozisyon rengi
-    const posColors = {"Kaleci":"#ffd43b","Defans":"#4dabf7","OrtaSaha":"#51cf66","Orta Saha":"#51cf66","Forvet":"#ff6b6b"};
+    // ✨ Detaylı Pozisyon Renkleri (Forvet: Kırmızı, Orta Saha: Yeşil, Defans: Mavi, Kaleci: Sarı)
+    const posColors = {
+        "Forvet": "#ff6b6b", "Santrafor": "#ff6b6b", "Sağ Kanat": "#ff6b6b", "Sol Kanat": "#ff6b6b",
+        "Orta Saha": "#51cf66", "OrtaSaha": "#51cf66", "Defansif Orta Saha": "#51cf66", "Merkez Orta Saha": "#51cf66", "Ofansif Orta Saha": "#51cf66",
+        "Defans": "#4dabf7", "Stoper": "#4dabf7", "Sağ Bek": "#4dabf7", "Sol Bek": "#4dabf7",
+        "Kaleci": "#ffd43b"
+    };
     meta1.style.color = posColors[f.position] || "#adb5bd";
     meta1.style.fontWeight = "600";
 
@@ -566,6 +571,7 @@ function renderQuestions() {
         btn.onclick = () => {
             if (waitingForAnswer) return;
             waitingForAnswer = true;
+            playBilSound("soru_sor.mp3");
             renderQuestions();
             updateGuessModeButton();
             send({ type: "ask_question", question_index: qi });
@@ -896,10 +902,12 @@ function openGameOver(msg) {
 
     gameOverTitle.classList.remove("win", "lose");
     if (winnerId === playerId) {
+        playBilSound("cevap_evet.mp3");
         gameOverTitle.textContent = "KAZANDIN! 🏆";
         gameOverTitle.classList.add("win");
         startConfetti();
     } else {
+        playBilSound("cevap_hayir.mp3");
         gameOverTitle.textContent = "KAYBETTİN 😢";
         gameOverTitle.classList.add("lose");
     }
@@ -984,6 +992,41 @@ function openKickConfirm(targetId, targetName) {
         closeBox();
     };
     noBtn.onclick = closeBox;
+}
+
+// ============ BİL BAKALIM SES SİSTEMİ (Autoplay & Preload Korumalı) ============
+const _bilAudioCache = {};
+let _bilAudioUnlocked = false;
+
+function unlockBilAudio() {
+    if (_bilAudioUnlocked) return;
+    ["soru_sor.mp3", "cevap_evet.mp3", "cevap_hayir.mp3"].forEach(file => {
+        if (!_bilAudioCache[file]) {
+            const a = new Audio(`/bil_bakalim_sounds/${file}`);
+            a.preload = "auto";
+            _bilAudioCache[file] = a;
+        }
+    });
+    _bilAudioUnlocked = true;
+}
+
+// Kullanıcı sayfada ilk nereye tıklar/basarsa ses iznini kap
+document.addEventListener("click", unlockBilAudio, { once: true });
+document.addEventListener("keydown", unlockBilAudio, { once: true });
+
+function playBilSound(filename) {
+    try {
+        unlockBilAudio();
+        const vol = getGlobalVolume();
+        let audio = _bilAudioCache[filename];
+        if (!audio) {
+            audio = new Audio(`/bil_bakalim_sounds/${filename}`);
+            _bilAudioCache[filename] = audio;
+        }
+        const clone = audio.cloneNode();
+        clone.volume = vol;
+        clone.play().catch(err => console.warn("[Bil Sound] Engellendi:", err));
+    } catch(e) {}
 }
 
 // ============ CHAT BİLDİRİM SESİ (Ortak - Ses Seviyesinden Bağımsız) ============
@@ -1275,9 +1318,14 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "lobby_update") {
-        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
         if (players && msg.players && players.length < msg.players.length && msg.players.length > 1) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            const oldPids = new Set(players.map(p => p.id));
+            const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+            if (newPlayer && newPlayer.id !== playerId) {
+                showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+            }
         }
         showBilChat();
         roomCode = msg.room_code;
@@ -1382,6 +1430,7 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "answer_prompt") {
+        playBilSound("soru_sor.mp3");
         const qText = questions[msg.question_index][0];
         addLog(`${msg.asker_name} sordu: ${qText}`, "opp");
         showAnswerPanel(msg.question_index, msg.correct_answer);
@@ -1405,6 +1454,9 @@ function handleMessage(msg) {
         const ansText = msg.answer ? "EVET" : "HAYIR";
         addLog(`Cevap gönderildi: ${ansText}${msg.auto ? " (otomatik)" : ""}`, "mine");
 
+        // Gelen cevaba göre ses çal
+        playBilSound(msg.answer ? "cevap_evet.mp3" : "cevap_hayir.mp3");
+
         const otherId = getOtherPlayerId();
         const beforeCount = Number.isInteger(remaining[otherId]) ? remaining[otherId] : 32;
 
@@ -1421,6 +1473,9 @@ function handleMessage(msg) {
         const ansText = msg.answer ? "EVET" : "HAYIR";
         addLog(`${qText} → ${ansText}${msg.auto ? " (otomatik)" : ""}`, "info");
         setMsg(gameMsg, `Cevap: ${ansText}`, msg.answer ? "#51cf66" : "#ff6b6b");
+
+        // Gelen cevaba göre ses çal
+        playBilSound(msg.answer ? "cevap_evet.mp3" : "cevap_hayir.mp3");
 
         const removedCount = applyElimination(msg.question_index, msg.answer);
 
@@ -1486,11 +1541,28 @@ function handleMessage(msg) {
 
     if (msg.type === "wrong_guess_continue") {
         if (msg.guesses_left) guessesLeft = msg.guesses_left;
+
+        // Yanlış tahmin edilen oyuncuyu tahtadan ele (üzerine X at)
+        if (msg.guessed_name) {
+            const idx = footballers.findIndex(f => f.name === msg.guessed_name);
+            if (idx !== -1 && !eliminated[idx]) {
+                eliminated[idx] = true;
+                renderGameGrid();
+            }
+        }
+
+        // ✨ Yanlış tahminde HER İKİ OYUNCU da ses duyar
+        playBilSound("cevap_hayir.mp3");
+
         if (msg.guesser_id === playerId) {
             const remainingText = guessLimit === 0 ? "Sıra rakibe geçti." : `Kalan hakkın: ${guessesLeft[playerId]}`;
             setMsg(gameMsg, `❌ Yanlış tahmin! ${remainingText}`, "#ff6b6b");
             addLog(`Yanlış tahmin: ${msg.guessed_name}`, "mine");
             showToast("❌ Yanlış Tahmin!", `Tahmin ettiğin: ${msg.guessed_name}`, msg.guessed_img);
+
+            // Kendi kalan sayımızı güncelle
+            remaining[playerId] = getAliveFootballerCount();
+            send({ type: "remaining_update", count: remaining[playerId] });
         } else {
             addLog(`${msg.guesser_name} yanlış tahmin: ${msg.guessed_name}`, "opp");
             showToast("❌ Rakip Yanlış Tahmin Etti!", `${msg.guesser_name} tahmin ettiği: ${msg.guessed_name}`, msg.guessed_img);

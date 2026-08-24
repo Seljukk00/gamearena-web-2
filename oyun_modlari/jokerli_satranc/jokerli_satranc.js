@@ -64,6 +64,7 @@ const SATRANC_SOUNDS = {
     oyun_bitti: "/satranc_sounds/oyun_bitti.wav",
     isinlanma: "/satranc_sounds/isinlanma.wav",
     sah: "/satranc_sounds/sah.wav",
+    sah_mat: "/satranc_sounds/sah_mat.mp3",
     joker_secildi: "/satranc_sounds/joker_secildi.mp3",
     joker_iptal: "/satranc_sounds/joker_iptal.mp3",
     joker_onay: "/satranc_sounds/joker_onay.mp3",
@@ -4603,9 +4604,14 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "satranc_lobby_update") {
-        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
         if (satrancData.players && msg.players && satrancData.players.length < msg.players.length && msg.players.length > 1) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            const oldPids = new Set(satrancData.players.map(p => p.id));
+            const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+            if (newPlayer && newPlayer.id !== satrancData.playerId) {
+                showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+            }
         }
         satrancData.roomCode = msg.room_code;
         satrancData.players = msg.players;
@@ -5614,12 +5620,12 @@ handleMessage = function(msg) {
                 try { playSatrancSound("tas_hareket"); } catch(e) {}
             }
             
-            // ✨ Şah sesi çal (dramatik efekt)
+            // ✨ Şah Mat özel sesi çal
             setTimeout(() => {
-                try { playSatrancSound("sah"); } catch(e) {}
+                try { playSatrancSound("sah_mat"); } catch(e) {}
             }, 400);
             
-            // ✨ Kırmızı şah karesini vurgula + toast göster
+            // ✨ KIRMIZI TOAST: Şah mat mesajı
             setTimeout(() => {
                 const $checkSq = $("#satrancBoard .highlight-check");
                 if ($checkSq.length) {

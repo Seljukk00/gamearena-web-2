@@ -1758,7 +1758,7 @@ async def handle_jokerli_satranc_message(
                 return {"handled": True, "room_code": room_code, "player_id": player_id}
 
         # ==========================================
-        # 🔄 GERİ AL (YENİ MANTIK)
+        # 🔄 GERİ AL (YENİ MANTIK - ŞAH KORUMALI)
         # ==========================================
         if joker_id == "geri_al":
             if len(board.move_stack) == 0:
@@ -1768,15 +1768,23 @@ async def handle_jokerli_satranc_message(
             undo_moves = []
             opp_pid_undo = black_pid if player_id == white_pid else white_pid
 
-            # ✨ SADECE 1 HAMLE GERİ AL - RAKİBİN SON HAMLESİ
-            # Şu an sıra bende (Geri Al kullanıyorum) demek ki son hamle rakibin.
+            # Rakibin son hamlesini geçici pop yapıp kontrol edelim
             rakip_move = board.pop()
+
+            # ✨ ŞAH KONTROLÜ: Eğer rakibin hamlesi geri alınınca ŞAH durumu oluşuyorsa engelle!
+            if board.is_check():
+                board.push(rakip_move)  # Hamleyi geri koy (tahta bozulmasın)
+                await safe_send(websocket, {
+                    "type": "error",
+                    "message": "🚫 Bir önceki hamlede ŞAH oluştuğu için Geri Al jokerini kullanamazsınız!"
+                })
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+
             # pop sonrası taş tahtaya geri geldi. Captured listesinden de silelim:
             rollback_captured_for_undo(room, board, rakip_move, opp_pid_undo)
             undo_moves.append(rakip_move.uci())
 
             # ✨ SIRA BENDE KALIR (Geri Al kullanan kendi hamlesini yapacak)
-            # board.pop() turn'ü değiştirir, o yüzden zorla kendime çevir
             my_color_chess = chess.WHITE if player_id == white_pid else chess.BLACK
             board.turn = my_color_chess
 

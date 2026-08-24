@@ -1120,9 +1120,14 @@ handleMessage = function(msg) {
     }
     
     if (msg.type === "harita_lobby_update") {
-        // ✨ Lobiye yeni biri geldiyse katılma sesi çal
+        // ✨ Lobiye yeni biri geldiyse katılma sesi çal + Toast göster
         if (haritaData.players && msg.players && haritaData.players.length < msg.players.length && msg.players.length > 1) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
+            const oldPids = new Set(haritaData.players.map(p => p.id));
+            const newPlayer = msg.players.find(p => !oldPids.has(p.id));
+            if (newPlayer && newPlayer.id !== haritaData.playerId) {
+                showToast("👋 Odaya Katıldı", `${newPlayer.name} odaya katıldı!`, null, "success");
+            }
         }
         showHaritaChat();
         haritaData.roomCode = msg.room_code;
@@ -1311,6 +1316,17 @@ handleMessage = function(msg) {
         haritaData.lastSelectedCode = msg.selected_code;
         haritaData.lastCorrectCode = msg.correct_code;
         stopHaritaTimer();
+
+        // 🔊 DOĞRU / YANLIŞ SESİ ÇAL
+        try {
+            let vol = 0.5;
+            if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+            const soundName = msg.correct ? "game_correct.mp3" : "game_wrong.mp3";
+            const audio = new Audio(`/static/sounds/${soundName}`);
+            audio.volume = vol;
+            audio.play().catch(() => {});
+        } catch(e) {}
+
         document.getElementById("haritaFakeCursor").classList.add("hidden");
         document.getElementById("haritaFakeTooltip").classList.add("hidden");
         
