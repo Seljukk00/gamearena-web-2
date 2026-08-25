@@ -47,7 +47,9 @@ GameArena_Web/
 │   └── sounds/                   (3 global ses)
 │       ├── chat_notify.mp3       (Rakip chat mesaj bildirimi)
 │       ├── player_join.mp3       (Oyuncu odaya girdiğinde)
-│       └── player_leave.mp3      (Oyuncu odadan çıktığında)
+│       ├── player_leave.mp3      (Oyuncu odadan çıktığında)
+│       ├── game_correct.mp3
+│       └── game_wrong.mp3
 │
 └── oyun_modlari/
     ├── __init__.py

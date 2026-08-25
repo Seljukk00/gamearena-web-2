@@ -31,14 +31,12 @@ const HP = {  // Host Physics namespace
     PLAYER_FRICTION: 0.90,
     BALL_FRICTION: 0.985,
     COLLISION_FORCE: 0.3,
-    BALL_STICK_FACTOR: 0.85,  // ✨ BUG FIX: backend ile eşitlendi (1.0 → 0.85, eskiden host'ta top daha "yapışkan" hissediyordu)
+    BALL_STICK_FACTOR: 1.0,
     FPS: 60,
     FRAME_TIME: 1.0 / 60,
     SPEED_PRESETS: {
-        // ✨ BUG FIX: kick_power değerleri backend (mini_futbol_handler.py) ile uyuşmuyordu
-        // (yavas: 10→11, normal: 12→13). Host'ta şutlar backend'e göre daha zayıf çıkıyordu.
-        "yavas":  { player_speed: 2.0, player_accel: 0.4,  kick_power: 11,  plase_spin: 0.18 },
-        "normal": { player_speed: 2.8, player_accel: 0.55, kick_power: 13, plase_spin: 0.25 },
+        "yavas":  { player_speed: 2.0, player_accel: 0.4,  kick_power: 10,  plase_spin: 0.18 },
+        "normal": { player_speed: 2.8, player_accel: 0.55, kick_power: 12, plase_spin: 0.25 },
         "hizli":  { player_speed: 3.5, player_accel: 0.8,  kick_power: 15, plase_spin: 0.35 }
     },
     SPRINT_MULTIPLIER: 1.5,
