@@ -1084,3 +1084,21 @@
     }
 
     /* Oyun ekranını tam pencere yap, footer vb. her şeyin GİZLENMESİ/ALTTA KALMASI için */
+    #miniGameScreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        max-width: 100vw;
+        max-height: 100vh;
+        margin: 0;
+        padding: 4px;
+        z-index: 9999;
+        overflow: hidden;
+    }
+
+    body {
+        overflow: hidden;
+    }
+}

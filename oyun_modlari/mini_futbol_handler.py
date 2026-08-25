@@ -369,10 +369,13 @@ def update_physics(room):
         ADV_PLASE_SPIN_FORCE = adv.get("plaseSpin", 35) / 100.0                   # 35 → 0.35
         ADV_AFTERTOUCH_TIME = adv.get("afterTouchTime", 200) / 1000.0             # 200ms → 0.2sn
         ADV_BALL_MAX_SPEED = adv.get("ballMaxSpeed", 18)
-        ADV_SPRINT_MULT = adv.get("sprintMultiplier", 170) / 100.0                # %170 → 1.7
+        ADV_SPRINT_MULT = adv.get("sprintMultiplier", 150) / 100.0                # ✨ BUG FIX: yedek varsayılan 170→150 (gerçek varsayılanla ve JS host fiziğiyle eşit)
         ADV_SPRINT_DURATION = adv.get("sprintDuration", 3)
         # Sprint drain = max_energy / duration
         ADV_SPRINT_DRAIN = 100.0 / ADV_SPRINT_DURATION if ADV_SPRINT_DURATION > 0 else 33.3
+        # ✨ BUG FIX: "ballStick" (0-100) gelişmiş ayarı hiç okunmuyordu, top yapışma
+        # sliderı arayüzde görünüyor ama fiziğe hiç yansımıyordu. Artık okunuyor.
+        ADV_STICK_FACTOR = adv.get("ballStick", 85) / 100.0
     else:
         ADV_SPRINT_KICK_BONUS = SPRINT_KICK_MULTIPLIER
         ADV_PLASE_POWER_MULT = PLASE_POWER_MULT
@@ -380,6 +383,9 @@ def update_physics(room):
         ADV_AFTERTOUCH_TIME = PLASE_AFTERTOUCH_TIME
         ADV_BALL_MAX_SPEED = BALL_MAX_SPEED
         ADV_SPRINT_MULT = SPRINT_MULTIPLIER
+        # ✨ BUG FIX: basit lobi ayarındaki "ball_stick" (açık/kapalı) toggle'ı da
+        # hiç okunmuyordu; kapatılsa bile top her zaman yapışıyordu.
+        ADV_STICK_FACTOR = BALL_STICK_FACTOR if room.get("ball_stick", True) else 0.0
         ADV_SPRINT_DRAIN = SPRINT_DRAIN_PER_SEC
     
     # ✨ PAUSE durumundaysa hiçbir şey yapma (hem ESC pause hem P pause)
@@ -977,9 +983,9 @@ def update_physics(room):
                 
                 ball["spin"] = ball.get("spin", 0) * 0.3  # ✨ Oyuncuya çarpınca spin çok azalır
             else:
-                # 🐢 Top YAVAŞ → normal yapışma (sürüş)
-                ball["vx"] = ball["vx"] * (1 - BALL_STICK_FACTOR) + p["vx"] * BALL_STICK_FACTOR
-                ball["vy"] = ball["vy"] * (1 - BALL_STICK_FACTOR) + p["vy"] * BALL_STICK_FACTOR
+                # 🐢 Top YAVAŞ → normal yapışma (sürüş) - artık ayardan gelen gerçek katsayı kullanılıyor
+                ball["vx"] = ball["vx"] * (1 - ADV_STICK_FACTOR) + p["vx"] * ADV_STICK_FACTOR
+                ball["vy"] = ball["vy"] * (1 - ADV_STICK_FACTOR) + p["vy"] * ADV_STICK_FACTOR
                 ball["spin"] = 0  # ✨ Yapışınca spin tamamen biter
             
             # ✨ Max hız sınırı (top çok hızlanmasın)
