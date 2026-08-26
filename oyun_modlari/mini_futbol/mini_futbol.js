@@ -2136,10 +2136,10 @@ function handleMiniMessage(msg) {
             }
         }
         
-        // ✨ SNAPSHOT INTERPOLATION - Her state'i timestamp ile buffer'a at
+        // ✨ AKILLI SNAPSHOT BUFFER (Zaman Damgalı ve Jitter Korumalı)
         const now_ = performance.now();
         
-        // İlk snapshot ise current pozisyonları ayarla (jump olmasın)
+        // İlk snapshot ise pozisyonları direkt eşle
         if (miniData.snapshots.length === 0) {
             if (msg.players) {
                 for (const pid in msg.players) {
@@ -2154,11 +2154,10 @@ function handleMiniMessage(msg) {
             }
         }
         
-        // Snapshot'ı buffer'a ekle
         const snapshot = {
             t: now_,
             players: {},
-            ball: null
+            ball: msg.ball ? { x: msg.ball.x, y: msg.ball.y, vx: msg.ball.vx || 0, vy: msg.ball.vy || 0 } : null
         };
         if (msg.players) {
             for (const pid in msg.players) {
@@ -2168,14 +2167,13 @@ function handleMiniMessage(msg) {
                 };
             }
         }
-        if (msg.ball) {
-            snapshot.ball = { x: msg.ball.x, y: msg.ball.y };
-        }
         miniData.snapshots.push(snapshot);
         
-        // Buffer'ı temizle (300ms'den eski olanları at, gereksiz hafıza şişmesin)
-        const cutoff = now_ - 300;
-        miniData.snapshots = miniData.snapshots.filter(s => s.t >= cutoff);
+        // Buffer'ı optimize tut (son 400ms verisi yeterlidir)
+        const cutoff = now_ - 400;
+        if (miniData.snapshots.length > 25) {
+            miniData.snapshots = miniData.snapshots.filter(s => s.t >= cutoff);
+        }
         
         return;
     }
@@ -3284,15 +3282,25 @@ function openMiniRoomSettings() {
 // ========================================
 function startMiniLocalPhysicsIfNeeded() {
     if (typeof HP === 'undefined') return false;
-    if (!miniData.playerId || HP.running) return true;
+    if (!miniData.playerId) return false;
     if (!miniData.players || miniData.players.length === 0) return false;
 
     const isHost = miniData.playerId === 1;
-    // ✨ Saha boyutlarını fieldConfig'ten al (backend'in gönderdiği)
+
+    // ✨ Sadece HOST yerel fizik motorunu çalıştırır (Misafirde çift fizik savaşı ve titreme engellenir)
+    if (!isHost) {
+        if (HP.running) HP.stopGame();
+        console.log("[GUEST] Misafir modu: Saf ve pürüzsüz Snapshot Interpolasyonuna geçildi ✓");
+        return true;
+    }
+
+    if (HP.running) return true;
+
+    // ✨ Saha boyutlarını fieldConfig'ten al
     const fw = (miniData.fieldConfig && miniData.fieldConfig.width) || miniData.fieldWidth || 1000;
     const fh = (miniData.fieldConfig && miniData.fieldConfig.height) || miniData.fieldHeight || 500;
     const gw = (miniData.fieldConfig && miniData.fieldConfig.goal_width) || miniData.fieldGoalWidth || 180;
-    // ✨ LocalStorage'dan veya miniData'dan gelişmiş ayarları al
+    
     let isAdvEnabled = miniData.advancedEnabled || false;
     let advSettings = miniData.advancedSettings || null;
     
@@ -3330,53 +3338,35 @@ function startMiniLocalPhysicsIfNeeded() {
     HP.onGoal = null;
     HP.onGameOver = null;
 
-    if (isHost) {
-        console.log("[HOST-PHYSICS] Host fizik motoru kuruluyor...");
-        // ✨ Oyuncu sayısına göre broadcast frekansı
-        // 1v1-2v2: 30 Hz (her 2 frame'de bir)
-        // 3v3-4v4: 24 Hz (her 2-3 frame'de bir)
-        // 5v5: 20 Hz (her 3 frame'de bir)
-        const totalPlayers = miniData.players.length;
-        let netSkip = 1;  // ✨ 1v1 için 60 Hz state gönder
-        if (totalPlayers >= 8) netSkip = 3;      // 4v4+ → 20 Hz
-        else if (totalPlayers >= 4) netSkip = 2; // 2v2+ → 30 Hz
+    console.log("[HOST-PHYSICS] Host fizik motoru kuruluyor (Sabit 60 FPS Akış)...");
+    
+    HP.onStateUpdate = (stateMsg) => {
+        stateMsg._local = true;
+        stateMsg._ts = performance.now();
+        handleMiniMessage(stateMsg);
+
+        const cleanState = Object.assign({}, stateMsg);
+        delete cleanState._local;
         
-        miniData._netFrameCounter = 0;
-        miniData._netSkip = netSkip;
-        console.log(`[HOST-PHYSICS] Network frekansı: ${Math.round(60/netSkip)} Hz (${totalPlayers} oyuncu)`);
+        // ✨ WebRTC P2P ile bağlı olan misafirlere direkt gönder
+        let p2pSent = false;
+        if (MiniRTC.connected) {
+            p2pSent = MiniRTC.sendMessage(cleanState);
+        }
         
-        HP.onStateUpdate = (stateMsg) => {
-            stateMsg._local = true;
-            handleMiniMessage(stateMsg);
+        // ✨ P2P tüneli kurulmamış veya sunucu üzerinden bağlı misafirler için WS rölesi
+        const otherPlayers = miniData.players ? miniData.players.filter(p => p.id !== 1) : [];
+        const connectedP2PCount = Object.values(MiniRTC.peers || {}).filter(p => p.connected).length;
+        
+        if (!p2pSent || connectedP2PCount < otherPlayers.length) {
+            send({ type: "mini_host_state", state: cleanState });
+        }
+    };
 
-            // Network throttle
-            miniData._netFrameCounter = (miniData._netFrameCounter || 0) + 1;
-            if (miniData._netFrameCounter % (miniData._netSkip || 1) !== 0) return;
-
-            const cleanState = Object.assign({}, stateMsg);
-            delete cleanState._local;
-            
-            // ✨ WebRTC P2P (1v1 P2P peer için düşük gecikme)
-            if (MiniRTC.connected) {
-                MiniRTC.sendMessage(cleanState);
-            }
-            
-            // ✨ ÇOKLU OYUNCU DESTEĞİ:
-            // P2P bağlı değilse VEYA odada 2'den fazla kişi varsa (2v2, izleyici, sonradan katılan 3. oyuncu)
-            // Veriyi sunucuya da gönder ki P2P dışındaki 3. ve 4. oyuncular donup kalmasın!
-            const hasMorePlayers = miniData.players && miniData.players.length > 2;
-            if (!MiniRTC.connected || hasMorePlayers) {
-                send({ type: "mini_host_state", state: cleanState });
-            }
-        };
-
-        HP.onGameOver = (winData) => {
-            handleMiniMessage(winData);
-            send({ type: "mini_host_state", state: winData });
-        };
-    } else {
-        console.log("[GUEST-HP] Misafir local fizik motoru başlatıldı ✓");
-    }
+    HP.onGameOver = (winData) => {
+        handleMiniMessage(winData);
+        send({ type: "mini_host_state", state: winData });
+    };
 
     HP.startGame(settings, playerList);
     return true;
@@ -4558,14 +4548,14 @@ function miniRender() {
             }
         }
 
-        // ✨ SNAPSHOT INTERPOLATION
-        const renderTime = performance.now() - miniData.interpDelay;
+        // ✨ PÜRÜZSÜZ HERMITE/LINEAR SNAPSHOT İNTERPOLASYONU (60 FPS Akıcılık)
+        const renderTime = performance.now() - (miniData.interpDelay || 45);
         const snaps = miniData.snapshots;
         
         if (snaps.length >= 2) {
             let before = null;
             let after = null;
-            for (let i = 0; i < snaps.length - 1; i++) {
+            for (let i = snaps.length - 2; i >= 0; i--) {
                 if (snaps[i].t <= renderTime && snaps[i + 1].t >= renderTime) {
                     before = snaps[i];
                     after = snaps[i + 1];
@@ -4575,10 +4565,11 @@ function miniRender() {
             
             if (before && after) {
                 const span = after.t - before.t;
-                const alpha = span > 0 ? (renderTime - before.t) / span : 0;
+                const alpha = span > 0 ? Math.max(0, Math.min(1, (renderTime - before.t) / span)) : 0;
                 
+                // Oyuncuları enterpole et
                 for (const pid in after.players) {
-                    if (before.players[pid]) {
+                    if (before.players && before.players[pid]) {
                         const bx = before.players[pid].x;
                         const by = before.players[pid].y;
                         const ax = after.players[pid].x;
@@ -4595,6 +4586,7 @@ function miniRender() {
                     }
                 }
                 
+                // Topu enterpole et
                 if (before.ball && after.ball) {
                     miniData.currentPositions.ball = {
                         x: before.ball.x + (after.ball.x - before.ball.x) * alpha,
@@ -4602,15 +4594,25 @@ function miniRender() {
                     };
                 }
             } else if (snaps.length > 0) {
+                // Buffer sınırında en son kareye yumuşakça yaklaş (Extrapolation koruması)
                 const last = snaps[snaps.length - 1];
                 for (const pid in last.players) {
-                    miniData.currentPositions["p" + pid] = {
-                        x: last.players[pid].x,
-                        y: last.players[pid].y
-                    };
+                    const cur = miniData.currentPositions["p" + pid];
+                    if (cur) {
+                        cur.x += (last.players[pid].x - cur.x) * 0.4;
+                        cur.y += (last.players[pid].y - cur.y) * 0.4;
+                    } else {
+                        miniData.currentPositions["p" + pid] = { x: last.players[pid].x, y: last.players[pid].y };
+                    }
                 }
                 if (last.ball) {
-                    miniData.currentPositions.ball = { x: last.ball.x, y: last.ball.y };
+                    const curB = miniData.currentPositions.ball;
+                    if (curB) {
+                        curB.x += (last.ball.x - curB.x) * 0.4;
+                        curB.y += (last.ball.y - curB.y) * 0.4;
+                    } else {
+                        miniData.currentPositions.ball = { x: last.ball.x, y: last.ball.y };
+                    }
                 }
             }
         }
@@ -4857,35 +4859,22 @@ function miniRender() {
         // Oyuncular
         for (const pid in state.players) {
             const pidInt = parseInt(pid, 10);
-            let smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
+            let smoothPos;
             
             if (isReplayMode && replayFrameData && replayFrameData.players[pid]) {
+                // Replay modunda kayıtlı replay karesi
                 smoothPos = {
                     x: replayFrameData.players[pid].x,
                     y: replayFrameData.players[pid].y
                 };
-            } else if (typeof HP !== 'undefined' && HP.running &&
-                       HP.room && HP.room.gameState && HP.room.gameState.players &&
-                       HP.room.gameState.players[pid]) {
+            } else if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running &&
+                       HP.room?.gameState?.players?.[pid]) {
+                // HOST: Doğrudan kendi yerel fizik motorundan 0 gecikmeli çiz
                 const hpPlayer = HP.room.gameState.players[pid];
-                const isSelf = (pidInt === miniData.playerId);
-                const lerpK = isSelf ? 0.75 : 0.55;
-                
-                if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
-                if (!miniData._hostRenderSmoothed.players[pid]) {
-                    miniData._hostRenderSmoothed.players[pid] = { x: hpPlayer.x, y: hpPlayer.y };
-                }
-                const smoothed = miniData._hostRenderSmoothed.players[pid];
-                const dx = hpPlayer.x - smoothed.x;
-                const dy = hpPlayer.y - smoothed.y;
-                if (dx * dx + dy * dy > 150 * 150) {
-                    smoothed.x = hpPlayer.x;
-                    smoothed.y = hpPlayer.y;
-                } else {
-                    smoothed.x += dx * lerpK;
-                    smoothed.y += dy * lerpK;
-                }
-                smoothPos = { x: smoothed.x, y: smoothed.y };
+                smoothPos = { x: hpPlayer.x, y: hpPlayer.y };
+            } else {
+                // MİSAFİR: Pürüzsüz Snapshot Interpolasyonundan çiz
+                smoothPos = miniData.currentPositions["p" + pid] || state.players[pid];
             }
             
             const p = { x: smoothPos.x, y: smoothPos.y };
@@ -5218,31 +5207,15 @@ function miniRender() {
         
         // Top
         let bSmooth;
-        if (isReplayMode && replayFrameData) {
+        if (isReplayMode && replayFrameData && replayFrameData.ball) {
             bSmooth = replayFrameData.ball;
-        } else if (typeof HP !== 'undefined' && HP.running &&
-            HP.room && HP.room.gameState && HP.room.gameState.ball) {
-            // ✨ Host + Misafir: topu yerel HP'den çiz (en akıcı kaynak)
+        } else if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running &&
+                   HP.room?.gameState?.ball) {
+            // HOST: Kendi yerel HP topunu çiz
             const hpBall = HP.room.gameState.ball;
-            if (!miniData._hostRenderSmoothed) miniData._hostRenderSmoothed = { players: {}, ball: null };
-            if (!miniData._hostRenderSmoothed.ball) {
-                miniData._hostRenderSmoothed.ball = { x: hpBall.x, y: hpBall.y };
-            }
-            const smoothedBall = miniData._hostRenderSmoothed.ball;
-            const bdx = hpBall.x - smoothedBall.x;
-            const bdy = hpBall.y - smoothedBall.y;
-            // Büyük sıçrama (gol/santra) → snap
-            if (bdx * bdx + bdy * bdy > 200 * 200) {
-                smoothedBall.x = hpBall.x;
-                smoothedBall.y = hpBall.y;
-            } else {
-                // 0.70 = şut tepkisi keskin + göz yormayan akıcılık
-                smoothedBall.x += bdx * 0.70;
-                smoothedBall.y += bdy * 0.70;
-            }
-            bSmooth = { x: smoothedBall.x, y: smoothedBall.y };
+            bSmooth = { x: hpBall.x, y: hpBall.y };
         } else {
-            // HP yoksa snapshot interpolasyonu
+            // MİSAFİR: Snapshot Interpolasyonlu Pürüzsüz Top
             bSmooth = miniData.currentPositions.ball || state.ball;
         }
         const b = {
