@@ -3263,6 +3263,22 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     # ==========================================
+    # ⏭️ REPLAY SKIP (ATLA) SİSTEMİ
+    # ==========================================
+    if msg_type == "mini_skip_replay":
+        if room_code in rooms:
+            room = rooms[room_code]
+            if room.get("host_mode"):
+                # Bu bilgiyi sadece host'a ilet (Host fiziği yönetecek)
+                host_ws = room["players"].get(1, {}).get("ws")
+                if host_ws:
+                    await safe_send(host_ws, {
+                        "type": "mini_guest_skip",
+                        "from_pid": player_id
+                    })
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+    # ==========================================
     # 💬 CHAT MESAJI GÖNDER
     # ==========================================
     if msg_type == "mini_chat_send":

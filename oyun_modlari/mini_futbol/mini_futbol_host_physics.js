@@ -61,13 +61,35 @@ const HP = {  // Host Physics namespace
     // BAŞLAT / DURDUR
     // ==========================================
     
-    selectGoalCelebration(playerObj, now) {
-        // 🎭 GOL SEVİNÇLERİ HAVUZU (Rastgele Seçim)
-        const CELEBRATION_TYPES = ["rainbow_trail", "grow_explode", "spotlight", "frostbite"]; 
-        const chosenType = CELEBRATION_TYPES[Math.floor(Math.random() * CELEBRATION_TYPES.length)];
+    pickNextCelebration(gs) {
+        // 🎭 Tüm şık gol sevinçleri havuzu (4 çeşit - Yıldırım kaldırıldı)
+        const pool = ["rainbow_trail", "grow_explode", "spotlight", "frostbite"];
         
+        // Eğer torba henüz kurulmadıysa ya da boşaldıysa yeniden doldur
+        if (!gs.availableCelebrations || gs.availableCelebrations.length === 0) {
+            gs.availableCelebrations = [...pool];
+        }
+        
+        let idx = Math.floor(Math.random() * gs.availableCelebrations.length);
+        let chosen = gs.availableCelebrations[idx];
+        
+        // ✨ AKILLI KONTROL: Torba sıfırlandığında yeni çekilen ilk sevinç, bir önceki golün sevinciyle aynı olmasın
+        if (gs.lastChosenCelebration && gs.availableCelebrations.length > 1 && chosen === gs.lastChosenCelebration) {
+            idx = (idx + 1) % gs.availableCelebrations.length;
+            chosen = gs.availableCelebrations[idx];
+        }
+        
+        // Seçilen sevinci torbadan çıkar (bir sonraki gole kadar yasakla)
+        gs.availableCelebrations.splice(idx, 1);
+        gs.lastChosenCelebration = chosen;
+        
+        console.log(`[HP CELEBRATION] Seçilen Sevinç: ${chosen} | Torbada Kalan Sevinç Sayısı: ${gs.availableCelebrations.length}`);
+        return chosen;
+    },
+
+    selectGoalCelebration(playerObj, now, forcedType = null) {
         playerObj.celebrating = true;
-        playerObj.celebration_type = chosenType;
+        playerObj.celebration_type = forcedType || "grow_explode";
         playerObj.celebration_until = now + 5.0;
         playerObj.celebration_start = now;
         playerObj.celebration_trail = [];
@@ -99,6 +121,37 @@ const HP = {  // Host Physics namespace
         }
     },
     
+    // ✨ REPLAY SKIP KAYIT FONKSİYONU (%100 Garantili)
+    registerSkip(pid) {
+        if (!this.room || !this.room.gameState) return;
+        const gs = this.room.gameState;
+        
+        if (gs.state !== "goal_wait") return;
+        if (!gs.skip_votes) gs.skip_votes = [];
+        
+        const pidNum = parseInt(pid, 10);
+        if (isNaN(pidNum)) return;
+        
+        if (!gs.skip_votes.includes(pidNum)) {
+            gs.skip_votes.push(pidNum);
+            console.log(`[HP SKIP] Oyuncu ${pidNum} atladı. Güncel Liste:`, gs.skip_votes);
+        }
+        
+        // Sahadaki aktif (kırmızı ve mavi) oyuncu ID'leri
+        const activePlayerIds = Object.keys(gs.players)
+            .map(id => parseInt(id, 10))
+            .filter(id => !isNaN(id) && gs.players[id] && (gs.players[id].team === "red" || gs.players[id].team === "blue"));
+        
+        // Herkes atladı mı kontrol et
+        const allSkipped = activePlayerIds.length > 0 &&
+            activePlayerIds.every(activePid => gs.skip_votes.includes(activePid));
+        
+        if (allSkipped && !gs.skip_completed_time) {
+            gs.skip_completed_time = (performance.now() / 1000);
+            console.log("[HP] HERKES REPLAY'İ ATLADI! 1 saniye sonra santraya geçiliyor...");
+        }
+    },
+
     stopGame() {
         console.log("[HOST-PHYSICS] Oyun durduruluyor");
         this.running = false;
@@ -522,7 +575,8 @@ const HP = {  // Host Physics namespace
                 wait_remaining: remainingWait,
                 silent: gs._silentGoalWait === true,
                 speed: gs.last_goal_speed || 0,
-                dist: gs.last_goal_dist || 0
+                dist: gs.last_goal_dist || 0,
+                skip_votes: gs.skip_votes || [] // ✨ İstemci kimin atladığını bilsin
             };
         }
         
@@ -638,15 +692,19 @@ const HP = {  // Host Physics namespace
         // Callback ile dışarıya bildir (network gönderimi)
         if (this.onStateUpdate) this.onStateUpdate(stateMsg);
         
-        // Kazanma kontrolü
+        // Kazanma kontrolü (Gol sevinci ve Replay TAMAMEN bittikten sonra tetiklenir)
         const goalTarget = this.settings.goalTarget || 3;
         let winnerId = null;
-        if (gs.scores[1] >= goalTarget) winnerId = 1;
-        else if (gs.scores[2] >= goalTarget) winnerId = 2;
-        else if (gs.time_left <= 0) {
-            if (gs.scores[1] > gs.scores[2]) winnerId = 1;
-            else if (gs.scores[2] > gs.scores[1]) winnerId = 2;
-            else winnerId = 0;
+        
+        // ✨ Eğer hala gol sevinci VEYA replay oynatılıyorsa (goal_wait fazı), kazanma kontrolünü askıya al!
+        if (gs.state !== "goal_wait") {
+            if (gs.scores[1] >= goalTarget) winnerId = 1;
+            else if (gs.scores[2] >= goalTarget) winnerId = 2;
+            else if (gs.time_left <= 0) {
+                if (gs.scores[1] > gs.scores[2]) winnerId = 1;
+                else if (gs.scores[2] > gs.scores[1]) winnerId = 2;
+                else winnerId = 0;
+            }
         }
         
         if (winnerId !== null) {
@@ -796,6 +854,12 @@ const HP = {  // Host Physics namespace
         if (gs.state === "goal_wait") {
             // Sevinç bittiğinde (Replay başlarken) sevinç kuyruklarını temizle
             const waitRemaining = gs.goal_wait_until - now;
+            
+            // ✨ SKIP KONTROLÜ: Eğer herkes atladıysa ve 1 saniye geçtiyse süreyi hemen bitir!
+            if (gs.skip_completed_time && now >= gs.skip_completed_time + 1.0) {
+                gs.goal_wait_until = now; // Anında santraya geçir
+            }
+            
             if (waitRemaining <= 10.0) {
                 for (const pid in gs.players) {
                     gs.players[pid].celebrating = false;
@@ -1256,10 +1320,26 @@ const HP = {  // Host Physics namespace
             gs.state = "goal_wait";
             gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
             gs.pause_time = now;
+            gs.skip_votes = [];               // ✨ Skip eden oyuncular
+            gs.skip_completed_time = null;    // ✨ Herkes skip edince sayaç başlar
             
-            // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
-            if (!own && last && gs.players[last]) {
-                this.selectGoalCelebration(gs.players[last], now);
+            // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
+            if (!own && last) {
+                const chosenType = this.pickNextCelebration(gs);
+                
+                if (chosenType === "grow_explode") {
+                    // 🎈 Balon Şişirme ise: GOL ATAN HARİÇ her oyuncu şişerek patlar!
+                    for (const pid in gs.players) {
+                        if (parseInt(pid) !== parseInt(last)) {
+                            this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                        }
+                    }
+                } else {
+                    // Diğer klasik sevinçler ise sadece gol atana verilir
+                    if (gs.players[last]) {
+                        this.selectGoalCelebration(gs.players[last], now, chosenType);
+                    }
+                }
             }
             
             // ✨ SAVE bayrağını temizle (gol oldu, kimse kurtaramadı)
@@ -1843,12 +1923,22 @@ const HP = {  // Host Physics namespace
                 gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
                 gs.pause_time = now;
                 
-                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
-                if (!own && last && gs.players[last]) {
-                    gs.players[last].celebrating = true;
-                    gs.players[last].celebration_until = now + 5.0;
-                    gs.players[last].celebration_trail = [];
-                    gs.players[last].celebration_start = now;
+                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
+                if (!own && last) {
+                    const chosenType = this.pickNextCelebration(gs);
+                    
+                    if (chosenType === "grow_explode") {
+                        // 🎈 Balon Şişirme ise: GOL ATAN HARİÇ herkes şişerek patlar!
+                        for (const pid in gs.players) {
+                            if (parseInt(pid) !== parseInt(last)) {
+                                this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                            }
+                        }
+                    } else {
+                        if (gs.players[last]) {
+                            this.selectGoalCelebration(gs.players[last], now, chosenType);
+                        }
+                    }
                 }
                 
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };

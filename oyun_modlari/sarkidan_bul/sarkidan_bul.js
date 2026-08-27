@@ -420,6 +420,12 @@
         // ✨ Ayarları localStorage'a kaydet
         try {
             localStorage.setItem("sarkiCreateSettings", JSON.stringify(settings));
+            localStorage.setItem("sarkiMaxPlayers", String(settings.max_players));
+            localStorage.setItem("sarkiDil", settings.dil);
+            if (settings.tur) localStorage.setItem("sarkiTur", settings.tur);
+            localStorage.setItem("sarkiTotalSongs", String(settings.total_songs));
+            localStorage.setItem("sarkiSongDuration", String(settings.song_duration));
+            localStorage.setItem("sarkiAnswerDuration", String(settings.answer_duration));
         } catch(e) {}
         
         // ✨ MOD DEĞİŞİMİ MODU: Zaten bir oda var, yeni oda kurmak yerine
@@ -531,8 +537,9 @@
                     id: "settingSarkiMax",
                     label: "👥 Oyuncu Sayısı",
                     current: sarkiSettings.max_players,
-                    minValue: (typeof window._getCurrentRoomPlayerCount === "function" && window._getCurrentRoomPlayerCount() > 2) ? window._getCurrentRoomPlayerCount() : null,
+                    minValue: (typeof window._getCurrentRoomPlayerCount === "function" && window._getCurrentRoomPlayerCount() > 1) ? window._getCurrentRoomPlayerCount() : null,
                     options: [
+                        { value: 1, label: "1 Oyuncu" },
                         { value: 2, label: "2 Oyuncu" },
                         { value: 3, label: "3 Oyuncu" },
                         { value: 4, label: "4 Oyuncu" },
@@ -687,10 +694,16 @@
         }
     }
     
+    function isSarkiSolo() {
+        return (sarkiSettings.max_players || 2) === 1 || (sarkiSettings.players && sarkiSettings.players.length === 1);
+    }
+
     function updateSarkiLobbyMessage() {
         const lobbyMsg = $("sarkiLobbyMsg");
         const startBtn = $("sarkiStartBtn");
         const playerCount = document.querySelectorAll("#sarkiPlayersList li").length;
+        const maxP = sarkiSettings.max_players || 2;
+        const minP = (maxP === 1) ? 1 : 2;
         
         // ✨ ARKA PLAN YÜKLEME KONTROLÜ
         const isBackgroundLoading = sarkiPoolReady && window._sarkiBackgroundLoading;
@@ -735,12 +748,12 @@
             }
         }
         
-        // Havuz HAZIR (arka plan yükleme mesajı kaldırıldı)
+        // Havuz HAZIR
         if (sarkiIsHost) {
             // Host için
-            if (playerCount < 2) {
+            if (playerCount < minP) {
                 if (lobbyMsg) {
-                    lobbyMsg.textContent = "En az 2 oyuncu gerekli...";
+                    lobbyMsg.textContent = `En az ${minP} oyuncu gerekli...`;
                     lobbyMsg.style.color = "#ff6b6b";
                     lobbyMsg.classList.remove("sarkiPulseMsg", "sarkiWaitHostMsg");
                 }
@@ -751,7 +764,11 @@
                 }
             } else {
                 if (lobbyMsg) {
-                    lobbyMsg.textContent = "✅ Hazır! Oyunu başlatabilirsin.";
+                    if (maxP === 1) {
+                        lobbyMsg.textContent = "Tek başınasın. İstediğin zaman başlatabilirsin!";
+                    } else {
+                        lobbyMsg.textContent = "✅ Hazır! Oyunu başlatabilirsin.";
+                    }
                     lobbyMsg.style.color = "#51cf66";
                     lobbyMsg.classList.remove("sarkiPulseMsg", "sarkiWaitHostMsg");
                 }
@@ -1657,12 +1674,21 @@
         stopSarkiTimer();
         $("sarkiRoundResultBox").classList.add("hidden");
 
+        const isSolo = isSarkiSolo();
         const iWon = (msg.winner_id === sarkiPlayerId);
         const title = $("sarkiGameOverTitle");
-        title.textContent = iWon ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
-        title.className = iWon ? "win" : "lose";
 
-        $("sarkiGameOverText").textContent = `Kazanan: ${msg.winner_name}`;
+        if (isSolo) {
+            title.textContent = "SOLO BİTTİ! 🎯";
+            title.className = "win";
+            if (typeof startConfetti === "function") startConfetti();
+            const myScore = msg.scores && msg.scores[0] ? msg.scores[0].score : 0;
+            $("sarkiGameOverText").innerHTML = `Solo skorun: <b style="color:#51cf66">${myScore} puan</b>`;
+        } else {
+            title.textContent = iWon ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
+            title.className = iWon ? "win" : "lose";
+            $("sarkiGameOverText").textContent = `Kazanan: ${msg.winner_name}`;
+        }
 
         const list = $("sarkiGameOverList");
         list.innerHTML = "";

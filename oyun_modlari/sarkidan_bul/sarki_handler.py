@@ -409,7 +409,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        if max_players not in [2, 3, 4, 5]:
+        if max_players not in [1, 2, 3, 4, 5]:
             max_players = 2
         if dil not in ["tr", "yabanci", "karisik"]:
             dil = "karisik"
@@ -573,7 +573,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         song_duration = int(data.get("song_duration", 10))
         answer_duration = int(data.get("answer_duration", 10))
         
-        if max_players not in [2, 3, 4, 5]:
+        if max_players not in [1, 2, 3, 4, 5]:
             max_players = 2
         if dil not in ["tr", "yabanci", "karisik"]:
             dil = "karisik"
@@ -663,8 +663,10 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
         
         player_id = actual_pid
         
-        if len(room["players"]) < 2:
-            await safe_send(websocket, {"type": "error", "message": "En az 2 oyuncu gerekli."})
+        max_p = room.get("max_players", 2)
+        min_p = 1 if max_p == 1 else 2
+        if len(room["players"]) < min_p:
+            await safe_send(websocket, {"type": "error", "message": f"En az {min_p} oyuncu gerekli."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         # Skorları sıfırla

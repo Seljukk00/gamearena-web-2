@@ -843,7 +843,7 @@
 
 .miniGameOverRow {
     display: grid;
-    grid-template-columns: minmax(120px, 2fr) 55px 55px 55px 75px 65px;
+    grid-template-columns: minmax(180px, 3.5fr) 45px 45px 45px 60px 55px;
     gap: 6px;
     padding: 10px 8px;
     font-size: 14px;
@@ -862,12 +862,14 @@
 }
 
 .miniGameOverName {
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
     white-space: nowrap;
     font-weight: 600;
-    padding-right: 8px;
+    padding-right: 4px;
     text-align: left;
+    word-break: keep-all;
+    min-width: 0;
 }
 
 .miniGameOverStat {
@@ -879,7 +881,7 @@
 
 .miniGameOverHeader {
     display: grid;
-    grid-template-columns: minmax(120px, 2fr) 55px 55px 55px 75px 65px;
+    grid-template-columns: minmax(180px, 3.5fr) 45px 45px 45px 60px 55px;
     gap: 6px;
     color: #ffd43b;
     font-size: 11px;

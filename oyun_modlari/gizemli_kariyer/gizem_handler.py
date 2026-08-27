@@ -406,7 +406,7 @@ async def handle_gizem_message(
 
         try:
             max_players = int(max_players_raw)
-            if max_players not in [2, 3, 4, 5]:
+            if max_players not in [1, 2, 3, 4, 5]:
                 max_players = 2
         except:
             max_players = 2
@@ -557,7 +557,7 @@ async def handle_gizem_message(
 
         try:
             new_max = int(data.get("max_players", room.get("max_players", 2)))
-            if new_max not in [2, 3, 4, 5]:
+            if new_max not in [1, 2, 3, 4, 5]:
                 new_max = room.get("max_players", 2)
             if new_max < len(room["players"]):
                 new_max = room.get("max_players", 2)
@@ -585,7 +585,12 @@ async def handle_gizem_message(
             return _handled(current_room_code, current_player_id)
 
         max_players = room.get("max_players", 2)
-        if len(room["players"]) != max_players:
+        player_count = len(room["players"])
+        if max_players == 1:
+            if player_count < 1:
+                await safe_send(websocket, {"type": "error", "message": "En az 1 oyuncu gerekli."})
+                return _handled(current_room_code, current_player_id)
+        elif player_count != max_players:
             await safe_send(websocket, {"type": "error", "message": f"{max_players} oyuncu gerekli."})
             return _handled(current_room_code, current_player_id)
 
@@ -722,7 +727,7 @@ async def handle_gizem_message(
             await safe_send(websocket, {"type": "error", "message": "Sadece host tekrar başlatabilir."})
             return _handled(current_room_code, current_player_id)
 
-        if len(room["players"]) < 2:
+        if len(room["players"]) < 1:
             return _handled(current_room_code, current_player_id)
         
         # Rematch'te odada kaç kişi varsa onlarla başla

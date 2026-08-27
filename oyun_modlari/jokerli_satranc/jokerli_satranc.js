@@ -4212,11 +4212,15 @@ function openSatrancRoomSettings() {
         }
     });
     
-    // ✨ Popup açıldıktan sonra Joker Kilidi alanına göre alt kutuları direkt göster/gizle
+    // ✨ Popup açıldıktan sonra Joker Kilidi ve Seçim Modu alanlarına göre alt kutuları direkt göster/gizle
     setTimeout(() => {
         const lockModeSelect = document.getElementById("settingsField_lockMode");
         const lockPiecesGroup = document.getElementById("settingsGroup_lockPieces");
         const lockMinutesGroup = document.getElementById("settingsGroup_lockMinutes");
+        
+        // ✨ Joker Seçim Modu ve Süresi elemanları
+        const pickModeSelect = document.getElementById("settingsField_pickMode");
+        const pickSecondsGroup = document.getElementById("settingsGroup_pickSeconds");
 
         if (!lockModeSelect) {
             console.warn("[SATRANC] settingsField_lockMode bulunamadı");
@@ -4251,10 +4255,25 @@ function openSatrancRoomSettings() {
             }
         }
 
+        // ✨ Joker Seçim Süresi görünürlük fonksiyonu
+        function applyPickModeVisibility() {
+            if (pickModeSelect && pickSecondsGroup) {
+                const mode = String(pickModeSelect.value || "karisik");
+                // Karışık seçildiğinde süreyi anında gizle, manuel seçildiğinde göster
+                pickSecondsGroup.style.display = (mode === "manuel") ? "" : "none";
+            }
+        }
+
         applyLockModeVisibility(false);
         lockModeSelect.addEventListener("change", () => applyLockModeVisibility(true));
+        
+        // ✨ Joker seçim modu değiştiğinde anında süreyi gizle/göster
+        if (pickModeSelect) {
+            applyPickModeVisibility();
+            pickModeSelect.addEventListener("change", applyPickModeVisibility);
+        }
 
-        console.log("[SATRANC] Kilit alanları canlı göster/gizle aktif ✓");
+        console.log("[SATRANC] Kilit ve Seçim Süresi alanları canlı göster/gizle aktif ✓");
     }, 50);
 }
 
@@ -4940,23 +4959,9 @@ handleMessage = function(msg) {
     // ✨ Lobiye dön (herkese)
     if (msg.type === "satranc_back_to_lobby_broadcast") {
         try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
-        // Board'u temizle
-        if (satrancData.board) {
-            try { satrancData.board.destroy(); } catch(e) {}
-            satrancData.board = null;
-        }
-        satrancData.myJokers = [];
-        satrancData.oppJokerCount = 0;
-        satrancData.usedJokers = [];
-        satrancData.moveHistory = [];
-        stopSatrancClock();
-        cancelSquareSelectMode();
-
-        // ✨ Açık popupları kapat
-        const gameOverBox = document.getElementById("satrancGameOverBox");
-        if (gameOverBox) gameOverBox.classList.add("hidden");
-        const promoOverlay = document.getElementById("satrancPromoOverlay");
-        if (promoOverlay) promoOverlay.remove();
+        
+        // ✨ Tüm JS State'ini ve DOM elemanlarını sıfırla
+        resetSatrancGameState();
 
         showToast("🏠 Lobiye Döndü", msg.message || "Oyun sonlandırıldı.", null, "info");
         showScreen("satrancLobby");
@@ -5979,5 +5984,74 @@ document.addEventListener("keydown", (e) => {
         }
     }
 }, true);
+
+// ==========================================
+// MERKEZİ STATE SIFIRLAMA (Lobiye Dön / Rematch)
+// ==========================================
+function resetSatrancGameState() {
+    stopSatrancClock();
+    stopJokerSelectTimer();
+    _stopLockCountdown();
+    cancelSquareSelectMode();
+
+    if (satrancData.board) {
+        try { satrancData.board.destroy(); } catch(e) {}
+        satrancData.board = null;
+    }
+
+    satrancData.game = null;
+    satrancData.legalMoves = [];
+    satrancData.selectedSquare = null;
+    satrancData.moveHistory = [];
+    satrancData.myJokers = [];
+    satrancData.usedJokers = [];
+    satrancData.oppUsedJokers = [];
+    satrancData.oppJokerCount = 0;
+    satrancData.invisibleDetails = {};
+    satrancData.lastInvisibleSquares = [];
+    satrancData.shieldedDetails = {};
+    satrancData.frozenDetails = {};
+    satrancData.lockedDetails = {};
+    satrancData.slowedDetails = {};
+    satrancData.ajanDisguised = {};
+    satrancData.mySansurLeft = 0;
+    satrancData.oppSansurLeft = 0;
+    satrancData.ignoredSquares = [];
+    satrancData._hizliKacisActive = false;
+    satrancData.pendingPromotion = null;
+    satrancData.lockStatus = null;
+    satrancData.jokersUnlocked = true;
+    window._satrancRevealedOppJokers = [];
+
+    // ✨ Açık olan tüm pop-up ve overlay'leri temizle
+    const selectorsToClean = [
+        "#satrancGameOverBox",
+        "#satrancPromoOverlay",
+        "#satrancDiceOverlay",
+        "#satrancKasaOverlay",
+        "#satrancRuletOverlay",
+        "#satrancGiftOverlay",
+        "#satrancCarkOverlay",
+        "#satrancMiniCarkOverlay",
+        "#satrancMiniCarkOverlay",
+        "#satrancJokerBanner"
+    ];
+
+    selectorsToClean.forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el) {
+            if (sel === "#satrancGameOverBox") {
+                el.classList.add("hidden");
+            } else {
+                el.remove();
+            }
+        }
+    });
+
+    // ✨ Yenilen taşlar panelini temizle
+    renderCapturedPieces([], []);
+
+    console.log("[SATRANC STATE] Tüm oyun verileri ve görsel efektler sıfırlandı ✓");
+}
 
 console.log("♟️ Jokerli Satranç JS yüklendi ✓");

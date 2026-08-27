@@ -234,6 +234,21 @@ if (stadCard) {
         if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
         window._pendingModeChangeCtx = null;
 
+        // ✨ Kaydedilmiş ayarları yükle
+        try {
+            const savedMaxP = localStorage.getItem("stadMaxPlayers");
+            const savedTurnSec = localStorage.getItem("stadTurnSeconds");
+            const savedTotalR = localStorage.getItem("stadTotalRounds");
+
+            const maxPSel = document.getElementById("stadMaxPlayersSelect");
+            const turnSecSel = document.getElementById("stadTurnSecondsSelect");
+            const totalRSel = document.getElementById("stadTotalRoundsSelect");
+
+            if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+            if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+            if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
+        } catch(e) {}
+
         showScreen("createStad");
         setTimeout(() => {
             if (nameInput) nameInput.focus();
@@ -255,6 +270,13 @@ document.getElementById("createStadBtn").onclick = () => {
     const turnSec = parseInt(document.getElementById("stadTurnSecondsSelect").value) || 20;
     const maxPlayers = parseInt(document.getElementById("stadMaxPlayersSelect").value) || 2;
     const totalRounds = parseInt(document.getElementById("stadTotalRoundsSelect").value) || 10;
+
+    // ✨ Ayarları hafızaya kaydet
+    try {
+        localStorage.setItem("stadTurnSeconds", String(turnSec));
+        localStorage.setItem("stadMaxPlayers", String(maxPlayers));
+        localStorage.setItem("stadTotalRounds", String(totalRounds));
+    } catch(e) {}
 
     // ✨ MOD DEĞİŞİMİ mi?
     const pendingModeChange = window._pendingModeChangeCtx;
@@ -341,8 +363,9 @@ document.getElementById("stadRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: stadData.maxPlayers || 2,
-                minValue: (stadData.players && stadData.players.length > 2) ? stadData.players.length : null,
+                minValue: (stadData.players && stadData.players.length > 1) ? stadData.players.length : null,
                 options: [
+                    {value: 1, label: "1 Oyuncu"},
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},
                     {value: 4, label: "4 Oyuncu"},
@@ -374,6 +397,11 @@ document.getElementById("stadRoomSettingsBtn").onclick = () => {
             }
         ],
         onSave: (values) => {
+            try {
+                localStorage.setItem("stadTurnSeconds", String(values.turnSec));
+                localStorage.setItem("stadMaxPlayers", String(values.maxPlayers));
+                localStorage.setItem("stadTotalRounds", String(values.totalRounds));
+            } catch(e) {}
             send({
                 type: "stad_update_settings",
                 turn_seconds: parseInt(values.turnSec) || 20,
@@ -483,6 +511,10 @@ function isStadMultiPlayer() {
     return (stadData.maxPlayers || 2) >= 3;
 }
 
+function isStadSolo() {
+    return (stadData.maxPlayers || 2) === 1 || (stadData.players && stadData.players.length === 1);
+}
+
 function updateStadLobby() {
     if (stadRoomHelper) { stadRoomHelper.renderCode(); stadRoomHelper.renderLink(); }
     document.getElementById("stadLobbyTurnSeconds").textContent = stadData.turnSeconds || 20;
@@ -525,10 +557,15 @@ function updateStadLobby() {
     const msg = document.getElementById("stadLobbyMsg");
     const maxP = stadData.maxPlayers || 2;
     const curP = stadData.players.length;
+    const canStart = (maxP === 1) ? (curP >= 1) : (curP === maxP);
 
-    if (stadData.playerId === 1 && curP === maxP) {
+    if (stadData.playerId === 1 && canStart) {
         startBtn.classList.remove("hidden");
-        msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
+        if (maxP === 1) {
+            msg.textContent = "Tek başınasın. İstediğin zaman başlatabilirsin!";
+        } else {
+            msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
+        }
         msg.style.color = "#51cf66";
     } else if (stadData.playerId === 1) {
         startBtn.classList.add("hidden");
@@ -564,10 +601,15 @@ function renderStadTopBar() {
     document.getElementById("stadRoundInfo").textContent =
         `Tur ${stadData.roundNo + 1}/${stadData.totalRounds}`;
 
-    const turnName = getStadPlayerName(stadData.currentPlayer);
-    const turnColor = stadData.currentPlayer === stadData.playerId ? "#51cf66" : "#ffa94d";
-    document.getElementById("stadTurnInfo").innerHTML =
-        `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
+    const isSolo = isStadSolo();
+    if (isSolo) {
+        document.getElementById("stadTurnInfo").innerHTML = `Sıra: <span style="color:#51cf66">SEN (Solo)</span>`;
+    } else {
+        const turnName = getStadPlayerName(stadData.currentPlayer);
+        const turnColor = stadData.currentPlayer === stadData.playerId ? "#51cf66" : "#ffa94d";
+        document.getElementById("stadTurnInfo").innerHTML =
+            `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
+    }
 
     const isMulti = isStadMultiPlayer();
     const scoreboard2P = document.getElementById("stadScoreboard2P");
@@ -576,6 +618,14 @@ function renderStadTopBar() {
     if (isMulti) {
         if (scoreboard2P) scoreboard2P.style.visibility = "hidden";
         if (scoreboardPanel) scoreboardPanel.style.display = "";
+    } else if (isSolo) {
+        if (scoreboard2P) scoreboard2P.style.visibility = "";
+        if (scoreboardPanel) scoreboardPanel.style.display = "none";
+        
+        document.getElementById("stadP1Name").textContent = "";
+        document.getElementById("stadP2Name").textContent = "";
+        const myScore = stadData.scores[stadData.playerId] || 0;
+        document.getElementById("stadScore").textContent = `Skor: ${myScore}`;
     } else {
         if (scoreboard2P) scoreboard2P.style.visibility = "";
         if (scoreboardPanel) scoreboardPanel.style.display = "none";
@@ -975,8 +1025,13 @@ handleMessage = function(msg) {
 
         const title = document.getElementById("stadGameOverTitle");
         const text = document.getElementById("stadGameOverText");
+        const isSolo = isStadSolo();
 
-        if (msg.winner_id === 0) {
+        if (isSolo) {
+            title.textContent = "SOLO BİTTİ! 🎯";
+            title.style.color = "#51cf66";
+            if (typeof startConfetti === "function") startConfetti();
+        } else if (msg.winner_id === 0) {
             title.textContent = "BERABERE!";
             title.style.color = "#74c0fc";
         } else if (msg.winner_id === stadData.playerId) {
@@ -1015,7 +1070,10 @@ handleMessage = function(msg) {
             });
         }
         
-        if (ranking.length === 2) {
+        if (isSolo) {
+            const soloScore = stadData.scores[stadData.playerId] ?? (ranking[0] ? ranking[0].score : 0);
+            text.innerHTML = `Solo skorun: <b style="color:#51cf66">${soloScore}</b>`;
+        } else if (ranking.length === 2) {
             text.innerHTML = `Skor: <b>${ranking[0].score} - ${ranking[1].score}</b>`;
         } else {
             text.innerHTML = `<b>${ranking.length}</b> oyuncu yarıştı`;

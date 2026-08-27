@@ -269,6 +269,24 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
             if (createBtnEl) createBtnEl.textContent = "Oda Oluştur";
             window._pendingModeChangeCtx = null;
 
+            // ✨ Kaydedilmiş ayarları yükle
+            try {
+                const savedMaxP = localStorage.getItem("haritaMaxPlayers");
+                const savedDiff = localStorage.getItem("haritaDifficulty");
+                const savedTurnSec = localStorage.getItem("haritaTurnSeconds");
+                const savedTotalR = localStorage.getItem("haritaTotalRounds");
+
+                const maxPSel = document.getElementById("haritaMaxPlayersSelect");
+                const diffSel = document.getElementById("haritaDifficultySelect");
+                const turnSecSel = document.getElementById("haritaTurnSecondsSelect");
+                const totalRSel = document.getElementById("haritaTotalRoundsSelect");
+
+                if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+                if (diffSel && savedDiff) diffSel.value = savedDiff;
+                if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+                if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
+            } catch(e) {}
+
             showScreen("createHarita");
             if (nameInput) nameInput.focus();
         });
@@ -291,6 +309,14 @@ document.getElementById("createHaritaBtn").onclick = () => {
     const difficulty = document.getElementById("haritaDifficultySelect").value || "karisik";
     const maxPlayers = parseInt(document.getElementById("haritaMaxPlayersSelect").value) || 2;
     const totalRounds = parseInt(document.getElementById("haritaTotalRoundsSelect").value) || 10;
+
+    // ✨ Ayarları hafızaya kaydet
+    try {
+        localStorage.setItem("haritaTurnSeconds", String(turnSec));
+        localStorage.setItem("haritaDifficulty", difficulty);
+        localStorage.setItem("haritaMaxPlayers", String(maxPlayers));
+        localStorage.setItem("haritaTotalRounds", String(totalRounds));
+    } catch(e) {}
 
     // ✨ MOD DEĞİŞİMİ mi?
     const pendingModeChange = window._pendingModeChangeCtx;
@@ -380,8 +406,9 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: haritaData.maxPlayers || 2,
-                minValue: (haritaData.players && haritaData.players.length > 2) ? haritaData.players.length : null,
+                minValue: (haritaData.players && haritaData.players.length > 1) ? haritaData.players.length : null,
                 options: [
+                    {value: 1, label: "1 Oyuncu"},
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},
                     {value: 4, label: "4 Oyuncu"},
@@ -427,6 +454,12 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
             }
         ],
         onSave: (values) => {
+            try {
+                localStorage.setItem("haritaTurnSeconds", String(values.turnSec));
+                localStorage.setItem("haritaDifficulty", values.difficulty);
+                localStorage.setItem("haritaMaxPlayers", String(values.maxPlayers));
+                localStorage.setItem("haritaTotalRounds", String(values.totalRounds));
+            } catch(e) {}
             send({
                 type: "harita_update_settings",
                 turn_seconds: parseInt(values.turnSec),
@@ -753,6 +786,10 @@ function isHaritaMultiPlayer() {
     return (haritaData.maxPlayers || 2) >= 3;
 }
 
+function isHaritaSolo() {
+    return (haritaData.maxPlayers || 2) === 1 || (haritaData.players && haritaData.players.length === 1);
+}
+
 function updateHaritaLobby() {
     if (haritaRoomHelper) { haritaRoomHelper.renderCode(); haritaRoomHelper.renderLink(); }
     const _ts = haritaData.turnSeconds;
@@ -807,10 +844,15 @@ function updateHaritaLobby() {
     const msg = document.getElementById("haritaLobbyMsg");
     const maxP = haritaData.maxPlayers || 2;
     const curP = haritaData.players.length;
+    const canStart = (maxP === 1) ? (curP >= 1) : (curP === maxP);
     
-    if (haritaData.playerId === 1 && curP === maxP) {
+    if (haritaData.playerId === 1 && canStart) {
         startBtn.classList.remove("hidden");
-        msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
+        if (maxP === 1) {
+            msg.textContent = "Tek başınasın. İstediğin zaman başlatabilirsin!";
+        } else {
+            msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
+        }
         msg.style.color = "#51cf66";
     } else if (haritaData.playerId === 1) {
         startBtn.classList.add("hidden");
@@ -840,10 +882,15 @@ function updateHaritaTopBar() {
     document.getElementById("haritaRoundInfo").textContent = 
         `Tur ${haritaData.roundNo + 1}/${haritaData.totalRounds}`;
     
-    const turnName = getHaritaPlayerName(haritaData.currentTurn);
-    const turnColor = haritaData.currentTurn === haritaData.playerId ? "#51cf66" : "#ffa94d";
-    document.getElementById("haritaTurnInfo").innerHTML = 
-        `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
+    const isSolo = isHaritaSolo();
+    if (isSolo) {
+        document.getElementById("haritaTurnInfo").innerHTML = `Sıra: <span style="color:#51cf66">SEN (Solo)</span>`;
+    } else {
+        const turnName = getHaritaPlayerName(haritaData.currentTurn);
+        const turnColor = haritaData.currentTurn === haritaData.playerId ? "#51cf66" : "#ffa94d";
+        document.getElementById("haritaTurnInfo").innerHTML = 
+            `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
+    }
     
     const isMulti = isHaritaMultiPlayer();
     const scoreboard2P = document.getElementById("haritaScoreboard2P");
@@ -853,6 +900,14 @@ function updateHaritaTopBar() {
         // 3+ kişi: üst skorbord gizle, sağ paneli göster
         if (scoreboard2P) scoreboard2P.style.visibility = "hidden";
         if (scoreboardPanel) scoreboardPanel.style.display = "";
+    } else if (isSolo) {
+        if (scoreboard2P) scoreboard2P.style.visibility = "";
+        if (scoreboardPanel) scoreboardPanel.style.display = "none";
+        
+        document.getElementById("haritaP1Name").textContent = "";
+        document.getElementById("haritaP2Name").textContent = "";
+        const myScore = haritaData.scores[haritaData.playerId] || 0;
+        document.getElementById("haritaScore").textContent = `Skor: ${myScore}`;
     } else {
         // 2 kişi: eski davranış
         if (scoreboard2P) scoreboard2P.style.visibility = "";

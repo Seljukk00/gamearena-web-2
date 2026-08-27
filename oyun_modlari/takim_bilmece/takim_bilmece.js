@@ -217,6 +217,14 @@ document.getElementById("createTakimBtn").onclick = () => {
     const maxPlayers = parseInt(document.getElementById("takimMaxPlayersSelect").value) || 2;
     const totalQuestions = parseInt(document.getElementById("takimTotalQuestionsSelect").value) || 12;
 
+    // ✨ Ayarları hafızaya kaydet (sonraki girişlerde hatırla)
+    try {
+        localStorage.setItem("takimDifficulty", difficulty);
+        localStorage.setItem("takimTurnSeconds", String(turnSeconds));
+        localStorage.setItem("takimMaxPlayers", String(maxPlayers));
+        localStorage.setItem("takimTotalQuestions", String(totalQuestions));
+    } catch(e) {}
+
     // ✨ MOD DEĞİŞİMİ mi?
     const pendingModeChange = window._pendingModeChangeCtx;
     if (pendingModeChange && pendingModeChange.newMode === "takim_bilmece" && pendingModeChange.createScreen === "createTakim") {
@@ -281,8 +289,9 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: takimData.maxPlayers || 2,
-                minValue: (takimData.players && takimData.players.length > 2) ? takimData.players.length : null,
+                minValue: (takimData.players && takimData.players.length > 1) ? takimData.players.length : null,
                 options: [
+                    {value: 1, label: "1 Oyuncu"},
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},
                     {value: 4, label: "4 Oyuncu"},
@@ -329,6 +338,12 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
         ],
         onSave: (values) => {
             const _ts = parseInt(values.turnSec);
+            try {
+                localStorage.setItem("takimDifficulty", values.difficulty);
+                localStorage.setItem("takimTurnSeconds", String(values.turnSec));
+                localStorage.setItem("takimMaxPlayers", String(values.maxPlayers));
+                localStorage.setItem("takimTotalQuestions", String(values.totalQ));
+            } catch(e) {}
             send({
                 type: "takim_update_settings",
                 difficulty: values.difficulty,
@@ -506,10 +521,15 @@ function updateTakimLobby() {
     const msg = document.getElementById("takimLobbyMsg");
     const maxP = takimData.maxPlayers || 2;
     const curP = takimData.players.length;
+    const canStart = (maxP === 1) ? (curP >= 1) : (curP === maxP);
     
-    if (takimData.playerId === 1 && curP === maxP) {
+    if (takimData.playerId === 1 && canStart) {
         startBtn.classList.remove("hidden");
-        msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
+        if (maxP === 1) {
+            msg.textContent = "Tek başınasın. İstediğin zaman başlatabilirsin!";
+        } else {
+            msg.textContent = `${maxP} oyuncu hazır. Başlatabilirsin!`;
+        }
         msg.style.color = "#51cf66";
     } else if (takimData.playerId === 1) {
         startBtn.classList.add("hidden");
@@ -551,6 +571,10 @@ function getTakimActivePlayerIds() {
 
 function isTakimMultiPlayer() {
     return (takimData.maxPlayers || 2) >= 3;
+}
+
+function isTakimSolo() {
+    return (takimData.maxPlayers || 2) === 1 || (takimData.players && takimData.players.length === 1);
 }
 
 function renderTakimField() {
@@ -791,20 +815,47 @@ function renderTakimJokers() {
 
 function renderTakimScoreboard() {
     const isMulti = isTakimMultiPlayer();
+    const isSolo = isTakimSolo();
     const scoreboard2P = document.getElementById("takimScoreboard2P");
     const playerScoresBox = document.getElementById("takimPlayerScores");
     const scoreboardPanel = document.getElementById("takimScoreboardPanel");
+    const myId = takimData.playerId;
+    const myScore = takimData.scores[myId] ?? 0;
+    const myName = getTakimPlayerName(myId);
     
     if (isMulti) {
         // 3+ kişi: üst skorbord ve sağ mini skoru gizle, sağ paneldeki sıralamayı göster
         if (scoreboard2P) scoreboard2P.style.visibility = "hidden";
         if (playerScoresBox) playerScoresBox.style.display = "none";
         if (scoreboardPanel) scoreboardPanel.style.display = "";
+    } else if (isSolo) {
+        // 1 kişi: sadece temiz Skor gösterimi
+        if (scoreboard2P) scoreboard2P.style.visibility = "";
+        if (playerScoresBox) playerScoresBox.style.display = "";
+        if (scoreboardPanel) scoreboardPanel.style.display = "none";
+        
+        document.getElementById("takimP1Name").textContent = "";
+        document.getElementById("takimP2Name").textContent = "";
+        document.getElementById("takimP1ScoreName").textContent = "Skor";
+        document.getElementById("takimP2ScoreName").textContent = "";
+        document.getElementById("takimP1Score").textContent = myScore;
+        document.getElementById("takimP2Score").textContent = "";
+        
+        // Sağ üstteki boş 2. oyuncu satırını gizle
+        const p2ScoreDiv = document.getElementById("takimP2ScoreName")?.parentElement;
+        if (p2ScoreDiv) p2ScoreDiv.style.display = "none";
+        
+        // Ortadaki büyük skor metni
+        document.getElementById("takimScore").textContent = `Skor: ${myScore}`;
     } else {
         // 2 kişi: eski davranış
         if (scoreboard2P) scoreboard2P.style.visibility = "";
         if (playerScoresBox) playerScoresBox.style.display = "";
         if (scoreboardPanel) scoreboardPanel.style.display = "none";
+        
+        // 2 kişilik modda 2. oyuncu satırını geri görünür yap
+        const p2ScoreDiv = document.getElementById("takimP2ScoreName")?.parentElement;
+        if (p2ScoreDiv) p2ScoreDiv.style.display = "";
         
         const p1 = getTakimPlayerName(1);
         const p2 = getTakimPlayerName(2);
@@ -826,9 +877,13 @@ function renderTakimScoreboard() {
         ? `${questionText} ${diffEmoji[questionDiff] || ""} <span style="opacity:0.7">${questionDiff.toUpperCase()}</span>`
         : questionText;
     
-    const turnName = getTakimPlayerName(takimData.currentTurn);
-    const turnColor = takimData.currentTurn === takimData.playerId ? "#51cf66" : "#ffa94d";
-    document.getElementById("takimTurnInfo").innerHTML = `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
+    if (isSolo) {
+        document.getElementById("takimTurnInfo").innerHTML = `Sıra: <span style="color:#51cf66">SEN (Solo)</span>`;
+    } else {
+        const turnName = getTakimPlayerName(takimData.currentTurn);
+        const turnColor = takimData.currentTurn === takimData.playerId ? "#51cf66" : "#ffa94d";
+        document.getElementById("takimTurnInfo").innerHTML = `Sıra: <span style="color:${turnColor}">${turnName}</span>`;
+    }
     
     const yearEl = document.getElementById("takimYearDisplay");
     const activePlayerForYear = takimData.currentTurn;
@@ -1040,8 +1095,11 @@ handleMessage = function(msg) {
         showScreen("takimGame");
         renderTakimAll();
         startTakimTimer(takimData.turnSeconds);
-        if (takimData.currentTurn === takimData.playerId) updateTakimStatus("Senin sıran!", "#51cf66");
-        else updateTakimStatus(getTakimPlayerName(takimData.currentTurn) + " oynuyor...", "#ffa94d");
+        if (isTakimSolo() || takimData.currentTurn === takimData.playerId) {
+            updateTakimStatus(isTakimSolo() ? "Solo mod — sıra sende!" : "Senin sıran!", "#51cf66");
+        } else {
+            updateTakimStatus(getTakimPlayerName(takimData.currentTurn) + " oynuyor...", "#ffa94d");
+        }
         return;
     }
     
@@ -1065,8 +1123,11 @@ handleMessage = function(msg) {
         document.getElementById("takimJokerCancelBtn").classList.add("hidden");
         renderTakimAll();
         startTakimTimer(takimData.turnSeconds);
-        if (takimData.currentTurn === takimData.playerId) updateTakimStatus("Senin sıran!", "#51cf66");
-        else updateTakimStatus(getTakimPlayerName(takimData.currentTurn) + " oynuyor...", "#ffa94d");
+        if (isTakimSolo() || takimData.currentTurn === takimData.playerId) {
+            updateTakimStatus(isTakimSolo() ? "Solo mod — sıra sende!" : "Senin sıran!", "#51cf66");
+        } else {
+            updateTakimStatus(getTakimPlayerName(takimData.currentTurn) + " oynuyor...", "#ffa94d");
+        }
         return;
     }
     
@@ -1138,9 +1199,21 @@ handleMessage = function(msg) {
         renderTakimScoreboard();
         const title = document.getElementById("takimGameOverTitle");
         const text = document.getElementById("takimGameOverText");
-        if (msg.winner_id === 0) { title.textContent = "BERABERE!"; title.style.color = "#74c0fc"; }
-        else if (msg.winner_id === takimData.playerId) { title.textContent = "KAZANDIN! 🏆"; title.style.color = "#51cf66"; startConfetti(); }
-        else { title.textContent = "KAYBETTİN 😢"; title.style.color = "#ff6b6b"; }
+        if (isTakimSolo()) {
+            title.textContent = "SOLO BİTTİ! 🎯";
+            title.style.color = "#51cf66";
+            startConfetti();
+        } else if (msg.winner_id === 0) {
+            title.textContent = "BERABERE!";
+            title.style.color = "#74c0fc";
+        } else if (msg.winner_id === takimData.playerId) {
+            title.textContent = "KAZANDIN! 🏆";
+            title.style.color = "#51cf66";
+            startConfetti();
+        } else {
+            title.textContent = "KAYBETTİN 😢";
+            title.style.color = "#ff6b6b";
+        }
         
         // Sıralama listesi (backend'ten ranking geldiyse onu, yoksa scores'tan üret)
         let ranking = msg.ranking;
@@ -1169,7 +1242,10 @@ handleMessage = function(msg) {
         }
         
         // Kısa özet metni
-        if (ranking.length === 2) {
+        if (isTakimSolo()) {
+            const soloScore = takimData.scores[takimData.playerId] ?? (ranking[0] ? ranking[0].score : 0);
+            text.innerHTML = `Solo skorun: <b style="color:#51cf66">${soloScore}</b>`;
+        } else if (ranking.length === 2) {
             text.innerHTML = `Skor: <b>${ranking[0].score} - ${ranking[1].score}</b>`;
         } else {
             text.innerHTML = `<b>${ranking.length}</b> oyuncu yarıştı`;

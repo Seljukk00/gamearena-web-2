@@ -395,7 +395,7 @@ function showAudienceAnimated(finalResult) {
 
 // Telefon jokeri - Popup göster
 const PHONE_CONTACTS = [
-    { name: "🧠 Bilge Amca", desc: "Emekli tarih öğretmeni" },
+    { name: "🧠 Harun Hoca", desc: "Emekli tarih öğretmeni" },
     { name: "⚽ Futbolcu Kuzen", desc: "20 Senedir Bal ligi oyuncusu" },
     { name: "📚 Kütüphaneci Ayşe", desc: "5 senedir Mezun" },
     { name: "🎓 Profesör Cemal", desc: "Üniversite hocası" },
@@ -403,12 +403,13 @@ const PHONE_CONTACTS = [
     { name: "📺 Annem", desc: "Bilgi yarışmalarını kaçırmaz" },
     { name: "🎪 Caky TV", desc: "Demokratik Kongolu Bir Yayıncı" },
     { name: "🍺 Minnak Başkan", desc: "Bilgi Yarışmalarının Mumla Aranan Adamı" },
-    { name: "🎣 Balıkçı Rıza", desc: "Denizden başka bir şey bilmez" },
+    { name: "🎣 Trabzonlu Talha", desc: "Trabzon'un En akıllı Adamı" },
     { name: "😴 Neriman Halam", desc: "Annemin Baş Düşmanı" },
     { name: "🃏 Kumarbaz Selim", desc: "Kumarbazın Teki" },
     { name: "🔮 Falcı Neriman", desc: "Mahalle Dolandırıcısı" },
     { name: "🎮 GAYmer Kerem", desc: "Sabah Akşam LoL oynar" },
-    { name: "💇 Kuaför Fatma Teyze", desc: "Herkesin dedikodusunu Yapar" }
+    { name: "💇 Kuaför Fatma", desc: "Facebook evlilik grupları üyesi" },
+    { name: "🍆 prof. dr Ürolog Oğuzhan", desc: "Nam salmış Ürolog" }
 ];
 
 function showPhoneBox(fromNetwork = false, networkContacts = null) {
@@ -580,6 +581,27 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
             }
             window._pendingModeChangeCtx = null;
 
+            // ✨ Kaydedilmiş ayarları yükle
+            try {
+                const savedMaxP = localStorage.getItem("mlMaxPlayers");
+                const savedCat = localStorage.getItem("mlCategory");
+                const savedDiff = localStorage.getItem("mlDifficulty");
+                const savedTurnSec = localStorage.getItem("mlTurnSeconds");
+                const savedTotalQ = localStorage.getItem("mlTotalQuestions");
+
+                const maxPSel = document.getElementById("mlMaxPlayersSelect");
+                const catSel = document.getElementById("mlCategorySelect");
+                const diffSel = document.getElementById("mlDifficultySelect");
+                const turnSecSel = document.getElementById("mlTurnSecondsSelect");
+                const totalQSel = document.getElementById("mlTotalQuestionsSelect");
+
+                if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+                if (catSel && savedCat) catSel.value = savedCat;
+                if (diffSel && savedDiff) diffSel.value = savedDiff;
+                if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+                if (totalQSel && savedTotalQ) totalQSel.value = savedTotalQ;
+            } catch(e) {}
+
             showScreen("createMl");
             if (nameInput) nameInput.focus();
         });
@@ -613,6 +635,15 @@ document.getElementById("createMlBtn").onclick = () => {
     const turnSec = parseInt(document.getElementById("mlTurnSecondsSelect").value) || 60;
     const maxPlayers = parseInt(document.getElementById("mlMaxPlayersSelect").value) || 2;
     const totalQuestions = parseInt(document.getElementById("mlTotalQuestionsSelect").value) || 12;
+
+    // ✨ Ayarları hafızaya kaydet
+    try {
+        localStorage.setItem("mlCategory", category);
+        localStorage.setItem("mlDifficulty", difficulty);
+        localStorage.setItem("mlTurnSeconds", String(turnSec));
+        localStorage.setItem("mlMaxPlayers", String(maxPlayers));
+        localStorage.setItem("mlTotalQuestions", String(totalQuestions));
+    } catch(e) {}
 
     // ✨ MOD DEĞİŞİMİ mi? (Turnstile es geçilir, host zaten odada)
     const pendingModeChange = window._pendingModeChangeCtx;
@@ -703,8 +734,9 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
                 id: "maxPlayers",
                 label: "👥 Oyuncu Sayısı",
                 current: mlData.maxPlayers || 2,
-                minValue: (mlData.players && mlData.players.length > 2) ? mlData.players.length : null,
+                minValue: (mlData.players && mlData.players.length > 1) ? mlData.players.length : null,
                 options: [
+                    {value: 1, label: "1 Oyuncu"},
                     {value: 2, label: "2 Oyuncu"},
                     {value: 3, label: "3 Oyuncu"},
                     {value: 4, label: "4 Oyuncu"},
@@ -761,6 +793,13 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
             }
         ],
         onSave: (values) => {
+            try {
+                localStorage.setItem("mlCategory", values.category);
+                localStorage.setItem("mlDifficulty", values.difficulty);
+                localStorage.setItem("mlTurnSeconds", String(values.turnSec));
+                localStorage.setItem("mlMaxPlayers", String(values.maxPlayers));
+                localStorage.setItem("mlTotalQuestions", String(values.totalQ));
+            } catch(e) {}
             send({
                 type: "ml_update_settings",
                 turn_seconds: parseInt(values.turnSec) || 60,
@@ -938,9 +977,14 @@ function updateMlLobby() {
     const curP = mlData.players.length;
     if (mlData.playerId === 1) {
         startBtn.classList.remove("hidden");
-        startBtn.disabled = curP < maxP;
+        const canStart = (maxP === 1) ? (curP >= 1) : (curP === maxP);
+        startBtn.disabled = !canStart;
         startBtn.style.opacity = startBtn.disabled ? "0.5" : "1";
-        startBtn.textContent = curP < maxP ? `Oyuncu bekleniyor (${curP}/${maxP})` : "Oyunu Başlat";
+        if (maxP === 1) {
+            startBtn.textContent = "Tek Başına Başlat";
+        } else {
+            startBtn.textContent = curP < maxP ? `Oyuncu bekleniyor (${curP}/${maxP})` : "Oyunu Başlat";
+        }
     } else {
         startBtn.classList.add("hidden");
     }
@@ -1022,45 +1066,61 @@ function renderMlParaAgaci() {
 
 function renderMlAll() {
     const isMulti = (mlData.maxPlayers || 2) >= 3;
+    const isSolo = (mlData.maxPlayers || 2) === 1 || (mlData.players && mlData.players.length === 1);
     const topBar = document.querySelector(".mlTopBar");
+    
     if (topBar) {
         if (isMulti) topBar.classList.add("multiMode");
         else topBar.classList.remove("multiMode");
     }
     
-    // İsimleri set et (2 kişilikte kullanılır)
-    document.getElementById("mlP1Name").textContent = getMlPlayerName(1);
-    document.getElementById("mlP2Name").textContent = getMlPlayerName(2);
-    
-    // ✨ Negatif skorlar kırmızı
     const p1El = document.getElementById("mlP1Money");
     const p2El = document.getElementById("mlP2Money");
-    const s1 = mlData.scores[1] || 0;
-    const s2 = mlData.scores[2] || 0;
-    
-    p1El.textContent = s1.toLocaleString() + " TL";
-    p2El.textContent = s2.toLocaleString() + " TL";
-    
-    // Renk: negatifse kırmızı, pozitifse normal
-    if (s1 < 0) {
-        p1El.style.color = "#ff3333";
-        p1El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)";
+    const topSide1 = document.getElementById("mlTopSide1");
+    const topSide2 = document.getElementById("mlTopSide2");
+
+    if (isSolo) {
+        // Solo modda sadece sol taraf görünür (Skor yerine Para ağacı var ama olsun)
+        if (topSide2) topSide2.style.display = "none";
+        if (topSide1) topSide1.style.display = "";
+        
+        document.getElementById("mlP1Name").textContent = getMlPlayerName(mlData.playerId);
+        
+        const myScore = mlData.scores[mlData.playerId] || 0;
+        p1El.textContent = myScore.toLocaleString() + " TL";
+        if (myScore < 0) {
+            p1El.style.color = "#ff3333";
+            p1El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)";
+        } else {
+            p1El.style.color = "";
+            p1El.style.textShadow = "";
+        }
+        
+        document.getElementById("mlScoreLine").innerHTML = `Sıra: <span style="color:#51cf66; font-weight:bold;">SEN (Solo)</span>`;
     } else {
-        p1El.style.color = "";
-        p1El.style.textShadow = "";
+        // 2 veya çok oyunculu eski davranış
+        if (topSide2) topSide2.style.display = "";
+        if (topSide1) topSide1.style.display = "";
+        
+        document.getElementById("mlP1Name").textContent = getMlPlayerName(1);
+        document.getElementById("mlP2Name").textContent = getMlPlayerName(2);
+        
+        const s1 = mlData.scores[1] || 0;
+        const s2 = mlData.scores[2] || 0;
+        
+        p1El.textContent = s1.toLocaleString() + " TL";
+        p2El.textContent = s2.toLocaleString() + " TL";
+        
+        if (s1 < 0) { p1El.style.color = "#ff3333"; p1El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)"; }
+        else { p1El.style.color = ""; p1El.style.textShadow = ""; }
+        
+        if (s2 < 0) { p2El.style.color = "#ff3333"; p2El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)"; }
+        else { p2El.style.color = ""; p2El.style.textShadow = ""; }
+        
+        const turnName = getMlPlayerName(mlData.currentPlayer);
+        const turnColor = mlData.currentPlayer === mlData.playerId ? "#51cf66" : "#ffa94d";
+        document.getElementById("mlScoreLine").innerHTML = `Sıra: <span style="color:${turnColor}; font-weight:bold;">${turnName}</span>`;
     }
-    if (s2 < 0) {
-        p2El.style.color = "#ff3333";
-        p2El.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)";
-    } else {
-        p2El.style.color = "";
-        p2El.style.textShadow = "";
-    }
-    
-    // Sıradaki oyuncu göster (0-0 yerine)
-    const turnName = getMlPlayerName(mlData.currentPlayer);
-    const turnColor = mlData.currentPlayer === mlData.playerId ? "#51cf66" : "#ffa94d";
-    document.getElementById("mlScoreLine").innerHTML = `Sıra: <span style="color:${turnColor}; font-weight:bold;">${turnName}</span>`;
     
     // ✨ Soru + zorluk (kolay/orta/zor/çok zor)
     const levelLabels = {
@@ -1322,9 +1382,23 @@ handleMessage = function(msg) {
             const title = document.getElementById("mlGameOverTitle");
             const text = document.getElementById("mlGameOverText");
             
-            if (msg.winner_id === 0) { title.textContent = "BERABERE!"; title.style.color = "#74c0fc"; }
-            else if (msg.winner_id === mlData.playerId) { title.textContent = "KAZANDIN! 🏆"; title.style.color = "#51cf66"; if (typeof startConfetti === "function") startConfetti(); }
-            else { title.textContent = "KAYBETTİN 😢"; title.style.color = "#ff6b6b"; }
+            const isSolo = (mlData.maxPlayers || 2) === 1 || (mlData.players && mlData.players.length === 1);
+
+            if (isSolo) {
+                title.textContent = "SOLO BİTTİ! 🎯";
+                title.style.color = "#51cf66";
+                if (typeof startConfetti === "function") startConfetti();
+            } else if (msg.winner_id === 0) { 
+                title.textContent = "BERABERE!"; 
+                title.style.color = "#74c0fc"; 
+            } else if (msg.winner_id === mlData.playerId) { 
+                title.textContent = "KAZANDIN! 🏆"; 
+                title.style.color = "#51cf66"; 
+                if (typeof startConfetti === "function") startConfetti(); 
+            } else { 
+                title.textContent = "KAYBETTİN 😢"; 
+                title.style.color = "#ff6b6b"; 
+            }
             
             // Sıralama listesi
             let ranking = msg.ranking;
@@ -1353,7 +1427,10 @@ handleMessage = function(msg) {
                 });
             }
             
-            if (ranking.length === 2) {
+            if (isSolo) {
+                const soloScore = mlData.scores[mlData.playerId] ?? (ranking[0] ? ranking[0].score : 0);
+                text.innerHTML = `Solo skorun: <b style="color:#51cf66">${soloScore.toLocaleString()} TL</b>`;
+            } else if (ranking.length === 2) {
                 text.innerHTML = `Skor: <b>${ranking[0].score.toLocaleString()} TL - ${ranking[1].score.toLocaleString()} TL</b>`;
             } else {
                 text.innerHTML = `<b>${ranking.length}</b> oyuncu yarıştı`;

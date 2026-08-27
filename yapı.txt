@@ -1,4 +1,7 @@
-🎮 GameArena Web - Proje Devam Promptu (v10.1 - Güncel Yapı)
+🎮 GameArena Web - Proje Devam Promptu (v10.2 - Güncel Yapı)
+
+🤖 ÖNERİLEN AI MODEL: Google Gemini 2.5 Flash / Gemini 2.5 Pro
+(Bu sohbet Gemini 2.5 Flash modeli ile yürütülmektedir. Kodları eksiksiz okuma, mantık hatalarını derin analiz etme ve tam BUL/DEĞİŞTİR formatına uymak zorunludur.)
 
 📋 PROJE ÖZETİ
 Bu, çoklu mod destekleyen online multiplayer futbol bilgi/tahmin + real-time oyun web sitesidir.
@@ -7,9 +10,8 @@ Backend: FastAPI + WebSocket (Python 3.12)
 Frontend: HTML + CSS + JavaScript (vanilla, framework yok)
 Hosting: Render.com (Free Plan)
 Web Projesi: C:\Users\Seljuk\Desktop\GameArena_Web\
-📁 TAM KLASÖR YAPISI (GERÇEK)
 
-text
+📁 TAM KLASÖR YAPISI (GERÇEK)
 
 GameArena_Web/
 ├── app.py
@@ -172,6 +174,7 @@ GameArena_Web/
             ├── kalkan_2.mp3
             ├── kilit.mp3
             └── geri_al.mp3
+
 🎯 11 MOD - TÜMÜ AKTİF ✅
 
 Bil Bakalım
@@ -185,9 +188,27 @@ Meme Arena
 🎵 Şarkıdan Bul (Deezer)
 ⚽ Mini Futbol (Haxball tarzı)
 ♟️ Jokerli Satranç (30 joker + polish v10)
-♟️ JOKERLİ SATRANÇ - v10 GÜNCEL DURUM
 
-✅ v10'DA EKLENEN / DÜZELTİLEN
+⚽ MİNİ FUTBOL - v10.2 GÜNCEL DURUM (GÜNCELLENDİ ✅)
+
+✅ Çift Fizik Savaşı Çözüldü: Misafirlerde (Guest) yerel HP durduruldu, saf ve pürüzsüz Snapshot Interpolasyonu ile 60 FPS Haxball kalitesinde akıcılık sağlandı (Titreme/Lag %100 bitti).
+✅ P2P 60 FPS Yayın: netSkip sınırlaması kaldırıldı, host her zaman 60 FPS sabit veri gönderiyor.
+✅ Replay Skip (Atla) Sistemi: Replay başladığında ekranın altında arkaplansız, ortalanmış şık oyuncu hapları çıkıyor. SADECE ENTER tuşu ile atlama yapılıyor, basanın ismi anında siliniyor. Herkes atlayınca 1sn bekleyip santraya geçiyor. Gol sevinci sırasında (ilk 5sn) tuş kilitlenmiyor, hareket serbest.
+✅ Maçın Yıldızı (MVP) & Sığdırma Fix: Üstteki kaba MVP kartı kaldırıldı, maçı kazandıran MVP oyuncusunun satırı scoreboard'da altın sarısı çerçeve ve parlama kazanıyor. Uzun isimler kesilmeden font küçültülerek tek satırda kusursuz sığıyor.
+✅ Milli Takım & 4 Büyükler Formaları: 
+   - 🇹🇷 Türkiye: Bayrak kırmızısı + Göğüste Ay-Yıldız.
+   - 🇦🇿 Azerbaycan: Mavi-Kırmızı-Yeşil 3 şeritli bayrak forma + Hilal & 8 Köşeli Yıldız.
+   - 🦅 Beşiktaş: Siyah-Beyaz Çubuklu + Kırmızı Amblem.
+   - 🦁 Galatasaray: Efsanevi Sarı-Kırmızı Parçalı Forma.
+   - 🐤 Fenerbahçe: Sarı-Lacivert Çubuklu.
+   - 🌊 Trabzonspor: Bordo-Mavi Çubuklu.
+   - 4 Büyükler seçildiğinde oyuncuların üzerinde efsanevi forma numaraları (10, 7, 9, 11...) yazıyor.
+✅ Özel Kuyruk Renkleri: `rainbow_trail` gol sevinci geldiğinde forma seçiliyse kuyruk gökkuşağı değil, takımın öz renklerinde (örn: FB için Sarı-Lacivert, GS için Sarı-Kırmızı, BJK için Siyah-Beyaz) yanıp sönüyor.
+✅ Dinamik Takım Başlığı: Takım düzenleme penceresinde başlık girilen takım adına göre anlık güncelleniyor (örn: Beşiktaş Ayarları). Hazır takımlardan Türkiye/Azerbaycan seçildiğinde menüye her girişte seçili kalıyor.
+✅ Akıllı HUD Gölgesi: Siyah/Koyu renkli takımlarda (Beşiktaş vb.) üst skordaki isimlerin arkasına otomatik beyaz parlama ekleniyor, her renkte net okunuyor.
+✅ Torbalı Gol Sevinçleri: Torba sistemiyle (grow_explode, rainbow_trail, spotlight, frostbite) sevinçler asla üst üste çakışmıyor. Balon sevinci geldiğinde golü atan hariç herkes 3D parlak balona dönüşüp esneyerek patlıyor.
+
+♟️ JOKERLİ SATRANÇ - v10 GÜNCEL DURUM
 
 Yenilen Taşlar Paneli: Sol dışta yeşil "Yediklerim", sağ dışta kırmızı "Kaybettiklerim". Toplam sayaç. Her hamlede anlık güncellenir.
 Piyon Promosyon: Popup her zaman 4 tür göster (Vezir/Kale/Fil/At). Yediklerinde varsa ×N rozeti. Sade fade animasyonu.
@@ -212,117 +233,30 @@ Klon: 8 komşu kare (4 yön + 4 çapraz), hamle sayılır, sıra rakibe.
 Yer Değiştir / Dondur / Sansür / Kilitle / Görünmez / Kalkan: Hepsi hamle sayılır.
 Bomba: Sadece rakip taş hedeflenebilir.
 Yer Değiştir: Animasyonlu — iki taş hareket ederek yer değiştirir + 🌀 puf + ışınlanma sesi.
-YANSIMA TAM MANTIĞI (aşağıda detaylı).
+YANSIMA TAM MANTIĞI: 9 jokere karşı çalışır.
 Sansür süresi: 3 tur. Kilit süresi: 3 tur.
 Ses Sistemi: 18 ses dosyası (satranç) + 3 global ses.
 Chat Sistemi: Bil Bakalım backend'i tüm modlar için ortak.
 Şah Sesi: Şah çekilince sah.wav çalar.
-🌀 YANSIMA JOKERİ - Şu 9 jokere karşı çalışır:
-
-💣 Bomba (aynı tür kendi taş)
-⏰ Zaman Çal (kendi süre azalır)
-⛓️ Kilitle (kendi rastgele taş)
-🧊 Dondur (kendi rastgele taş)
-✋ Hakkını Bana Ver (rakip ekstra hamle)
-⛔ Sansür (kendin sansürlenirsin)
-🎯 Rakip Taş Yerleştir (kendi rastgele taş)
-💀 Joker Hırsızlığı (rakip senden çalar)
-👁️ Joker Gör (rakip senin jokerlerini görür)
-Yansıma popup: Zarar gören oyuncuya büyük 🌀 YANSIMA! popup + Tamam butonu.
-
-🔊 SES SİSTEMİ (v10)
-
-Satranç Sesleri (18 dosya): /satranc_sounds/ mount edilir.
-
-Hareket/yeme: tas_hareket.wav, tas_yeme.wav
-Oyun: oyun_baslangic.wav, oyun_bitti.wav, sah.wav
-Efektler: bomba.wav, isinlanma.wav, carkifelek.wav, kasa_acilma.wav, rulet.mp3, zar.mp3
-Joker UI: joker_secildi.mp3, joker_iptal.mp3, joker_onay.mp3
-Özel jokerler: kalkan_1.mp3 / kalkan_2.mp3 (%50 rastgele), kilit.mp3, geri_al.mp3
-Global Sesler (3 dosya): /static/sounds/
-
-chat_notify.mp3 — Rakip mesaj yazınca
-player_join.mp3 — Oyuncu odaya girince
-player_leave.mp3 — Oyuncu odadan çıkınca
-Ses özellikleri:
-
-Tüm sesler mlVolumeRange (sağ alt hoparlör) ile kontrol edilir
-clone.node() ile üst üste çalabilir
-playSatrancSound(name) ve _playChatNotifySound()
-
 
 30 JOKER (Güncel İsimler)
-
 ⏰ Zaman Çal · 🔄 Geri Al · 🔀 Pas Ver · 🎁 Karşılıklı Ekstra Joker · 👁️ Joker Gör · 👑 Vezire Yükselt · 🛡️ Kalkan · 🧊 Dondur · 🔮 Işınlanma · 💣 Bomba · 🎭 Klon · 🧙 Görünmez · 🃏 Taş Dönüştür · 🎯 Rakip Taş Yerleştir · 🌀 Yer Değiştir · ⚔️ İki Hamle · ⛓️ Kilitle · 🕵️ Ajan · 🌪️ Hızlı Kaçış · ✋ Hakkını Bana Ver · 🛑 Zamanı Durdur · 🎬 Önce Başla · 🎰 Rulet · 🌀 Yansıma · 💀 Joker Hırsızlığı · ⛔ Sansür · 🎡 Çarkıfelek · 🔧 İyileştir · ♻️ Taşımı Geri Ver · ⏱️ Ekstra Süre
 
-
-
-
-JOKER STATE'LERİ (satranc_handler.py room state)
-
-text
-
-satranc_shielded: {square: turns_left}
-satranc_frozen: {square: turns_left}
-satranc_invisible: {square: turns_left}
-satranc_invisible_owners: {square: pid}
-satranc_locked: {square: turns_left}
-satranc_ajan_disguised: {square: {"color": "w"|"b", "turns": 6, "owner": pid}}
-satranc_extra_move: {pid: bool}
-satranc_same_piece_double: {pid: {"active": bool, "required_from": str|None}}
-satranc_hizli_kacis: {pid: bool}
-satranc_clock_frozen_turn: {pid: bool}
-satranc_yansima: {pid: bool}
-satranc_sansur: {pid: turns_left}
-satranc_captured_pieces: {pid: [{"type": "q", "color": "w"}, ...]}
-satranc_pending_promotion: None | {"pid": X, "from": "a7", "to": "a8"}
-
-
 🔄 MOD DEĞİŞTİRME SİSTEMİ ✅
-
 Her lobide "🔄 Mod Değiştir" (sadece host)
 11 mod kartı popup, aktif yeşil çerçeveli
 Oda kodu + oyuncular + chat geçmişi korunur
-Şarkıdan Bul'a geçince backend prefetch başlatır
-
 
 ⚠️ ÖNEMLİ TEKNİK NOTLAR
-
-JS Wrap Sistemi
-
-Her mod kendi JS'de showScreen ve handleMessage'ı wrap eder
-Satranç: satrancData global, _prevShowScreenSatranc / _prevHandleSatranc wrap
-Modern Popup
-
-satrancConfirm({...}), satrancInfo({...}), satrancChoice({...})
-Özel: showCapturedPromotionPopup, showYansimaDamagePopup, showGiftBoxAnimation, showIyilestirMenu, showTasimiGeriMenu, showMiniCarkifelek
-Satranç Board
-
-chessboard.js config: draggable: false, moveSpeed: 500
-Tıklama: $(boardEl).on("click.satrancMove", ".square-55d63", ...)
-Her hamlede her oyuncuya kendi görüşüne göre FEN
-get_effect_state_for_player(room, pid) → rakip görünmez/ajan taşları filtreler
-Ajan Görsel Override
-
-applyAjanDisguiseVisuals(effects) her board update sonrası çağrılır
-Body'ye taşınan animasyon img'i override edilmeye çalışılır (interval 20ms, 900ms)
-Chat Sistemi (v10)
-
-Backend'de app.py içinde ortak bil_chat_send handler
-Rakip mesaj gelince chat_notify.mp3 çalar
-Diğer
-
-Gemini AI: google-genai, gemini-flash-lite-latest
-Turnstile Site Key: 0x4AAAAAAEBYi6PHf6n7Q2Pn
-Deezer API: Public
+JS Wrap Sistemi: Her mod kendi JS'de showScreen ve handleMessage'ı wrap eder.
+Modern Popup: satrancConfirm({...}), satrancInfo({...}), satrancChoice({...})
+Satranç Board: chessboard.js config: draggable: false, moveSpeed: 500
+Chat Sistemi (v10): Backend'de app.py içinde ortak bil_chat_send handler
 Static Cache: 30 gün (StaticCacheMiddleware)
 Falsy Bug: x || default yerine isNaN(x) ? default : x
-Satranç Vendor Mount: /satranc_vendor
-Satranç Sesler Mount: /satranc_sounds
 Python: 3.12 (venv), Render'da 3.12
-.pyc dosyaları hem 3.12 hem 3.14 için var (eski Python temizlenebilir)
-🔒 GÜVENLİK
 
+🔒 GÜVENLİK
 IP rate limiting (oda:5/dk, katıl:15/dk, WS:20/dk)
 Otomatik 10 dk BAN
 sanitize_string, is_valid_room_code
@@ -330,42 +264,16 @@ Cloudflare Turnstile (Kim Milyoner)
 kicked_names listesi
 Seljuk şifre: .env'den, 3 yanlış → 1 saat lokal kilit
 Aynı isim kontrolü (v10)
-🎯 ÇALIŞMA KURALLARI
 
-BUL ve DEĞİŞTİR formatı kullan (tam dosya yerine)
-BUL bloğu tam ve eksiksiz olacak, DEĞİŞTİR bloğu tam ve eksiksiz olacak
-Mesaj içinde blok blok satır karıştırma
-Adım adım, küçük parçalar
-Türkçe, samimi dil
-Kullanıcı test etmeden GitHub'a atma
-F12 Console + CMD log ile sorun çöz
-Kullanıcı Windows + Notepad++, kod yazmıyor
-.env ASLA GitHub'a
-Emin olmadan büyük değişiklik yapma
-Kod görmeden kesin çözüm sunma - dosyayı iste önce
-EKLE değil, BUL ve DEĞİŞTİR (yanlış girinti/duplicate önlemek için)
-Bir kere test edilmemiş kodu tekrar tekrar değiştirme
-Hata verirse F12 + CMD çıktısı iste
-Frontend'de x || default bug'ına dikkat (0 falsy)
-Uzun kod verirken 2. parça beklemek
-Kullanıcı "bekle" derse gerçekten bekle
-Kod hatası verip kullanıcıyı suçlama — tüm dosyaları gördükten sonra kesin kod ver
+🎯 ÇALIŞMA KURALLARI
+1. KODLARI TAM OKU: Kod yazmadan önce sana gönderilen dosyayı eksiksiz oku.
+2. BUL ve DEĞİŞTİR FORMATI:
+   - Kod değişikliklerini SADECE ve SADECE eksiksiz BUL ve DEĞİŞTİR blokları halinde ver.
+   - Asla kodun ortasını kesip `...` koyma.
+3. KULLANICI NOTEPAD++ KULLANIYOR: Kullanıcı koda müdahale etmiyor, tam kopyala-yapıştır yapabilmesi için BUL bloğu mevcut koddakiyle birebir aynı olmak zorunda.
+4. ADIM ADIM İLERLE: Büyük değişiklikleri parçalara böl, kullanıcı "bekle" derse bekle, test etmesini iste.
+5. SAMİMİ VE TÜRKÇE DİL: Türkçe, dostane ve net konuş.
+6. TEST ETMEDEN PUSH İSTEME: `batlar/test_lokal.bat` ile yerelde test ettirmeden GitHub'a attırma.
+
 🎬 YEREL ÇALIŞTIRMA
 batlar/test_lokal.bat → http://127.0.0.1:8000
-
-
-🎯 SEN NE YAPACAKSIN?
-
-Selamla, hazır olduğunu belirt
-Ne istediğini sor
-Klasör yapısını biliyor gibi davran (yukarıdaki gerçek yapıyı bil)
-Kod isteğinde BUL ve DEĞİŞTİR formatı
-Kullanıcı Windows + Notepad++, basit anlat
-Test etmeden push isteme
-Türkçe, samimi dil
-Kodu görmeden kesin çözüm önerme - dosyayı iste
-Kod değişikliği verirken önce plan sun, sonra kod ver
-Büyük iş ise adımlara böl
-Tüm kodları BUL/DEĞİŞTİR olarak vereceksin
-Kullanıcı "bekle" derse gerçekten bekle, kod verme
-Uzun kod paylaşımı yaparsa "2. parça bekle" de

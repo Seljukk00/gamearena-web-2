@@ -44,6 +44,259 @@ def make_question_pack():
 
 
 # ==========================================
+# 🤖 BIL BAKALIM - BOT YAPAY ZEKA SİSTEMİ
+# ==========================================
+
+async def bot_play_turn(room, safe_send, broadcast):
+    """Bot'un kendi sırasında hamle yapması (Soru Sorma veya Tahmin)"""
+    try:
+        await asyncio.sleep(random.uniform(2.0, 3.5))
+
+        if room.get("phase") != "playing" or room.get("turn") != 2 or room.get("pending_question"):
+            return
+
+        candidates = room.get("bot_candidates", [])
+        footballers = room.get("footballers", [])
+
+        bot_level = room.get("bot_level", "orta")
+
+        # 1. TAHMİN KONTROLÜ (Aday sayısı ve Zorluk seviyesine göre risk alma)
+        should_guess = False
+        guess_idx = None
+
+        if len(candidates) == 1:
+            should_guess = True
+            guess_idx = candidates[0]
+        elif 0 < len(candidates) <= 3:
+            risk_chance = 0
+            if bot_level == "zor":
+                risk_chance = 0.45  # %45 risk alır
+            elif bot_level == "orta":
+                risk_chance = 0.20  # %20 risk alır
+            else: # kolay
+                risk_chance = 0.05  # Neredeyse hiç risk almaz (%5)
+            
+            if random.random() < risk_chance:
+                should_guess = True
+                guess_idx = random.choice(candidates)
+
+        if should_guess and guess_idx is not None and 0 <= guess_idx < len(footballers):
+            await bot_execute_guess(room, guess_idx, safe_send, broadcast)
+            return
+
+        # 2. SORU SEÇİMİ (Zorluk Seviyesine Göre)
+        question_pack = room.get("question_pack", [])
+        if not question_pack:
+            return
+
+        bot_level = room.get("bot_level", "orta")
+        
+        # Soru bulma şansları
+        # Zor: %100 mantıklı
+        # Orta: %50 mantıklı, %50 rastgele
+        # Kolay: %20 mantıklı, %80 rastgele
+        pick_best = False
+        if bot_level == "zor":
+            pick_best = True
+        elif bot_level == "orta":
+            pick_best = random.random() < 0.50
+        else: # kolay
+            pick_best = random.random() < 0.20
+
+        best_q_idx = None
+        if pick_best:
+            best_split = 999
+            for q_idx in question_pack:
+                true_cnt = 0
+                false_cnt = 0
+                for c_idx in candidates:
+                    if c_idx < len(footballers):
+                        f = footballers[c_idx]
+                        if check_question(f, q_idx):
+                            true_cnt += 1
+                        else:
+                            false_cnt += 1
+                split_diff = abs(true_cnt - false_cnt)
+                if split_diff < best_split:
+                    best_split = split_diff
+                    best_q_idx = q_idx
+
+        if best_q_idx is None:
+            best_q_idx = random.choice(question_pack)
+
+        await bot_execute_ask_question(room, best_q_idx, safe_send, broadcast)
+    except Exception as e:
+        print(f"[BOT TURN HATA] {e}")
+
+
+async def bot_execute_ask_question(room, question_index, safe_send, broadcast):
+    """Bot'un insan oyuncuya soru sorması"""
+    if room.get("phase") != "playing" or room.get("turn") != 2:
+        return
+
+    human_secret_idx = room["selections"].get(1)
+    if human_secret_idx is None:
+        return
+
+    footballers = room.get("footballers", [])
+    if human_secret_idx >= len(footballers):
+        return
+
+    secret_f = footballers[human_secret_idx]
+    correct_ans = check_question(secret_f, question_index)
+
+    old_task = room.get("turn_task")
+    if old_task and not old_task.done():
+        old_task.cancel()
+
+    room["pending_question"] = {
+        "asker_id": 2,
+        "question_index": question_index,
+        "correct_answer": correct_ans
+    }
+
+    p1 = room["players"].get(1)
+    if p1 and p1.get("ws"):
+        await safe_send(p1["ws"], {
+            "type": "answer_prompt",
+            "question_index": question_index,
+            "correct_answer": correct_ans,
+            "asker_name": room["players"][2]["name"],
+            "turn_seconds": room.get("turn_seconds", 45)
+        })
+
+    room["answer_task"] = asyncio.create_task(answer_timer(room, safe_send, broadcast))
+
+
+async def bot_answer_question(room, safe_send, broadcast):
+    """Bot'un insan oyuncunun sorusuna cevap vermesi"""
+    try:
+        await asyncio.sleep(random.uniform(1.8, 3.0))
+
+        pending = room.get("pending_question")
+        if not pending or pending.get("asker_id") != 1:
+            return
+
+        correct_answer = pending["correct_answer"]
+        question_index = pending["question_index"]
+
+        ans_task = room.get("answer_task")
+        if ans_task and not ans_task.done():
+            ans_task.cancel()
+
+        p1 = room["players"].get(1)
+        if p1 and p1.get("ws"):
+            await safe_send(p1["ws"], {
+                "type": "answer_result",
+                "question_index": question_index,
+                "answer": correct_answer
+            })
+
+        room["pending_question"] = None
+        room["turn"] = 2  # Sıra bot'a geçer
+        await send_turn_update(room, safe_send, broadcast)
+    except Exception as e:
+        print(f"[BOT ANSWER HATA] {e}")
+
+
+async def bot_execute_guess(room, guessed_index, safe_send, broadcast):
+    """Bot'un tahmin yapması"""
+    human_secret_idx = room["selections"].get(1)
+    if human_secret_idx is None:
+        return
+
+    footballers = room.get("footballers", [])
+    if guessed_index >= len(footballers):
+        return
+
+    guessed_f = footballers[guessed_index]
+    guessed_name = guessed_f["name"]
+    guessed_img = guessed_f.get("img_file", "")
+
+    old_task = room.get("turn_task")
+    if old_task and not old_task.done():
+        old_task.cancel()
+
+    guess_limit = room.get("guess_limit", 0)
+
+    if guessed_index == human_secret_idx:
+        # Bot bildi!
+        room["scores"][2] += 1
+        room["phase"] = "over"
+
+        reveal = {
+            "1": room["selections"].get(1),
+            "2": room["selections"].get(2)
+        }
+
+        await broadcast(room, {
+            "type": "game_over",
+            "winner_id": 2,
+            "scores": room["scores"],
+            "reveal": reveal,
+            "guessed_name": guessed_name,
+            "guesser_name": room["players"][2]["name"]
+        })
+    else:
+        # Bot yanlış tahmin etti!
+        if guessed_index in room.get("bot_candidates", []):
+            room["bot_candidates"].remove(guessed_index)
+            bot_rem_count = len(room["bot_candidates"])
+            room["remaining"][2] = bot_rem_count
+            await broadcast(room, {
+                "type": "remaining_update",
+                "player_id": 2,
+                "count": bot_rem_count
+            })
+
+        if guess_limit == 0:
+            await broadcast(room, {
+                "type": "wrong_guess_continue",
+                "guesser_id": 2,
+                "guesser_name": room["players"][2]["name"],
+                "guessed_name": guessed_name,
+                "guessed_img": guessed_img
+            })
+            room["turn"] = 1
+            await send_turn_update(room, safe_send, broadcast)
+        else:
+            room["guesses_left"][2] -= 1
+            left = room["guesses_left"][2]
+
+            if left <= 0:
+                room["scores"][1] += 1
+                room["phase"] = "over"
+
+                reveal = {
+                    "1": room["selections"].get(1),
+                    "2": room["selections"].get(2)
+                }
+
+                await broadcast(room, {
+                    "type": "game_over",
+                    "winner_id": 1,
+                    "loser_id": 2,
+                    "scores": room["scores"],
+                    "reveal": reveal,
+                    "wrong_guess": True,
+                    "guessed_name": guessed_name,
+                    "guesser_name": room["players"][2]["name"],
+                    "out_of_guesses": True
+                })
+            else:
+                await broadcast(room, {
+                    "type": "wrong_guess_continue",
+                    "guesser_id": 2,
+                    "guesser_name": room["players"][2]["name"],
+                    "guessed_name": guessed_name,
+                    "guessed_img": guessed_img,
+                    "guesses_left": room["guesses_left"]
+                })
+                room["turn"] = 1
+                await send_turn_update(room, safe_send, broadcast)
+
+
+# ==========================================
 # BIL BAKALIM - Yardımcı Fonksiyonlar
 # ==========================================
 
@@ -56,9 +309,11 @@ async def send_lobby_update(room, broadcast):
         "type": "lobby_update",
         "room_code": room["code"],
         "players": players,
-        "can_start": len(room["players"]) == 2,
+        "can_start": len(room["players"]) >= 1,
         "turn_seconds": room.get("turn_seconds", 45),
-        "guess_limit": room.get("guess_limit", 0)
+        "guess_limit": room.get("guess_limit", 0),
+        "max_players": room.get("max_players", 2),
+        "bot_level": room.get("bot_level", "orta")
     })
 
 
@@ -78,24 +333,31 @@ async def start_round(room, safe_send, broadcast, reset_scores=False):
     guess_limit = room.get("guess_limit", 0)
     room["guesses_left"] = {1: guess_limit, 2: guess_limit}
 
+    # ✨ Bot varsa gizli seçimini otomatik yap + aday listesini kur
+    if room["players"].get(2, {}).get("is_bot"):
+        bot_secret = random.randint(0, len(room["footballers"]) - 1)
+        room["selections"][2] = bot_secret
+        room["bot_candidates"] = list(range(len(room["footballers"])))
+
     players = [
         {"id": pid, "name": pdata["name"]}
         for pid, pdata in sorted(room["players"].items())
     ]
 
     for pid, pdata in room["players"].items():
-        await safe_send(pdata["ws"], {
-            "type": "game_started",
-            "footballers": room["footballers"],
-            "questions": ALL_QUESTIONS,
-            "scores": room["scores"],
-            "players": players,
-            "player_id": pid,
-            "room_code": room["code"],
-            "turn_seconds": room.get("turn_seconds", 45),
-            "guess_limit": guess_limit,
-            "guesses_left": room["guesses_left"]
-        })
+        if pdata.get("ws"):
+            await safe_send(pdata["ws"], {
+                "type": "game_started",
+                "footballers": room["footballers"],
+                "questions": ALL_QUESTIONS,
+                "scores": room["scores"],
+                "players": players,
+                "player_id": pid,
+                "room_code": room["code"],
+                "turn_seconds": room.get("turn_seconds", 45),
+                "guess_limit": guess_limit,
+                "guesses_left": room["guesses_left"]
+            })
 
     room["selection_task"] = asyncio.create_task(selection_timer(room, safe_send, broadcast))
 
@@ -226,6 +488,10 @@ async def send_turn_update(room, safe_send, broadcast):
 
     room["turn_task"] = asyncio.create_task(turn_timer(room, room["turn"], safe_send, broadcast))
 
+    # ✨ Sıra Bot'a geldiyse Bot hamlesini tetikle
+    if room["players"].get(2, {}).get("is_bot") and room["turn"] == 2:
+        asyncio.create_task(bot_play_turn(room, safe_send, broadcast))
+
 
 # ==========================================
 # ANA HANDLER FONKSİYONU
@@ -334,6 +600,15 @@ async def handle_bil_bakalim_message(
         name = sanitize_string(data.get("name", ""), max_length=15)
         turn_seconds_raw = data.get("turn_seconds", 45)
         guess_limit_raw = data.get("guess_limit", 0)
+        
+        # ✨ Oyuncu sayısı ve Bot seviyesini al
+        max_players = int(data.get("max_players", 2))
+        if max_players not in [1, 2]:
+            max_players = 2
+        
+        bot_level = str(data.get("bot_level", "orta")).strip().lower()
+        if bot_level not in ["kolay", "orta", "zor"]:
+            bot_level = "orta"
 
         if not name:
             await safe_send(websocket, {"type": "error", "message": "İsim gir."})
@@ -362,6 +637,8 @@ async def handle_bil_bakalim_message(
             "mode": "bil_bakalim",
             "players": {1: {"ws": websocket, "name": name}},
             "phase": "lobby",
+            "max_players": max_players,
+            "bot_level": bot_level,
             "scores": {1: 0, 2: 0},
             "chat_history": [],
             "chat_last_msg_time": {},
@@ -385,7 +662,9 @@ async def handle_bil_bakalim_message(
             "room_code": new_room_code,
             "player_id": 1,
             "turn_seconds": turn_seconds,
-            "guess_limit": guess_limit
+            "guess_limit": guess_limit,
+            "max_players": max_players,
+            "bot_level": bot_level
         })
         await send_lobby_update(rooms[new_room_code], broadcast)
 
@@ -429,6 +708,10 @@ async def handle_bil_bakalim_message(
             await safe_send(websocket, {"type": "error", "message": "Bu odadan atıldınız!"})
             result["handled"] = True
             return result
+
+        # ✨ İnsan oyuncu katıldığında 2. oyuncu Bot ise botu çıkar
+        if 2 in room["players"] and room["players"][2].get("is_bot"):
+            del room["players"][2]
 
         if len(room["players"]) >= 2:
             await safe_send(websocket, {"type": "error", "message": "Oda dolu."})
@@ -514,10 +797,21 @@ async def handle_bil_bakalim_message(
                 guess_limit = 0
         except:
             guess_limit = 0
+            
+        # ✨ Oyuncu Sayısı ve Bot Seviyesi
+        max_players = int(data.get("max_players", room.get("max_players", 2)))
+        if max_players not in [1, 2]:
+            max_players = 2
+        
+        bot_level = str(data.get("bot_level", room.get("bot_level", "orta"))).strip().lower()
+        if bot_level not in ["kolay", "orta", "zor"]:
+            bot_level = "orta"
 
         room["turn_seconds"] = turn_seconds
         room["guess_limit"] = guess_limit
         room["guesses_left"] = {1: guess_limit, 2: guess_limit}
+        room["max_players"] = max_players
+        room["bot_level"] = bot_level
 
         await send_lobby_update(room, broadcast)
 
@@ -578,16 +872,19 @@ async def handle_bil_bakalim_message(
             await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
             result["handled"] = True
             return result
-        if len(room["players"]) != 2:
-            await safe_send(websocket, {"type": "error", "message": "2 oyuncu gerekli."})
-            result["handled"] = True
-            return result
+
+        # ✨ Tek kişi varsa Bot ekle!
+        if len(room["players"]) == 1:
+            bot_level = room.get("bot_level", "orta")
+            bot_name = "🤖 " + bot_level.capitalize() + " Bot"
+            room["players"][2] = {"ws": None, "name": bot_name, "is_bot": True}
+
         reset_scores = room["phase"] == "lobby"
         await start_round(room, safe_send, broadcast, reset_scores=reset_scores)
         result["handled"] = True
         return result
 
-    # --- BACK TO LOBBY (host lobiye dönüyor, herkesi at) ---
+    # --- BACK TO LOBBY (host lobiye dönüyor) ---
     if msg_type == "back_to_lobby":
         if player_id != 1:
             await safe_send(websocket, {"type": "error", "message": "Sadece host lobiye döndürebilir."})
@@ -600,6 +897,10 @@ async def handle_bil_bakalim_message(
             if task and not task.done():
                 task.cancel()
         
+        # ✨ Lobiye dönünce botu temizle (gerçek bir insana yer açmak için)
+        if 2 in room["players"] and room["players"][2].get("is_bot"):
+            del room["players"][2]
+
         # Phase'i lobby'e çevir
         room["phase"] = "lobby"
         room["selections"] = {}
@@ -691,15 +992,20 @@ async def handle_bil_bakalim_message(
             "opponent_name": room["players"][other_id]["name"]
         })
 
-        await safe_send(room["players"][other_id]["ws"], {
-            "type": "answer_prompt",
-            "question_index": question_index,
-            "correct_answer": correct_answer,
-            "asker_name": room["players"][player_id]["name"],
-            "turn_seconds": room.get("turn_seconds", 45)
-        })
+        # ✨ Eğer 2. oyuncu Bot ise bota cevap verdir
+        if other_id == 2 and room["players"].get(2, {}).get("is_bot"):
+            asyncio.create_task(bot_answer_question(room, safe_send, broadcast))
+        else:
+            if room["players"][other_id].get("ws"):
+                await safe_send(room["players"][other_id]["ws"], {
+                    "type": "answer_prompt",
+                    "question_index": question_index,
+                    "correct_answer": correct_answer,
+                    "asker_name": room["players"][player_id]["name"],
+                    "turn_seconds": room.get("turn_seconds", 45)
+                })
 
-        room["answer_task"] = asyncio.create_task(answer_timer(room, safe_send, broadcast))
+            room["answer_task"] = asyncio.create_task(answer_timer(room, safe_send, broadcast))
         result["handled"] = True
         return result
 
@@ -728,17 +1034,39 @@ async def handle_bil_bakalim_message(
         if ans_task and not ans_task.done():
             ans_task.cancel()
 
-        await safe_send(room["players"][asker_id]["ws"], {
-            "type": "answer_result",
-            "question_index": question_index,
-            "answer": final_answer
-        })
+        # ✨ İnsan oyuncu Bot'un sorusuna cevap verdiyse Bot aday listesini filtrele
+        if pending["asker_id"] == 2:
+            q_idx = pending["question_index"]
+            bot_cands = room.get("bot_candidates", [])
+            footballers = room.get("footballers", [])
+            room["bot_candidates"] = [
+                c for c in bot_cands
+                if c < len(footballers) and check_question(footballers[c], q_idx) == final_answer
+            ]
+            bot_rem_count = len(room["bot_candidates"])
+            room["remaining"][2] = bot_rem_count
+            print(f"[BOT AI] Filtreleme sonrası kalan aday sayısı: {bot_rem_count}")
 
-        await safe_send(room["players"][other_id]["ws"], {
-            "type": "answer_sent",
-            "question_index": question_index,
-            "answer": final_answer
-        })
+            # ✨ BOTUN KALAN SAYISINI BROADCAST ET (Sol alt Toast ve Kalan Sayıcı için şart!)
+            await broadcast(room, {
+                "type": "remaining_update",
+                "player_id": 2,
+                "count": bot_rem_count
+            })
+
+        if room["players"][asker_id].get("ws"):
+            await safe_send(room["players"][asker_id]["ws"], {
+                "type": "answer_result",
+                "question_index": question_index,
+                "answer": final_answer
+            })
+
+        if room["players"][other_id].get("ws"):
+            await safe_send(room["players"][other_id]["ws"], {
+                "type": "answer_sent",
+                "question_index": question_index,
+                "answer": final_answer
+            })
 
         room["pending_question"] = None
         room["turn"] = other_id

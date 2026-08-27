@@ -31,6 +31,8 @@ let inRoom = false;
 let guessLimit = 0;
 let guessesLeft = { 1: 0, 2: 0 };
 let waitingForAnswer = false;
+let bilMaxPlayers = 2;
+let bilBotLevel = "orta";
 
 let timerInterval = null;
 let timerRemaining = 0;
@@ -327,9 +329,18 @@ function updateLobby() {
         playersList.appendChild(li);
     });
 
-    if (playerId === 1 && players.length === 2) {
+    const maxP = bilMaxPlayers || 2;
+    const curP = players.length;
+    const canStart = (maxP === 1) ? (curP >= 1) : (curP === maxP);
+
+    if (playerId === 1 && canStart) {
         startBtn.classList.remove("hidden");
-        setMsg(lobbyMsg, "İki oyuncu hazır. Başlatabilirsin!", "#51cf66");
+        startBtn.textContent = "Oyunu Başlat";
+        if (maxP === 1) {
+            setMsg(lobbyMsg, "Tek başınasın. Başlatabilirsin!", "#51cf66");
+        } else {
+            setMsg(lobbyMsg, "İki oyuncu hazır. Başlatabilirsin!", "#51cf66");
+        }
     } else if (playerId === 1) {
         startBtn.classList.add("hidden");
         setMsg(lobbyMsg, "Rakip bekleniyor...", "#ff6b6b");
@@ -642,17 +653,49 @@ function getAliveFootballerCount() {
     return count;
 }
 
-function applyElimination(questionIndex, answer) {
-    const beforeCount = getAliveFootballerCount();
-
+function checkQuestionJS(f, questionIndex) {
+    if (!questions || !questions[questionIndex] || !f) return false;
     const q = questions[questionIndex];
     const key = q[1];
     const value = q[2];
 
+    // ✨ Pozisyon kategorileri akıllı kontrolü
+    if (key === "position") {
+        const pos = (f.position || "").toLowerCase();
+        const valLower = (value || "").toLowerCase();
+
+        if (valLower === "orta saha" || valLower === "ortasaha") {
+            return pos.includes("orta") || pos.includes("os") || pos.includes("merkez");
+        }
+        if (valLower === "defans") {
+            return pos.includes("defans") || pos.includes("stoper") || pos.includes("bek");
+        }
+        if (valLower === "forvet") {
+            return pos.includes("forvet") || pos.includes("santrafor") || pos.includes("kanat");
+        }
+        return pos === valLower || pos.includes(valLower);
+    }
+
+    // Genel tipler (Boolean & String)
+    if (typeof value === "boolean") {
+        return Boolean(f[key]) === value;
+    }
+
+    if (typeof value === "string") {
+        const fVal = String(f[key] || "").toLowerCase();
+        return fVal === value.toLowerCase();
+    }
+
+    return f[key] === value;
+}
+
+function applyElimination(questionIndex, answer) {
+    const beforeCount = getAliveFootballerCount();
+
     for (let i = 0; i < footballers.length; i++) {
         if (eliminated[i]) continue;
 
-        const match = footballers[i][key] === value;
+        const match = checkQuestionJS(footballers[i], questionIndex);
         if (answer && !match) {
             eliminated[i] = true;
         } else if (!answer && match) {
@@ -1297,6 +1340,8 @@ function handleMessage(msg) {
         roomCode = msg.room_code;
         turnSeconds = msg.turn_seconds || 45;
         guessLimit = msg.guess_limit || 0;
+        bilMaxPlayers = msg.max_players || 2;
+        bilBotLevel = msg.bot_level || "orta";
         inRoom = true;
         showBilChat();
         showScreen("lobby");
@@ -1310,6 +1355,8 @@ function handleMessage(msg) {
         roomCode = msg.room_code;
         turnSeconds = msg.turn_seconds || 45;
         guessLimit = msg.guess_limit || 0;
+        bilMaxPlayers = msg.max_players || 2;
+        bilBotLevel = msg.bot_level || "orta";
         inRoom = true;
         showBilChat();
         showScreen("lobby");
@@ -1332,6 +1379,8 @@ function handleMessage(msg) {
         players = msg.players;
         turnSeconds = msg.turn_seconds || 45;
         guessLimit = msg.guess_limit || 0;
+        if (msg.max_players !== undefined) bilMaxPlayers = msg.max_players;
+        if (msg.bot_level !== undefined) bilBotLevel = msg.bot_level;
         updateLobby();
         return;
     }
@@ -1352,7 +1401,6 @@ function handleMessage(msg) {
         showScreen("select");
         renderSelectGrid();
         updateTopBar();
-        addLog("Yeni tur başladı.", "info");
         startTimer(turnSeconds, selectTimer);
         return;
     }
@@ -1396,7 +1444,6 @@ function handleMessage(msg) {
         hideAnswerPanel();
         if (currentTurn === playerId) {
             setMsg(gameMsg, "Senin sıran!", "#51cf66");
-            addLog("Sıra sende.", "mine");
             
             // OTOMATIK TAHMİN: Eğer sadece 1 futbolcu kaldıysa otomatik tahmin et
             const remainingIndices = [];
@@ -1408,7 +1455,6 @@ function handleMessage(msg) {
                 const lastIndex = remainingIndices[0];
                 const lastFootballer = footballers[lastIndex];
                 setMsg(gameMsg, `🎯 Son futbolcu: ${lastFootballer.name} - Otomatik tahmin!`, "#ffd43b");
-                addLog(`Son futbolcu kaldı: ${lastFootballer.name}`, "info");
                 
                 // 2 saniye bekle, sonra otomatik tahmin
                 setTimeout(() => {
@@ -1424,15 +1470,12 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "turn_timeout") {
-        if (msg.player_id === playerId) addLog("Sürenden geçti! Sıra rakibe.", "info");
-        else addLog(`${getPlayerNameById(msg.player_id)} süresini kaçırdı.`, "info");
         return;
     }
 
     if (msg.type === "answer_prompt") {
         playBilSound("soru_sor.mp3");
         const qText = questions[msg.question_index][0];
-        addLog(`${msg.asker_name} sordu: ${qText}`, "opp");
         showAnswerPanel(msg.question_index, msg.correct_answer);
         startTimer(turnSeconds, gameTimer);
         return;
@@ -1441,7 +1484,6 @@ function handleMessage(msg) {
     if (msg.type === "waiting_for_answer") {
         const qText = questions[msg.question_index][0];
         setMsg(gameMsg, `${msg.opponent_name} cevap veriyor...`, "#ffa94d");
-        addLog(`Sordun: ${qText}`, "mine");
         waitingForAnswer = true;
         renderQuestions();
         updateGuessModeButton();
@@ -1451,8 +1493,10 @@ function handleMessage(msg) {
 
     if (msg.type === "answer_sent") {
         hideAnswerPanel();
+        const qText = (questions && questions[msg.question_index]) ? questions[msg.question_index][0] : "Soru";
         const ansText = msg.answer ? "EVET" : "HAYIR";
-        addLog(`Cevap gönderildi: ${ansText}${msg.auto ? " (otomatik)" : ""}`, "mine");
+        // ✨ Rakibin sorduğu soru ve gelen cevap (KIRMIZI)
+        addLog(`${qText} → ${ansText}`, "opp");
 
         // Gelen cevaba göre ses çal
         playBilSound(msg.answer ? "cevap_evet.mp3" : "cevap_hayir.mp3");
@@ -1469,9 +1513,10 @@ function handleMessage(msg) {
     }
 
     if (msg.type === "answer_result") {
-        const qText = questions[msg.question_index][0];
+        const qText = (questions && questions[msg.question_index]) ? questions[msg.question_index][0] : "Soru";
         const ansText = msg.answer ? "EVET" : "HAYIR";
-        addLog(`${qText} → ${ansText}${msg.auto ? " (otomatik)" : ""}`, "info");
+        // ✨ Benim sorduğum soru ve gelen cevap (YEŞİL)
+        addLog(`${qText} → ${ansText}`, "mine");
         setMsg(gameMsg, `Cevap: ${ansText}`, msg.answer ? "#51cf66" : "#ff6b6b");
 
         // Gelen cevaba göre ses çal
@@ -1557,14 +1602,12 @@ function handleMessage(msg) {
         if (msg.guesser_id === playerId) {
             const remainingText = guessLimit === 0 ? "Sıra rakibe geçti." : `Kalan hakkın: ${guessesLeft[playerId]}`;
             setMsg(gameMsg, `❌ Yanlış tahmin! ${remainingText}`, "#ff6b6b");
-            addLog(`Yanlış tahmin: ${msg.guessed_name}`, "mine");
             showToast("❌ Yanlış Tahmin!", `Tahmin ettiğin: ${msg.guessed_name}`, msg.guessed_img);
 
             // Kendi kalan sayımızı güncelle
             remaining[playerId] = getAliveFootballerCount();
             send({ type: "remaining_update", count: remaining[playerId] });
         } else {
-            addLog(`${msg.guesser_name} yanlış tahmin: ${msg.guessed_name}`, "opp");
             showToast("❌ Rakip Yanlış Tahmin Etti!", `${msg.guesser_name} tahmin ettiği: ${msg.guessed_name}`, msg.guessed_img);
         }
         updateTopBar();
@@ -1714,6 +1757,27 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
             if (createBtn) createBtn.textContent = "Oda Oluştur";
             window._pendingModeChangeCtx = null;
 
+            // ✨ Kaydedilmiş ayarları yükle
+            try {
+                const savedTurn = localStorage.getItem("bilTurnSeconds");
+                const savedLimit = localStorage.getItem("bilGuessLimit");
+                const savedMaxP = localStorage.getItem("bilMaxPlayers");
+                const savedBot = localStorage.getItem("bilBotLevel");
+
+                const turnSel = document.getElementById("turnSecondsSelect");
+                const limitSel = document.getElementById("guessLimitSelect");
+                const maxPSel = document.getElementById("bilMaxPlayersSelect");
+                const botSel = document.getElementById("bilBotLevelSelect");
+
+                if (turnSel && savedTurn) turnSel.value = savedTurn;
+                if (limitSel && savedLimit) limitSel.value = savedLimit;
+                if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+                if (botSel && savedBot) botSel.value = savedBot;
+
+                // Event'i manuel tetikle (Kutuyu aç/kapa)
+                if (maxPSel) maxPSel.dispatchEvent(new Event("change"));
+            } catch(e) {}
+
             showScreen("create");
             createNameInput.focus();
         } else if (mod === "takim_bilmece") {
@@ -1726,6 +1790,26 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
             const takimCreateBtn = document.getElementById("createTakimBtn");
             if (takimCreateBtn) takimCreateBtn.textContent = "Bil Bakalım";
             window._pendingModeChangeCtx = null;
+
+            // ✨ Kaydedilmiş ayarları yükle
+            try {
+                const savedMaxP = localStorage.getItem("takimMaxPlayers");
+                const savedDiff = localStorage.getItem("takimDifficulty");
+                const savedTurnSec = localStorage.getItem("takimTurnSeconds");
+                const savedTotalQ = localStorage.getItem("takimTotalQuestions");
+
+                const maxPSel = document.getElementById("takimMaxPlayersSelect");
+                const diffSel = document.getElementById("takimDifficultySelect");
+                const turnSecSel = document.getElementById("takimTurnSecondsSelect");
+                const totalQSel = document.getElementById("takimTotalQuestionsSelect");
+
+                if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+                if (diffSel && savedDiff) diffSel.value = savedDiff;
+                if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+                if (totalQSel && savedTotalQ) totalQSel.value = savedTotalQ;
+
+                if (typeof updateJokerInfo === "function") updateJokerInfo();
+            } catch(e) {}
 
             showScreen("createTakim");
             if (takimNameInput) takimNameInput.focus();
@@ -1873,12 +1957,37 @@ if (_publicRoomsRefreshBtn) {
     };
 }
 
+// ✨ Oyuncu sayısına göre bot kutusunu gizle/göster
+const bilMaxPlayersSelect = document.getElementById("bilMaxPlayersSelect");
+const bilBotLevelBox = document.getElementById("bilBotLevelBox");
+
+if (bilMaxPlayersSelect && bilBotLevelBox) {
+    bilMaxPlayersSelect.addEventListener("change", () => {
+        if (bilMaxPlayersSelect.value === "1") {
+            bilBotLevelBox.style.display = "";
+        } else {
+            bilBotLevelBox.style.display = "none";
+        }
+    });
+}
+
 createBtn.onclick = () => {
     const enteredName = createNameInput.value.trim();
     const parsedSeconds = parseInt(turnSecondsSelect.value, 10);
     const parsedGuessLimit = parseInt(guessLimitSelect.value, 10);
     const selectedSeconds = isNaN(parsedSeconds) ? 45 : parsedSeconds;
     const selectedGuessLimit = isNaN(parsedGuessLimit) ? 0 : parsedGuessLimit;
+    
+    const maxP = parseInt(document.getElementById("bilMaxPlayersSelect")?.value) || 2;
+    const botL = document.getElementById("bilBotLevelSelect")?.value || "orta";
+
+    // ✨ Ayarları hafızaya kaydet
+    try {
+        localStorage.setItem("bilTurnSeconds", String(selectedSeconds));
+        localStorage.setItem("bilGuessLimit", String(selectedGuessLimit));
+        localStorage.setItem("bilMaxPlayers", String(maxP));
+        localStorage.setItem("bilBotLevel", botL);
+    } catch(e) {}
 
     const pendingModeChange = window._pendingModeChangeCtx;
     if (pendingModeChange && pendingModeChange.newMode === "bil_bakalim" && pendingModeChange.createScreen === "create") {
@@ -1902,7 +2011,14 @@ createBtn.onclick = () => {
     myName = enteredName;
     if (!myName) { setMsg(createMsg, "İsim gir.", "#ff6b6b"); return; }
     localStorage.setItem("playerName", myName);
-    send({ type: "create_room", name: myName, turn_seconds: selectedSeconds, guess_limit: selectedGuessLimit });
+    send({ 
+        type: "create_room", 
+        name: myName, 
+        turn_seconds: selectedSeconds, 
+        guess_limit: selectedGuessLimit,
+        max_players: maxP,
+        bot_level: botL
+    });
 };
 
 joinBtn.onclick = () => {
@@ -2817,44 +2933,141 @@ setTimeout(() => {
 // ============ GLOBAL SES YARDIMCISI ============
 function getGlobalVolume() {
     const slider = document.getElementById("mlVolumeRange");
-    if (!slider) return 0.3;
-    const v = parseInt(slider.value, 10);
-    return isNaN(v) ? 0.3 : Math.max(0, Math.min(100, v)) / 100;
+    if (!slider) {
+        try {
+            const saved = localStorage.getItem("gameArenaVolume");
+            if (saved !== null && !isNaN(parseInt(saved, 10))) {
+                return Math.max(0, Math.min(100, parseInt(saved, 10))) / 100;
+            }
+        } catch(e) {}
+        return 0.3;
+    }
+    const val = parseFloat(slider.value);
+    return isNaN(val) ? 0.3 : Math.max(0, Math.min(100, val)) / 100;
 }
 window.getGlobalVolume = getGlobalVolume;
 
-// ============ SES SLIDER BAŞLATICI ============
+// ============ SES SLIDER BAŞLATICI (PÜRÜZSÜZ DİKEY SÜRÜKLEME) ============
 (function initVolumeSlider() {
     const slider = document.getElementById("mlVolumeRange");
-    if (!slider) return;
+    const volumeTrack = document.getElementById("volumeTrack");
+    if (!slider || !volumeTrack) return;
 
-    // localStorage'dan oku, yoksa default 30
-    let saved = null;
-    try { saved = localStorage.getItem("gameArenaVolume"); } catch(e) {}
-    const initVal = (saved !== null && !isNaN(parseInt(saved, 10)))
-        ? Math.max(0, Math.min(100, parseInt(saved, 10)))
-        : 30;
+    let savedPercent = 30;
+    try {
+        const saved = localStorage.getItem("gameArenaVolume");
+        if (saved !== null && !isNaN(parseInt(saved, 10))) {
+            savedPercent = Math.max(0, Math.min(100, parseInt(saved, 10)));
+        }
+    } catch(e) {}
 
-    function applyUI(v) {
-        slider.value = String(v);
+    function applyUI(pct) {
+        const clampedPct = Math.max(0, Math.min(100, Math.round(pct)));
+        slider.value = String(clampedPct);
+
         const valEl = document.getElementById("mlVolumeVal");
-        if (valEl) valEl.textContent = String(Math.round(v / 10));
-        const w1 = document.getElementById("volumeWave1");
-        const w2 = document.getElementById("volumeWave2");
-        const w3 = document.getElementById("volumeWave3");
-        if (w1) w1.style.opacity = v > 0  ? "1" : "0.15";
-        if (w2) w2.style.opacity = v >= 34 ? "1" : "0.15";
-        if (w3) w3.style.opacity = v >= 67 ? "1" : "0.15";
+        if (valEl) {
+            valEl.textContent = String(clampedPct);
+        }
+
+        // CSS'teki dikey dolgu ve top pozisyonu için
+        const decimalVol = clampedPct / 100;
+        volumeTrack.style.setProperty("--volume-percent", String(decimalVol));
+
+        // Hoparlör dalga ikonu
+        const volBtn = document.getElementById("volumeButton");
+        if (volBtn) {
+            if (clampedPct === 0) {
+                volBtn.classList.add("muted");
+                volBtn.setAttribute("data-level", "0");
+            } else {
+                volBtn.classList.remove("muted");
+                if (clampedPct < 34) {
+                    volBtn.setAttribute("data-level", "1");
+                } else if (clampedPct < 67) {
+                    volBtn.setAttribute("data-level", "2");
+                } else {
+                    volBtn.setAttribute("data-level", "3");
+                }
+            }
+        }
+
+        try { localStorage.setItem("gameArenaVolume", String(clampedPct)); } catch(e) {}
     }
 
-    applyUI(initVal);
+    applyUI(savedPercent);
 
-    slider.addEventListener("input", function() {
-        const v = Math.max(0, Math.min(100, parseInt(this.value, 10) || 0));
-        applyUI(v);
-        try { localStorage.setItem("gameArenaVolume", String(v)); } catch(e) {}
+    // ✨ GERÇEK DİKEY DOKUNMA / SÜRÜKLEME MANTIĞI (Pürüzsüz & Kolay)
+    let isDragging = false;
+
+    function updateFromPointer(e) {
+        const rect = volumeTrack.getBoundingClientRect();
+        const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
         
-        
+        // CSS padding (üstten ve alttan 15px)
+        const padding = 15;
+        const trackTop = rect.top + padding;
+        const trackBottom = rect.bottom - padding;
+        const trackHeight = Math.max(1, trackBottom - trackTop);
+
+        const distanceFromBottom = trackBottom - clientY;
+        const pct = (distanceFromBottom / trackHeight) * 100;
+        applyUI(pct);
+    }
+
+    volumeTrack.addEventListener("mousedown", (e) => {
+        isDragging = true;
+        updateFromPointer(e);
+    });
+
+    window.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+            e.preventDefault();
+            updateFromPointer(e);
+        }
+    });
+
+    window.addEventListener("mouseup", () => {
+        isDragging = false;
+    });
+
+    // Mobil Cihazlar İçin Dokunmatik Destek
+    volumeTrack.addEventListener("touchstart", (e) => {
+        isDragging = true;
+        updateFromPointer(e);
+    }, { passive: true });
+
+    window.addEventListener("touchmove", (e) => {
+        if (isDragging) {
+            updateFromPointer(e);
+        }
+    }, { passive: true });
+
+    window.addEventListener("touchend", () => {
+        isDragging = false;
+    });
+
+    slider.addEventListener("input", () => {
+        const val = parseFloat(slider.value) || 0;
+        applyUI(val);
+    });
+
+    // ✨ Numpad + / - ile ses ayarı
+    document.addEventListener("keydown", (e) => {
+        // Input/textarea odaktaysa yoksay
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) return;
+
+        const currentPct = parseFloat(slider.value) || 0;
+        const step = 1;
+
+        if (e.code === "NumpadAdd" || e.key === "+") {
+            e.preventDefault();
+            applyUI(currentPct + step);
+        } else if (e.code === "NumpadSubtract" || e.key === "-") {
+            e.preventDefault();
+            applyUI(currentPct - step);
+        }
     });
 })();
 
@@ -3024,6 +3237,26 @@ showScreen = function(screenName) {
         if (haritaCreateBtn) haritaCreateBtn.textContent = "Oda Oluştur";
     }
 
+    // ✨ Kaydedilmiş Haritadan Bul ayarlarını yükle
+    if (screenName === "createHarita") {
+        try {
+            const savedMaxP = localStorage.getItem("haritaMaxPlayers");
+            const savedDiff = localStorage.getItem("haritaDifficulty");
+            const savedTurnSec = localStorage.getItem("haritaTurnSeconds");
+            const savedTotalR = localStorage.getItem("haritaTotalRounds");
+
+            const maxPSel = document.getElementById("haritaMaxPlayersSelect");
+            const diffSel = document.getElementById("haritaDifficultySelect");
+            const turnSecSel = document.getElementById("haritaTurnSecondsSelect");
+            const totalRSel = document.getElementById("haritaTotalRoundsSelect");
+
+            if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+            if (diffSel && savedDiff) diffSel.value = savedDiff;
+            if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+            if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
+        } catch(e) {}
+    }
+
     // Gizemli Kariyer createGizem
     if (pendingModeChange && pendingModeChange.createScreen === "createGizem" && screenName !== "createGizem") {
         window._pendingModeChangeCtx = null;
@@ -3037,6 +3270,26 @@ showScreen = function(screenName) {
         }
         const gizemCreateBtn = document.getElementById("createGizemBtn");
         if (gizemCreateBtn) gizemCreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // ✨ Kaydedilmiş Gizemli Kariyer ayarlarını yükle
+    if (screenName === "createGizem") {
+        try {
+            const savedMaxP = localStorage.getItem("gizemMaxPlayers");
+            const savedDiff = localStorage.getItem("gizemDifficulty");
+            const savedTurnSec = localStorage.getItem("gizemTurnSeconds");
+            const savedTotalR = localStorage.getItem("gizemTotalRounds");
+
+            const maxPSel = document.getElementById("gizemMaxPlayersSelect");
+            const diffSel = document.getElementById("gizemDifficultySelect");
+            const turnSecSel = document.getElementById("gizemTurnSecondsSelect");
+            const totalRSel = document.getElementById("gizemTotalRoundsSelect");
+
+            if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+            if (diffSel && savedDiff) diffSel.value = savedDiff;
+            if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+            if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
+        } catch(e) {}
     }
 
     // İlk 11 createIlk11
@@ -3067,6 +3320,46 @@ showScreen = function(screenName) {
         }
         const stadCreateBtn = document.getElementById("createStadBtn");
         if (stadCreateBtn) stadCreateBtn.textContent = "Oda Oluştur";
+    }
+
+    // ✨ Kaydedilmiş Şarkıdan Bul ayarlarını yükle
+    if (screenName === "createSarki") {
+        try {
+            const rawSettings = localStorage.getItem("sarkiCreateSettings");
+            if (rawSettings) {
+                const s = JSON.parse(rawSettings);
+                const maxPSel = document.getElementById("sarkiMaxPlayersSelect");
+                const dilSel = document.getElementById("sarkiDilSelect");
+                const totalSSel = document.getElementById("sarkiTotalSongsSelect");
+                const songDurSel = document.getElementById("sarkiSongDurationSelect");
+                const ansDurSel = document.getElementById("sarkiAnswerDurationSelect");
+                const turSel = document.getElementById("sarkiTurSelect");
+
+                if (maxPSel && s.max_players) maxPSel.value = String(s.max_players);
+                if (dilSel && s.dil) dilSel.value = s.dil;
+                if (totalSSel && s.total_songs) totalSSel.value = String(s.total_songs);
+                if (songDurSel && s.song_duration) songDurSel.value = String(s.song_duration);
+                if (ansDurSel && s.answer_duration) ansDurSel.value = String(s.answer_duration);
+                if (turSel && s.tur) turSel.value = s.tur;
+            }
+        } catch(e) {}
+    }
+
+    // ✨ Kaydedilmiş Stadyum Tanıma ayarlarını yükle
+    if (screenName === "createStad") {
+        try {
+            const savedMaxP = localStorage.getItem("stadMaxPlayers");
+            const savedTurnSec = localStorage.getItem("stadTurnSeconds");
+            const savedTotalR = localStorage.getItem("stadTotalRounds");
+
+            const maxPSel = document.getElementById("stadMaxPlayersSelect");
+            const turnSecSel = document.getElementById("stadTurnSecondsSelect");
+            const totalRSel = document.getElementById("stadTotalRoundsSelect");
+
+            if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
+            if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
+            if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
+        } catch(e) {}
     }
 
     // Jokerli Satranç createSatranc
@@ -3757,6 +4050,26 @@ function openRoomSettings() {
         title: "Bil Bakalım - Oda Ayarları",
         fields: [
             {
+                id: "maxPlayers",
+                label: "👥 Oyuncu Sayısı",
+                current: bilMaxPlayers || 2,
+                minValue: (players && players.length > 1) ? players.length : null,
+                options: [
+                    {value: 1, label: "1 Oyuncu"},
+                    {value: 2, label: "2 Oyuncu"}
+                ]
+            },
+            {
+                id: "botLevel",
+                label: "🤖 Bot Seviyesi",
+                current: bilBotLevel || "orta",
+                options: [
+                    {value: "kolay", label: "🟢 Kolay Bot"},
+                    {value: "orta", label: "🟡 Orta Bot"},
+                    {value: "zor", label: "🔴 Zor Bot"}
+                ]
+            },
+            {
                 id: "turnSec",
                 label: "⏱️ Tur Süresi",
                 current: turnSeconds || 45,
@@ -3787,13 +4100,34 @@ function openRoomSettings() {
             }
         ],
         onSave: (values) => {
+            try {
+                localStorage.setItem("bilMaxPlayers", String(values.maxPlayers));
+                localStorage.setItem("bilBotLevel", values.botLevel);
+                localStorage.setItem("bilTurnSeconds", String(values.turnSec));
+                localStorage.setItem("bilGuessLimit", String(values.guessLimit));
+            } catch(e) {}
             send({
                 type: "update_room_settings",
+                max_players: parseInt(values.maxPlayers) || 2,
+                bot_level: values.botLevel || "orta",
                 turn_seconds: parseInt(values.turnSec) || 45,
                 guess_limit: parseInt(values.guessLimit) || 0
             });
         }
     });
+    
+    // Popup açılınca 2 oyuncu ise Bot Seviyesi kutusunu gizle
+    setTimeout(() => {
+        const maxSel = document.getElementById("settingsField_maxPlayers");
+        const botGroup = document.getElementById("settingsGroup_botLevel");
+        if (maxSel && botGroup) {
+            const updateBotVis = () => {
+                botGroup.style.display = (maxSel.value === "1") ? "" : "none";
+            };
+            updateBotVis();
+            maxSel.addEventListener("change", updateBotVis);
+        }
+    }, 50);
 }
 
 // Bil Bakalım buton olayı
