@@ -287,7 +287,7 @@ let miniData = {
     targetPositions: {},
     // ✨ SNAPSHOT INTERPOLATION - Server jitter'ı yok etmek için
     snapshots: [],           // {t: timestamp, players: {pid: {x,y}}, ball: {x,y}}
-    interpDelay: 50,         // ✨ 50ms buffer: ağ jitter'ını yutar, akıcılık artar (hâlâ düşük gecikme)
+    interpDelay: 65,         // ✨ 65ms buffer: mikro takılmaları sıfırlar, akıcılığı mükemmelleştirir
     serverTimeOffset: null,  // İlk paket geldiğinde ayarlanır
     // ✨ PING sistemi
     pings: {},           // {playerId: ping_ms}
@@ -3996,7 +3996,14 @@ function miniReleaseAllKeys() {
     for (const key in miniData.keysPressed) {
         if (miniData.keysPressed[key]) {
             miniData.keysPressed[key] = false;
-            send({ type: "mini_key", key: key, pressed: false });
+            const msg = { type: "mini_key", key: key, pressed: false };
+            if (typeof MiniRTC !== "undefined" && MiniRTC.connected && miniData.playerId !== 1) {
+                msg.from_player_id = miniData.playerId;
+                msg.target_pid = miniData.playerId;
+                MiniRTC.sendMessage(msg);
+            } else {
+                send(msg);
+            }
             // ✨ HOST fizik motoruna da bildir (0 latency)
             if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
                 HP.setKey(miniData.playerId, key, false);
@@ -4009,7 +4016,13 @@ function miniReleaseAllKeys() {
             miniData.keysPressed2[key] = false;
             const msg = { type: "mini_key", key: key, pressed: false };
             if (miniData.splitSlaveId) msg.for_player_id = miniData.splitSlaveId;
-            send(msg);
+            if (typeof MiniRTC !== "undefined" && MiniRTC.connected && miniData.playerId !== 1) {
+                msg.from_player_id = miniData.playerId;
+                msg.target_pid = miniData.playerId;
+                MiniRTC.sendMessage(msg);
+            } else {
+                send(msg);
+            }
             // ✨ HOST fizik motoruna da bildir
             if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running && miniData.splitSlaveId) {
                 HP.setKey(miniData.splitSlaveId, key, false);
@@ -4785,7 +4798,7 @@ function miniRender() {
         }
 
         // ✨ PÜRÜZSÜZ HERMITE/LINEAR SNAPSHOT İNTERPOLASYONU (60 FPS Akıcılık)
-        const renderTime = performance.now() - (miniData.interpDelay || 45);
+        const renderTime = performance.now() - (miniData.interpDelay || 65);
         const snaps = miniData.snapshots;
         
         if (snaps.length >= 2) {
@@ -5707,11 +5720,6 @@ function miniRender() {
         try {
             const audio = miniData._goalSongAudio;
             audio.volume = Math.max(0, Math.min(1, vol));
-
-            // ✨ Gol şarkısı santraya/maça geçilse bile kesilmez, kendi kendine bitene kadar çalmaya devam eder!
-            if (vol > 0 && audio.paused && !audio.ended) {
-                audio.play().catch(() => {});
-            }
 
             // Şarkı süresi bittiğinde referansı temizle
             if (audio.ended) {
