@@ -61,9 +61,31 @@ const HP = {  // Host Physics namespace
     // BAŞLAT / DURDUR
     // ==========================================
     
-    pickNextCelebration(gs) {
-        // 🎭 Tüm şık gol sevinçleri havuzu (4 çeşit - Yıldırım kaldırıldı)
-        const pool = ["rainbow_trail", "grow_explode", "spotlight", "frostbite"];
+    // 🎉 Oyuncu 1/2 ile seçtiği sevinci uygula (Anında değişmez, bir sonraki golde uygulanır)
+    applyCelebrationChoice(pid, celebType) {
+        if (!this.room || !this.room.gameState) return;
+        const gs = this.room.gameState;
+        const allowed = ["random", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
+        if (!allowed.includes(celebType)) return;
+
+        if (!gs.preferredCelebrations) gs.preferredCelebrations = {};
+        gs.preferredCelebrations[String(pid)] = celebType;
+        console.log(`[HP CELEB] Oyuncu ${pid} bir sonraki gol sevinci tercihini kaydetti → ${celebType}`);
+    },
+
+    pickNextCelebration(gs, scorerPid) {
+        // 🎭 Sevinç havuzu
+        const pool = ["rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
+
+        // ✨ Gol atan oyuncunun 1/2 tercihi varsa onu kullan (Rastgele hariç)
+        if (scorerPid != null && gs.preferredCelebrations) {
+            const pref = gs.preferredCelebrations[String(scorerPid)];
+            if (pref && pref !== "random" && pool.includes(pref)) {
+                gs.lastChosenCelebration = pref;
+                console.log(`[HP CELEBRATION] Tercih edilen: ${pref}`);
+                return pref;
+            }
+        }
         
         // Eğer torba henüz kurulmadıysa ya da boşaldıysa yeniden doldur
         if (!gs.availableCelebrations || gs.availableCelebrations.length === 0) {
@@ -201,13 +223,14 @@ const HP = {  // Host Physics namespace
             
             if (wasGoalWait) {
                 const remainingWait = (gs.saved_goal_wait_remaining !== undefined) ? gs.saved_goal_wait_remaining : 10.0;
+                const rDuration = gs.last_goal_replay_duration || 10.0;
                 gs.state = "goal_wait";
                 gs.goal_wait_until = now + remainingWait;
                 gs.pause_time = now;
                 gs._silentGoalWait = true;
                 
-                if (remainingWait > 10.0) {
-                    const delayToReset = remainingWait - 10.0;
+                if (remainingWait > rDuration) {
+                    const delayToReset = remainingWait - rDuration;
                     gs._pendingKickoffReset = now + delayToReset;
                     gs._pendingCountdownStart = now + remainingWait;
                 } else {
@@ -368,7 +391,8 @@ const HP = {  // Host Physics namespace
                 last_kick_time: 0,
                 sprint_energy: this.SPRINT_MAX_ENERGY,
                 last_frame_time: 0,
-                team: "red"
+                team: "red",
+                jersey_number: pl.jersey_number // ✨ Forma numarasını kaydet
             };
         });
         // Tüm mavi oyuncular
@@ -381,7 +405,8 @@ const HP = {  // Host Physics namespace
                 last_kick_time: 0,
                 sprint_energy: this.SPRINT_MAX_ENERGY,
                 last_frame_time: 0,
-                team: "blue"
+                team: "blue",
+                jersey_number: pl.jersey_number // ✨ Forma numarasını kaydet
             };
         });
         
@@ -468,6 +493,11 @@ const HP = {  // Host Physics namespace
         gs.ball.y = cy;
         gs.ball.vx = 0;
         gs.ball.vy = 0;
+
+        // ✨ Patlama flag'lerini sonraki gol için temizle
+        for (const pid in gs.players) {
+            delete gs.players[pid]._exploded;
+        }
     },
     
     startKickoffCountdown() {
@@ -576,7 +606,8 @@ const HP = {  // Host Physics namespace
                 silent: gs._silentGoalWait === true,
                 speed: gs.last_goal_speed || 0,
                 dist: gs.last_goal_dist || 0,
-                skip_votes: gs.skip_votes || [] // ✨ İstemci kimin atladığını bilsin
+                skip_votes: gs.skip_votes || [], // ✨ İstemci kimin atladığını bilsin
+                replay_duration: gs.last_goal_replay_duration || 10.0 // ✨ Dinamik Replay Süresi
             };
         }
         
@@ -657,6 +688,9 @@ const HP = {  // Host Physics namespace
                 x: Math.round(pp.x * 100) / 100,
                 y: Math.round(pp.y * 100) / 100
             };
+            if (pp.jersey_number !== undefined) {
+                playerData.jersey_number = pp.jersey_number; // ✨ Forma numarasını pakete ekle (Misafirlerin görebilmesi için)
+            }
             // 🎉 Sevinç durumu ve iz noktaları
             if (pp.celebrating) {
                 playerData.celebrating = true;
@@ -854,13 +888,14 @@ const HP = {  // Host Physics namespace
         if (gs.state === "goal_wait") {
             // Sevinç bittiğinde (Replay başlarken) sevinç kuyruklarını temizle
             const waitRemaining = gs.goal_wait_until - now;
+            const rDuration = gs.last_goal_replay_duration || 10.0;
             
             // ✨ SKIP KONTROLÜ: Eğer herkes atladıysa ve 1 saniye geçtiyse süreyi hemen bitir!
             if (gs.skip_completed_time && now >= gs.skip_completed_time + 1.0) {
                 gs.goal_wait_until = now; // Anında santraya geçir
             }
             
-            if (waitRemaining <= 10.0) {
+            if (waitRemaining <= rDuration) {
                 for (const pid in gs.players) {
                     gs.players[pid].celebrating = false;
                     gs.players[pid].celebration_trail = [];
@@ -968,6 +1003,9 @@ const HP = {  // Host Physics namespace
                     accel = PLAYER_ACCEL;
                 } else if (celType === "frostbite") {
                     accel = PLAYER_ACCEL * 0.35;
+                } else if (celType === "spin_rush") {
+                    // ✨ Dönerek koşu: daha yüksek ivme
+                    accel = PLAYER_ACCEL * 2.6;
                 } else {
                     accel = PLAYER_ACCEL * 2.0;
                 }
@@ -983,9 +1021,14 @@ const HP = {  // Host Physics namespace
             // Max hız (sevinç sırasında 3x, sprint ile 4x)
             let maxSpeed = PLAYER_SPEED * (isSprinting ? ADV_SPRINT_MULT : 1.0);
             if (p.celebrating) {
-                maxSpeed *= 3.0;  // 🎉 Gol sevinci - 3 kat hız
-                if (isSprinting) {
-                    maxSpeed *= 1.3;  // 🎉 Sprint ile ekstra %30 (toplam ~4x)
+                if (celType === "spin_rush") {
+                    maxSpeed *= 3.8;  // ✨ spin_rush: daha hızlı
+                    if (isSprinting) maxSpeed *= 1.35;
+                } else {
+                    maxSpeed *= 3.0;  // 🎉 Gol sevinci - 3 kat hız
+                    if (isSprinting) {
+                        maxSpeed *= 1.3;  // 🎉 Sprint ile ekstra %30 (toplam ~4x)
+                    }
                 }
             }
             const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
@@ -1317,23 +1360,41 @@ const HP = {  // Host Physics namespace
             const dy = ball.y - originY;
             gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dx*dx + dy*dy) / 22));
             
+            // ⏱️ Dinamik Replay Süresi (1sn Başlangıç Donması + Gol Öncesi + 1.8sn Gol Sonrası)
+            const elapsedSinceStart = Math.max(0, this.settings.matchDuration - gs.time_left);
+            const actualReplaySec = 1.0 + Math.min(7.2, elapsedSinceStart) + 1.8;
+            gs.last_goal_replay_duration = actualReplaySec;
+
             gs.state = "goal_wait";
-            gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
+            gs.goal_wait_until = now + 5.0 + actualReplaySec;  // ✨ 5sn sevinç + dinamik replay süresi
             gs.pause_time = now;
             gs.skip_votes = [];               // ✨ Skip eden oyuncular
             gs.skip_completed_time = null;    // ✨ Herkes skip edince sayaç başlar
             
             // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
             if (!own && last) {
-                const chosenType = this.pickNextCelebration(gs);
+                const chosenType = this.pickNextCelebration(gs, last);
                 
                 if (chosenType === "grow_explode") {
-                    // 🎈 Balon Şişirme ise: GOL ATAN HARİÇ her oyuncu şişerek patlar!
-                    for (const pid in gs.players) {
-                        if (parseInt(pid) !== parseInt(last)) {
-                            this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
-                        }
+                    const scorerPid = parseInt(last, 10);
+                    const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                    
+                    const activePids = Object.keys(gs.players).map(id => parseInt(id, 10));
+                    const opponents = activePids.filter(pid => gs.players[pid].team !== scorerTeam);
+                    const teammates = activePids.filter(pid => gs.players[pid].team === scorerTeam && pid !== scorerPid);
+                    
+                    let targets = [];
+                    if (opponents.length > 0) {
+                        targets = opponents; // Senaryo 1: Rakip varsa sadece rakipler şişer
+                    } else if (teammates.length > 0) {
+                        targets = teammates; // Senaryo 2: Rakip yoksa gol atan hariç takım arkadaşı şişer
+                    } else {
+                        targets = [scorerPid]; // Senaryo 3: Tamamen yalnızsa kendisi şişer
                     }
+                    
+                    targets.forEach(pid => {
+                        this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                    });
                 } else {
                     // Diğer klasik sevinçler ise sadece gol atana verilir
                     if (gs.players[last]) {
@@ -1397,7 +1458,7 @@ const HP = {  // Host Physics namespace
         if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
         if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
         
-        // Oyuncu-oyuncu çarpışma (iteleme yok)
+        // Oyuncu-oyuncu çarpışma (iteleme yok + temas anında patlama)
         const playerList = Object.entries(gs.players);
         for (let i = 0; i < playerList.length; i++) {
             for (let j = i + 1; j < playerList.length; j++) {
@@ -1406,8 +1467,44 @@ const HP = {  // Host Physics namespace
                 const dx = p2.x - p1.x;
                 const dy = p2.y - p1.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                const minDist = this.PLAYER_RADIUS * 2;
+                
+                // Şişen balonların gerçek Yarıçapı
+                let r1 = this.PLAYER_RADIUS;
+                let r2 = this.PLAYER_RADIUS;
+                if (p1.celebrating && p1.celebration_type === "grow_explode") {
+                    const el1 = Math.max(0, now - (p1.celebration_start || now));
+                    if (el1 < 3.8) r1 = this.PLAYER_RADIUS * (1.0 + Math.min(1.0, el1 / 3.8) * 2.6);
+                }
+                if (p2.celebrating && p2.celebration_type === "grow_explode") {
+                    const el2 = Math.max(0, now - (p2.celebration_start || now));
+                    if (el2 < 3.8) r2 = this.PLAYER_RADIUS * (1.0 + Math.min(1.0, el2 / 3.8) * 2.6);
+                }
+
+                const minDist = r1 + r2;
                 if (dist < minDist && dist > 0) {
+                    // 💥 TEMAS ANINDA PATLAMA (SADECE SPIN_RUSH SEVİNCİ YAPANLAR PATLATABİLİR)
+                    if (gs.state === "goal_wait") {
+                        const p1IsSpinning = p1.celebrating && p1.celebration_type === "spin_rush";
+                        const p2IsSpinning = p2.celebrating && p2.celebration_type === "spin_rush";
+
+                        // p1 "spin_rush" yapıyorsa ve p2'ye çarptıysa -> SADECE p2 patlar ve yok olur!
+                        if (p1IsSpinning && !p2._exploded) {
+                            p2.celebrating = true;
+                            p2.celebration_type = "grow_explode";
+                            p2.celebration_start = now - 3.8; // Anında patlama evresine geçir
+                            p2.celebration_until = gs.goal_wait_until || (now + 15.0); // Santraya kadar görünmez kalsın
+                            p2._exploded = true;
+                        }
+                        // p2 "spin_rush" yapıyorsa ve p1'e çarptıysa -> SADECE p1 patlar ve yok olur!
+                        if (p2IsSpinning && !p1._exploded) {
+                            p1.celebrating = true;
+                            p1.celebration_type = "grow_explode";
+                            p1.celebration_start = now - 3.8; // Anında patlama evresine geçir
+                            p1.celebration_until = gs.goal_wait_until || (now + 15.0); // Santraya kadar görünmez kalsın
+                            p1._exploded = true;
+                        }
+                    }
+
                     const overlap = minDist - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
@@ -1919,21 +2016,39 @@ const HP = {  // Host Physics namespace
                 const dyG = ball.y - originYG;
                 gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
 
+                // ⏱️ Dinamik Replay Süresi (1sn Başlangıç Donması + Gol Öncesi + 1.8sn Gol Sonrası)
+                const elapsedSinceStartG = Math.max(0, this.settings.matchDuration - gs.time_left);
+                const actualReplaySecG = 1.0 + Math.min(7.2, elapsedSinceStartG) + 1.8;
+                gs.last_goal_replay_duration = actualReplaySecG;
+
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
+                gs.goal_wait_until = now + 5.0 + actualReplaySecG;  // ✨ 5sn sevinç + dinamik replay süresi
                 gs.pause_time = now;
                 
                 // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
                 if (!own && last) {
-                    const chosenType = this.pickNextCelebration(gs);
+                    const chosenType = this.pickNextCelebration(gs, last);
                     
                     if (chosenType === "grow_explode") {
-                        // 🎈 Balon Şişirme ise: GOL ATAN HARİÇ herkes şişerek patlar!
-                        for (const pid in gs.players) {
-                            if (parseInt(pid) !== parseInt(last)) {
-                                this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
-                            }
+                        const scorerPid = parseInt(last, 10);
+                        const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                        
+                        const activePids = Object.keys(gs.players).map(id => parseInt(id, 10));
+                        const opponents = activePids.filter(pid => gs.players[pid].team !== scorerTeam);
+                        const teammates = activePids.filter(pid => gs.players[pid].team === scorerTeam && pid !== scorerPid);
+                        
+                        let targets = [];
+                        if (opponents.length > 0) {
+                            targets = opponents;
+                        } else if (teammates.length > 0) {
+                            targets = teammates;
+                        } else {
+                            targets = [scorerPid];
                         }
+                        
+                        targets.forEach(pid => {
+                            this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                        });
                     } else {
                         if (gs.players[last]) {
                             this.selectGoalCelebration(gs.players[last], now, chosenType);
@@ -1943,12 +2058,13 @@ const HP = {  // Host Physics namespace
                 
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
             } else if (!ballInLeftGoalMouth) {
-                // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin
+                // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin (düz gitsin)
                 ball.x = this.BALL_RADIUS;
                 ball.vx = -ball.vx * this.WALL_BOUNCE;
                 if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = this.MIN_BOUNCE_SPEED;
                 ball.vy *= 0.9;
-                ball.spin = (ball.spin || 0) * 0.5;
+                ball.spin = 0;
+                ball.last_kick_type = null;
                 gs.hit_events.push({ type: "wall", time: now });
             }
         }
@@ -2005,26 +2121,55 @@ const HP = {  // Host Physics namespace
                 const dyG = ball.y - originYG;
                 gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
 
+                // ⏱️ Dinamik Replay Süresi (1sn Başlangıç Donması + Gol Öncesi + 1.8sn Gol Sonrası)
+                const elapsedSinceStartG = Math.max(0, this.settings.matchDuration - gs.time_left);
+                const actualReplaySecG = 1.0 + Math.min(7.2, elapsedSinceStartG) + 1.8;
+                gs.last_goal_replay_duration = actualReplaySecG;
+
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 15.0;  // ✨ 15 saniye (5sn sevinç + 10sn replay)
+                gs.goal_wait_until = now + 5.0 + actualReplaySecG;  // ✨ 5sn sevinç + dinamik replay süresi
                 gs.pause_time = now;
                 
-                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE gol atana sevinç ver
-            if (!own && last && gs.players[last]) {
-                gs.players[last].celebrating = true;
-                gs.players[last].celebration_until = now + 5.0;
-                    gs.players[last].celebration_trail = [];
-                    gs.players[last].celebration_start = now;
+                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
+                if (!own && last) {
+                    const chosenType = this.pickNextCelebration(gs, last);
+                    
+                    if (chosenType === "grow_explode") {
+                        const scorerPid = parseInt(last, 10);
+                        const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                        
+                        const activePids = Object.keys(gs.players).map(id => parseInt(id, 10));
+                        const opponents = activePids.filter(pid => gs.players[pid].team !== scorerTeam);
+                        const teammates = activePids.filter(pid => gs.players[pid].team === scorerTeam && pid !== scorerPid);
+                        
+                        let targets = [];
+                        if (opponents.length > 0) {
+                            targets = opponents;
+                        } else if (teammates.length > 0) {
+                            targets = teammates;
+                        } else {
+                            targets = [scorerPid];
+                        }
+                        
+                        targets.forEach(pid => {
+                            this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                        });
+                    } else {
+                        if (gs.players[last]) {
+                            this.selectGoalCelebration(gs.players[last], now, chosenType);
+                        }
+                    }
                 }
                 
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
             } else if (!ballInRightGoalMouth) {
-                // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin
+                // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin (düz gitsin)
                 ball.x = this.FIELD_WIDTH - this.BALL_RADIUS;
                 ball.vx = -ball.vx * this.WALL_BOUNCE;
                 if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = -this.MIN_BOUNCE_SPEED;
                 ball.vy *= 0.9;
-                ball.spin = (ball.spin || 0) * 0.5;
+                ball.spin = 0;
+                ball.last_kick_type = null;
                 gs.hit_events.push({ type: "wall", time: now });
             }
         }
@@ -2076,7 +2221,8 @@ const HP = {  // Host Physics namespace
                 ball.vy = -ball.vy * this.WALL_BOUNCE;
                 if (Math.abs(ball.vy) < this.MIN_BOUNCE_SPEED) ball.vy = this.MIN_BOUNCE_SPEED;
                 ball.vx *= 0.9;
-                ball.spin = (ball.spin || 0) * 0.5;
+                ball.spin = 0;
+                ball.last_kick_type = null;
                 gs.hit_events.push({ type: "wall", time: now });
             }
             if (ball.y + this.BALL_RADIUS >= this.FIELD_HEIGHT) {
@@ -2084,7 +2230,8 @@ const HP = {  // Host Physics namespace
                 ball.vy = -ball.vy * this.WALL_BOUNCE;
                 if (Math.abs(ball.vy) < this.MIN_BOUNCE_SPEED) ball.vy = -this.MIN_BOUNCE_SPEED;
                 ball.vx *= 0.9;
-                ball.spin = (ball.spin || 0) * 0.5;
+                ball.spin = 0;
+                ball.last_kick_type = null;
                 gs.hit_events.push({ type: "wall", time: now });
             }
         }
@@ -2112,7 +2259,8 @@ const HP = {  // Host Physics namespace
                         ball.vy = (ball.vy - 2 * dot * ny) * 0.75;
                         gs.hit_events.push({ type: "post", time: now });
                     }
-                    ball.spin = (ball.spin || 0) * 0.3;
+                    ball.spin = 0;
+                    ball.last_kick_type = null;
                 }
             }
         }

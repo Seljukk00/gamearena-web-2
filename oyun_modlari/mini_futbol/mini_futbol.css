@@ -1086,3 +1086,221 @@
     }
 
     /* Oyun ekranını tam pencere yap, footer vb. her şeyin GİZLENMESİ/ALTTA KALMASI için */
+
+
+/* ========================================
+   🎉 GOL SEVİNCİ SEÇİCİ (1 / 2 tuşları)
+   ======================================== */
+
+#miniCelebPicker {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%) translateY(120%);
+    z-index: 10020;
+    width: min(920px, calc(100vw - 24px));
+    pointer-events: none;
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+#miniCelebPicker.open {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.miniCelebPickerInner {
+    background: linear-gradient(180deg, rgba(16, 20, 36, 0.92), rgba(10, 12, 22, 0.96));
+    border: 2px solid rgba(255, 212, 59, 0.45);
+    border-radius: 18px;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.55),
+        0 0 40px rgba(255, 212, 59, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    padding: 12px 14px 14px;
+    backdrop-filter: blur(10px);
+}
+
+.miniCelebPickerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+}
+
+.miniCelebPickerTitle {
+    color: #ffd43b;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    text-shadow: 0 0 12px rgba(255, 212, 59, 0.35);
+}
+
+.miniCelebPickerHint {
+    color: #adb5bd;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.miniCelebPickerHint kbd {
+    display: inline-block;
+    min-width: 18px;
+    padding: 1px 6px;
+    margin: 0 2px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    font-size: 11px;
+    font-family: inherit;
+    text-align: center;
+}
+
+.miniCelebTrackWrap {
+    overflow: hidden;
+    position: relative;
+    padding: 6px 0 2px;
+}
+
+.miniCelebTrack {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.miniCelebCard {
+    flex: 0 0 200px;
+    width: 200px;
+    min-height: 118px;
+    border-radius: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(160deg, rgba(40, 48, 72, 0.95), rgba(22, 26, 40, 0.98));
+    padding: 12px 12px 10px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    opacity: 0.55;
+    transform: scale(0.92);
+    transition: transform 0.3s ease, opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    cursor: default;
+    user-select: none;
+}
+
+.miniCelebCard::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.08), transparent 55%);
+    pointer-events: none;
+}
+
+.miniCelebCard.active {
+    opacity: 1;
+    transform: scale(1.05);
+    border-color: #ffd43b;
+    box-shadow:
+        0 0 0 1px rgba(255, 212, 59, 0.35),
+        0 8px 28px rgba(255, 212, 59, 0.25),
+        0 0 24px rgba(255, 212, 59, 0.15);
+    z-index: 2;
+}
+
+.miniCelebCardIcon {
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+}
+
+.miniCelebCardName {
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 4px;
+    letter-spacing: 0.2px;
+}
+
+.miniCelebCardDesc {
+    color: #adb5bd;
+    font-size: 11.5px;
+    line-height: 1.35;
+    font-weight: 500;
+}
+
+.miniCelebCard.active .miniCelebCardName {
+    color: #ffd43b;
+}
+
+.miniCelebCardBadge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #0b1020;
+    background: #ffd43b;
+    border-radius: 999px;
+    padding: 2px 7px;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.25s ease;
+}
+
+.miniCelebCard.active .miniCelebCardBadge {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Kart renk temaları */
+.miniCelebCard[data-type="random"] { border-color: rgba(255, 212, 59, 0.4); }
+            .miniCelebCard.active[data-type="random"] {
+                border-color: #ffd43b;
+                box-shadow: 0 0 16px rgba(255, 212, 59, 0.6);
+            }
+            .miniCelebCard[data-type="spin_rush"] { border-color: rgba(255, 107, 107, 0.35); }
+.miniCelebCard[data-type="grow_explode"] { border-color: rgba(81, 207, 102, 0.35); }
+.miniCelebCard[data-type="rainbow_trail"] { border-color: rgba(190, 75, 255, 0.35); }
+.miniCelebCard[data-type="spotlight"] { border-color: rgba(255, 255, 255, 0.28); }
+.miniCelebCard[data-type="frostbite"] { border-color: rgba(77, 171, 247, 0.4); }
+
+.miniCelebCard.active[data-type="spin_rush"] {
+    border-color: #ff6b6b;
+    box-shadow: 0 0 24px rgba(255, 107, 107, 0.35);
+}
+.miniCelebCard.active[data-type="grow_explode"] {
+    border-color: #51cf66;
+    box-shadow: 0 0 24px rgba(81, 207, 102, 0.3);
+}
+.miniCelebCard.active[data-type="rainbow_trail"] {
+    border-color: #cc5de8;
+    box-shadow: 0 0 24px rgba(190, 75, 255, 0.3);
+}
+.miniCelebCard.active[data-type="spotlight"] {
+    border-color: #fff;
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.25);
+}
+.miniCelebCard.active[data-type="frostbite"] {
+    border-color: #4dabf7;
+    box-shadow: 0 0 24px rgba(77, 171, 247, 0.3);
+}
+
+@media (max-width: 700px) {
+    .miniCelebCard {
+        flex-basis: 160px;
+        width: 160px;
+        min-height: 108px;
+    }
+    .miniCelebPickerTitle { font-size: 13px; }
+    .miniCelebPickerHint { font-size: 11px; }
+}
+
+/* Oyun ekranı değilse gizle */
+body:not(.mini-game-active) #miniCelebPicker {
+    display: none !important;
+}

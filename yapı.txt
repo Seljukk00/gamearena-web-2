@@ -18,162 +18,162 @@ GameArena_Web/
 ├── requirements.txt
 ├── runtime.txt
 ├── render.yaml
-├── .env                          (GEMINI_API_KEY + TURNSTILE_SECRET + SELJUK_PASSWORD)
+├── .env (GEMINI_API_KEY + TURNSTILE_SECRET + SELJUK_PASSWORD)
 ├── .gitignore
 ├── yapı.txt
-├── venv/                         (Python 3.12 sanal ortam - dokunma)
+├── venv/ (Python 3.12 sanal ortam - dokunma)
 │
 ├── batlar/
-│   ├── guncelle_ve_gonder.bat
-│   └── test_lokal.bat
+│ ├── guncelle_ve_gonder.bat
+│ └── test_lokal.bat
 │
-├── mod_resimleri/                (10 mod PNG — meme_arena.png yok!)
-│   ├── bil_bakalim.png
-│   ├── gizemli_kariyer.png
-│   ├── haritadan_bul.png
-│   ├── ilk_11.png
-│   ├── jokerli_satranc.png
-│   ├── kim_milyoner.png
-│   ├── mini_futbol.png
-│   ├── sarkidan_bul.png
-│   ├── stadyum_tanima.png
-│   └── takim_bilmece.png
+├── mod_resimleri/ (10 mod PNG — meme_arena.png yok!)
+│ ├── bil_bakalim.png
+│ ├── gizemli_kariyer.png
+│ ├── haritadan_bul.png
+│ ├── ilk_11.png
+│ ├── jokerli_satranc.png
+│ ├── kim_milyoner.png
+│ ├── mini_futbol.png
+│ ├── sarkidan_bul.png
+│ ├── stadyum_tanima.png
+│ └── takim_bilmece.png
 │
 ├── static/
-│   ├── ads.txt
-│   ├── index.html
-│   ├── style.css
-│   ├── app.js
-│   ├── images/                   (600+ futbolcu resmi .webp — futbolcu portreleri)
-│   │                             Örnek: messi.webp, ronaldo.webp, hakansukur.webp vb.
-│   └── sounds/                   (3 global ses)
-│       ├── chat_notify.mp3       (Rakip chat mesaj bildirimi)
-│       ├── player_join.mp3       (Oyuncu odaya girdiğinde)
-│       ├── player_leave.mp3      (Oyuncu odadan çıktığında)
-│       ├── game_correct.mp3
-│       └── game_wrong.mp3
+│ ├── ads.txt
+│ ├── index.html
+│ ├── style.css
+│ ├── app.js
+│ ├── images/ (600+ futbolcu resmi .webp — futbolcu portreleri)
+│ │ Örnek: messi.webp, ronaldo.webp, hakansukur.webp vb.
+│ └── sounds/ (3 global ses)
+│ ├── chat_notify.mp3 (Rakip chat mesaj bildirimi)
+│ ├── player_join.mp3 (Oyuncu odaya girdiğinde)
+│ ├── player_leave.mp3 (Oyuncu odadan çıktığında)
+│ ├── game_correct.mp3
+│ └── game_wrong.mp3
 │
 └── oyun_modlari/
-    ├── __init__.py
-    │
-    ├── bil_bakalim/
-    │   ├── __init__.py
-    │   ├── bil_bakalim_handler.py
-    │   ├── footballers.py
-    │   └── questions.py
-    │
-    ├── takim_bilmece/
-    │   ├── __init__.py
-    │   ├── takim_bilmece.css
-    │   ├── takim_bilmece.js
-    │   ├── takim_handler.py
-    │   ├── teams.py
-    │   └── flags/                (58 ülke bayrağı .png — turkiye, almanya, brezilya vb.)
-    │
-    ├── kim_milyoner/
-    │   ├── __init__.py
-    │   ├── ai_soru_uretici.py
-    │   ├── kim_milyoner.css
-    │   ├── kim_milyoner.js
-    │   ├── milyoner_handler.py
-    │   ├── questions.py
-    │   └── assets/               (4 ses dosyası)
-    │       ├── correct.mp3
-    │       ├── menu.mp3
-    │       ├── question.WAV
-    │       └── wrong.mp3
-    │
-    ├── haritadan_bul/
-    │   ├── __init__.py
-    │   ├── haritadan_bul.css
-    │   ├── haritadan_bul.js
-    │   ├── harita_data.py
-    │   ├── harita_handler.py
-    │   ├── world.svg
-    │   └── flags/                (250+ ülke bayrağı .svg — ISO kodları: tr.svg, de.svg vb.)
-    │
-    ├── gizemli_kariyer/
-    │   ├── __init__.py
-    │   ├── futbolcular.py
-    │   ├── gizemli_kariyer.css
-    │   ├── gizemli_kariyer.js
-    │   ├── gizem_handler.py
-    │   ├── takimlar.py
-    │   └── takim_logolari/       (270+ kulüp logosu .png — galatasaray, real_madrid vb.)
-    │
-    ├── ilk_11_challenge/
-    │   ├── __init__.py
-    │   ├── ilk11_handler.py
-    │   ├── ilk_11.css
-    │   └── ilk_11.js
-    │
-    ├── stadyum_tanima/
-    │   ├── __init__.py
-    │   ├── stadyum.py
-    │   ├── stadyumlar.py
-    │   ├── stadyum_handler.py
-    │   ├── stadyum_tanima.css
-    │   ├── stadyum_tanima.js
-    │   └── images/               (48 stadyum .webp — camp_nou, ali_sami_yen vb.)
-    │
-    ├── sarkidan_bul/
-    │   ├── __init__.py
-    │   ├── deezer_api.py
-    │   ├── playlists.py
-    │   ├── sarkidan_bul.css
-    │   ├── sarkidan_bul.js
-    │   └── sarki_handler.py
-    │
-    ├── mini_futbol/
-    │   ├── __init__.py
-    │   ├── mini_futbol.css
-    │   ├── mini_futbol.js
-    │   ├── mini_futbol_handler.py
-    │   ├── mini_futbol_host_physics.js
-    │   ├── mini_futbol_ticker.js
-    │   └── sounds/
-    │       ├── whistle.wav, whistle2.wav
-    │       ├── kick_1.wav, kick_2.wav
-    │       ├── fire_kick_1.wav, fire_kick_2.wav, fire_kick_3.wav
-    │       ├── goal_1.wav, goal_2.wav, goal_3.wav
-    │       ├── own_goal.wav
-    │       ├── post_hit.wav
-    │       ├── wall_hit_1.wav, wall_hit_2.wav
-    │       └── Goal_Songs/       (goal_song_1.mp3 → goal_song_12.mp3)
-    │
-    └── jokerli_satranc/
-        ├── __init__.py
-        ├── ayarlar.py            (Ayar sabitleri)
-        ├── jokerler.py           (30 joker tanımı)
-        ├── jokerli_satranc.css
-        ├── jokerli_satranc.js
-        ├── satranc_handler.py    (~3000 satır)
-        ├── vendor/               (chessboard.js + chess.js + jQuery)
-        │   ├── chess.min.js
-        │   ├── chessboard-1.0.0.css / .min.css
-        │   ├── chessboard-1.0.0.js / .min.js
-        │   ├── jquery-3.7.1.min.js
-        │   └── img/chesspieces/wikipedia/
-        │       └── (bB.png, bK.png, bN.png, bP.png, bQ.png, bR.png + w karşılıkları)
-        └── sounds/               (18 ses dosyası)
-            ├── carkifelek.wav
-            ├── tas_hareket.wav
-            ├── tas_yeme.wav
-            ├── bomba.wav
-            ├── oyun_baslangic.wav
-            ├── oyun_bitti.wav
-            ├── isinlanma.wav
-            ├── sah.wav
-            ├── kasa_acilma.wav
-            ├── rulet.mp3
-            ├── zar.mp3
-            ├── joker_secildi.mp3
-            ├── joker_iptal.mp3
-            ├── joker_onay.mp3
-            ├── kalkan_1.mp3
-            ├── kalkan_2.mp3
-            ├── kilit.mp3
-            └── geri_al.mp3
+├── init.py
+│
+├── bil_bakalim/
+│ ├── init.py
+│ ├── bil_bakalim_handler.py
+│ ├── footballers.py
+│ └── questions.py
+│
+├── takim_bilmece/
+│ ├── init.py
+│ ├── takim_bilmece.css
+│ ├── takim_bilmece.js
+│ ├── takim_handler.py
+│ ├── teams.py
+│ └── flags/ (58 ülke bayrağı .png — turkiye, almanya, brezilya vb.)
+│
+├── kim_milyoner/
+│ ├── init.py
+│ ├── ai_soru_uretici.py
+│ ├── kim_milyoner.css
+│ ├── kim_milyoner.js
+│ ├── milyoner_handler.py
+│ ├── questions.py
+│ └── assets/ (4 ses dosyası)
+│ ├── correct.mp3
+│ ├── menu.mp3
+│ ├── question.WAV
+│ └── wrong.mp3
+│
+├── haritadan_bul/
+│ ├── init.py
+│ ├── haritadan_bul.css
+│ ├── haritadan_bul.js
+│ ├── harita_data.py
+│ ├── harita_handler.py
+│ ├── world.svg
+│ └── flags/ (250+ ülke bayrağı .svg — ISO kodları: tr.svg, de.svg vb.)
+│
+├── gizemli_kariyer/
+│ ├── init.py
+│ ├── futbolcular.py
+│ ├── gizemli_kariyer.css
+│ ├── gizemli_kariyer.js
+│ ├── gizem_handler.py
+│ ├── takimlar.py
+│ └── takim_logolari/ (270+ kulüp logosu .png — galatasaray, real_madrid vb.)
+│
+├── ilk_11_challenge/
+│ ├── init.py
+│ ├── ilk11_handler.py
+│ ├── ilk_11.css
+│ └── ilk_11.js
+│
+├── stadyum_tanima/
+│ ├── init.py
+│ ├── stadyum.py
+│ ├── stadyumlar.py
+│ ├── stadyum_handler.py
+│ ├── stadyum_tanima.css
+│ ├── stadyum_tanima.js
+│ └── images/ (48 stadyum .webp — camp_nou, ali_sami_yen vb.)
+│
+├── sarkidan_bul/
+│ ├── init.py
+│ ├── deezer_api.py
+│ ├── playlists.py
+│ ├── sarkidan_bul.css
+│ ├── sarkidan_bul.js
+│ └── sarki_handler.py
+│
+├── mini_futbol/
+│ ├── init.py
+│ ├── mini_futbol.css
+│ ├── mini_futbol.js
+│ ├── mini_futbol_handler.py
+│ ├── mini_futbol_host_physics.js
+│ ├── mini_futbol_ticker.js
+│ └── sounds/
+│ ├── whistle.wav, whistle2.wav
+│ ├── kick_1.wav, kick_2.wav
+│ ├── fire_kick_1.wav, fire_kick_2.wav, fire_kick_3.wav
+│ ├── goal_1.wav, goal_2.wav, goal_3.wav
+│ ├── own_goal.wav
+│ ├── post_hit.wav
+│ ├── wall_hit_1.wav, wall_hit_2.wav
+│ └── Goal_Songs/ (goal_song_1.mp3 → goal_song_12.mp3)
+│
+└── jokerli_satranc/
+├── init.py
+├── ayarlar.py (Ayar sabitleri)
+├── jokerler.py (30 joker tanımı)
+├── jokerli_satranc.css
+├── jokerli_satranc.js
+├── satranc_handler.py (~3000 satır)
+├── vendor/ (chessboard.js + chess.js + jQuery)
+│ ├── chess.min.js
+│ ├── chessboard-1.0.0.css / .min.css
+│ ├── chessboard-1.0.0.js / .min.js
+│ ├── jquery-3.7.1.min.js
+│ └── img/chesspieces/wikipedia/
+│ └── (bB.png, bK.png, bN.png, bP.png, bQ.png, bR.png + w karşılıkları)
+└── sounds/ (18 ses dosyası)
+├── carkifelek.wav
+├── tas_hareket.wav
+├── tas_yeme.wav
+├── bomba.wav
+├── oyun_baslangic.wav
+├── oyun_bitti.wav
+├── isinlanma.wav
+├── sah.wav
+├── kasa_acilma.wav
+├── rulet.mp3
+├── zar.mp3
+├── joker_secildi.mp3
+├── joker_iptal.mp3
+├── joker_onay.mp3
+├── kalkan_1.mp3
+├── kalkan_2.mp3
+├── kilit.mp3
+└── geri_al.mp3
 
 🎯 11 MOD - TÜMÜ AKTİF ✅
 
@@ -195,19 +195,19 @@ Meme Arena
 ✅ P2P 60 FPS Yayın: netSkip sınırlaması kaldırıldı, host her zaman 60 FPS sabit veri gönderiyor.
 ✅ Replay Skip (Atla) Sistemi: Replay başladığında ekranın altında arkaplansız, ortalanmış şık oyuncu hapları çıkıyor. SADECE ENTER tuşu ile atlama yapılıyor, basanın ismi anında siliniyor. Herkes atlayınca 1sn bekleyip santraya geçiyor. Gol sevinci sırasında (ilk 5sn) tuş kilitlenmiyor, hareket serbest.
 ✅ Maçın Yıldızı (MVP) & Sığdırma Fix: Üstteki kaba MVP kartı kaldırıldı, maçı kazandıran MVP oyuncusunun satırı scoreboard'da altın sarısı çerçeve ve parlama kazanıyor. Uzun isimler kesilmeden font küçültülerek tek satırda kusursuz sığıyor.
-✅ Milli Takım & 4 Büyükler Formaları: 
-   - 🇹🇷 Türkiye: Bayrak kırmızısı + Göğüste Ay-Yıldız.
-   - 🇦🇿 Azerbaycan: Mavi-Kırmızı-Yeşil 3 şeritli bayrak forma + Hilal & 8 Köşeli Yıldız.
-   - 🦅 Beşiktaş: Siyah-Beyaz Çubuklu + Kırmızı Amblem.
-   - 🦁 Galatasaray: Efsanevi Sarı-Kırmızı Parçalı Forma.
-   - 🐤 Fenerbahçe: Sarı-Lacivert Çubuklu.
-   - 🌊 Trabzonspor: Bordo-Mavi Çubuklu.
-   - 4 Büyükler seçildiğinde oyuncuların üzerinde efsanevi forma numaraları (10, 7, 9, 11...) yazıyor.
-✅ Özel Kuyruk Renkleri: `rainbow_trail` gol sevinci geldiğinde forma seçiliyse kuyruk gökkuşağı değil, takımın öz renklerinde (örn: FB için Sarı-Lacivert, GS için Sarı-Kırmızı, BJK için Siyah-Beyaz) yanıp sönüyor.
+✅ Milli Takım & 4 Büyükler Formaları:
+
+🇹🇷 Türkiye: Bayrak kırmızısı + Göğüste Ay-Yıldız.
+🇦🇿 Azerbaycan: Mavi-Kırmızı-Yeşil 3 şeritli bayrak forma + Hilal & 8 Köşeli Yıldız.
+🦅 Beşiktaş: Siyah-Beyaz Çubuklu + Kırmızı Amblem.
+🦁 Galatasaray: Efsanevi Sarı-Kırmızı Parçalı Forma.
+🐤 Fenerbahçe: Sarı-Lacivert Çubuklu.
+🌊 Trabzonspor: Bordo-Mavi Çubuklu.
+4 Büyükler seçildiğinde oyuncuların üzerinde efsanevi forma numaraları (10, 7, 9, 11...) yazıyor.
+✅ Özel Kuyruk Renkleri: rainbow_trail gol sevinci geldiğinde forma seçiliyse kuyruk gökkuşağı değil, takımın öz renklerinde (örn: FB için Sarı-Lacivert, GS için Sarı-Kırmızı, BJK için Siyah-Beyaz) yanıp sönüyor.
 ✅ Dinamik Takım Başlığı: Takım düzenleme penceresinde başlık girilen takım adına göre anlık güncelleniyor (örn: Beşiktaş Ayarları). Hazır takımlardan Türkiye/Azerbaycan seçildiğinde menüye her girişte seçili kalıyor.
 ✅ Akıllı HUD Gölgesi: Siyah/Koyu renkli takımlarda (Beşiktaş vb.) üst skordaki isimlerin arkasına otomatik beyaz parlama ekleniyor, her renkte net okunuyor.
 ✅ Torbalı Gol Sevinçleri: Torba sistemiyle (grow_explode, rainbow_trail, spotlight, frostbite) sevinçler asla üst üste çakışmıyor. Balon sevinci geldiğinde golü atan hariç herkes 3D parlak balona dönüşüp esneyerek patlıyor.
-
 ♟️ JOKERLİ SATRANÇ - v10 GÜNCEL DURUM
 
 Yenilen Taşlar Paneli: Sol dışta yeşil "Yediklerim", sağ dışta kırmızı "Kaybettiklerim". Toplam sayaç. Her hamlede anlık güncellenir.
@@ -266,14 +266,16 @@ Seljuk şifre: .env'den, 3 yanlış → 1 saat lokal kilit
 Aynı isim kontrolü (v10)
 
 🎯 ÇALIŞMA KURALLARI
-1. KODLARI TAM OKU: Kod yazmadan önce sana gönderilen dosyayı eksiksiz oku.
-2. BUL ve DEĞİŞTİR FORMATI:
-   - Kod değişikliklerini SADECE ve SADECE eksiksiz BUL ve DEĞİŞTİR blokları halinde ver.
-   - Asla kodun ortasını kesip `...` koyma.
-3. KULLANICI NOTEPAD++ KULLANIYOR: Kullanıcı koda müdahale etmiyor, tam kopyala-yapıştır yapabilmesi için BUL bloğu mevcut koddakiyle birebir aynı olmak zorunda.
-4. ADIM ADIM İLERLE: Büyük değişiklikleri parçalara böl, kullanıcı "bekle" derse bekle, test etmesini iste.
-5. SAMİMİ VE TÜRKÇE DİL: Türkçe, dostane ve net konuş.
-6. TEST ETMEDEN PUSH İSTEME: `batlar/test_lokal.bat` ile yerelde test ettirmeden GitHub'a attırma.
 
+KODLARI TAM OKU: Kod yazmadan önce sana gönderilen dosyayı eksiksiz oku.
+BUL ve DEĞİŞTİR FORMATI:
+Kod değişikliklerini SADECE ve SADECE eksiksiz BUL ve DEĞİŞTİR blokları halinde ver.
+Asla kodun ortasını kesip ... koyma.
+KULLANICI NOTEPAD++ KULLANIYOR: Kullanıcı koda müdahale etmiyor, tam kopyala-yapıştır yapabilmesi için BUL bloğu mevcut koddakiyle birebir aynı olmak zorunda.
+ADIM ADIM İLERLE: Büyük değişiklikleri parçalara böl, kullanıcı "bekle" derse bekle, test etmesini iste.
+SAMİMİ VE TÜRKÇE DİL: Türkçe, dostane ve net konuş.
+TEST ETMEDEN PUSH İSTEME: batlar/test_lokal.bat ile yerelde test ettirmeden GitHub'a attırma.
+7.sana 2.part bekle,3.part bekle,4.part bekle, 5.part bekle gibi şeyler dersem bekle kod verme bana en son partlar bitince ver bul değiştir kodunu
+8.kodları notepad için ver bul değiştirde bulabilsin hatalı kesik kod istemiyorum
 🎬 YEREL ÇALIŞTIRMA
 batlar/test_lokal.bat → http://127.0.0.1:8000
