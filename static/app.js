@@ -4140,17 +4140,17 @@ document.getElementById("roomSettingsBtn").onclick = () => {
 // ==========================================
 
 const ALL_MODES = [
-    { id: "bil_bakalim", name: "Bil Bakalım", img: "/mod_resimleri/bil_bakalim.png", desc: "Klasik futbolcu tahmin oyunu", maxPlayers: 2 },
-    { id: "takim_bilmece", name: "Takım Bilmece", img: "/mod_resimleri/takim_bilmece.png", desc: "11 oyuncudan takımı bul", maxPlayers: 5 },
-    { id: "kim_milyoner", name: "Kim Milyoner?", img: "/mod_resimleri/kim_milyoner.png", desc: "Milyoner tarzı bilgi yarışması", maxPlayers: 5 },
-    { id: "ilk_11_challenge", name: "İlk 11 Challenge", img: "/mod_resimleri/ilk_11.png", desc: "4-3-3 kadroyu kur, rakibi yen", maxPlayers: 2 },
-    { id: "gizemli_kariyer", name: "Gizemli Kariyer", img: "/mod_resimleri/gizemli_kariyer.png", desc: "Kariyerden futbolcuyu bul", maxPlayers: 5 },
-    { id: "haritadan_bul", name: "Haritadan Bul", img: "/mod_resimleri/haritadan_bul.png", desc: "Ülkeyi haritada göster", maxPlayers: 5 },
-    { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.png", desc: "Stadyumu gör, 4 şık arasından bul", maxPlayers: 5 },
+    { id: "bil_bakalim", name: "Bil Bakalım", img: "/mod_resimleri/bil_bakalim.webp", desc: "Klasik futbolcu tahmin oyunu", maxPlayers: 2 },
+    { id: "takim_bilmece", name: "Takım Bilmece", img: "/mod_resimleri/takim_bilmece.webp", desc: "11 oyuncudan takımı bul", maxPlayers: 5 },
+    { id: "kim_milyoner", name: "Kim Milyoner?", img: "/mod_resimleri/kim_milyoner.webp", desc: "Milyoner tarzı bilgi yarışması", maxPlayers: 5 },
+    { id: "ilk_11_challenge", name: "İlk 11 Challenge", img: "/mod_resimleri/ilk_11.webp", desc: "4-3-3 kadroyu kur, rakibi yen", maxPlayers: 2 },
+    { id: "gizemli_kariyer", name: "Gizemli Kariyer", img: "/mod_resimleri/gizemli_kariyer.webp", desc: "Kariyerden futbolcuyu bul", maxPlayers: 5 },
+    { id: "haritadan_bul", name: "Haritadan Bul", img: "/mod_resimleri/haritadan_bul.webp", desc: "Ülkeyi haritada göster", maxPlayers: 5 },
+    { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.webp", desc: "Stadyumu gör, 4 şık arasından bul", maxPlayers: 5 },
     
-    { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.png", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!", maxPlayers: 5 },
-    { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.png", desc: "1v1'den 5v5'e gerçek zamanlı futbol!", maxPlayers: 15 },
-    { id: "jokerli_satranc", name: "♟️ Jokerli Satranç", img: "/mod_resimleri/jokerli_satranc.png", desc: "26 jokerle klasik satrancı alt üst et!", maxPlayers: 2 }
+    { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.webp", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!", maxPlayers: 5 },
+    { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.webp", desc: "1v1'den 5v5'e gerçek zamanlı futbol!", maxPlayers: 15 },
+    { id: "jokerli_satranc", name: "♟️ Jokerli Satranç", img: "/mod_resimleri/jokerli_satranc.webp", desc: "26 jokerle klasik satrancı alt üst et!", maxPlayers: 2 }
 ];
 
 let _selectedNewMode = null;

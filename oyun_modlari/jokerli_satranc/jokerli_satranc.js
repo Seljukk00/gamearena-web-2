@@ -56,14 +56,14 @@ let _satrancRoomHelper = null;
 // SES SİSTEMİ
 // ==========================================
 const SATRANC_SOUNDS = {
-    carkifelek: "/satranc_sounds/carkifelek.wav",
-    tas_hareket: "/satranc_sounds/tas_hareket.wav",
-    tas_yeme: "/satranc_sounds/tas_yeme.wav",
-    bomba: "/satranc_sounds/bomba.wav",
-    oyun_baslangic: "/satranc_sounds/oyun_baslangic.wav",
-    oyun_bitti: "/satranc_sounds/oyun_bitti.wav",
-    isinlanma: "/satranc_sounds/isinlanma.wav",
-    sah: "/satranc_sounds/sah.wav",
+    carkifelek: "/satranc_sounds/carkifelek.mp3",
+    tas_hareket: "/satranc_sounds/tas_hareket.mp3",
+    tas_yeme: "/satranc_sounds/tas_yeme.mp3",
+    bomba: "/satranc_sounds/bomba.mp3",
+    oyun_baslangic: "/satranc_sounds/oyun_baslangic.mp3",
+    oyun_bitti: "/satranc_sounds/oyun_bitti.mp3",
+    isinlanma: "/satranc_sounds/isinlanma.mp3",
+    sah: "/satranc_sounds/sah.mp3",
     sah_mat: "/satranc_sounds/sah_mat.mp3",
     joker_secildi: "/satranc_sounds/joker_secildi.mp3",
     joker_iptal: "/satranc_sounds/joker_iptal.mp3",
@@ -73,7 +73,7 @@ const SATRANC_SOUNDS = {
     kilit: "/satranc_sounds/kilit.mp3",
     geri_al: "/satranc_sounds/geri_al.mp3",
     zar: "/satranc_sounds/zar.mp3",
-    kasa_acilma: "/satranc_sounds/kasa_acilma.wav",
+    kasa_acilma: "/satranc_sounds/kasa_acilma.mp3",
     rulet: "/satranc_sounds/rulet.mp3",
 };
 
