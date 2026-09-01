@@ -1,27 +1,28 @@
 Beşiktaş
--goal_song_1.mp3
--goal_song_10.mp3
--goal_song_11.mp3
--goal_song_12.mp3
--goal_song_17.mp3
--goal_song_21.mp3
--
+-goal_song_1.mp3 >varsın olsun 
+-goal_song_10.mp3 >kartal sesi
+-goal_song_11.mp3 >beşiktaş seninle ölmeye geldik
+-goal_song_12.mp3 >come to besiktas
+-goal_song_17.mp3 >kartalım isterse durdurumazsın
+-goal_song_21.mp3 >çingenem
+-goal_song_29.mp3 >biz ne baharlar gördük
 
 Fenerbahçe
--goal_song_3.mp3
--goal_song_4.mp3
--goal_song_5.mp3
--goal_song_14.mp3
--goal_song_22.mp3
+-goal_song_3.mp3 >
+-goal_song_4.mp3 >
+-goal_song_5.mp3 >
+-goal_song_22.mp3 >
+-goal_song_30.mp3 >
+-goal_song_32.mp3 >100.yıl marş
 
 Galatasaray
--goal_song_6.mp3
--goal_song_23.mp3
--
--
+-goal_song_6.mp3 >
+-goal_song_23.mp3 >
+-goal_song_31.mp3 >çocukluk aşkımsın
+-goal_song_33.mp3 >şereftir seni sevmek 
 
 Trabzonspor
--goal_song_13.mp3
--goal_song_16.mp3
--
+-goal_song_13.mp3 >düştüysen kalk gel kendine
+-goal_song_16.mp3 >uy aha
+-goal_song_14.mp3 >allow dance
 -

@@ -190,6 +190,8 @@ def make_room_code(length=6):
 
 
 async def safe_send(ws: WebSocket, data: dict):
+    if not ws:  # 🤖 Bot ise (veya ws yoksa) direkt atla, CPU'yu yorma
+        return
     try:
         await ws.send_json(data)
     except:
@@ -198,7 +200,9 @@ async def safe_send(ws: WebSocket, data: dict):
 
 async def broadcast(room: dict, data: dict):
     for pdata in room["players"].values():
-        await safe_send(pdata["ws"], data)
+        ws = pdata.get("ws")
+        if ws:  # 🤖 Botları (ws=None) döngüde atla
+            await safe_send(ws, data)
 
 
 # ==========================================
