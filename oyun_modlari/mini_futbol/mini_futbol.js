@@ -338,9 +338,7 @@ let miniData = {
         } catch (e) { return "team"; }
     })(),
     // 🎭 Oyuncuların anlık gol sevinci tercihleri tablosu
-    playerCelebrationChoices: {},
-    // 🤖 Bot sayacı (ID üretimi için)
-    nextBotId: 100
+    playerCelebrationChoices: {}
 };
 
 let miniAnimFrame = null;
@@ -1871,16 +1869,6 @@ function handleMiniMessage(msg) {
         }
         
         updateMiniLobby();
-
-        // 🤖 Botları HP ile senkronize et (host + oyun açıkken)
-        if (miniData.playerId === 1 && typeof HP !== "undefined" && HP.running) {
-            (miniData.players || []).forEach(p => {
-                if (p.is_bot) {
-                    if (p.team === "red" || p.team === "blue") syncBotToHP(p);
-                    else removeBotFromHP(p.id); // izleyiciye alındıysa sahadan çıkar
-                }
-            });
-        }
         
         // ✨ Misafir için local HP'yi başlatmayı dene (eğer oyun ekranındaysa)
         const gameScreen = document.getElementById("miniGameScreen");
@@ -2687,17 +2675,6 @@ function renderTeamColumn(containerId, players, teamKey) {
     
     // ✨ Sütun drop alanı olsun
     setupMiniDropZone(container, teamKey);
-
-    // 🤖 Seyirci sütununda boş alana sağ tık → Bot Ekle (sadece host)
-    if (teamKey === "spectator" && miniData.playerId === 1) {
-        container.oncontextmenu = (e) => {
-            if (e.target.closest(".miniPlayerRow")) return; // bot/oyuncu satırına karışma
-            e.preventDefault();
-            e.stopPropagation();
-            showMiniBotAddMenu(e.clientX, e.clientY);
-        };
-        container.title = miniData.playerId === 1 ? "Boş alana sağ tık → Bot Ekle 🤖" : "";
-    }
     
     if (players.length === 0) {
         const empty = document.createElement("div");
@@ -2766,31 +2743,16 @@ function renderTeamColumn(containerId, players, teamKey) {
         nameSpan.textContent = displayName;
         row.appendChild(nameSpan);
         
-        // 🤖 BOT: Sağ tık → Rol Değiştir / Sil
-        if (p.is_bot && miniData.playerId === 1) {
+        // ✨ KULÜP TAKIMLARINDA ADMIN OYUNCULARA SAĞ TIKLAYINCA NUMARA DEĞİŞTİRME
+        const pTeamName = p.team === "red" ? miniData.redTeamName : (p.team === "blue" ? miniData.blueTeamName : "");
+        if (miniData.playerId === 1 && (p.team === "red" || p.team === "blue") && isClubTeam(pTeamName)) {
             row.style.cursor = "context-menu";
-            const roleTag = p.bot_role === "keeper" ? "🧤" : "⚽";
-            row.title = `Bot ${roleTag} — Sağ tık: Rol / Sil`;
-            // İsim yanına rol rozeti
-            nameSpan.textContent = (p.name || "Bot") + " " + roleTag;
+            row.title = "Sağ tık → Forma Numarası Değiştir 👕";
             row.oncontextmenu = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                showMiniBotManageMenu(p, e.clientX, e.clientY);
+                showJerseyNumberEditor(p);
             };
-        }
-        // ✨ KULÜP TAKIMLARINDA ADMIN OYUNCULARA SAĞ TIKLAYINCA NUMARA DEĞİŞTİRME
-        else {
-            const pTeamName = p.team === "red" ? miniData.redTeamName : (p.team === "blue" ? miniData.blueTeamName : "");
-            if (miniData.playerId === 1 && (p.team === "red" || p.team === "blue") && isClubTeam(pTeamName)) {
-                row.style.cursor = "context-menu";
-                row.title = "Sağ tık → Forma Numarası Değiştir 👕";
-                row.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showJerseyNumberEditor(p);
-                };
-            }
         }
         
         // ✨ PING göstergesi (sağda)
@@ -6844,10 +6806,6 @@ function miniRender() {
     }
     
     updateMiniHUD();
-
-    // 🤖 Host bot AI (her frame)
-    try { runMiniBotAI(); } catch (e) {}
-
     miniAnimFrame = requestAnimationFrame(miniRender);
 }
 
@@ -12126,340 +12084,6 @@ function handleCelebPickerKey(dir) {
     miniData._celebPickerCloseTimer = setTimeout(() => {
         closeCelebPicker();
     }, 4000);
-}
-
-// ========================================
-// 🤖 BOT SİSTEMİ (Temel v1)
-// ========================================
-const MINI_BOT_NAMES = ["Eric", "Bob", "Max", "Tom", "Alex", "Sam", "Leo", "Kai", "Rex", "Neo", "Ace", "Jay"];
-
-function getNextBotName() {
-    const used = new Set((miniData.players || []).map(p => (p.name || "").toLowerCase()));
-    for (const n of MINI_BOT_NAMES) {
-        const full = "Bot " + n;
-        if (!used.has(full.toLowerCase())) return full;
-    }
-    // Hepsi doluysa numaralı
-    let i = 1;
-    while (used.has(("bot " + i).toLowerCase())) i++;
-    return "Bot " + i;
-}
-
-function closeMiniBotMenus() {
-    const a = document.getElementById("miniBotAddMenu");
-    if (a) a.remove();
-    const m = document.getElementById("miniBotManageMenu");
-    if (m) m.remove();
-    const r = document.getElementById("miniBotRoleMenu");
-    if (r) r.remove();
-}
-
-function makeBotContextMenu(id, x, y, html) {
-    closeMiniBotMenus();
-    const menu = document.createElement("div");
-    menu.id = id;
-    menu.style.cssText = `
-        position: fixed; left:${x}px; top:${y}px; z-index:9999999;
-        background: linear-gradient(145deg, #1e2438, #151a28);
-        border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
-        box-shadow: 0 12px 40px rgba(0,0,0,0.55); padding: 6px;
-        min-width: 180px; font-family: 'Segoe UI', sans-serif;
-    `;
-    menu.innerHTML = html;
-    document.body.appendChild(menu);
-
-    // Ekran dışına taşmasın
-    requestAnimationFrame(() => {
-        const rect = menu.getBoundingClientRect();
-        if (rect.right > window.innerWidth) menu.style.left = Math.max(8, window.innerWidth - rect.width - 8) + "px";
-        if (rect.bottom > window.innerHeight) menu.style.top = Math.max(8, window.innerHeight - rect.height - 8) + "px";
-    });
-
-    const closer = (ev) => {
-        if (!menu.contains(ev.target)) {
-            menu.remove();
-            document.removeEventListener("mousedown", closer, true);
-        }
-    };
-    setTimeout(() => document.addEventListener("mousedown", closer, true), 30);
-    return menu;
-}
-
-function botMenuBtnStyle(color) {
-    return `display:block; width:100%; text-align:left; padding:10px 14px; margin:2px 0;
-            background:transparent; border:none; border-radius:7px; cursor:pointer;
-            color:${color}; font-size:13px; font-weight:600; font-family:inherit;`;
-}
-
-function showMiniBotAddMenu(x, y) {
-    if (miniData.playerId !== 1) return;
-    const menu = makeBotContextMenu("miniBotAddMenu", x, y, `
-        <button id="miniBotAddBtn" style="${botMenuBtnStyle("#51cf66")}">🤖 Bot Ekle</button>
-    `);
-    menu.querySelector("#miniBotAddBtn").onmouseenter = function() { this.style.background = "rgba(81,207,102,0.12)"; };
-    menu.querySelector("#miniBotAddBtn").onmouseleave = function() { this.style.background = "transparent"; };
-    menu.querySelector("#miniBotAddBtn").onclick = () => {
-        closeMiniBotMenus();
-        addMiniBot();
-    };
-}
-
-function showMiniBotManageMenu(bot, x, y) {
-    if (miniData.playerId !== 1 || !bot || !bot.is_bot) return;
-    const roleLabel = bot.bot_role === "keeper" ? "🧤 Kaleci" : "⚽ Forvet";
-    const menu = makeBotContextMenu("miniBotManageMenu", x, y, `
-        <div style="padding:8px 12px 4px; color:#adb5bd; font-size:11px; font-weight:700;">
-            ${bot.name} <span style="color:#ffd43b;">(${roleLabel})</span>
-        </div>
-        <button id="miniBotRoleBtn" style="${botMenuBtnStyle("#4dabf7")}">🔄 Rol Değiştir</button>
-        <button id="miniBotDelBtn" style="${botMenuBtnStyle("#ff6b6b")}">❌ Botu Sil</button>
-    `);
-    ["miniBotRoleBtn", "miniBotDelBtn"].forEach(id => {
-        const b = menu.querySelector("#" + id);
-        b.onmouseenter = function() { this.style.background = "rgba(255,255,255,0.06)"; };
-        b.onmouseleave = function() { this.style.background = "transparent"; };
-    });
-    menu.querySelector("#miniBotRoleBtn").onclick = () => {
-        closeMiniBotMenus();
-        showMiniBotRoleMenu(bot, x, y);
-    };
-    menu.querySelector("#miniBotDelBtn").onclick = () => {
-        closeMiniBotMenus();
-        removeMiniBot(bot.id);
-    };
-}
-
-function showMiniBotRoleMenu(bot, x, y) {
-    if (miniData.playerId !== 1 || !bot) return;
-    const menu = makeBotContextMenu("miniBotRoleMenu", x, y, `
-        <div style="padding:8px 12px 4px; color:#adb5bd; font-size:11px; font-weight:700;">Rol Seç — ${bot.name}</div>
-        <button id="miniBotRoleKeeper" style="${botMenuBtnStyle(bot.bot_role === "keeper" ? "#ffd43b" : "#e0e0e0")}">
-            🧤 Kaleci ${bot.bot_role === "keeper" ? "✓" : ""}
-        </button>
-        <button id="miniBotRoleForward" style="${botMenuBtnStyle(bot.bot_role === "forward" ? "#ffd43b" : "#e0e0e0")}">
-            ⚽ Forvet ${bot.bot_role === "forward" ? "✓" : ""}
-        </button>
-    `);
-    ["miniBotRoleKeeper", "miniBotRoleForward"].forEach(id => {
-        const b = menu.querySelector("#" + id);
-        b.onmouseenter = function() { this.style.background = "rgba(255,255,255,0.06)"; };
-        b.onmouseleave = function() { this.style.background = "transparent"; };
-    });
-    menu.querySelector("#miniBotRoleKeeper").onclick = () => {
-        closeMiniBotMenus();
-        setMiniBotRole(bot.id, "keeper");
-    };
-    menu.querySelector("#miniBotRoleForward").onclick = () => {
-        closeMiniBotMenus();
-        setMiniBotRole(bot.id, "forward");
-    };
-}
-
-function addMiniBot() {
-    if (miniData.playerId !== 1) return;
-    const name = getNextBotName();
-    send({ type: "mini_add_bot", name: name, bot_role: "forward" });
-}
-
-function removeMiniBot(botId) {
-    if (miniData.playerId !== 1) return;
-    send({ type: "mini_remove_bot", bot_id: botId });
-}
-
-function setMiniBotRole(botId, role) {
-    if (miniData.playerId !== 1) return;
-    if (role !== "keeper" && role !== "forward") return;
-    send({ type: "mini_set_bot_role", bot_id: botId, bot_role: role });
-}
-
-// Host: botu HP fizik motoruna ekle/sil
-function syncBotToHP(botObj) {
-    if (typeof HP === "undefined" || !HP.running || !HP.room) return;
-    if (!botObj || !botObj.is_bot) return;
-    const pid = botObj.id;
-
-    if (!HP.room.players[pid]) {
-        HP.room.players[pid] = {
-            name: botObj.name,
-            team: botObj.team || "spectator",
-            goals: 0, assists: 0, passes: 0, saves: 0,
-            is_bot: true,
-            bot_role: botObj.bot_role || "forward"
-        };
-    } else {
-        HP.room.players[pid].name = botObj.name;
-        HP.room.players[pid].team = botObj.team || "spectator";
-        HP.room.players[pid].is_bot = true;
-        HP.room.players[pid].bot_role = botObj.bot_role || "forward";
-    }
-
-    // Takımdaysa sahaya koy
-    if ((botObj.team === "red" || botObj.team === "blue") && HP.room.gameState) {
-        const gs = HP.room.gameState;
-        if (!gs.players[pid]) {
-            const fw = HP.FIELD_WIDTH || 1000;
-            const fh = HP.FIELD_HEIGHT || 500;
-            const spawn = fw * 0.2;
-            gs.players[pid] = {
-                x: botObj.team === "red" ? spawn : fw - spawn,
-                y: fh / 2,
-                vx: 0, vy: 0,
-                keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
-                last_kick_time: 0,
-                sprint_energy: HP.SPRINT_MAX_ENERGY || 100,
-                last_frame_time: 0,
-                team: botObj.team,
-                is_bot: true,
-                bot_role: botObj.bot_role || "forward"
-            };
-        } else {
-            gs.players[pid].team = botObj.team;
-            gs.players[pid].is_bot = true;
-            gs.players[pid].bot_role = botObj.bot_role || "forward";
-        }
-    }
-}
-
-function removeBotFromHP(botId) {
-    if (typeof HP === "undefined" || !HP.running || !HP.room) return;
-    if (HP.room.gameState && HP.room.gameState.players) {
-        delete HP.room.gameState.players[botId];
-    }
-    if (HP.room.players) {
-        delete HP.room.players[botId];
-    }
-}
-
-// 🤖 BOT AI (sadece host, playing state)
-function runMiniBotAI() {
-    if (miniData.playerId !== 1) return;
-    if (typeof HP === "undefined" || !HP.running || !HP.room || !HP.room.gameState) return;
-
-    const gs = HP.room.gameState;
-    const state = gs.state || gs.game_state || "playing";
-
-    // Pause / countdown / game over → tüm bot tuşlarını bırak
-    if (state !== "playing") {
-        const bots = (miniData.players || []).filter(p => p.is_bot);
-        bots.forEach(bot => {
-            if (!gs.players[bot.id]) return;
-            ["up", "down", "left", "right", "kick", "sprint"].forEach(k => {
-                HP.setKey(bot.id, k, false);
-            });
-        });
-        return;
-    }
-
-    // Gol sevinci sırasında da bırak
-    if (state === "goal_wait") {
-        const bots = (miniData.players || []).filter(p => p.is_bot);
-        bots.forEach(bot => {
-            if (!gs.players[bot.id]) return;
-            ["up", "down", "left", "right", "kick", "sprint"].forEach(k => {
-                HP.setKey(bot.id, k, false);
-            });
-        });
-        return;
-    }
-
-    const fw = HP.FIELD_WIDTH || 1000;
-    const fh = HP.FIELD_HEIGHT || 500;
-    const ball = gs.ball;
-    if (!ball) return;
-
-    const bots = (miniData.players || []).filter(p => p.is_bot && (p.team === "red" || p.team === "blue"));
-
-    bots.forEach(bot => {
-        const bp = gs.players[bot.id];
-        if (!bp) {
-            // Takımda ama HP'de yoksa ekle
-            syncBotToHP(bot);
-            return;
-        }
-
-        const role = bot.bot_role || "forward";
-        const isRed = bot.team === "red";
-        const keys = { up: false, down: false, left: false, right: false, kick: false, sprint: false };
-
-        const dx = ball.x - bp.x;
-        const dy = ball.y - bp.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (role === "keeper") {
-            // 🧤 KALECI: Kendi kalesinde topun Y'sini takip et
-            const goalX = isRed ? fw * 0.08 : fw * 0.92;
-            const homeY = Math.max(fh * 0.25, Math.min(fh * 0.75, ball.y));
-
-            const tdx = goalX - bp.x;
-            const tdy = homeY - bp.y;
-
-            if (Math.abs(tdx) > 12) {
-                if (tdx > 0) keys.right = true;
-                else keys.left = true;
-            }
-            if (Math.abs(tdy) > 10) {
-                if (tdy > 0) keys.down = true;
-                else keys.up = true;
-            }
-
-            // Top çok yakınsa uzaklaştır (rakip kaleye doğru şut)
-            if (dist < 55) {
-                keys.kick = true;
-                // Topa doğru hafif bastır
-                if (Math.abs(dx) > 8) {
-                    if (dx > 0) keys.right = true;
-                    else keys.left = true;
-                }
-                if (Math.abs(dy) > 8) {
-                    if (dy > 0) keys.down = true;
-                    else keys.up = true;
-                }
-            }
-        } else {
-            // ⚽ FORVET: Topa git, yakınsa rakip kaleye şutla
-            const targetGoalX = isRed ? fw - 30 : 30;
-
-            if (dist > 40) {
-                // Topa koş
-                if (Math.abs(dx) > 10) {
-                    if (dx > 0) keys.right = true;
-                    else keys.left = true;
-                }
-                if (Math.abs(dy) > 10) {
-                    if (dy > 0) keys.down = true;
-                    else keys.up = true;
-                }
-                // Uzaktaysa sprint
-                if (dist > 120) keys.sprint = true;
-            } else {
-                // Topa yakın → kaleye doğru hizalanıp şut
-                const toGoalX = targetGoalX - bp.x;
-                const toGoalY = (fh / 2) - bp.y;
-
-                // Top ile kaleyi hizala (topu araya al)
-                if (Math.abs(dx) > 6) {
-                    if (dx > 0) keys.right = true;
-                    else keys.left = true;
-                }
-                if (Math.abs(dy) > 6) {
-                    if (dy > 0) keys.down = true;
-                    else keys.up = true;
-                }
-
-                // Rakip kaleye bakacak şekilde şut zamanı
-                keys.kick = true;
-
-                // Şut yönünü kaleye çevirmek için hafif bastır
-                if (toGoalX > 0) keys.right = true;
-                else keys.left = true;
-            }
-        }
-
-        // Tuşları HP'ye bas
-        ["up", "down", "left", "right", "kick", "sprint"].forEach(k => {
-            HP.setKey(bot.id, k, keys[k]);
-        });
-    });
 }
 
 console.log("Mini Futbol JS yüklendi ✓");

@@ -115,9 +115,7 @@ async def send_minifutbol_lobby_update(room, broadcast):
             "name": pdata["name"],
             "team": pdata.get("team", "spectator"),
             "is_split_slave": pdata.get("is_split_slave", False),
-            "in_lobby": pdata.get("in_lobby", False),  # ✨ Lobide bekleyen mi?
-            "is_bot": bool(pdata.get("is_bot", False)),
-            "bot_role": pdata.get("bot_role", "forward") if pdata.get("is_bot") else None
+            "in_lobby": pdata.get("in_lobby", False)  # ✨ Lobide bekleyen mi?
         })
     
     _fd_lobby = get_field_dims(room)
@@ -3292,138 +3290,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
-    # ==========================================
-    # 🤖 BOT EKLE (sadece host)
-    # ==========================================
-    if msg_type == "mini_add_bot":
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        room = rooms[room_code]
-        if room.get("mode") != "mini_futbol":
-            return {"handled": False, "room_code": room_code, "player_id": player_id}
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host bot ekleyebilir."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        # Bot ID: 100'den başla
-        bot_id = 100
-        while bot_id in room["players"]:
-            bot_id += 1
-        if bot_id > 199:
-            await safe_send(websocket, {"type": "error", "message": "Maksimum bot sayısına ulaşıldı."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        bot_name = (data.get("name") or f"Bot {bot_id - 99}").strip()[:15]
-        bot_role = data.get("bot_role") or "forward"
-        if bot_role not in ("keeper", "forward"):
-            bot_role = "forward"
-
-        room["players"][bot_id] = {
-            "name": bot_name,
-            "ws": None,          # 🤖 Botun websocket'i yok
-            "score": 0,
-            "team": "spectator", # Her zaman önce seyirci
-            "is_bot": True,
-            "bot_role": bot_role,
-            "in_lobby": False,
-            "goals": 0,
-            "assists": 0,
-            "passes": 0,
-            "saves": 0
-        }
-        print(f"[MINI BOT] Eklendi: {bot_name} (id={bot_id}, role={bot_role})")
-        await send_minifutbol_lobby_update(room, broadcast)
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-    # ==========================================
-    # 🤖 BOT SİL (sadece host)
-    # ==========================================
-    if msg_type == "mini_remove_bot":
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        room = rooms[room_code]
-        if room.get("mode") != "mini_futbol":
-            return {"handled": False, "room_code": room_code, "player_id": player_id}
-        if player_id != 1:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        bot_id = data.get("bot_id")
-        try:
-            bot_id = int(bot_id)
-        except Exception:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        if bot_id not in room["players"] or not room["players"][bot_id].get("is_bot"):
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        bot_name = room["players"][bot_id].get("name", f"Bot{bot_id}")
-        del room["players"][bot_id]
-        print(f"[MINI BOT] Silindi: {bot_name} (id={bot_id})")
-
-        # Aktif listelerden de temizle
-        if room.get("active_red_player") == bot_id:
-            room["active_red_player"] = None
-        if room.get("active_blue_player") == bot_id:
-            room["active_blue_player"] = None
-        if "active_red_players" in room:
-            room["active_red_players"] = [p for p in room["active_red_players"] if p != bot_id]
-        if "active_blue_players" in room:
-            room["active_blue_players"] = [p for p in room["active_blue_players"] if p != bot_id]
-
-        # Oyun içindeyse aktif oyuncu değişimini yayınla
-        if room.get("phase") == "playing":
-            red_pids = sorted([pid for pid, p in room["players"].items() if p.get("team") == "red"])
-            blue_pids = sorted([pid for pid, p in room["players"].items() if p.get("team") == "blue"])
-            room["active_red_players"] = red_pids
-            room["active_blue_players"] = blue_pids
-            room["active_red_player"] = red_pids[0] if red_pids else None
-            room["active_blue_player"] = blue_pids[0] if blue_pids else None
-            info = {}
-            for pid in red_pids + blue_pids:
-                info[str(pid)] = room["players"][pid]["name"]
-            await broadcast(room, {
-                "type": "mini_active_players_changed",
-                "players": info,
-                "red_pid": room["active_red_player"],
-                "blue_pid": room["active_blue_player"],
-                "red_pids": red_pids,
-                "blue_pids": blue_pids,
-                "removed_pid": bot_id
-            })
-
-        await send_minifutbol_lobby_update(room, broadcast)
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-    # ==========================================
-    # 🤖 BOT ROL DEĞİŞTİR (sadece host)
-    # ==========================================
-    if msg_type == "mini_set_bot_role":
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        room = rooms[room_code]
-        if room.get("mode") != "mini_futbol":
-            return {"handled": False, "room_code": room_code, "player_id": player_id}
-        if player_id != 1:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        bot_id = data.get("bot_id")
-        try:
-            bot_id = int(bot_id)
-        except Exception:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        role = data.get("bot_role") or "forward"
-        if role not in ("keeper", "forward"):
-            role = "forward"
-
-        if bot_id not in room["players"] or not room["players"][bot_id].get("is_bot"):
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-
-        room["players"][bot_id]["bot_role"] = role
-        print(f"[MINI BOT] Rol değişti: {room['players'][bot_id]['name']} → {role}")
-        await send_minifutbol_lobby_update(room, broadcast)
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-
     # ==========================================
     # ⏭️ REPLAY SKIP (ATLA) SİSTEMİ
     # ==========================================
