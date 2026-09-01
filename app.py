@@ -120,7 +120,7 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
         
         # Görseller, ses, font gibi dosyalar için uzun cache
         static_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg',
-                       '.mp3', '.wav', '.ogg', '.woff', '.woff2', '.ttf', '.ico')
+                       '.mp3', '.mp3', '.ogg', '.woff', '.woff2', '.ttf', '.ico')
         if path.endswith(static_exts):
             # 30 gün cache (dosyalar değişmez genelde)
             response.headers["Cache-Control"] = "public, max-age=2592000, immutable"

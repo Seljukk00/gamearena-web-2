@@ -5216,7 +5216,7 @@ function miniRender() {
                         const key = `g_${g.scorer}_${g.scores ? (g.scores['1'] + '_' + g.scores['2']) : g.time}`;
                         if (!miniReplay.playedReplayEvents.has(key)) {
                             miniReplay.playedReplayEvents.add(key);
-                            MiniAudio.playRandom("goal", ["goal_1.wav", "goal_2.wav", "goal_3.wav"], 0.7);
+                            MiniAudio.playRandom("goal", ["goal_1.mp3", "goal_2.mp3", "goal_3.mp3"], 0.7);
                         }
                     }
 
@@ -5228,9 +5228,9 @@ function miniRender() {
                                 if (k.hit_ball) {
                                     const isFire = replayFrameData.ball && replayFrameData.ball.on_fire;
                                     if (isFire) {
-                                        MiniAudio.playRandom("fire_kick", ["fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav"], 0.7);
+                                        MiniAudio.playRandom("fire_kick", ["fire_kick_1.mp3", "fire_kick_2.mp3", "fire_kick_3.mp3"], 0.7);
                                     } else {
-                                        MiniAudio.playRandom("kick", ["kick_1.wav", "kick_2.wav"], 0.5);
+                                        MiniAudio.playRandom("kick", ["kick_1.mp3", "kick_2.mp3"], 0.5);
                                     }
                                 }
                             }
@@ -5243,9 +5243,9 @@ function miniRender() {
                             if (!miniReplay.playedReplayEvents.has(key)) {
                                 miniReplay.playedReplayEvents.add(key);
                                 if (h.type === "wall") {
-                                    MiniAudio.playRandom("wall", ["wall_hit_1.wav", "wall_hit_2.wav"], 0.4);
+                                    MiniAudio.playRandom("wall", ["wall_hit_1.mp3", "wall_hit_2.mp3"], 0.4);
                                 } else if (h.type === "post") {
-                                    MiniAudio.play("post_hit.wav", 0.6);
+                                    MiniAudio.play("post_hit.mp3", 0.6);
                                 }
                             }
                         });
@@ -5357,10 +5357,10 @@ function miniRender() {
                 const isFireKick = state.ball && state.ball.on_fire === true;
                 if (isFireKick) {
                     MiniAudio.playRandom("fire_kick",
-                        ["fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav"], 0.7);
+                        ["fire_kick_1.mp3", "fire_kick_2.mp3", "fire_kick_3.mp3"], 0.7);
                 } else {
                     MiniAudio.playRandom("kick",
-                        ["kick_1.wav", "kick_2.wav"], 0.5);
+                        ["kick_1.mp3", "kick_2.mp3"], 0.5);
                 }
                 
                 if (pid === miniData.playerId) {
@@ -5402,12 +5402,12 @@ function miniRender() {
 
                 if (h.type === "wall") {
                     MiniAudio.playRandom("wall",
-                        ["wall_hit_1.wav", "wall_hit_2.wav"], 0.4);
+                        ["wall_hit_1.mp3", "wall_hit_2.mp3"], 0.4);
                     if (state.ball && state.ball.last_toucher === miniData.playerId) {
                         MiniVibration.wallHit();
                     }
                 } else if (h.type === "post") {
-                    MiniAudio.play("post_hit.wav", 0.6);
+                    MiniAudio.play("post_hit.mp3", 0.6);
                     MiniVibration.postHit();
 
                     // ✨ Direğe vuran şutu şutörün takımına ekle (Kaleyi Bulan Şut için)
@@ -6822,7 +6822,7 @@ function drawCountdownOverlay(ctx, cfg, countdown) {
     const silentWhistle = state && state.silent_whistle === true;
     
     if (countdown === 0 && !miniData._whistlePlayed && !silentWhistle) {
-        MiniAudio.play("whistle.wav", 0.6);
+        MiniAudio.play("whistle.mp3", 0.6);
         miniData._whistlePlayed = true;
         // ✨ Düdükte çok hafif titreşim (santra)
         MiniVibration.whistle();
@@ -7260,7 +7260,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
     } else if (miniData._lastGoalSignature !== goalSignature) {
         // Yeni gol → ses çal
         MiniAudio.playRandom("goal",
-            ["goal_1.wav", "goal_2.wav", "goal_3.wav"], 0.7);
+            ["goal_1.mp3", "goal_2.mp3", "goal_3.mp3"], 0.7);
         miniData._lastGoalSignature = goalSignature;
         
         // 🛡️ Takım Bazlı 2. Kendi Kalesine Gol Kontrolü:
@@ -7294,7 +7294,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
                     
                     // Normal gol sesinin hemen ardından (400ms rötarla) troll ses çalsın
                     setTimeout(() => {
-                        MiniAudio.play("own_goal.wav", Math.max(0, Math.min(1, vol * 1.2))); // Komedi etkisi için %20 daha yüksek sesle!
+                        MiniAudio.play("own_goal.mp3", Math.max(0, Math.min(1, vol * 1.2))); // Komedi etkisi için %20 daha yüksek sesle!
                     }, 400);
                 }
             }
@@ -10921,7 +10921,7 @@ const MiniAudio = {
 
         try {
             // 2) Sessiz HTMLAudio jesture kilidi
-            const a = new Audio("/oyun_modlari/mini_futbol/sounds/kick_1.wav");
+            const a = new Audio("/oyun_modlari/mini_futbol/sounds/kick_1.mp3");
             a.volume = 0.001;
             const p = a.play();
             if (p && typeof p.then === "function") {
@@ -11002,13 +11002,13 @@ const MiniAudio = {
     preloadAll() {
         const files = [
             "explosion.mp3",
-            "post_hit.wav",
-            "wall_hit_1.wav", "wall_hit_2.wav",
-            "goal_1.wav", "goal_2.wav", "goal_3.wav",
-            "whistle.wav",
-            "fire_kick_1.wav", "fire_kick_2.wav", "fire_kick_3.wav",
-            "kick_1.wav", "kick_2.wav",
-            "own_goal.wav"
+            "post_hit.mp3",
+            "wall_hit_1.mp3", "wall_hit_2.mp3",
+            "goal_1.mp3", "goal_2.mp3", "goal_3.mp3",
+            "whistle.mp3",
+            "fire_kick_1.mp3", "fire_kick_2.mp3", "fire_kick_3.mp3",
+            "kick_1.mp3", "kick_2.mp3",
+            "own_goal.mp3"
         ];
         files.forEach(f => this.preload(f));
         console.log("[SES] Hafif sesler preload edildi ✓");
