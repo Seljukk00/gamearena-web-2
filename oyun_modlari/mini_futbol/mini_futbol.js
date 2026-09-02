@@ -3823,8 +3823,12 @@ function startMiniLocalPhysicsIfNeeded() {
         // 🌀 GOL SEVİNCİ VE ŞARKISI İÇİN ÜST ÜSTE TEKRAR ETMEYEN GÜÇLÜ KONTROL (Host Otoritesi)
         if (stateMsg.game_state === "goal_wait" && stateMsg.goal_celebration) {
             const _scores = stateMsg.scores ? `${stateMsg.scores["1"]}-${stateMsg.scores["2"]}` : "0-0";
-            const _scorerPid = stateMsg.goal_celebration.scorer_id || stateMsg.goal_celebration.scorer_pid;
+            // scorer_pid = oyuncu, scorer_id = takım (1/2). Animasyon için oyuncu ID şart.
+            const _scorerPid = (stateMsg.goal_celebration.scorer_pid !== undefined && stateMsg.goal_celebration.scorer_pid !== null)
+                ? stateMsg.goal_celebration.scorer_pid
+                : stateMsg.goal_celebration.scorer_id;
             const goalSignature = `${_scorerPid}_${_scores}`;
+            const isOwnGoal = stateMsg.goal_celebration.own_goal === true;
             
             if (miniData._lastGoalSigForSeed !== goalSignature) {
                 miniData._lastGoalSigForSeed = goalSignature;
@@ -3863,18 +3867,29 @@ function startMiniLocalPhysicsIfNeeded() {
                     general: generalPool
                 };
 
-                // Golü atan takımı tespit et
-                const isOwnGoal = stateMsg.goal_celebration.own_goal === true;
+                // Golü atan TAKIMI tespit et
+                // ÖNEMLİ:
+                //   scorer_id  = Takım ID (1=kırmızı/sol, 2=mavi/sağ)  → MÜZİK buna göre
+                //   scorer_pid = Oyuncu ID (admin sağa geçse bile doğru kişi)
+                // Takım değişiminde scorer_id'yi oyuncu id sanmak BJK↔GS şarkı tersliğini yapıyordu!
                 let actualScoringTeam = "red";
-                const songScorerObj = miniData.players.find(p => Number(p.id) === Number(_scorerPid));
+                const scoringTeamId = Number(stateMsg.goal_celebration.scorer_id);
+                const realScorerPid = stateMsg.goal_celebration.scorer_pid;
+
+                // 1) Önce gerçek oyuncu ID ile takımı bul (takım değişiminde en doğru kaynak)
+                const songScorerObj = (realScorerPid !== undefined && realScorerPid !== null)
+                    ? miniData.players.find(p => Number(p.id) === Number(realScorerPid))
+                    : null;
+
                 if (songScorerObj && (songScorerObj.team === "red" || songScorerObj.team === "blue")) {
-                    actualScoringTeam = isOwnGoal ? (songScorerObj.team === "red" ? "blue" : "red") : songScorerObj.team;
-                } else {
-                    const scorerIdNum = Number(stateMsg.goal_celebration.scorer_id);
-                    if (scorerIdNum === 1) {
-                        actualScoringTeam = isOwnGoal ? "blue" : "red";
-                    } else if (scorerIdNum === 2) {
-                        actualScoringTeam = isOwnGoal ? "red" : "blue";
+                    actualScoringTeam = isOwnGoal
+                        ? (songScorerObj.team === "red" ? "blue" : "red")
+                        : songScorerObj.team;
+                } else if (scoringTeamId === 1 || scoringTeamId === 2) {
+                    // 2) Fallback: scorer_id TAKIM numarasıdır (oyuncu id değil!)
+                    actualScoringTeam = (scoringTeamId === 2) ? "blue" : "red";
+                    if (isOwnGoal) {
+                        actualScoringTeam = (actualScoringTeam === "red") ? "blue" : "red";
                     }
                 }
 
@@ -3914,11 +3929,11 @@ function startMiniLocalPhysicsIfNeeded() {
             
             // Seçilen şarkıyı ve gol sevincini tüm pakete zorla yazıyoruz (Misafirler de aynısını görsün)
             stateMsg.goal_celebration.selected_song = miniData._hostSelectedSong;
-            stateMsg.goal_celebration.celebration_type = miniData._hostSelectedCelebrationType;
+            stateMsg.goal_celebration.celebration_type = isOwnGoal ? null : miniData._hostSelectedCelebrationType;
             
             if (stateMsg.players && stateMsg.players[_scorerPid]) {
-                stateMsg.players[_scorerPid].celebrating = true;
-                stateMsg.players[_scorerPid].celebration_type = miniData._hostSelectedCelebrationType;
+                stateMsg.players[_scorerPid].celebrating = !isOwnGoal;
+                stateMsg.players[_scorerPid].celebration_type = isOwnGoal ? null : miniData._hostSelectedCelebrationType;
             }
         } else {
             miniData._lastGoalSigForSeed = null;
@@ -4385,14 +4400,14 @@ function updateMiniControlsInfo() {
         if (gpP1) {
             controlsEl.innerHTML = `
                 <div style="color:#c084fc;">
-                    🎮 <b>Kontrolcü:</b> Sol Stick / D-Pad hareket &nbsp;|&nbsp; X / Kare şut &nbsp;|&nbsp; R2 sprint
+                    🎮 <b>Kontrolcü:</b> Sol Stick / D-Pad hareket &nbsp;|&nbsp; X / Kare şut &nbsp;|&nbsp; R2 sprint &nbsp;|&nbsp; <b>START</b> Atla ⏭️
                 </div>
                 <div style="color:#adb5bd; margin-top:4px; font-size:12px;">
-                    ⌨️ (Klavye de aktif: ${kMove} hareket | ${kKick} şut | ${kSprint} sprint)
+                    ⌨️ (Klavye: ${kMove} | ${kKick} | ${kSprint} &nbsp;|&nbsp; <b>ENTER</b> Replay Atla)
                 </div>
             `;
         } else {
-            controlsEl.innerHTML = `<b>Hareket:</b> ${kMove} / Ok Tuşları &nbsp;|&nbsp; <b>Şut:</b> ${kKick} / Num 0 &nbsp;|&nbsp; <b>Sprint:</b> ${kSprint} ⚡`;
+            controlsEl.innerHTML = `<b>Hareket:</b> ${kMove} / Ok Tuşları &nbsp;|&nbsp; <b>Şut:</b> ${kKick} / Num 0 &nbsp;|&nbsp; <b>Sprint:</b> ${kSprint} ⚡ &nbsp;|&nbsp; <b>Replay Atla:</b> ENTER ⏭️`;
         }
         return;
     }
@@ -4402,15 +4417,15 @@ function updateMiniControlsInfo() {
     let p2Line = "";
     
     if (gpP1) {
-        p1Line = `🎮 <b>P1 (Kontrolcü):</b> Sol Stick / D-Pad hareket | X / Kare şut | R2 sprint`;
+        p1Line = `🎮 <b>P1:</b> Stick | X / Kare şut | R2 sprint | <b>START</b> Atla ⏭️`;
     } else {
-        p1Line = `⌨️ <b>P1 (Klavye):</b> ${kMove} hareket | ${kKick} şut | ${kSprint} sprint`;
+        p1Line = `⌨️ <b>P1:</b> ${kMove} | ${kKick} | ${kSprint} | <b>ENTER</b> Atla ⏭️`;
     }
     
     if (gpP2) {
-        p2Line = `🎮 <b>P2 (Kontrolcü):</b> Sol Stick / D-Pad hareket | X / Kare şut | R2 sprint`;
+        p2Line = `🎮 <b>P2:</b> Stick | X / Kare şut | R2 sprint | <b>START</b> Atla ⏭️`;
     } else {
-        p2Line = `⌨️ <b>P2 (Klavye):</b> Ok Tuşları hareket | Num 0 / Sağ Ctrl şut | Sağ Shift / Num 1 sprint`;
+        p2Line = `⌨️ <b>P2:</b> Oklar | Num 0 şut | Num 1 sprint | <b>ENTER</b> Atla ⏭️`;
     }
     
     controlsEl.innerHTML = `

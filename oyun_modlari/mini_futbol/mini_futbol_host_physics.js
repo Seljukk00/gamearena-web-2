@@ -1298,7 +1298,10 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "red") {
                     own = true;
                     gs.last_goal_scorer = 1;
-                    gs.last_goal_scorer_pid = last;  // ✨ Gerçek oyuncu ID
+                    // ✨ FIX: Own goal → müzik karşı takıma göre çalsın diye scorer_pid'yi karşı takımdan seç
+                    const _blueOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "blue");
+                    gs.last_goal_scorer_pid = _blueOne ? parseInt(_blueOne) : last;
+                    gs._ownGoalActualScorer = last;
                     gs.kickoff_restricted_team_override = 2;
                     gs.kickoff_receiving_team_override = 1;
                 } else {
@@ -1324,10 +1327,15 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "blue") {
                     own = true;
                     gs.last_goal_scorer = 2;
+                    // ✨ FIX: Own goal → müzik karşı takıma göre çalsın diye scorer_pid'yi karşı takımdan seç
+                    const _redOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "red");
+                    gs.last_goal_scorer_pid = _redOne ? parseInt(_redOne) : last;
+                    gs._ownGoalActualScorer = last;
                     gs.kickoff_restricted_team_override = 1;
                     gs.kickoff_receiving_team_override = 2;
                 } else {
                     gs.last_goal_scorer = 1;
+                    gs.last_goal_scorer_pid = last;  // ✨ Gerçek oyuncu ID
                     gs.kickoff_restricted_team_override = null;
                     gs.kickoff_receiving_team_override = null;
                     if (last && this.room.players[last]) {
@@ -1981,7 +1989,10 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "red") {
                     own = true;
                     gs.last_goal_scorer = 1;
-                    gs.last_goal_scorer_pid = last;  // ✨ Gerçek oyuncu ID
+                    // ✨ FIX: Own goal → gol karşı takıma yazılıyor. scorer_pid'yi karşı takımdan (mavi) bir oyuncuya ayarla ki doğru gol müziği çalsın.
+                    const _blueOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "blue");
+                    gs.last_goal_scorer_pid = _blueOne ? parseInt(_blueOne) : last;
+                    gs._ownGoalActualScorer = last;  // Gerçek atan (sevinç iptali için)
                     gs.kickoff_restricted_team_override = 2;
                     gs.kickoff_receiving_team_override = 1;
                 } else {
@@ -2086,7 +2097,10 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "blue") {
                     own = true;
                     gs.last_goal_scorer = 2;
-                    gs.last_goal_scorer_pid = last;  // ✨ FIX: Gerçek oyuncu ID (mavi kendine attı)
+                    // ✨ FIX: Own goal → gol karşı takıma yazılıyor. scorer_pid'yi karşı takımdan (kırmızı) bir oyuncuya ayarla ki doğru gol müziği çalsın.
+                    const _redOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "red");
+                    gs.last_goal_scorer_pid = _redOne ? parseInt(_redOne) : last;
+                    gs._ownGoalActualScorer = last;  // Gerçek atan (sevinç iptali için)
                     gs.kickoff_restricted_team_override = 1;
                     gs.kickoff_receiving_team_override = 2;
                 } else {
