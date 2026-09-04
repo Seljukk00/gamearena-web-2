@@ -115,7 +115,8 @@ async def send_minifutbol_lobby_update(room, broadcast):
             "name": pdata["name"],
             "team": pdata.get("team", "spectator"),
             "is_split_slave": pdata.get("is_split_slave", False),
-            "in_lobby": pdata.get("in_lobby", False)  # ✨ Lobide bekleyen mi?
+            "in_lobby": pdata.get("in_lobby", False),  # ✨ Lobide bekleyen mi?
+            "jersey_number": pdata.get("jersey_number")  # ✨ Forma Numarası Lobi Bilgisi
         })
     
     _fd_lobby = get_field_dims(room)
@@ -1054,7 +1055,7 @@ def update_physics(room):
             gs["last_goal_own"] = own_goal
             gs["last_goal_assist"] = assist_pid
             gs["state"] = "goal_wait"
-            gs["goal_wait_until"] = now + 15.0  # ✨ 15 saniye (5sn sevinç + 10sn replay)
+            gs["goal_wait_until"] = now + 9.0  # ✨ 9 saniye (5sn sevinç + 4sn replay)
             gs["pause_time"] = now
             return {
                 "scorer": gs["last_goal_scorer"],
@@ -1108,7 +1109,7 @@ def update_physics(room):
             gs["last_goal_own"] = own_goal
             gs["last_goal_assist"] = assist_pid
             gs["state"] = "goal_wait"
-            gs["goal_wait_until"] = now + 15.0  # ✨ 15 saniye (5sn sevinç + 10sn replay)
+            gs["goal_wait_until"] = now + 9.0  # ✨ 9 saniye (5sn sevinç + 4sn replay)
             gs["pause_time"] = now
             return {
                 "scorer": gs["last_goal_scorer"],
@@ -1319,7 +1320,8 @@ async def game_loop(room, safe_send, broadcast):
                     "scorer_id": scorer,
                     "own_goal": gs.get("last_goal_own", False),
                     "assist_id": gs.get("last_goal_assist"),
-                    "wait_remaining": max(0, gs.get("goal_wait_until", 0) - time.time())
+                    "wait_remaining": max(0, gs.get("goal_wait_until", 0) - time.time()),
+                    "replay_duration": 4.0  # ✨ Replay artık net 4 saniye
                 }
             
             # ✨ SANTRA KURALI bilgisi
@@ -2478,7 +2480,12 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         target_pid = data.get("target_id")
         new_team = data.get("team")  # "red", "blue", "spectator"
         
-        if not isinstance(target_pid, int) or target_pid not in room["players"]:
+        try:
+            target_pid = int(target_pid)
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+            
+        if target_pid not in room["players"]:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         if new_team not in ["red", "blue", "spectator"]:
@@ -2727,8 +2734,13 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         
         if not new_name:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        if not isinstance(target_pid, int) or target_pid not in room["players"]:
+            
+        try:
+            target_pid = int(target_pid)
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+            
+        if target_pid not in room["players"]:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         # ✨ Aynı isim başkasında var mı? (kendisi hariç)
@@ -2796,6 +2808,57 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     # ==========================================
+    # OYUNCU FORMA NUMARASI DEĞİŞTİR (Kendi veya Host herkesin)
+    # ==========================================
+    if msg_type == "mini_change_jersey":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "mini_futbol":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        target_pid = data.get("target_id")
+        num = data.get("jersey_number")
+        
+        try:
+            target_pid = int(target_pid)
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+            
+        try:
+            num = int(num)
+            if num < 0 or num > 99:
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if target_pid not in room["players"]:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # Güvenlik & İzin Kontrolü: Oyuncu kendi numarasını değiştirebilir VEYA Admin (Host) herkesinkini değiştirebilir.
+        if player_id != 1 and target_pid != player_id:
+            await safe_send(websocket, {"type": "error", "message": "Yalnızca kendi forma numaranızı değiştirebilirsiniz."})
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # Numarayı kaydet
+        room["players"][target_pid]["jersey_number"] = num
+        player_name = room["players"][target_pid].get("name", f"P{target_pid}")
+        print(f"[MINI] Oyuncu {target_pid} forma numarası değişti: {num}")
+        
+        # Tüm odaya anlık olarak forma değişikliğini duyur
+        await broadcast(room, {
+            "type": "mini_jersey_changed",
+            "player_id": target_pid,
+            "jersey_number": num,
+            "message": f"👕 {player_name} yeni forma numarasını seçti: {num}"
+        })
+        
+        # Lobi durumunu da güncelle
+        await send_minifutbol_lobby_update(room, broadcast)
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+    
+    # ==========================================
     # TAKIM İSMİ DEĞİŞTİR (sadece host)
     # ==========================================
     if msg_type == "mini_change_team_name":
@@ -2852,37 +2915,6 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
                 else:
                     room["blue_sprint_color"] = sprint_color.lower()
         
-        await send_minifutbol_lobby_update(room, broadcast)
-        return {"handled": True, "room_code": room_code, "player_id": player_id}
-        if room_code not in rooms:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        room = rooms[room_code]
-        if room.get("mode") != "mini_futbol":
-            return {"handled": False, "room_code": room_code, "player_id": player_id}
-        
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host takım ismini değiştirebilir."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        # ✨ Sadece lobby veya ESC pause sırasında izin ver
-        is_paused = room.get("phase") == "playing" and room.get("game_state", {}).get("state") == "paused"
-        if room.get("phase") != "lobby" and not is_paused:
-            await safe_send(websocket, {"type": "error", "message": "Takım ismi sadece lobby/pause sırasında değiştirilebilir."})
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        team = data.get("team")  # "red" veya "blue"
-        new_name = (data.get("name") or "").strip()[:20]  # max 20 karakter
-        
-        if not new_name or team not in ["red", "blue"]:
-            return {"handled": True, "room_code": room_code, "player_id": player_id}
-        
-        if team == "red":
-            room["red_team_name"] = new_name
-        else:
-            room["blue_team_name"] = new_name
-        
-        print(f"[MINI] Takım ismi değişti: {team} → {new_name}")
         await send_minifutbol_lobby_update(room, broadcast)
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
@@ -3162,7 +3194,12 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         target_pid = data.get("target_id")
-        if not isinstance(target_pid, int) or target_pid not in room["players"]:
+        try:
+            target_pid = int(target_pid)
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+            
+        if target_pid not in room["players"]:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         if target_pid == 1:

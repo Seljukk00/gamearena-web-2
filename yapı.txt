@@ -128,8 +128,14 @@ GameArena_Web/
 │ ├── init.py
 │ ├── mini_futbol.css
 │ ├── mini_futbol.js
+│ ├── mini_futbol_audio_vib.js
 │ ├── mini_futbol_handler.py
 │ ├── mini_futbol_host_physics.js
+│ ├── mini_futbol_input.js
+│ ├── mini_futbol_render.js	
+│ ├── mini_futbol_rtc.js
+│ ├── mini_futbol_state.js
+│ ├── mini_futbol_ui.js
 │ ├── mini_futbol_ticker.js
 │ └── sounds/
 │ ├── whistle.wav, whistle2.wav

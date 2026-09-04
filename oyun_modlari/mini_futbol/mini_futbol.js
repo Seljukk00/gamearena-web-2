@@ -932,14 +932,19 @@ function handleMiniMessage(msg) {
         const rState = msg;
         const rIsGoalWait = (rState.game_state === "goal_wait" && rState.goal_celebration);
         const rWaitRemaining = rIsGoalWait ? rState.goal_celebration.wait_remaining : 999;
-        const rReplayDuration = (rState.goal_celebration && rState.goal_celebration.replay_duration) || 10.0;
-        const rLockThreshold = 3.2 + rReplayDuration;
+        const rReplayDuration = (rState.goal_celebration && rState.goal_celebration.replay_duration) || 5.0;
+        const rLockThreshold = 8.5; // Golün 1.5 saniye sonrasında kaydı dondur
         
         if (rState.game_state === "playing" || (rIsGoalWait && rWaitRemaining > rLockThreshold)) {
             if (rState.game_state === "playing") {
                 miniReplay.lockedBuffer = null;
                 miniReplay.replayStartTime = 0;
                 miniReplay.playedReplayEvents = null;
+                miniReplay.goalTimestamp = null;
+            }
+            // Gol anını ilk gerçekleştiği anda kaydet
+            if (rIsGoalWait && !miniReplay.goalTimestamp) {
+                miniReplay.goalTimestamp = Date.now();
             }
             const currentFrame = {
                 ball: { x: rState.ball.x, y: rState.ball.y, on_fire: rState.ball.on_fire, warning: rState.ball.warning, warning_team: rState.ball.warning_team },

@@ -80,6 +80,33 @@ const MiniAudio = {
         if (!name) return;
         if (!this._unlocked) this.unlock();
 
+        // 🌟 GOL ŞARKISI KORUMASI: Gol şarkısı isteklerini kontrol edip 1-12 arasına güvenle mapliyoruz
+        if (typeof name === "string" && name.includes("Goal_Songs/goal_song_")) {
+            const match = name.match(/goal_song_(\d+)\.mp3/i);
+            if (match) {
+                let songId = parseInt(match[1]);
+                
+                // ⚽ Kendi kalesine gol durumunda şarkıyı otomatik olarak rakibe yönlendiriyoruz
+                if (typeof miniData !== "undefined" && miniData.gameState) {
+                    const gc = miniData.gameState.goal_celebration;
+                    const isOwnGoal = miniData.gameState.last_goal_own || (gc && gc.own_goal);
+                    const redirectPid = (gc && gc.own_goal_music_pid) || miniData.gameState._ownGoalMusicPid;
+                    
+                    if (isOwnGoal && redirectPid) {
+                        console.log(`[SES YÖNLENDİRME] Kendi kalesine gol tespit edildi. Şarkı sahibi: ${songId} → Rakip: ${redirectPid}`);
+                        songId = parseInt(redirectPid);
+                    }
+                }
+                
+                if (isNaN(songId) || songId <= 0) {
+                    songId = 1;
+                } else {
+                    songId = ((songId - 1) % 12) + 1;
+                }
+                name = `Goal_Songs/goal_song_${songId}.mp3`;
+            }
+        }
+
         try {
             const p = this._playOnce(name, volume);
             if (p && typeof p.catch === "function") {

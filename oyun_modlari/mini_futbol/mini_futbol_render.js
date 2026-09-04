@@ -486,11 +486,11 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             playerNameColor = azGrad;
         }
 
-        const labelGolText = "⚽ Gol: ";
-        const nameScorerText = scorerName;
+        const labelGolText = isOwnGoal ? "🤦 Kendi Kalesine: " : "⚽ Gol: ";
+        const nameScorerText = isOwnGoal ? `${scorerName} (k.k.)` : scorerName;
         const sepText = "   |   ";
         const labelAssistText = "🤝 Asist: ";
-        const nameAssistText = assistName || "";
+        const nameAssistText = (isOwnGoal || !assistName) ? "" : assistName;
 
         const wLabelGol = ctx.measureText(labelGolText).width;
         const wNameScorer = ctx.measureText(nameScorerText).width;
@@ -878,14 +878,14 @@ function drawGoalCelebration(ctx, cfg, celebration) {
 function miniRender() {
     const canvas = document.getElementById("miniCanvas");
     if (!canvas) {
-        miniAnimFrame = requestAnimationFrame(miniRender);
+        if (typeof miniAnimFrame !== 'undefined') miniAnimFrame = requestAnimationFrame(miniRender);
         return;
     }
     
     const ctx = canvas.getContext("2d");
     const cfg = miniData.fieldConfig;
     if (!cfg) {
-        miniAnimFrame = requestAnimationFrame(miniRender);
+        if (typeof miniAnimFrame !== 'undefined') miniAnimFrame = requestAnimationFrame(miniRender);
         return;
     }
     
@@ -1006,55 +1006,42 @@ function miniRender() {
     if (state) {
         let isReplayMode = false;
         let replayFrameData = null;
+        miniData._currentReplayFrame = null;
         
         const isGoalWait = (state.game_state === "goal_wait" && state.goal_celebration);
         const waitRemaining = isGoalWait ? state.goal_celebration.wait_remaining : 999;
-        const rDuration = (state.goal_celebration && state.goal_celebration.replay_duration) || 10.0;
-        
-        if (isGoalWait && waitRemaining <= rDuration) {
+        const rDuration = (state.goal_celebration && state.goal_celebration.replay_duration) || 5.0;
+        const isReplayPhase = isGoalWait && (waitRemaining <= rDuration);
+
+        if (isReplayPhase) {
             const clip = miniReplay.lockedBuffer || miniReplay.buffer;
             if (clip && clip.length > 0) {
-                if (!miniReplay.playedReplayEvents) {
-                    miniReplay.playedReplayEvents = new Set();
-                }
+                if (!miniReplay.playedReplayEvents) miniReplay.playedReplayEvents = new Set();
                 
-                const maxReplayWindow = rDuration * 1000;
-                const elapsed = Math.max(0, Math.min(maxReplayWindow, (rDuration - waitRemaining) * 1000));
-                const totalClipDuration = clip[clip.length - 1].t - clip[0].t;
-                const startDelay = 1000;
+                // ✨ Tam Gol Zamanını Al
+                const goalTime = miniReplay.goalTimestamp || clip[clip.length - 1].t;
                 
-                let targetTimeOffset = 0;
-                let activePlaybackStarted = false;
+                // Replay moduna geçildiğinden beri geçen süre (0ms -> 5000ms)
+                const elapsedInReplayMs = (rDuration - waitRemaining) * 1000;
                 
-                if (elapsed < startDelay) {
-                    targetTimeOffset = 0;
-                    activePlaybackStarted = false;
-                } else {
-                    const activeElapsed = elapsed - startDelay;
-                    targetTimeOffset = Math.min(totalClipDuration, activeElapsed);
-                    activePlaybackStarted = true;
-                }
-                
-                let low = 0;
-                let high = clip.length - 1;
+                // HEDEF: Golün tam 3.0 saniye (3000ms) öncesinden başla
+                const targetTimestamp = (goalTime - 3000) + elapsedInReplayMs;
+
                 let frameIndex = 0;
-                while (low <= high) {
-                    const mid = Math.floor((low + high) / 2);
-                    const frameOffset = clip[mid].t - clip[0].t;
-                    if (frameOffset <= targetTimeOffset) {
-                        frameIndex = mid;
-                        low = mid + 1;
-                    } else {
-                        high = mid - 1;
+                let minDiff = Infinity;
+                for (let i = 0; i < clip.length; i++) {
+                    const diff = Math.abs(clip[i].t - targetTimestamp);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        frameIndex = i;
                     }
                 }
                 
                 replayFrameData = clip[frameIndex].data;
+                miniData._currentReplayFrame = replayFrameData;
                 isReplayMode = true;
 
-                if (replayFrameData && activePlaybackStarted) {
-                    if (!miniReplay.playedReplayEvents) miniReplay.playedReplayEvents = new Set();
-
+                if (replayFrameData) {
                     if (replayFrameData.goal_event) {
                         const g = replayFrameData.goal_event;
                         const key = `g_${g.scorer}_${g.scores ? (g.scores['1'] + '_' + g.scores['2']) : g.time}`;
@@ -2046,7 +2033,13 @@ function miniRender() {
             
             let energyPercent = 1.0;
             let sprintActive = false;
-            if (parseInt(pid) === miniData.playerId && miniData.playerId === 1 && 
+            if (isReplayMode && replayFrameData && replayFrameData.players && replayFrameData.players[pid]) {
+                const rPlayer = replayFrameData.players[pid];
+                if (rPlayer.sprint) {
+                    energyPercent = rPlayer.sprint.energy / rPlayer.sprint.max_energy;
+                    sprintActive = rPlayer.sprint.active && rPlayer.sprint.energy > 1;
+                }
+            } else if (parseInt(pid) === miniData.playerId && miniData.playerId === 1 && 
                 typeof HP !== 'undefined' && HP.running && HP.room?.gameState?.players?.[pid]) {
                 const hpp = HP.room.gameState.players[pid];
                 energyPercent = (hpp.sprint_energy || 0) / 100;

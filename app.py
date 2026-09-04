@@ -918,6 +918,82 @@ async def websocket_endpoint(websocket: WebSocket):
                 player_id = sarki_result["player_id"]
                 continue
 
+            # ==========================================
+            # MİNİ FUTBOL - ANLIK SENKRONİZASYON HANDLERS
+            # ==========================================
+            if msg_type == "mini_change_name":
+                if not room_code or room_code not in rooms:
+                    continue
+                room = rooms[room_code]
+                target_id = data.get("target_id")
+                new_name = str(data.get("new_name", "")).strip()
+                if not new_name or len(new_name) > 16:
+                    continue
+                
+                # Sadece oyuncu kendi ismini değiştirebilir (Admin başkasının adını değiştiremez)
+                if player_id != target_id:
+                    continue
+                
+                if target_id in room["players"]:
+                    old_name = room["players"][target_id]["name"]
+                    room["players"][target_id]["name"] = new_name
+                    
+                    await broadcast(room, {
+                        "type": "mini_name_changed",
+                        "player_id": target_id,
+                        "old_name": old_name,
+                        "new_name": new_name,
+                        "message": f"✏️ {old_name} ismini {new_name} olarak değiştirdi!"
+                    })
+                    
+                    try:
+                        from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update
+                        await send_minifutbol_lobby_update(room, broadcast)
+                    except Exception as e:
+                        print(f"[MINI NAME CHANGE LOBBY UPDATE HATA] {e}")
+                continue
+
+            if msg_type == "mini_change_jersey":
+                if not room_code or room_code not in rooms:
+                    continue
+                room = rooms[room_code]
+                target_id = data.get("target_id")
+                num = data.get("jersey_number")
+                try:
+                    num = int(num)
+                except:
+                    continue
+                if num < 0 or num > 99:
+                    continue
+                
+                # Sadece kendisi değiştirebilir veya Host (Admin) başkasınınkini değiştiremez
+                if player_id != target_id and player_id != 1:
+                    continue
+                
+                if target_id in room["players"]:
+                    room["players"][target_id]["jersey_number"] = num
+                    changer_name = room["players"][player_id]["name"]
+                    target_name = room["players"][target_id]["name"]
+                    
+                    msg_text = f"👕 {changer_name}, {target_name}'ın forma numarasını {num} yaptı!"
+                    if player_id == target_id:
+                        msg_text = f"👕 {changer_name} forma numarasını {num} yaptı!"
+                    
+                    await broadcast(room, {
+                        "type": "mini_jersey_changed",
+                        "player_id": target_id,
+                        "changer_id": player_id,
+                        "jersey_number": num,
+                        "message": msg_text
+                    })
+                    
+                    try:
+                        from oyun_modlari.mini_futbol.mini_futbol_handler import send_minifutbol_lobby_update
+                        await send_minifutbol_lobby_update(room, broadcast)
+                    except Exception as e:
+                        print(f"[MINI JERSEY CHANGE LOBBY UPDATE HATA] {e}")
+                continue
+
             # --- Mini Futbol ---
             mini_result = await handle_mini_message(
                 msg_type=msg_type, data=data, websocket=websocket,

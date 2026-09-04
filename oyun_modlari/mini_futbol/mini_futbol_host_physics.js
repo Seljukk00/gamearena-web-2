@@ -886,22 +886,17 @@ const HP = {  // Host Physics namespace
         
         // Goal wait
         if (gs.state === "goal_wait") {
-            // Sevinç bittiğinde (Replay başlarken) sevinç kuyruklarını temizle
             const waitRemaining = gs.goal_wait_until - now;
-            const rDuration = gs.last_goal_replay_duration || 10.0;
             
-            // ✨ SKIP KONTROLÜ: Eğer herkes atladıysa ve 1 saniye geçtiyse süreyi hemen bitir!
-            if (gs.skip_completed_time && now >= gs.skip_completed_time + 1.0) {
-                gs.goal_wait_until = now; // Anında santraya geçir
+            // ✨ SKIP KONTROLÜ
+            if (gs.skip_completed_time && now >= gs.skip_completed_time + 0.5) {
+                gs.goal_wait_until = now; 
             }
             
-            if (waitRemaining <= rDuration) {
-                for (const pid in gs.players) {
-                    gs.players[pid].celebrating = false;
-                    gs.players[pid].celebration_trail = [];
-                }
-            }
             if (now >= gs.goal_wait_until) {
+                // ✨ TÜM SÜRE (Sevinç + Replay) bittiği an santraya diz
+                this.resetPositions(); 
+
                 const ovr_restricted = gs.kickoff_restricted_team_override;
                 const ovr_receiving = gs.kickoff_receiving_team_override;
                 if (ovr_restricted !== null && ovr_restricted !== undefined) {
@@ -1114,11 +1109,11 @@ const HP = {  // Host Physics namespace
             ball.x += stepVx;
             ball.y += stepVy;
             
-            // ✨ ANLIK GOL KONTROLÜ (substep içinde - top merkezi çizgiyi geçti mi?)
+            // ✨ ANLIK GOL KONTROLÜ (substep içinde - topun TAMAMI çizgiyi geçti mi?)
             const inGoalY = ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM;
-            // ✨ Sadece içeri DOĞRU giderken gol
-            const inLeftGoal = ball.x <= 0 && inGoalY && ball.vx < 0;
-            const inRightGoal = ball.x >= this.FIELD_WIDTH && inGoalY && ball.vx > 0;
+            // ✨ Topun tamamı çizgiyi geçmeli + sadece içeri DOĞRU giderken gol
+            const inLeftGoal = (ball.x + this.BALL_RADIUS <= 0) && inGoalY && ball.vx < 0;
+            const inRightGoal = (ball.x - this.BALL_RADIUS >= this.FIELD_WIDTH) && inGoalY && ball.vx > 0;
             
             // ✨ Ek bekleme sırasında gol algılama YOK
             if ((inLeftGoal || inRightGoal) && gs.state !== "goal_wait" && !substepGoal && !gs._skipGoalDetection) {
@@ -1298,9 +1293,7 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "red") {
                     own = true;
                     gs.last_goal_scorer = 1;
-                    // ✨ FIX: Own goal → müzik karşı takıma göre çalsın diye scorer_pid'yi karşı takımdan seç
-                    const _blueOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "blue");
-                    gs.last_goal_scorer_pid = _blueOne ? parseInt(_blueOne) : last;
+                    gs.last_goal_scorer_pid = last;  // ✨ Kendi kalesine atan GERÇEK oyuncu ID
                     gs._ownGoalActualScorer = last;
                     gs.kickoff_restricted_team_override = 2;
                     gs.kickoff_receiving_team_override = 1;
@@ -1327,9 +1320,7 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "blue") {
                     own = true;
                     gs.last_goal_scorer = 2;
-                    // ✨ FIX: Own goal → müzik karşı takıma göre çalsın diye scorer_pid'yi karşı takımdan seç
-                    const _redOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "red");
-                    gs.last_goal_scorer_pid = _redOne ? parseInt(_redOne) : last;
+                    gs.last_goal_scorer_pid = last;  // ✨ Kendi kalesine atan GERÇEK oyuncu ID
                     gs._ownGoalActualScorer = last;
                     gs.kickoff_restricted_team_override = 1;
                     gs.kickoff_receiving_team_override = 2;
@@ -1374,10 +1365,13 @@ const HP = {  // Host Physics namespace
             gs.last_goal_replay_duration = actualReplaySec;
 
             gs.state = "goal_wait";
-            gs.goal_wait_until = now + 5.0 + actualReplaySec;  // ✨ 5sn sevinç + dinamik replay süresi
+            // ✨ Akış: 5sn Canlı Sevinç + 5sn Replay (3sn öncesi + 2sn sonrası) = 10 Saniye
+            gs.goal_wait_until = now + 10.0; 
+            gs.last_goal_replay_duration = 5.0; // Replay süresi sabit 5sn
             gs.pause_time = now;
-            gs.skip_votes = [];               // ✨ Skip eden oyuncular
-            gs.skip_completed_time = null;    // ✨ Herkes skip edince sayaç başlar
+            gs.skip_votes = [];
+            gs.skip_completed_time = null;
+            gs.goal_timestamp = now;
             
             // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
             if (!own && last) {
@@ -1976,8 +1970,8 @@ const HP = {  // Host Physics namespace
         // ✨ Kale ağzındaysa file'ye doğru girmesine izin ver (bounce yok)
         const ballInLeftGoalMouth = ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM;
                 
-        if (ball.x <= 0) {
-            // ✨ Sadece top içeri DOĞRU giderken gol say (vx < 0)
+        if (ball.x + this.BALL_RADIUS <= 0) {
+            // ✨ Topun TAMAMI sol çizgiyi geçmeli + içeri DOĞRU giderken gol (vx < 0)
             // ✨ Ek bekleme sırasında gol algılama YOK
             if (ballInLeftGoalMouth && !goalLock && ball.vx < 0 && !gs._skipGoalDetection) {
                 gs.scores[2] += 1;
@@ -1989,9 +1983,7 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "red") {
                     own = true;
                     gs.last_goal_scorer = 1;
-                    // ✨ FIX: Own goal → gol karşı takıma yazılıyor. scorer_pid'yi karşı takımdan (mavi) bir oyuncuya ayarla ki doğru gol müziği çalsın.
-                    const _blueOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "blue");
-                    gs.last_goal_scorer_pid = _blueOne ? parseInt(_blueOne) : last;
+                    gs.last_goal_scorer_pid = last;  // ✨ Kendi kalesine atan GERÇEK oyuncu ID
                     gs._ownGoalActualScorer = last;  // Gerçek atan (sevinç iptali için)
                     gs.kickoff_restricted_team_override = 2;
                     gs.kickoff_receiving_team_override = 1;
@@ -2027,14 +2019,15 @@ const HP = {  // Host Physics namespace
                 const dyG = ball.y - originYG;
                 gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
 
-                // ⏱️ Dinamik Replay Süresi (1sn Başlangıç Donması + Gol Öncesi + 1.8sn Gol Sonrası)
-                const elapsedSinceStartG = Math.max(0, this.settings.matchDuration - gs.time_left);
-                const actualReplaySecG = 1.0 + Math.min(7.2, elapsedSinceStartG) + 1.8;
-                gs.last_goal_replay_duration = actualReplaySecG;
+                // ✨ Akış: 5sn Canlı Sevinç + 5sn Replay (3sn öncesi + 2sn sonrası) = 10 Saniye
+                gs.last_goal_replay_duration = 5.0; // Replay süresi sabit 5sn
 
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 5.0 + actualReplaySecG;  // ✨ 5sn sevinç + dinamik replay süresi
+                gs.goal_wait_until = now + 10.0;
                 gs.pause_time = now;
+                gs.skip_votes = [];
+                gs.skip_completed_time = null;
+                gs.goal_timestamp = now;
                 
                 // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
                 if (!own && last) {
@@ -2084,8 +2077,8 @@ const HP = {  // Host Physics namespace
         // ✨ Kale ağzındaysa file'ye doğru girmesine izin ver
         const ballInRightGoalMouth = ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM;
         
-        if (ball.x >= this.FIELD_WIDTH) {
-            // ✨ Sadece top içeri DOĞRU giderken gol say (vx > 0)
+        if (ball.x - this.BALL_RADIUS >= this.FIELD_WIDTH) {
+            // ✨ Topun TAMAMI sağ çizgiyi geçmeli + içeri DOĞRU giderken gol (vx > 0)
             // Top zaten içeride ve duruyor/geri dönüyorsa (pause sonrası) → gol yok
             if (ballInRightGoalMouth && !goalLock && ball.vx > 0 && !gs._skipGoalDetection) {
                 gs.scores[1] += 1;
@@ -2097,9 +2090,7 @@ const HP = {  // Host Physics namespace
                 if (lastTeam === "blue") {
                     own = true;
                     gs.last_goal_scorer = 2;
-                    // ✨ FIX: Own goal → gol karşı takıma yazılıyor. scorer_pid'yi karşı takımdan (kırmızı) bir oyuncuya ayarla ki doğru gol müziği çalsın.
-                    const _redOne = Object.keys(this.room.players).find(pid => this.room.players[pid].team === "red");
-                    gs.last_goal_scorer_pid = _redOne ? parseInt(_redOne) : last;
+                    gs.last_goal_scorer_pid = last;  // ✨ Kendi kalesine atan GERÇEK oyuncu ID
                     gs._ownGoalActualScorer = last;  // Gerçek atan (sevinç iptali için)
                     gs.kickoff_restricted_team_override = 1;
                     gs.kickoff_receiving_team_override = 2;
@@ -2135,14 +2126,15 @@ const HP = {  // Host Physics namespace
                 const dyG = ball.y - originYG;
                 gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
 
-                // ⏱️ Dinamik Replay Süresi (1sn Başlangıç Donması + Gol Öncesi + 1.8sn Gol Sonrası)
-                const elapsedSinceStartG = Math.max(0, this.settings.matchDuration - gs.time_left);
-                const actualReplaySecG = 1.0 + Math.min(7.2, elapsedSinceStartG) + 1.8;
-                gs.last_goal_replay_duration = actualReplaySecG;
+                // ✨ Akış: 5sn Canlı Sevinç + 5sn Replay (3sn öncesi + 2sn sonrası) = 10 Saniye
+                gs.last_goal_replay_duration = 5.0; // Replay süresi sabit 5sn
 
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 5.0 + actualReplaySecG;  // ✨ 5sn sevinç + dinamik replay süresi
+                gs.goal_wait_until = now + 10.0;
                 gs.pause_time = now;
+                gs.skip_votes = [];
+                gs.skip_completed_time = null;
+                gs.goal_timestamp = now;
                 
                 // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
                 if (!own && last) {
