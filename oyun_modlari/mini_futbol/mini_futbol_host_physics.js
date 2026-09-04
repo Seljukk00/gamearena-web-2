@@ -1966,13 +1966,35 @@ const HP = {  // Host Physics namespace
         // === DUVAR + GOL ===
         const goalLock = gs.state === "goal_wait";
         
-        // Sol kale
-        // ✨ Kale ağzındaysa file'ye doğru girmesine izin ver (bounce yok)
+        // Kale ağzı kontrolleri
         const ballInLeftGoalMouth = ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM;
+        const ballInRightGoalMouth = ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM;
+
+        // 🧱 SOL KORNER DUVARLARI (Kale ağzı dışındaki sol çizgi)
+        if (!ballInLeftGoalMouth && (ball.x - this.BALL_RADIUS <= 0)) {
+            ball.x = this.BALL_RADIUS;
+            ball.vx = Math.abs(ball.vx) * this.WALL_BOUNCE;
+            if (ball.vx < this.MIN_BOUNCE_SPEED) ball.vx = this.MIN_BOUNCE_SPEED;
+            ball.vy *= 0.9;
+            ball.spin = 0;
+            ball.last_kick_type = null;
+            gs.hit_events.push({ type: "wall", time: now });
+        }
+
+        // 🧱 SAĞ KORNER DUVARLARI (Kale ağzı dışındaki sağ çizgi)
+        if (!ballInRightGoalMouth && (ball.x + this.BALL_RADIUS >= this.FIELD_WIDTH)) {
+            ball.x = this.FIELD_WIDTH - this.BALL_RADIUS;
+            ball.vx = -Math.abs(ball.vx) * this.WALL_BOUNCE;
+            if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = -this.MIN_BOUNCE_SPEED;
+            ball.vy *= 0.9;
+            ball.spin = 0;
+            ball.last_kick_type = null;
+            gs.hit_events.push({ type: "wall", time: now });
+        }
                 
+        // Sol kale (GOL)
         if (ball.x + this.BALL_RADIUS <= 0) {
-            // ✨ Topun TAMAMI sol çizgiyi geçmeli + içeri DOĞRU giderken gol (vx < 0)
-            // ✨ Ek bekleme sırasında gol algılama YOK
+            // ✨ SADECE KALE AĞZINDAYSA GOL OLABİLİR
             if (ballInLeftGoalMouth && !goalLock && ball.vx < 0 && !gs._skipGoalDetection) {
                 gs.scores[2] += 1;
                 const last = gs.last_ball_toucher;
@@ -2061,25 +2083,12 @@ const HP = {  // Host Physics namespace
                 }
                 
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
-            } else if (!ballInLeftGoalMouth) {
-                // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin (düz gitsin)
-                ball.x = this.BALL_RADIUS;
-                ball.vx = -ball.vx * this.WALL_BOUNCE;
-                if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = this.MIN_BOUNCE_SPEED;
-                ball.vy *= 0.9;
-                ball.spin = 0;
-                ball.last_kick_type = null;
-                gs.hit_events.push({ type: "wall", time: now });
             }
         }
         
-        // Sağ kale
-        // ✨ Kale ağzındaysa file'ye doğru girmesine izin ver
-        const ballInRightGoalMouth = ball.y > this.GOAL_Y_TOP && ball.y < this.GOAL_Y_BOTTOM;
-        
+        // Sağ kale (GOL)
         if (ball.x - this.BALL_RADIUS >= this.FIELD_WIDTH) {
-            // ✨ Topun TAMAMI sağ çizgiyi geçmeli + içeri DOĞRU giderken gol (vx > 0)
-            // Top zaten içeride ve duruyor/geri dönüyorsa (pause sonrası) → gol yok
+            // ✨ SADECE KALE AĞZINDAYSA GOL OLABİLİR
             if (ballInRightGoalMouth && !goalLock && ball.vx > 0 && !gs._skipGoalDetection) {
                 gs.scores[1] += 1;
                 const last = gs.last_ball_toucher;
@@ -2168,27 +2177,16 @@ const HP = {  // Host Physics namespace
                 }
                 
                 return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
-            } else if (!ballInRightGoalMouth) {
-                // ✨ Kale ağzının DIŞINDA (direk üstü/altı) - duvar gibi seksin (düz gitsin)
-                ball.x = this.FIELD_WIDTH - this.BALL_RADIUS;
-                ball.vx = -ball.vx * this.WALL_BOUNCE;
-                if (Math.abs(ball.vx) < this.MIN_BOUNCE_SPEED) ball.vx = -this.MIN_BOUNCE_SPEED;
-                ball.vy *= 0.9;
-                ball.spin = 0;
-                ball.last_kick_type = null;
-                gs.hit_events.push({ type: "wall", time: now });
             }
         }
 		
-		// ✨ FILE İÇİ DURDURMA KUTUSU (top file'ye ulaşmasın, biraz içeride dursun)
-        // Sol kale: top gol çizgisini geçtikten sonra biraz ileriye kadar gitsin
-        if (ball.x < 0) {
+		// ✨ SADECE KALE İÇİNDEYKEN ÇALIŞAN FILE DURDURMA KUTUSU (Işınlanma Fix)
+        if (ball.x < 0 && ballInLeftGoalMouth) {
             if (ball.x < -35) {
                 ball.x = -35;
                 if (ball.vx < 0) ball.vx = 0;
                 ball.vy *= 0.5;
             }
-            // Y ekseninde kale genişliği dışına çıkamasın
             if (ball.y < this.GOAL_Y_TOP + this.BALL_RADIUS) {
                 ball.y = this.GOAL_Y_TOP + this.BALL_RADIUS;
                 if (ball.vy < 0) ball.vy = 0;
@@ -2199,14 +2197,12 @@ const HP = {  // Host Physics namespace
             }
         }
         
-        // Sağ kale: aynı şekilde
-        if (ball.x > this.FIELD_WIDTH) {
+        if (ball.x > this.FIELD_WIDTH && ballInRightGoalMouth) {
             if (ball.x > this.FIELD_WIDTH + 35) {
                 ball.x = this.FIELD_WIDTH + 35;
                 if (ball.vx > 0) ball.vx = 0;
                 ball.vy *= 0.5;
             }
-            // Y ekseninde kale genişliği dışına çıkamasın
             if (ball.y < this.GOAL_Y_TOP + this.BALL_RADIUS) {
                 ball.y = this.GOAL_Y_TOP + this.BALL_RADIUS;
                 if (ball.vy < 0) ball.vy = 0;
