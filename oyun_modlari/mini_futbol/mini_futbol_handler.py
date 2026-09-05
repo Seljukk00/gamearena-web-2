@@ -116,7 +116,9 @@ async def send_minifutbol_lobby_update(room, broadcast):
             "team": pdata.get("team", "spectator"),
             "is_split_slave": pdata.get("is_split_slave", False),
             "in_lobby": pdata.get("in_lobby", False),  # ✨ Lobide bekleyen mi?
-            "jersey_number": pdata.get("jersey_number")  # ✨ Forma Numarası Lobi Bilgisi
+            "jersey_number": pdata.get("jersey_number"), # ✨ Forma Numarası Lobi Bilgisi
+            "is_bot": pdata.get("is_bot", False),       # ✨ Bot mu?
+            "bot_role": pdata.get("bot_role", "forvet")   # ✨ Bot rolü
         })
     
     _fd_lobby = get_field_dims(room)
@@ -145,7 +147,8 @@ async def send_minifutbol_lobby_update(room, broadcast):
         "blue_team_color": room.get("blue_team_color", "#4dabf7"),
         "red_sprint_color": room.get("red_sprint_color", "#ffd43b"),
         "blue_sprint_color": room.get("blue_sprint_color", "#ffd43b"),
-        "goal_music_mode": room.get("goal_music_mode", "team")
+        "goal_music_mode": room.get("goal_music_mode", "team"),
+        "admins": room.get("admins", [])
     }
     await broadcast(room, msg)
 
@@ -201,6 +204,7 @@ def init_game_state(room):
     players_dict = {}
     # Tüm kırmızı oyuncuları ekle
     for i, pid in enumerate(red_players):
+        pdata = room["players"].get(pid, {})
         players_dict[pid] = {
             "x": spawn_offset,
             "y": red_ys[i],
@@ -209,10 +213,13 @@ def init_game_state(room):
             "last_kick_time": 0,
             "sprint_energy": SPRINT_MAX_ENERGY,
             "last_frame_time": 0,
-            "team": "red"
+            "team": "red",
+            "is_bot": pdata.get("is_bot", False),
+            "bot_role": pdata.get("bot_role", "forvet")
         }
     # Tüm mavi oyuncuları ekle
     for i, pid in enumerate(blue_players):
+        pdata = room["players"].get(pid, {})
         players_dict[pid] = {
             "x": fw - spawn_offset,
             "y": blue_ys[i],
@@ -221,7 +228,9 @@ def init_game_state(room):
             "last_kick_time": 0,
             "sprint_energy": SPRINT_MAX_ENERGY,
             "last_frame_time": 0,
-            "team": "blue"
+            "team": "blue",
+            "is_bot": pdata.get("is_bot", False),
+            "bot_role": pdata.get("bot_role", "forvet")
         }
     
     print(f"[MINI] init_game_state: {len(red_players)} kırmızı, {len(blue_players)} mavi oyuncu sahada")
@@ -1391,6 +1400,8 @@ async def game_loop(room, safe_send, broadcast):
                 "goal_celebration": goal_celebration,
                 "kickoff": kickoff_info  # ✨ Santra kuralı bilgisi
             }
+            if gs.get("state") == "paused":
+                state_msg["paused_by"] = gs.get("paused_by")
             
             # Gol olduysa ekle
             if goal_event:
@@ -1575,6 +1586,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "field_goal_width": _fs_create["goal_width"],
             "kickoff_timeout": kickoff_timeout_init,
             "kicked_names": [],
+            "admins": [],
             "chat_history": [],
             "chat_last_msg_time": {},
             "red_team_color": "#ff6b6b",
@@ -1752,8 +1764,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host ayarları değiştirebilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin ayarları değiştirebilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         # ✨ Lobby VEYA pause sırasında değişebilir
@@ -2033,8 +2048,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host başlatabilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin başlatabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         # ✨ Oyuncu sayısı kontrolü kaldırıldı - host istediği zaman başlatabilir
@@ -2178,8 +2196,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host duraklatabilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin duraklatabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         if room.get("phase") != "playing":
@@ -2204,11 +2225,13 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         gs["state_before_pause"] = "playing"  # Devam ederken bilelim
         gs["state"] = "paused"
         gs["pause_time"] = time.time()  # Süre durdurulacak
+        gs["paused_by"] = player_id  # Oyunu kimin duraklattığını kaydet
         
-        print(f"[MINI] Oyun DURAKLATILDI (host: {room['players'][1]['name']})")
+        print(f"[MINI] Oyun DURAKLATILDI (paused_by: {player_id})")
         
         await broadcast(room, {
             "type": "mini_paused",
+            "paused_by": player_id,
             "message": "Oyun duraklatıldı!"
         })
         
@@ -2247,7 +2270,10 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         if room.get("phase") != "playing":
@@ -2306,7 +2332,10 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         gs = room.get("game_state")
@@ -2399,8 +2428,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host yeniden başlatabilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin yeniden başlatabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         if room.get("phase") != "playing":
@@ -2467,8 +2499,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host oyuncu taşıyabilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin oyuncu taşıyabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         # ✨ Lobby VEYA pause sırasında değişebilir
@@ -2836,8 +2871,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if target_pid not in room["players"]:
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        # Güvenlik & İzin Kontrolü: Oyuncu kendi numarasını değiştirebilir VEYA Admin (Host) herkesinkini değiştirebilir.
-        if player_id != 1 and target_pid != player_id:
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        # Güvenlik & İzin Kontrolü: Oyuncu kendi numarasını değiştirebilir VEYA Admin (Host/Seljuk) herkesinkini değiştirebilir.
+        if player_id != 1 and not is_seljuk_admin and target_pid != player_id:
             await safe_send(websocket, {"type": "error", "message": "Yalnızca kendi forma numaranızı değiştirebilirsiniz."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
@@ -2869,8 +2907,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host takım ayarlarını değiştirebilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin takım ayarlarını değiştirebilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         is_paused = room.get("phase") == "playing" and room.get("game_state", {}).get("state") == "paused"
@@ -2966,8 +3007,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host lobbye döndürebilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin lobbye döndürebilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         # ✨ Sadece playing veya finished fazında çalışır
@@ -3046,7 +3090,30 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             await send_minifutbol_lobby_update(room, broadcast)
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
-        # ✨ HOST → Lobby'de ise zaten dönmüş, sadece update gönder
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        # ✨ MİSAFİR (Süper admin hariç) "Lobiye Dön" bastıysa → kendisini izleyici yap
+        if player_id != 1 and not is_seljuk_admin:
+            if player_id in room["players"]:
+                player_name = room["players"][player_id].get("name", f"P{player_id}")
+                room["players"][player_id]["team"] = "spectator"
+                
+                if not is_auto:
+                    room["players"][player_id]["in_lobby"] = True
+                else:
+                    room["players"][player_id]["in_lobby"] = False
+                
+                for pid, pdata in room["players"].items():
+                    if pid != player_id:
+                        await safe_send(pdata["ws"], {
+                            "type": "mini_player_left_game",
+                            "player_name": player_name
+                        })
+            await send_minifutbol_lobby_update(room, broadcast)
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        # ✨ HOST veya Süper Admin lobiye döndürür
         if room.get("phase") == "lobby":
             await send_minifutbol_lobby_update(room, broadcast)
             return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -3179,6 +3246,186 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         return {"handled": True, "room_code": room_code, "player_id": player_id}
     
     # ==========================================
+    # 🤖 BOT EKLE (sadece host / admin)
+    # ==========================================
+    if msg_type == "mini_add_bot":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "mini_futbol":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin bot ekleyebilir."})
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if len(room["players"]) >= room.get("max_players", 10):
+            await safe_send(websocket, {"type": "error", "message": "Oda dolu! Bot eklenemiyor."})
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        bot_names_pool = [
+            "Bot Alex", "Bot Leo", "Bot Marco", "Bot Diego", "Bot Bruno",
+            "Bot Victor", "Bot Lucas", "Bot Carlos", "Bot Oscar", "Bot Max",
+            "Bot Rico", "Bot Dante", "Bot Felix", "Bot Tony", "Bot Jake",
+            "Bot Ryan", "Bot Kevin", "Bot Noah", "Bot Liam", "Bot Mason"
+        ]
+        
+        existing_names = [p.get("name", "").lower().strip() for p in room["players"].values()]
+        available_bot_names = [b for b in bot_names_pool if b.lower() not in existing_names]
+        if not available_bot_names:
+            bot_name = f"Bot-{random.randint(100, 999)}"
+        else:
+            bot_name = random.choice(available_bot_names)
+        
+        new_bot_id = 900
+        while new_bot_id in room["players"]:
+            new_bot_id += 1
+        
+        roles = ["defans", "forvet", "sag_kanat", "sol_kanat"]
+        default_role = random.choice(roles)
+        
+        # Bota rastgele klasik bir forma numarası ver
+        jersey_pool = [7, 9, 10, 11, 4, 5, 8, 17, 21, 99]
+        random_jersey = random.choice(jersey_pool)
+        
+        room["players"][new_bot_id] = {
+            "name": bot_name,
+            "ws": None,
+            "score": 0,
+            "team": "spectator",
+            "is_bot": True,
+            "bot_role": default_role,
+            "jersey_number": random_jersey
+        }
+        
+        if "pings" not in room:
+            room["pings"] = {}
+        room["pings"][new_bot_id] = 0
+        
+        print(f"[MINI BOT] Yeni bot eklendi: {bot_name} (id={new_bot_id}, role={default_role})")
+        
+        await send_minifutbol_lobby_update(room, broadcast)
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+    # ==========================================
+    # 🤖 BOT ROLÜ DEĞİŞTİR (sadece host / admin)
+    # ==========================================
+    if msg_type == "mini_change_bot_role":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "mini_futbol":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin bot rolü değiştirebilir."})
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        target_pid = data.get("target_id")
+        new_role = data.get("role")
+        
+        try:
+            target_pid = int(target_pid)
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if target_pid not in room["players"] or not room["players"][target_pid].get("is_bot"):
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if new_role not in ["kaleci", "defans", "forvet", "sag_kanat", "sol_kanat"]:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        bot_team = room["players"][target_pid].get("team")
+        
+        # Takımda zaten kaleci var mı kontrol et
+        if new_role == "kaleci" and bot_team in ["red", "blue"]:
+            has_gk = any(
+                p.get("bot_role") == "kaleci" and p.get("team") == bot_team and pid != target_pid
+                for pid, p in room["players"].items()
+            )
+            if has_gk:
+                await safe_send(websocket, {"type": "error", "message": "Bu takımda zaten bir kaleci var!"})
+                return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room["players"][target_pid]["bot_role"] = new_role
+        bot_name = room["players"][target_pid].get("name", f"Bot-{target_pid}")
+        print(f"[MINI BOT] Bot {bot_name} (id={target_pid}) rolü değişti: {new_role}")
+        
+        await send_minifutbol_lobby_update(room, broadcast)
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+
+    # ==========================================
+    # YÖNETİCİ OLARAK AYARLA (Host veya mevcut admin yapabilir)
+    # ==========================================
+    if msg_type == "mini_set_admin":
+        if room_code not in rooms:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        room = rooms[room_code]
+        if room.get("mode") != "mini_futbol":
+            return {"handled": False, "room_code": room_code, "player_id": player_id}
+        
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece yetkili yönetici atayabilir."})
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        target_pid = data.get("target_id")
+        try:
+            target_pid = int(target_pid)
+        except:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if target_pid not in room["players"]:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if target_pid == 1:
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        target_name = room["players"][target_pid].get("name", "").strip().lower()
+        if target_name == "seljuk":
+            return {"handled": True, "room_code": room_code, "player_id": player_id}
+        
+        if "admins" not in room:
+            room["admins"] = []
+        
+        if target_pid not in room["admins"]:
+            room["admins"].append(target_pid)
+            target_display = room["players"][target_pid].get("name", f"P{target_pid}")
+            print(f"[MINI ADMIN] {target_display} (id={target_pid}) yönetici yapıldı")
+            
+            await broadcast(room, {
+                "type": "mini_admin_added",
+                "target_id": target_pid,
+                "target_name": target_display,
+                "message": f"👑 {target_display} artık yönetici!"
+            })
+        else:
+            room["admins"].remove(target_pid)
+            target_display = room["players"][target_pid].get("name", f"P{target_pid}")
+            print(f"[MINI ADMIN] {target_display} (id={target_pid}) yöneticiliği alındı")
+            
+            await broadcast(room, {
+                "type": "mini_admin_removed",
+                "target_id": target_pid,
+                "target_name": target_display,
+                "message": f"👑 {target_display} yöneticiliği kaldırıldı."
+            })
+        
+        await send_minifutbol_lobby_update(room, broadcast)
+        return {"handled": True, "room_code": room_code, "player_id": player_id}
+    
+    # ==========================================
     # OYUNCUYU ODADAN AT (sadece host - lobby VEYA oyun içi)
     # ==========================================
     if msg_type == "mini_kick_player":
@@ -3189,8 +3436,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host kick atabilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin kick atabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         target_pid = data.get("target_id")
@@ -3203,7 +3453,7 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         if target_pid == 1:
-            await safe_send(websocket, {"type": "error", "message": "Host kendini atamaz."})
+            await safe_send(websocket, {"type": "error", "message": "Host odadan atılamaz."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         target_name = room["players"][target_pid].get("name", f"P{target_pid}")
@@ -3277,8 +3527,11 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         if room.get("mode") != "mini_futbol":
             return {"handled": False, "room_code": room_code, "player_id": player_id}
         
-        if player_id != 1:
-            await safe_send(websocket, {"type": "error", "message": "Sadece host takım isimlerini sıfırlayabilir."})
+        sender_name = room["players"].get(player_id, {}).get("name", "").strip().lower()
+        is_seljuk_admin = (sender_name == "seljuk") or (player_id in room.get("admins", []))
+        
+        if player_id != 1 and not is_seljuk_admin:
+            await safe_send(websocket, {"type": "error", "message": "Sadece host veya admin takım isimlerini sıfırlayabilir."})
             return {"handled": True, "room_code": room_code, "player_id": player_id}
         
         is_paused = room.get("phase") == "playing" and room.get("game_state", {}).get("state") == "paused"

@@ -392,7 +392,9 @@ const HP = {  // Host Physics namespace
                 sprint_energy: this.SPRINT_MAX_ENERGY,
                 last_frame_time: 0,
                 team: "red",
-                jersey_number: pl.jersey_number // ✨ Forma numarasını kaydet
+                jersey_number: pl.jersey_number,
+                is_bot: pl.is_bot || false,
+                bot_role: pl.bot_role || "forvet"
             };
         });
         // Tüm mavi oyuncular
@@ -406,7 +408,9 @@ const HP = {  // Host Physics namespace
                 sprint_energy: this.SPRINT_MAX_ENERGY,
                 last_frame_time: 0,
                 team: "blue",
-                jersey_number: pl.jersey_number // ✨ Forma numarasını kaydet
+                jersey_number: pl.jersey_number,
+                is_bot: pl.is_bot || false,
+                bot_role: pl.bot_role || "forvet"
             };
         });
         
@@ -545,6 +549,17 @@ const HP = {  // Host Physics namespace
         }
         this._lastTickTime = nowMs;
         
+        if (this.room && this.room.gameState) {
+            const _gs = this.room.gameState;
+            if (_gs.state === "playing") {
+                this.updateBotAI();
+            } else if (_gs.state === "goal_wait") {
+                // ⏭️ BOTLAR REPLAY'İ ANINDA ATLAR
+                for (let pid in _gs.players) {
+                    if (_gs.players[pid].is_bot) this.registerSkip(pid);
+                }
+            }
+        }
         const goalEvent = this.updatePhysics();
         const gs = this.room.gameState;
         const now = performance.now() / 1000;
@@ -606,8 +621,9 @@ const HP = {  // Host Physics namespace
                 silent: gs._silentGoalWait === true,
                 speed: gs.last_goal_speed || 0,
                 dist: gs.last_goal_dist || 0,
-                skip_votes: gs.skip_votes || [], // ✨ İstemci kimin atladığını bilsin
-                replay_duration: gs.last_goal_replay_duration || 10.0 // ✨ Dinamik Replay Süresi
+                skip_votes: gs.skip_votes || [],
+                replay_duration: (typeof gs.last_goal_replay_duration === "number") ? gs.last_goal_replay_duration : 10.0,
+                pre_duration: (typeof gs.last_goal_pre_duration === "number") ? gs.last_goal_pre_duration : 8.0
             };
         }
         
@@ -842,6 +858,7 @@ const HP = {  // Host Physics namespace
             if (now >= gs.countdown_end) {
                 // Countdown bitti → oyun başlasın
                 gs.state = "playing";
+                gs.last_playing_start_time = now; // Santra / oyun gerçekten başladığı an
                 
                 if (gs._savedTimeLeft !== undefined) {
                     // ✨ Pause resume sonrası → kaydedilmiş süreden devam et
@@ -1358,49 +1375,80 @@ const HP = {  // Host Physics namespace
             const dx = ball.x - originX;
             const dy = ball.y - originY;
             gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dx*dx + dy*dy) / 22));
-            
-            // ⏱️ Dinamik Replay Süresi (1sn Başlangıç Donması + Gol Öncesi + 1.8sn Gol Sonrası)
-            const elapsedSinceStart = Math.max(0, this.settings.matchDuration - gs.time_left);
-            const actualReplaySec = 1.0 + Math.min(7.2, elapsedSinceStart) + 1.8;
-            gs.last_goal_replay_duration = actualReplaySec;
+
+            // ⏱️ Replay: uzun hücum = 10sn | hızlı gol = sadece yeten kadar
+            const playingTime = (gs.last_playing_start_time && gs.last_playing_start_time > 0)
+                ? Math.max(0, now - gs.last_playing_start_time)
+                : 999;
+            const preGoalSec = Math.min(8.0, Math.max(1.0, playingTime));
+            const postGoalSec = 2.0;
+            const actualReplaySec = preGoalSec + postGoalSec;
+            const liveCelebSec = 5.0;
 
             gs.state = "goal_wait";
-            // ✨ Akış: 5sn Canlı Sevinç + 5sn Replay (3sn öncesi + 2sn sonrası) = 10 Saniye
-            gs.goal_wait_until = now + 10.0; 
-            gs.last_goal_replay_duration = 5.0; // Replay süresi sabit 5sn
+            gs.goal_wait_until = now + liveCelebSec + actualReplaySec;
+            gs.last_goal_replay_duration = actualReplaySec;
+            gs.last_goal_pre_duration = preGoalSec;
             gs.pause_time = now;
             gs.skip_votes = [];
             gs.skip_completed_time = null;
             gs.goal_timestamp = now;
             
-            // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
+            // 🎉 GOL SEVİNCİ - Kendi kalesine gol durumunda rakip sevinir
+            let celebrationTarget = null;
             if (!own && last) {
-                const chosenType = this.pickNextCelebration(gs, last);
+                celebrationTarget = last;
+            } else if (own && last && second) {
+                const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                const opponentTeam = scorerTeam === "red" ? "blue" : "red";
+                if (gs.players[second] && gs.players[second].team === opponentTeam) {
+                    celebrationTarget = second; // Kendi kalesine golden önce dokunan rakip oyuncu sevinir
+                }
+            }
+
+            if (celebrationTarget) {
+                const chosenType = this.pickNextCelebration(gs, celebrationTarget);
                 
                 if (chosenType === "grow_explode") {
-                    const scorerPid = parseInt(last, 10);
-                    const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                    const scorerPid = parseInt(celebrationTarget, 10);
+                    const scorerObj = gs.players[celebrationTarget] || gs.players[String(celebrationTarget)];
+                    let scorerTeam = scorerObj ? scorerObj.team : null;
+                    
+                    // Fallback: sevinci yapacak oyuncunun takımı bulunamazsa room'dan da bak
+                    if (!scorerTeam || (scorerTeam !== "red" && scorerTeam !== "blue")) {
+                        const roomP = this.room && this.room.players && (this.room.players[celebrationTarget] || this.room.players[String(celebrationTarget)]);
+                        if (roomP && (roomP.team === "red" || roomP.team === "blue")) {
+                            scorerTeam = roomP.team;
+                        }
+                    }
                     
                     const activePids = Object.keys(gs.players).map(id => parseInt(id, 10));
-                    const opponents = activePids.filter(pid => gs.players[pid].team !== scorerTeam);
-                    const teammates = activePids.filter(pid => gs.players[pid].team === scorerTeam && pid !== scorerPid);
+                    
+                    // 🎯 SADECE RAKİP TAKIMDAKİLER patlar (gol atan ve takım arkadaşları asla patlamaz)
+                    const opponents = activePids.filter(pid => {
+                        if (pid === scorerPid) return false; // Gol atan patlayamaz
+                        const p = gs.players[pid];
+                        if (!p) return false;
+                        if (p.team !== "red" && p.team !== "blue") return false; // İzleyici patlamaz
+                        if (scorerTeam && p.team === scorerTeam) return false; // Takım arkadaşı patlamaz
+                        return true;
+                    });
                     
                     let targets = [];
                     if (opponents.length > 0) {
-                        targets = opponents; // Senaryo 1: Rakip varsa sadece rakipler şişer
-                    } else if (teammates.length > 0) {
-                        targets = teammates; // Senaryo 2: Rakip yoksa gol atan hariç takım arkadaşı şişer
+                        targets = opponents; // Senaryo 1: Rakipler patlar
                     } else {
-                        targets = [scorerPid]; // Senaryo 3: Tamamen yalnızsa kendisi şişer
+                        targets = [scorerPid]; // Senaryo 2: Rakip yoksa gol atanın kendisi patlar
                     }
                     
                     targets.forEach(pid => {
-                        this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                        if (gs.players[pid]) {
+                            this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
+                        }
                     });
                 } else {
-                    // Diğer klasik sevinçler ise sadece gol atana verilir
-                    if (gs.players[last]) {
-                        this.selectGoalCelebration(gs.players[last], now, chosenType);
+                    if (gs.players[celebrationTarget]) {
+                        this.selectGoalCelebration(gs.players[celebrationTarget], now, chosenType);
                     }
                 }
             }
@@ -2041,23 +2089,41 @@ const HP = {  // Host Physics namespace
                 const dyG = ball.y - originYG;
                 gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
 
-                // ✨ Akış: 5sn Canlı Sevinç + 5sn Replay (3sn öncesi + 2sn sonrası) = 10 Saniye
-                gs.last_goal_replay_duration = 5.0; // Replay süresi sabit 5sn
+                var playingTime = (gs.last_playing_start_time && gs.last_playing_start_time > 0)
+                    ? Math.max(0, now - gs.last_playing_start_time)
+                    : 999;
+                var preGoalSec = Math.min(8.0, Math.max(1.0, playingTime));
+                var postGoalSec = 2.0;
+                var actualReplaySec = preGoalSec + postGoalSec;
+                var liveCelebSec = 5.0;
 
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 10.0;
+                gs.goal_wait_until = now + liveCelebSec + actualReplaySec;
+                gs.last_goal_replay_duration = actualReplaySec;
+                gs.last_goal_pre_duration = preGoalSec;
                 gs.pause_time = now;
                 gs.skip_votes = [];
                 gs.skip_completed_time = null;
                 gs.goal_timestamp = now;
                 
-                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
+                // 🎉 GOL SEVİNCİ - Kendi kalesine gol durumunda rakip sevinir
+                let celebrationTarget = null;
                 if (!own && last) {
-                    const chosenType = this.pickNextCelebration(gs, last);
+                    celebrationTarget = last;
+                } else if (own && last && second) {
+                    const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                    const opponentTeam = scorerTeam === "red" ? "blue" : "red";
+                    if (gs.players[second] && gs.players[second].team === opponentTeam) {
+                        celebrationTarget = second;
+                    }
+                }
+
+                if (celebrationTarget) {
+                    const chosenType = this.pickNextCelebration(gs, celebrationTarget);
                     
                     if (chosenType === "grow_explode") {
-                        const scorerPid = parseInt(last, 10);
-                        const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                        const scorerPid = parseInt(celebrationTarget, 10);
+                        const scorerTeam = gs.players[celebrationTarget] ? gs.players[celebrationTarget].team : null;
                         
                         const activePids = Object.keys(gs.players).map(id => parseInt(id, 10));
                         const opponents = activePids.filter(pid => gs.players[pid].team !== scorerTeam);
@@ -2076,8 +2142,8 @@ const HP = {  // Host Physics namespace
                             this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
                         });
                     } else {
-                        if (gs.players[last]) {
-                            this.selectGoalCelebration(gs.players[last], now, chosenType);
+                        if (gs.players[celebrationTarget]) {
+                            this.selectGoalCelebration(gs.players[celebrationTarget], now, chosenType);
                         }
                     }
                 }
@@ -2135,23 +2201,40 @@ const HP = {  // Host Physics namespace
                 const dyG = ball.y - originYG;
                 gs.last_goal_dist = Math.max(1, Math.round(Math.sqrt(dxG*dxG + dyG*dyG) / 22));
 
-                // ✨ Akış: 5sn Canlı Sevinç + 5sn Replay (3sn öncesi + 2sn sonrası) = 10 Saniye
-                gs.last_goal_replay_duration = 5.0; // Replay süresi sabit 5sn
+                // ⏱️ Dinamik Replay Süresi (Santradan bu yana geçen süreye göre)
+                const playingTime = gs.last_playing_start_time ? (now - gs.last_playing_start_time) : 10.0;
+                const preGoalSec = Math.min(8.0, Math.max(1.0, playingTime));
+                const postGoalSec = 2.0;
+                const actualReplaySec = preGoalSec + postGoalSec;
+
+                gs.last_goal_replay_duration = actualReplaySec;
+                gs.last_goal_pre_duration = preGoalSec;
 
                 gs.state = "goal_wait";
-                gs.goal_wait_until = now + 10.0;
+                gs.goal_wait_until = now + 5.0 + actualReplaySec;
                 gs.pause_time = now;
                 gs.skip_votes = [];
                 gs.skip_completed_time = null;
                 gs.goal_timestamp = now;
                 
-                // 🎉 GOL SEVİNCİ - kendi kalesi DEĞİLSE sevinç ver (Torbayla sırasız/tekrarsız çekim)
+                // 🎉 GOL SEVİNCİ - Kendi kalesine gol durumunda rakip sevinir
+                let celebrationTarget = null;
                 if (!own && last) {
-                    const chosenType = this.pickNextCelebration(gs, last);
+                    celebrationTarget = last;
+                } else if (own && last && second) {
+                    const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                    const opponentTeam = scorerTeam === "red" ? "blue" : "red";
+                    if (gs.players[second] && gs.players[second].team === opponentTeam) {
+                        celebrationTarget = second;
+                    }
+                }
+
+                if (celebrationTarget) {
+                    const chosenType = this.pickNextCelebration(gs, celebrationTarget);
                     
                     if (chosenType === "grow_explode") {
-                        const scorerPid = parseInt(last, 10);
-                        const scorerTeam = gs.players[last] ? gs.players[last].team : null;
+                        const scorerPid = parseInt(celebrationTarget, 10);
+                        const scorerTeam = gs.players[celebrationTarget] ? gs.players[celebrationTarget].team : null;
                         
                         const activePids = Object.keys(gs.players).map(id => parseInt(id, 10));
                         const opponents = activePids.filter(pid => gs.players[pid].team !== scorerTeam);
@@ -2170,8 +2253,8 @@ const HP = {  // Host Physics namespace
                             this.selectGoalCelebration(gs.players[pid], now, "grow_explode");
                         });
                     } else {
-                        if (gs.players[last]) {
-                            this.selectGoalCelebration(gs.players[last], now, chosenType);
+                        if (gs.players[celebrationTarget]) {
+                            this.selectGoalCelebration(gs.players[celebrationTarget], now, chosenType);
                         }
                     }
                 }
@@ -2387,6 +2470,218 @@ const HP = {  // Host Physics namespace
         }
         
         return null;
+    },
+
+    // ==========================================
+    // 🧠 ZEKİ BOT YAPAY ZEKA MOTORU (60 FPS AI)
+    // ==========================================
+    updateBotAI() {
+        if (!this.room || !this.room.gameState) return;
+        const gs = this.room.gameState;
+        
+        // 🎉 BOT GOL SEVİNCİ ZEKASI
+        if (gs.state === "goal_wait") {
+            const now = performance.now() / 1000;
+            for (const pid in gs.players) {
+                const p = gs.players[pid];
+                if (p.is_bot && !p.celebrating && !p._exploded) {
+                    // Bot patlamamış ve sevinmiyorsa ona rastgele bir sevinç ata
+                    // Kendi kalesine attıysa sevinmez kuralı updatePhysics'de çalışıyor zaten
+                    const allowedCelebs = ["rainbow_trail", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings", "snake"];
+                    const randomType = allowedCelebs[Math.floor(Math.random() * allowedCelebs.length)];
+                    this.selectGoalCelebration(p, now, randomType);
+                }
+                
+                // Sevinç sırasında hareket (Örnek: ortaya doğru yürüme)
+                if (p.is_bot) {
+                    p.keys.up = false; p.keys.down = false; p.keys.left = false; p.keys.right = false; p.keys.kick = false; p.keys.sprint = false;
+                    const cx = this.FIELD_WIDTH / 2;
+                    const cy = this.FIELD_HEIGHT / 2;
+                    if (Math.abs(p.x - cx) > 100) p.keys[p.x < cx ? "right" : "left"] = true;
+                    if (Math.abs(p.y - cy) > 100) p.keys[p.y < cy ? "down" : "up"] = true;
+                }
+            }
+            return; // Sevinç halindeyken oyun zekası çalışmaz
+        }
+        
+        if (gs.state !== "playing") return;
+
+        const ball = gs.ball;
+        const getDist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+
+        const redPlayers = Object.entries(gs.players)
+            .filter(([_, p]) => p.team === "red")
+            .map(([pid, p]) => ({ pid: parseInt(pid, 10), p }));
+            
+        const bluePlayers = Object.entries(gs.players)
+            .filter(([_, p]) => p.team === "blue")
+            .map(([pid, p]) => ({ pid: parseInt(pid, 10), p }));
+
+        const processTeamAI = (teamPlayers, teamName) => {
+            const isRed = teamName === "red";
+            const ownGoalX = isRed ? 0 : this.FIELD_WIDTH;
+            const oppGoalX = isRed ? this.FIELD_WIDTH : 0;
+            const goalCenterY = this.FIELD_HEIGHT / 2;
+
+            // 📢 İNSAN OYUNCU PAS İSTİYOR MU KONTROLÜ
+            // Takımdaki gerçek insan oyuncuları bul ve ŞUT tuşuna (kick) basılı tutuyorlar mı bak
+            let requestingPlayer = null;
+            teamPlayers.forEach(item => {
+                if (!item.p.is_bot && item.p.keys.kick) {
+                    requestingPlayer = item; // Pas isteyen insan oyuncu
+                }
+            });
+
+            // 🚫 SÜRÜ ENGELLEME: Topa kaleci HARİÇ en yakın olan saha oyuncusunu bul
+            let closestFieldBot = null;
+            let minDistToBall = Infinity;
+
+            teamPlayers.forEach(item => {
+                if (item.p.bot_role === "kaleci") return;
+                const d = getDist(item.p.x, item.p.y, ball.x, ball.y);
+                if (d < minDistToBall) {
+                    minDistToBall = d;
+                    closestFieldBot = item.pid;
+                }
+            });
+
+            // Gerçek oyuncu topa bottan daha yakınsa, en yakın olarak onu kabul et
+            let humanHasBall = false;
+            if (requestingPlayer) {
+                const humanDist = getDist(requestingPlayer.p.x, requestingPlayer.p.y, ball.x, ball.y);
+                if (humanDist < minDistToBall) {
+                    humanHasBall = true;
+                }
+            }
+
+            const activeRedCount = Object.values(gs.players).filter(p => p.team === "red").length;
+            const activeBlueCount = Object.values(gs.players).filter(p => p.team === "blue").length;
+            const isOneVsOne = (activeRedCount === 1 && activeBlueCount === 1);
+
+            teamPlayers.forEach(item => {
+                const pid = item.pid;
+                const p = item.p;
+                if (!p.is_bot) return;
+
+                const role = p.bot_role || "forvet";
+                const isClosest = (pid === closestFieldBot) && !humanHasBall;
+                const distToBall = getDist(p.x, p.y, ball.x, ball.y);
+
+                let targetX = p.x;
+                let targetY = p.y;
+                let wantKick = false;
+                let wantSprint = false;
+
+                if (role === "kaleci") {
+                    const gkBaseX = isRed ? 35 : this.FIELD_WIDTH - 35;
+                    const boxMinX = isRed ? 0 : this.FIELD_WIDTH - 220;
+                    const boxMaxX = isRed ? 220 : this.FIELD_WIDTH;
+                    const ballInBox = (isRed ? ball.x <= boxMaxX : ball.x >= boxMinX) &&
+                                      (ball.y >= this.GOAL_Y_TOP - 40 && ball.y <= this.GOAL_Y_BOTTOM + 40);
+
+                    if (ballInBox || distToBall < 110) {
+                        targetX = ball.x;
+                        targetY = ball.y;
+                        if (distToBall < 55) wantKick = true;
+                    } else {
+                        targetX = gkBaseX;
+                        targetY = Math.max(this.GOAL_Y_TOP - 10, Math.min(this.GOAL_Y_BOTTOM + 10, ball.y));
+                    }
+                } else if (isClosest || distToBall < 45) {
+                    // ⚽ TOP BENDEYSE (BOT)
+                    const isWrongSide = isRed ? (p.x > ball.x - 10) : (p.x < ball.x + 10);
+                    
+                    if (isWrongSide && !gs.kickoff_active) {
+                        targetX = ball.x + (isRed ? -45 : 45);
+                        targetY = ball.y + (p.y < ball.y ? -40 : 40);
+                        wantKick = false;
+                    } else {
+                        targetX = ball.x;
+                        targetY = ball.y;
+
+                        if (distToBall < this.PLAYER_RADIUS + this.BALL_RADIUS + 15) {
+                            if (gs.kickoff_active) {
+                                if (isOneVsOne) {
+                                    if (role === "kaleci") { wantKick = true; } 
+                                    else { wantKick = true; }
+                                } else {
+                                    wantKick = true; // Takım arkadaşına pas
+                                }
+                            } else {
+                                // 🤝 GERÇEK OYUNCU PAS İSTİYORSA VE AÇIKTAYSA DİREKT PAS VER
+                                if (requestingPlayer && getDist(p.x, p.y, requestingPlayer.p.x, requestingPlayer.p.y) > 100) {
+                                    // Pas ver (Yönü otomatik HP.updatePhysics içindeki Pass Assist halleder)
+                                    wantKick = true;
+                                } else {
+                                    // Normal Oyun: Sadece doğru yöne bakıyorsa şut/sürüş yap
+                                    const distToOppGoal = getDist(p.x, p.y, oppGoalX, goalCenterY);
+                                    const isAimingSafe = isRed ? (p.x < ball.x) : (p.x > ball.x);
+                                    
+                                    if (isAimingSafe) {
+                                        if (distToOppGoal < 550) {
+                                            wantKick = true; // Kaleye şut
+                                        } else {
+                                            wantKick = (Math.random() < 0.25); // Hafif kısa vurarak sürme
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (distToBall > 120) wantSprint = true;
+                } else {
+                    // 🎯 TOP BOTTA DEĞİL (ALAN AÇMA / KAÇMA ZEKASI)
+                    // Eğer top gerçek oyuncudaysa (humanHasBall), onun koşu yolundan çekilip pas açısına geç
+                    if (humanHasBall && requestingPlayer) {
+                        // Gerçek oyuncu topla beraber rakip kaleye gidiyorsa botlar kanatlara veya geriye açılır
+                        if (role === "defans") {
+                            targetX = isRed ? Math.min(ball.x - 150, 320) : Math.max(ball.x + 150, this.FIELD_WIDTH - 320);
+                            targetY = ball.y * 0.6 + (this.FIELD_HEIGHT * 0.2);
+                        } else if (role === "sol_kanat") {
+                            targetX = isRed ? ball.x + 120 : ball.x - 120; // Önüne çapraza koş
+                            targetY = this.FIELD_HEIGHT * 0.15; // En üste açıl
+                        } else if (role === "sag_kanat") {
+                            targetX = isRed ? ball.x + 120 : ball.x - 120; 
+                            targetY = this.FIELD_HEIGHT * 0.85; // En alta açıl
+                        } else { // forvet
+                            targetX = oppGoalX + (isRed ? -150 : 150); // Direk kalenin köşesine koş
+                            targetY = goalCenterY + (Math.random() > 0.5 ? -100 : 100);
+                        }
+                        wantSprint = true; // Boşa kaçarken depar at
+                    } else {
+                        // Normal topsuz alan pozisyonu
+                        if (role === "defans") {
+                            targetX = isRed ? Math.min(ball.x * 0.5, 320) : Math.max(ball.x * 0.5 + this.FIELD_WIDTH * 0.5, this.FIELD_WIDTH - 320);
+                            targetY = ball.y * 0.6 + (this.FIELD_HEIGHT * 0.2);
+                        } else if (role === "sol_kanat") {
+                            targetX = isRed ? Math.max(200, ball.x + 80) : Math.min(this.FIELD_WIDTH - 200, ball.x - 80);
+                            targetY = this.FIELD_HEIGHT * 0.22;
+                        } else if (role === "sag_kanat") {
+                            targetX = isRed ? Math.max(200, ball.x + 80) : Math.min(this.FIELD_WIDTH - 200, ball.x - 80);
+                            targetY = this.FIELD_HEIGHT * 0.78;
+                        } else { // forvet
+                            targetX = isRed ? Math.max(500, ball.x + 100) : Math.min(this.FIELD_WIDTH - 500, ball.x - 100);
+                            targetY = ball.y * 0.8 + (this.FIELD_HEIGHT * 0.1);
+                        }
+                    }
+                }
+
+                // Bot Tuş Komutlarını Simüle Et
+                const dx = targetX - p.x;
+                const dy = targetY - p.y;
+                const deadZone = 6;
+
+                p.keys.left = dx < -deadZone;
+                p.keys.right = dx > deadZone;
+                p.keys.up = dy < -deadZone;
+                p.keys.down = dy > deadZone;
+                p.keys.kick = wantKick;
+                p.keys.sprint = wantSprint && (p.sprint_energy > 25);
+            });
+        };
+
+        processTeamAI(redPlayers, "red");
+        processTeamAI(bluePlayers, "blue");
     }
 };
 

@@ -558,7 +558,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         ctx.fillText(distStr, startX, line2Y);
         
         const skipVotes = (celebration.skip_votes || []).map(id => parseInt(id, 10));
-        const activePlayers = miniData.players.filter(p => p.team === "red" || p.team === "blue");
+        const activePlayers = miniData.players.filter(p => (p.team === "red" || p.team === "blue") && !p.is_bot);
         const waitingFor = activePlayers.filter(p => !skipVotes.includes(parseInt(p.id, 10)));
         const boxY = cfg.height + 27.5; 
         
@@ -752,7 +752,10 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             }
 
             song.onerror = () => {
-                const fb = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/goal_song_1.mp3`);
+                // Herhangi bir yüklenme hatasında Beşiktaş yerine tarafsız genel gol müziklerinden birini rastgele çal
+                const fallbackSongs = ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3"];
+                const randFb = fallbackSongs[Math.floor(Math.random() * fallbackSongs.length)];
+                const fb = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/${randFb}`);
                 fb.currentTime = song.currentTime;
                 fb.play().catch(() => {});
                 miniData._goalSongAudio = fb;
@@ -1010,34 +1013,33 @@ function miniRender() {
         
         const isGoalWait = (state.game_state === "goal_wait" && state.goal_celebration);
         const waitRemaining = isGoalWait ? state.goal_celebration.wait_remaining : 999;
-        const rDuration = (state.goal_celebration && state.goal_celebration.replay_duration) || 5.0;
+        const rDuration = (state.goal_celebration && typeof state.goal_celebration.replay_duration === "number")
+            ? state.goal_celebration.replay_duration
+            : 10.0;
         const isReplayPhase = isGoalWait && (waitRemaining <= rDuration);
+        
+        if (!isReplayPhase) {
+            miniReplay.replayStartTime = 0;
+        }
 
         if (isReplayPhase) {
             const clip = miniReplay.lockedBuffer || miniReplay.buffer;
             if (clip && clip.length > 0) {
                 if (!miniReplay.playedReplayEvents) miniReplay.playedReplayEvents = new Set();
                 
-                // ✨ Tam Gol Zamanını Al
-                const goalTime = miniReplay.goalTimestamp || clip[clip.length - 1].t;
-                
-                // Replay moduna geçildiğinden beri geçen süre (0ms -> 5000ms)
-                const elapsedInReplayMs = (rDuration - waitRemaining) * 1000;
-                
-                // HEDEF: Golün tam 3.0 saniye (3000ms) öncesinden başla
-                const targetTimestamp = (goalTime - 3000) + elapsedInReplayMs;
-
-                let frameIndex = 0;
-                let minDiff = Infinity;
-                for (let i = 0; i < clip.length; i++) {
-                    const diff = Math.abs(clip[i].t - targetTimestamp);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        frameIndex = i;
-                    }
+                if (!miniReplay.replayStartTime) {
+                    miniReplay.replayStartTime = performance.now();
                 }
                 
-                replayFrameData = clip[frameIndex].data;
+                // ⚽ Gerçek Zamanlı 1.0x Oynatım: Saniyede 60 kare sabit ilerleme
+                const elapsedSec = Math.max(0, (performance.now() - miniReplay.replayStartTime) / 1000);
+                let frameIndex = Math.floor(elapsedSec * 60);
+                if (frameIndex >= clip.length) {
+                    frameIndex = clip.length - 1;
+                }
+                
+                const targetObj = clip[frameIndex];
+                replayFrameData = (targetObj && targetObj.data) ? targetObj.data : targetObj;
                 miniData._currentReplayFrame = replayFrameData;
                 isReplayMode = true;
 
@@ -2411,6 +2413,7 @@ function miniRender() {
         } else {
             miniData._lastGoalSignature = null;
             miniData._goalSongPlayed = null;
+            miniReplay.replayStartTime = 0; // Gol bekleme bittiğinde yerel zamanlayıcıyı sıfırla
         }
         if (state.kickoff && state.kickoff.active) {
             drawKickoffInfo(ctx, cfg, state.kickoff);

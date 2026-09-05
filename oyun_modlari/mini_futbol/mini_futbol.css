@@ -1300,7 +1300,9 @@
     .miniCelebPickerHint { font-size: 11px; }
 }
 
-/* Oyun ekranı değilse gizle */
+/* Oyun ekranı dışındayken paneli ekranın altına tamamen gizle (timing bug'ı engeller) */
 body:not(.mini-game-active) #miniCelebPicker {
-    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) translateY(160%) !important;
 }

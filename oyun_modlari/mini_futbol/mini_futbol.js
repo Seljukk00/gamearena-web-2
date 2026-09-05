@@ -36,8 +36,8 @@ showScreen = function(screenName) {
     // ✨ Mini futbol dışına çıktıysa ping'i de durdur
     const miniScreens = ["createMini", "miniLobby", "miniGame"];
     if (!miniScreens.includes(screenName)) {
-        stopMiniPing();
-        hideMiniChat();
+        if (typeof stopMiniPing === "function") stopMiniPing();
+        if (typeof hideMiniChat === "function") hideMiniChat();
     }
 };
 
@@ -123,7 +123,8 @@ function handleMiniMessage(msg) {
     
     // ✨ PAUSE/RESUME mesajları
     if (msg.type === "mini_paused") {
-        console.log("[MINI] Oyun duraklatıldı");
+        console.log("[MINI] Oyun duraklatıldı, duraklatan:", msg.paused_by);
+        miniData.pausedBy = msg.paused_by; // Duraklatanı yerel belleğe al
         
         if (miniData.playerId === 1 && typeof HP !== 'undefined' && HP.running) {
             HP.pauseGame();
@@ -604,6 +605,7 @@ function handleMiniMessage(msg) {
             miniData.goalMusicMode = msg.goal_music_mode;
             try { localStorage.setItem("miniGoalMusicMode", msg.goal_music_mode); } catch(e) {}
         }
+        miniData.admins = msg.admins || [];
         miniData.allowPlase = msg.allow_plase !== false;
         miniData.ballStick = msg.ball_stick !== false;
         miniData.sprintEnabled = msg.sprint_enabled !== false;
@@ -798,6 +800,29 @@ function handleMiniMessage(msg) {
         return;
     }
     
+    if (msg.type === "mini_admin_added") {
+        if (!miniData.admins) miniData.admins = [];
+        if (!miniData.admins.includes(msg.target_id)) {
+            miniData.admins.push(msg.target_id);
+        }
+        if (typeof showToast === "function") {
+            showToast("👑 Yönetici Atandı", msg.message || "Yeni yönetici eklendi!", null, "success");
+        }
+        updateMiniLobby();
+        return;
+    }
+    
+    if (msg.type === "mini_admin_removed") {
+        if (miniData.admins) {
+            miniData.admins = miniData.admins.filter(id => id !== msg.target_id);
+        }
+        if (typeof showToast === "function") {
+            showToast("👑 Yönetici Kaldırıldı", msg.message || "Yöneticilik kaldırıldı.", null, "info");
+        }
+        updateMiniLobby();
+        return;
+    }
+    
     if (msg.type === "mini_player_kicked") {
         showToast("🚫 Oyuncu Atıldı", `${msg.player_name} odadan atıldı`, null, "warning");
         playGlobalSound("player_leave.mp3", 0.6);
@@ -927,25 +952,22 @@ function handleMiniMessage(msg) {
             miniData._hasSkippedReplay = false;
         }
         
+        if (msg.game_state === "paused") {
+            miniData.pausedBy = msg.paused_by; // Anlık senkronizasyon için
+        }
+        
         miniData.gameState = msg;
         
         const rState = msg;
         const rIsGoalWait = (rState.game_state === "goal_wait" && rState.goal_celebration);
-        const rWaitRemaining = rIsGoalWait ? rState.goal_celebration.wait_remaining : 999;
-        const rReplayDuration = (rState.goal_celebration && rState.goal_celebration.replay_duration) || 5.0;
-        const rLockThreshold = 8.5; // Golün 1.5 saniye sonrasında kaydı dondur
         
-        if (rState.game_state === "playing" || (rIsGoalWait && rWaitRemaining > rLockThreshold)) {
-            if (rState.game_state === "playing") {
-                miniReplay.lockedBuffer = null;
-                miniReplay.replayStartTime = 0;
-                miniReplay.playedReplayEvents = null;
-                miniReplay.goalTimestamp = null;
-            }
-            // Gol anını ilk gerçekleştiği anda kaydet
-            if (rIsGoalWait && !miniReplay.goalTimestamp) {
-                miniReplay.goalTimestamp = Date.now();
-            }
+        if (rState.game_state === "playing") {
+            miniReplay.lockedBuffer = null;
+            miniReplay.replayStartTime = 0;
+            miniReplay.playedReplayEvents = null;
+            miniReplay.goalTimestamp = null;
+            miniReplay.postGoalFramesLeft = 100; // Gol sonrası top fileye oturana kadar ~1.6 sn daha kaydet
+            
             const currentFrame = {
                 ball: { x: rState.ball.x, y: rState.ball.y, on_fire: rState.ball.on_fire, warning: rState.ball.warning, warning_team: rState.ball.warning_team },
                 players: {},
@@ -966,13 +988,50 @@ function handleMiniMessage(msg) {
                     trail: rp.trail ? rp.trail.map(t => ({ ...t })) : null
                 };
             }
-            miniReplay.buffer.push({ t: Date.now(), data: currentFrame });
-            const cutoff = Date.now() - (miniReplay.maxDuration || 10000);
-            miniReplay.buffer = miniReplay.buffer.filter(f => f.t >= cutoff);
-        }
-        
-        if (rIsGoalWait && rWaitRemaining <= rLockThreshold && !miniReplay.lockedBuffer && miniReplay.buffer.length > 0) {
-            miniReplay.lockedBuffer = miniReplay.buffer.slice();
+            miniReplay.buffer.push(currentFrame);
+            // Tam 10 saniyelik 60 FPS tampon (600 kare)
+            if (miniReplay.buffer.length > 600) {
+                miniReplay.buffer.shift();
+            }
+        } else if (rIsGoalWait) {
+            if (!miniReplay.goalTimestamp) {
+                miniReplay.goalTimestamp = Date.now();
+            }
+            if (miniReplay.postGoalFramesLeft === undefined) {
+                miniReplay.postGoalFramesLeft = 100;
+            }
+            if (miniReplay.postGoalFramesLeft > 0) {
+                const currentFrame = {
+                    ball: { x: rState.ball.x, y: rState.ball.y, on_fire: rState.ball.on_fire, warning: rState.ball.warning, warning_team: rState.ball.warning_team },
+                    players: {},
+                    kick_effects: (rState.kick_effects || []).map(k => ({ ...k })),
+                    hit_events: (rState.hit_events || []).map(h => ({ ...h })),
+                    goal_event: rState.goal ? { ...rState.goal, time: Date.now() } : null
+                };
+                for (const pid in rState.players) {
+                    const rp = rState.players[pid];
+                    currentFrame.players[pid] = {
+                        x: rp.x,
+                        y: rp.y,
+                        sprint: rState.sprint?.[pid],
+                        celebrating: rp.celebrating || false,
+                        celebration_type: rp.celebration_type,
+                        celebration_start: rp.celebration_start,
+                        celebration_elapsed: rp.celebration_elapsed,
+                        trail: rp.trail ? rp.trail.map(t => ({ ...t })) : null
+                    };
+                }
+                miniReplay.buffer.push(currentFrame);
+                if (miniReplay.buffer.length > 600) {
+                    miniReplay.buffer.shift();
+                }
+                miniReplay.postGoalFramesLeft--;
+                if (miniReplay.postGoalFramesLeft === 0) {
+                    miniReplay.lockedBuffer = miniReplay.buffer.slice();
+                }
+            } else if (!miniReplay.lockedBuffer && miniReplay.buffer.length > 0) {
+                miniReplay.lockedBuffer = miniReplay.buffer.slice();
+            }
         }
         
         const now_ = performance.now();
@@ -1125,7 +1184,9 @@ function startMiniLocalPhysicsIfNeeded() {
         is_split_slave: p.is_split_slave || false,
         jersey_number: (miniData.persistentJerseys && miniData.persistentJerseys[p.id] !== undefined) 
             ? miniData.persistentJerseys[p.id] 
-            : p.jersey_number
+            : p.jersey_number,
+        is_bot: p.is_bot === true,
+        bot_role: p.bot_role || "forvet"
     }));
 
     HP.onStateUpdate = null;
@@ -1149,32 +1210,31 @@ function startMiniLocalPhysicsIfNeeded() {
             if (miniData._lastGoalSigForSeed !== goalSignature) {
                 miniData._lastGoalSigForSeed = goalSignature;
                 
-                let userChoice = (miniData.playerCelebrationChoices && miniData.playerCelebrationChoices[_scorerPid]) || "random";
-                if (userChoice === "random") {
-                    const celList = ["grow_explode", "rainbow_trail", "spotlight", "frostbite", "smiley_face", "eagle_wings", "snake"];
-                    userChoice = celList[Math.floor(Math.random() * celList.length)];
-                }
-                miniData._hostSelectedCelebrationType = userChoice;
-                
-                const teamSongs = {
-                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3"],
-                    fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3", "goal_song_22.mp3", "goal_song_30.mp3", "goal_song_32.mp3"],
-                    galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3"],
-                    trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3"]
-                };
-
-                const assignedSongs = new Set();
-                for (const team in teamSongs) {
-                    teamSongs[team].forEach(s => assignedSongs.add(s));
-                }
-
-                const generalPool = [];
-                for (let i = 1; i <= 100; i++) {
-                    const songName = `goal_song_${i}.mp3`;
-                    if (!assignedSongs.has(songName)) {
-                        generalPool.push(songName);
+                // Sevinç tipini fizik motorunun (HP) o an seçtiği karardan al (Senkronizasyon için)
+                let actualTypeFromHP = "random";
+                if (stateMsg.goal_celebration && stateMsg.goal_celebration.celebration_type) {
+                    actualTypeFromHP = stateMsg.goal_celebration.celebration_type;
+                } else {
+                    // Fallback: HP'den gelmediyse oyuncuların o anki durumundan bak
+                    for (const pid in stateMsg.players) {
+                        if (stateMsg.players[pid].celebrating) {
+                            actualTypeFromHP = stateMsg.players[pid].celebration_type;
+                            break;
+                        }
                     }
                 }
+                miniData._hostSelectedCelebrationType = actualTypeFromHP;
+                
+                // Sadece klasörde fiziksel olarak mevcut olan goal_song_1.mp3 -> goal_song_12.mp3 arasını kullanıyoruz
+                const teamSongs = {
+                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3"],
+                    fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3"],
+                    galatasaray: ["goal_song_6.mp3"],
+                    trabzonspor: ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3"] // TS için tarafsız marşlar fallback
+                };
+
+                // Takımlara atanmamış tamamen tarafsız gol müzikleri (2, 7, 8, 9 numaralı şarkılar)
+                const generalPool = ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3"];
 
                 const pools = {
                     ...teamSongs,
@@ -1235,10 +1295,10 @@ function startMiniLocalPhysicsIfNeeded() {
             stateMsg.goal_celebration.selected_song = miniData._hostSelectedSong;
             stateMsg.goal_celebration.celebration_type = isOwnGoal ? null : miniData._hostSelectedCelebrationType;
             
-            if (stateMsg.players && stateMsg.players[_scorerPid]) {
-                stateMsg.players[_scorerPid].celebrating = !isOwnGoal;
-                stateMsg.players[_scorerPid].celebration_type = isOwnGoal ? null : miniData._hostSelectedCelebrationType;
-            }
+            // 🛑 BUG FIX: Burada scorer'ı zorla celebrating yapmıyoruz! 
+            // Çünkü HP motoru 'grow_explode' (balon) sevincinde zaten RAKİPLERİ işaretledi.
+            // Eğer sevinç balon DEĞİLSE, HP zaten scorer'ı işaretledi. 
+            // Buradaki müdahale her iki taraf balon seçtiğinde gol atanın da patlamasına neden oluyordu.
         } else {
             miniData._lastGoalSigForSeed = null;
             miniData._hostSelectedSong = null;
@@ -1289,6 +1349,11 @@ function startMiniGame() {
 
     try { document.body.classList.add("mini-game-active"); } catch (e) {}
     try {
+        // En başta panelin DOM'da hazır olmasını sağlıyoruz
+        if (typeof injectCelebPickerHTML === "function") {
+            injectCelebPickerHTML();
+        }
+        
         const list = getCelebPickerList();
         let savedPref = localStorage.getItem("miniPreferredCelebration");
         if (!savedPref && list.length > 0) savedPref = list[0].id;
