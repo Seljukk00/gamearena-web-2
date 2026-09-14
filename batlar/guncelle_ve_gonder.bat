@@ -53,7 +53,7 @@ echo ================================================
 echo.
 
 echo [2] Once GitHub'dan degisiklikler cekiliyor (git pull)...
-git pull origin main --no-edit
+git pull origin main --no-edit --allow-unrelated-histories
 
 if %errorlevel% neq 0 (
     echo.
