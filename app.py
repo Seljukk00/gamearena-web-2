@@ -1,4 +1,4 @@
-import randomd
+import random
 import string
 import os
 from dotenv import load_dotenv
