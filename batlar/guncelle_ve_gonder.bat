@@ -84,7 +84,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [5] GitHub'a gonderiliyor (git push)...
-git push
+git push origin main
 
 if %errorlevel% neq 0 (
     echo.
@@ -107,7 +107,7 @@ echo Render otomatik olarak yeni deploy baslatacak.
 echo Site 2-3 dakika icinde guncellenecek.
 echo.
 echo Kontrol icin:
-echo   Site: https://gamearena-web-rnd8.onrender.com
+echo   Site: https://gamearena-web-ky7q.onrender.com
 echo   GitHub: https://github.com/Seljukk00/gamearena-web-2
 echo   Render: https://dashboard.render.com
 echo.
