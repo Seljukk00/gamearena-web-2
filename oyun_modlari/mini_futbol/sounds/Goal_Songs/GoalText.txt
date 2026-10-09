@@ -1,28 +1,78 @@
 Beşiktaş
 -goal_song_1.mp3 >varsın olsun 
 -goal_song_10.mp3 >kartal sesi
--goal_song_11.mp3 >beşiktaş seninle ölmeye geldik
+-goal_song_11.mp3 >seninle ölmeye geldik
 -goal_song_12.mp3 >come to besiktas
 -goal_song_17.mp3 >kartalım isterse durdurumazsın
 -goal_song_21.mp3 >çingenem
 -goal_song_29.mp3 >biz ne baharlar gördük
+-goal_song_35.mp3 >güncel gol müziği
+-goal_song_38.mp3 >112 sene yanyana 
+-goal_song_41.mp3 >şinanayda yavrum şinanay
 
 Fenerbahçe
--goal_song_3.mp3 >
--goal_song_4.mp3 >
--goal_song_5.mp3 >
--goal_song_22.mp3 >
--goal_song_30.mp3 >
+-goal_song_3.mp3 >we from desire
+-goal_song_4.mp3 >beni sev
+-goal_song_5.mp3 >söyle bana sebastian
+-goal_song_22.mp3 >la la la la
+-goal_song_30.mp3 >ne sevmek ne sevilmek
 -goal_song_32.mp3 >100.yıl marş
+-goal_song_36.mp3 >sana hastayım anlasana
+-goal_song_37.mp3 >çubuklu forma
 
 Galatasaray
--goal_song_6.mp3 >
--goal_song_23.mp3 >
+-goal_song_6.mp3 >aşkın olayım
+-goal_song_23.mp3 >gol müziği
 -goal_song_31.mp3 >çocukluk aşkımsın
 -goal_song_33.mp3 >şereftir seni sevmek 
+-goal_song_39.mp3 >çocukluk aşkımsın
+-goal_song_40.mp3 >ayva çicek açmış yazmı gelecek
 
 Trabzonspor
 -goal_song_13.mp3 >düştüysen kalk gel kendine
 -goal_song_16.mp3 >uy aha
 -goal_song_14.mp3 >allow dance
--
+-goal_song_34.mp3 >biz dar sokaklarında
+
+Tümü
+-goal_song_1.mp3 >varsın olsun 
+-goal_song_2.mp3 >SAMSUNSPOR ara beni 
+-goal_song_3.mp3 >Fenerbahçe we from desire 
+-goal_song_4.mp3 >FENERBAHÇE beni sev
+-goal_song_5.mp3 >FENERBAHÇE söyle bana sebastian
+-goal_song_6.mp3 >GALATASARAY aşkın olayım
+-goal_song_7.mp3 >
+-goal_song_8.mp3 >erzincanspor gol müziği
+-goal_song_9.mp3 >ADANASPOR iki deli biraraya gelmemeliydik
+-goal_song_10.mp3 >BEŞİKTAŞ kartal sesi
+-goal_song_11.mp3 >BEŞİKTAŞ seninle ölmeye geldik 
+-goal_song_12.mp3 >BEŞİKTAŞ come to besiktas
+-goal_song_13.mp3 >TRABZONSPOR düştüysen kalk gel kendine
+-goal_song_14.mp3 >TRABZONSPOR allow dance
+-goal_song_15.mp3 >mavişim
+-goal_song_16.mp3 >TRABZONSPOR uy aha
+-goal_song_17.mp3 >BEŞİKTAŞ kartalım isterse durdurumazsın
+-goal_song_18.mp3 >ANKARAGÜCÜ bir insan bir takımı böylesine sever mi?
+-goal_song_19.mp3 >BAŞAKŞEHİR işte şampiyon başakşehir
+-goal_song_20.mp3 >buralara yaz günü kar yağıyor canım
+-goal_song_21.mp3 >BEŞİKTAŞ çingenem
+-goal_song_22.mp3 >FENERBAHÇE la la la la
+-goal_song_23.mp3 >GALATASARAY gol müziği
+-goal_song_24.mp3 >uyuyan yılanı uyandırdın
+-goal_song_25.mp3 >konuşmama hakkımı kullanıyorum
+-goal_song_26.mp3 >yoluma çıkmasan iyi edersin
+-goal_song_27.mp3 >aç koynunu giricem
+-goal_song_28.mp3 >dum tek tek
+-goal_song_29.mp3 >BEŞİKTAŞ biz ne baharlar gördük
+-goal_song_30.mp3 >FENERBAHÇE ne sevmek ne sevilmek
+-goal_song_31.mp3 >GALATASARAY çocukluk aşkımsın
+-goal_song_32.mp3 >FENERBAHÇE 100.yıl marş
+-goal_song_33.mp3 >GALATASARAY şereftir seni sevmek 
+-goal_song_34.mp3 >TRABZONSPOR biz dar sokaklarında
+-goal_song_35.mp3 >BEŞİKTAŞ güncel gol müziği
+-goal_song_36.mp3 >FENERBAHÇE sana hastayım anlasana
+-goal_song_37.mp3 >FENERBAHÇE çubuklu forma
+-goal_song_38.mp3 >BEŞİKTAŞ 112 sene yanyana
+-goal_song_39.mp3 >GALATASARAY çocukluk aşkımsın
+-goal_song_40.mp3 >GALATASARAY ayva çicek açmış yazmı gelecek
+-goal_song_41.mp3 >BEŞİKTAŞ şinanayda yavrum şinanay
