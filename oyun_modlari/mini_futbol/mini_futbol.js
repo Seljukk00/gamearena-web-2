@@ -950,10 +950,26 @@ function handleMiniMessage(msg) {
         
         if (msg.game_state === "playing" || msg.game_state === "countdown") {
             miniData._hasSkippedReplay = false;
-        }
-        
-        if (msg.game_state === "paused") {
-            miniData.pausedBy = msg.paused_by; // Anlık senkronizasyon için
+            
+            // 🌟 OYUNCU GÖRÜNMEZLİK & KAYMA SORUNU GİDERİCİ (Santrada Anında Reset)
+            if (miniData._renderSmoothed) {
+                for (const key in miniData._renderSmoothed) {
+                    if (miniData._renderSmoothed[key]) {
+                        // Patlamadan kalan tüm küçülme ve şeffaflık efektlerini anında sıfırla
+                        miniData._renderSmoothed[key].scale = 1.0;
+                        miniData._renderSmoothed[key].alpha = 1.0;
+                        miniData._renderSmoothed[key].opacity = 1.0;
+                        miniData._renderSmoothed[key].radius = undefined; // Varsayılana zorla
+                        miniData._renderSmoothed[key].invisible = false;
+                        miniData._renderSmoothed[key].exploded = false;
+                        miniData._renderSmoothed[key].hidden = false;
+                    }
+                }
+            }
+            // Oyuncuların kaleden santraya doğru kayarak görünmez gitmesini önlemek için konum tamponunu sıfırla (Işınla)
+            miniData.snapshots = [];
+            miniData.currentPositions = {};
+            miniData.targetPositions = {};
         }
         
         miniData.gameState = msg;
@@ -1260,36 +1276,75 @@ function startMiniLocalPhysicsIfNeeded() {
                     }
                 }
 
-                let teamPool = pools.general;
-                const currentGoalMusicMode = miniData.goalMusicMode || "team";
+                // 🌟 BÜTÜNSEL GOL MÜZİĞİ MOTORU (Shuffle Bag - Sıralı Karıştırma)
+                const all41Songs = Array.from({ length: 41 }, (_, i) => `goal_song_${i + 1}.mp3`);
                 
-                if (currentGoalMusicMode === "mixed") {
-                    const allSongs = [];
-                    for (const key in pools) {
-                        pools[key].forEach(s => {
-                            if (!allSongs.includes(s)) allSongs.push(s);
-                        });
-                    }
-                    teamPool = allSongs;
-                } else {
+                if (!miniData._playedSongsPools) {
+                    miniData._playedSongsPools = {}; // Takımların çalınan şarkı geçmişini tutan obje
+                }
+
+                const currentGoalMusicMode = miniData.goalMusicMode || "team";
+                let poolKey = "all41"; // Varsayılan havuz anahtarı
+                let teamPool = all41Songs;
+
+                if (currentGoalMusicMode === "team") {
                     let teamName = actualScoringTeam === "red" ? miniData.redTeamName : miniData.blueTeamName;
                     if (teamName) {
                         const n = teamName.trim().toLowerCase();
-                        if (["beşiktaş", "besiktas", "bjk"].includes(n)) teamPool = pools.besiktas;
-                        else if (["galatasaray", "gs"].includes(n)) teamPool = pools.galatasaray;
-                        else if (["fenerbahçe", "fenerbahce", "fb"].includes(n)) teamPool = pools.fenerbahce;
-                        else if (["trabzonspor", "ts"].includes(n)) teamPool = pools.trabzonspor;
+                        if (["beşiktaş", "besiktas", "bjk"].includes(n)) {
+                            poolKey = "besiktas";
+                            teamPool = pools.besiktas;
+                        } else if (["galatasaray", "gs"].includes(n)) {
+                            poolKey = "galatasaray";
+                            teamPool = pools.galatasaray;
+                        } else if (["fenerbahçe", "fenerbahce", "fb"].includes(n)) {
+                            poolKey = "fenerbahce";
+                            teamPool = pools.fenerbahce;
+                        } else if (["trabzonspor", "ts"].includes(n)) {
+                            poolKey = "trabzonspor";
+                            teamPool = pools.trabzonspor;
+                        } else {
+                            poolKey = "general_41";
+                            teamPool = all41Songs; // 4 Büyükler dışındaysa tüm havuz
+                        }
+                    } else {
+                        poolKey = "general_41";
+                        teamPool = all41Songs; // İsim yoksa tüm havuz
+                    }
+                } else {
+                    poolKey = "mixed_41";
+                    teamPool = all41Songs; // Rastgele modda tüm havuz
+                }
+
+                // Bu havuz için oynatma geçmişi yoksa oluştur
+                if (!miniData._playedSongsPools[poolKey]) {
+                    miniData._playedSongsPools[poolKey] = [];
+                }
+
+                // Havuzdaki şarkılardan daha önce çalınmamış olanları filtrele
+                let availableSongs = teamPool.filter(s => !miniData._playedSongsPools[poolKey].includes(s));
+
+                // 🔄 DÖNGÜ SIFIRLAMA: Eğer tüm şarkılar çalındıysa geçmişi sıfırla ve baştan başla
+                if (availableSongs.length === 0) {
+                    miniData._playedSongsPools[poolKey] = [];
+                    
+                    // Geçmiş sıfırlanırken en son çalan şarkı havuzda birden fazla şarkı varsa elenir (ardışık tekrarı önlemek için)
+                    if (teamPool.length > 1 && miniData._lastPlayedSong) {
+                        availableSongs = teamPool.filter(s => s !== miniData._lastPlayedSong);
+                    } else {
+                        availableSongs = teamPool;
                     }
                 }
 
-                let availableSongs = teamPool;
-                if (teamPool.length > 1 && miniData._lastPlayedSong) {
-                    availableSongs = teamPool.filter(s => s !== miniData._lastPlayedSong);
-                }
-                
+                // Rastgele şarkı seçimi
                 const selectedSong = availableSongs[Math.floor(Math.random() * availableSongs.length)];
+                
+                // Seçilen şarkıyı bu havuzun geçmişine ekle (bir dahaki sefere çalmasın)
+                miniData._playedSongsPools[poolKey].push(selectedSong);
+
+                // Seçilen şarkıyı sunucuya ve ses motoruna bildir
                 miniData._hostSelectedSong = selectedSong;
-                miniData._lastPlayedSong = selectedSong;
+                miniData._lastPlayedSong = selectedSong; // Global son çalan takibi
             }
             
             stateMsg.goal_celebration.selected_song = miniData._hostSelectedSong;

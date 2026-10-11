@@ -101,7 +101,8 @@ const MiniAudio = {
                 if (isNaN(songId) || songId <= 0) {
                     songId = 1;
                 } else {
-                    songId = ((songId - 1) % 12) + 1;
+                    // 🌟 GOL ŞARKISI LİMİTİ: 12 limitini 41 şarkıya çıkartarak tüm klasörü aktif ediyoruz
+                    songId = ((songId - 1) % 41) + 1;
                 }
                 name = `Goal_Songs/goal_song_${songId}.mp3`;
             }

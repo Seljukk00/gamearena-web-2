@@ -379,13 +379,31 @@ const HP = {  // Host Physics namespace
         const _spawnOffset = this.FIELD_WIDTH * 0.2;
         const _redYs = _calcYs(redPlayers.length, this.FIELD_HEIGHT);
         const _blueYs = _calcYs(bluePlayers.length, this.FIELD_HEIGHT);
+        const center_x = this.FIELD_WIDTH / 2;
         
         const gsPlayers = {};
         // Tüm kırmızı oyuncular
         redPlayers.forEach((pl, i) => {
+            let px, py;
+            if (redPlayers.length === 1) {
+                px = center_x - (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                py = this.FIELD_HEIGHT / 2;
+            } else if (redPlayers.length === 2) {
+                if (i === 0) { // Kaleci
+                    px = _spawnOffset;
+                    py = this.FIELD_HEIGHT / 2;
+                } else { // Forvet
+                    px = center_x - (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                    py = this.FIELD_HEIGHT / 2;
+                }
+            } else {
+                px = _spawnOffset;
+                py = _redYs[i];
+            }
+
             gsPlayers[pl.id] = {
-                x: _spawnOffset,
-                y: _redYs[i],
+                x: px,
+                y: py,
                 vx: 0, vy: 0,
                 keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                 last_kick_time: 0,
@@ -399,9 +417,26 @@ const HP = {  // Host Physics namespace
         });
         // Tüm mavi oyuncular
         bluePlayers.forEach((pl, i) => {
+            let px, py;
+            if (bluePlayers.length === 1) {
+                px = center_x + (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                py = this.FIELD_HEIGHT / 2;
+            } else if (bluePlayers.length === 2) {
+                if (i === 0) { // Kaleci
+                    px = this.FIELD_WIDTH - _spawnOffset;
+                    py = this.FIELD_HEIGHT / 2;
+                } else { // Forvet
+                    px = center_x + (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                    py = this.FIELD_HEIGHT / 2;
+                }
+            } else {
+                px = this.FIELD_WIDTH - _spawnOffset;
+                py = _blueYs[i];
+            }
+
             gsPlayers[pl.id] = {
-                x: this.FIELD_WIDTH - _spawnOffset,
-                y: _blueYs[i],
+                x: px,
+                y: py,
                 vx: 0, vy: 0,
                 keys: { up: false, down: false, left: false, right: false, kick: false, sprint: false },
                 last_kick_time: 0,
@@ -469,12 +504,21 @@ const HP = {  // Host Physics namespace
         // KIRMIZI TAKIM
         redPids.forEach((pid, i) => {
             const p = gs.players[pid];
-            if (receiving === 1 && i === 0) {
-                p.x = cx - 50;   // İlk kırmızı santra atacak
+            if (redPids.length === 1) {
+                p.x = cx - (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                p.y = this.FIELD_HEIGHT / 2;
+            } else if (redPids.length === 2) {
+                if (i === 0) { // Kaleci
+                    p.x = _spawn;
+                    p.y = this.FIELD_HEIGHT / 2;
+                } else { // Forvet
+                    p.x = cx - (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                    p.y = this.FIELD_HEIGHT / 2;
+                }
             } else {
                 p.x = _spawn;
+                p.y = redYs[i];
             }
-            p.y = redYs[i];
             p.vx = 0; p.vy = 0;
             p.sprint_energy = this.SPRINT_MAX_ENERGY;
         });
@@ -482,12 +526,21 @@ const HP = {  // Host Physics namespace
         // MAVİ TAKIM
         bluePids.forEach((pid, i) => {
             const p = gs.players[pid];
-            if (receiving === 2 && i === 0) {
-                p.x = cx + 50;
+            if (bluePids.length === 1) {
+                p.x = cx + (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                p.y = this.FIELD_HEIGHT / 2;
+            } else if (bluePids.length === 2) {
+                if (i === 0) { // Kaleci
+                    p.x = this.FIELD_WIDTH - _spawn;
+                    p.y = this.FIELD_HEIGHT / 2;
+                } else { // Forvet
+                    p.x = cx + (this.CENTER_CIRCLE_RADIUS + this.PLAYER_RADIUS + 15);
+                    p.y = this.FIELD_HEIGHT / 2;
+                }
             } else {
                 p.x = this.FIELD_WIDTH - _spawn;
+                p.y = blueYs[i];
             }
-            p.y = blueYs[i];
             p.vx = 0; p.vy = 0;
             p.sprint_energy = this.SPRINT_MAX_ENERGY;
         });
@@ -1579,6 +1632,17 @@ const HP = {  // Host Physics namespace
         // === ŞUT KONTROLÜ ===
         for (const pid in gs.players) {
             const p = gs.players[pid];
+            
+            // ✨ Render state reset: Oyun aktifken sevinç kalıntıları (görünmezlik, patlama, ölçek) anında temizlenir
+            if (gs.state === "playing" || gs.state === "kickoff" || gs.state === "warmup") {
+                if (p.scale !== undefined && p.scale !== 1.0) p.scale = 1.0;
+                if (p.opacity !== undefined && p.opacity !== 1.0) p.opacity = 1.0;
+                if (p.invisible === true) p.invisible = false;
+                if (p._exploded === true) p._exploded = false;
+                if (p.celebrating === true) p.celebrating = false;
+                if (p.celebration_type) p.celebration_type = null;
+            }
+
             if (p.keys.kick && !p.kick_was_pressed) {
                 p.kick_was_pressed = true;
                 const timeSinceLast = now - (p.last_kick_time || 0);

@@ -200,14 +200,30 @@ def init_game_state(room):
     
     red_ys = calc_y_positions(len(red_players), fh)
     blue_ys = calc_y_positions(len(blue_players), fh)
+    center_x = fw / 2
     
     players_dict = {}
     # Tüm kırmızı oyuncuları ekle
     for i, pid in enumerate(red_players):
         pdata = room["players"].get(pid, {})
+        # 1v1 ve 2v2 özel başlangıç pozisyonları (Santrada kalede başlama ve orta saha çizgisi dışı)
+        if len(red_players) == 1:
+            px = center_x - (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+            py = fh / 2
+        elif len(red_players) == 2:
+            if i == 0:  # Kaleci
+                px = 60.0
+                py = fh / 2
+            else:       # Forvet: Santra çizgisine girmeden orta yuvarlak dışında
+                px = center_x - (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+                py = fh / 2
+        else:
+            px = spawn_offset
+            py = red_ys[i]
+
         players_dict[pid] = {
-            "x": spawn_offset,
-            "y": red_ys[i],
+            "x": px,
+            "y": py,
             "vx": 0, "vy": 0,
             "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
             "last_kick_time": 0,
@@ -220,9 +236,24 @@ def init_game_state(room):
     # Tüm mavi oyuncuları ekle
     for i, pid in enumerate(blue_players):
         pdata = room["players"].get(pid, {})
+        # 1v1 ve 2v2 özel başlangıç pozisyonları (Santrada kalede başlama ve orta saha çizgisi dışı)
+        if len(blue_players) == 1:
+            px = center_x + (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+            py = fh / 2
+        elif len(blue_players) == 2:
+            if i == 0:  # Kaleci
+                px = fw - 60.0
+                py = fh / 2
+            else:       # Forvet: Santra çizgisine girmeden orta yuvarlak dışında
+                px = center_x + (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+                py = fh / 2
+        else:
+            px = fw - spawn_offset
+            py = blue_ys[i]
+
         players_dict[pid] = {
-            "x": fw - spawn_offset,
-            "y": blue_ys[i],
+            "x": px,
+            "y": py,
             "vx": 0, "vy": 0,
             "keys": {"up": False, "down": False, "left": False, "right": False, "kick": False, "sprint": False},
             "last_kick_time": 0,
@@ -303,12 +334,19 @@ def reset_positions(room):
     # KIRMIZI TAKIM
     for i, pid in enumerate(red_pids):
         p = gs["players"][pid]
-        # Sadece ilk kırmızı oyuncu topa yaklaşabilir (santra atacaksa)
-        if receiving_team == 1 and i == 0:
-            p["x"] = center_x - 50
+        if len(red_pids) == 1:
+            p["x"] = center_x - (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+            p["y"] = fh / 2
+        elif len(red_pids) == 2:
+            if i == 0:  # Kaleci
+                p["x"] = 60.0
+                p["y"] = fh / 2
+            else:       # Forvet: Santra dairesi çizgisi dışı
+                p["x"] = center_x - (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+                p["y"] = fh / 2
         else:
             p["x"] = spawn_offset
-        p["y"] = red_ys[i]
+            p["y"] = red_ys[i]
         p["vx"] = 0
         p["vy"] = 0
         p["sprint_energy"] = SPRINT_MAX_ENERGY
@@ -316,11 +354,19 @@ def reset_positions(room):
     # MAVİ TAKIM
     for i, pid in enumerate(blue_pids):
         p = gs["players"][pid]
-        if receiving_team == 2 and i == 0:
-            p["x"] = center_x + 50
+        if len(blue_pids) == 1:
+            p["x"] = center_x + (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+            p["y"] = fh / 2
+        elif len(blue_pids) == 2:
+            if i == 0:  # Kaleci
+                p["x"] = fw - 60.0
+                p["y"] = fh / 2
+            else:       # Forvet: Santra dairesi çizgisi dışı
+                p["x"] = center_x + (CENTER_CIRCLE_RADIUS + PLAYER_RADIUS + 15)
+                p["y"] = fh / 2
         else:
             p["x"] = fw - spawn_offset
-        p["y"] = blue_ys[i]
+            p["y"] = blue_ys[i]
         p["vx"] = 0
         p["vy"] = 0
         p["sprint_energy"] = SPRINT_MAX_ENERGY
@@ -1567,12 +1613,12 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
             "mode": "mini_futbol",
             "phase": "lobby",
             "players": {
-                1: {"name": name, "ws": websocket, "score": 0, "team": "spectator"}
+                1: {"name": name, "ws": websocket, "score": 0, "team": "spectator", "jersey_number": random.randint(1, 99)}
             },
             "goal_target": goal_target,
             "match_duration": match_duration,
             "game_speed": game_speed,
-            "max_players": player_count_init + spectator_count_init,
+            "max_players": player_count_init,
             "red_team_name": red_team_name_init,
             "blue_team_name": blue_team_name_init,
             "allow_plase": allow_plase_init,
@@ -1682,12 +1728,17 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         while new_pid in room["players"]:
             new_pid += 1
         
-        # ✨ Yeni katılan otomatik izleyici
+        # ✨ Yeni katılan otomatik izleyici - Benzersiz random forma numarası ata
+        used_jerseys = {p.get("jersey_number") for p in room["players"].values() if p.get("jersey_number") is not None}
+        available_jerseys = [n for n in range(1, 100) if n not in used_jerseys]
+        random_jersey = random.choice(available_jerseys) if available_jerseys else random.randint(1, 99)
+
         room["players"][new_pid] = {
             "name": name,
             "ws": websocket,
             "score": 0,
-            "team": "spectator"
+            "team": "spectator",
+            "jersey_number": random_jersey
         }
         
         # ✨ Oyun çalışıyorsa ve pause aktifse bilgi gönder
@@ -1834,8 +1885,8 @@ async def handle_mini_message(msg_type, data, websocket, rooms, room_code, playe
         room["field_height"] = _fs_update["height"]
         room["field_goal_width"] = _fs_update["goal_width"]
         
-        # ✨ max_players = player_count + spectator_count (dinamik)
-        room["max_players"] = new_player_count + room.get("spectator_count", 0)
+        # ✨ max_players = player_count strictly
+        room["max_players"] = new_player_count
         
         # ✨ Gelişmiş açıksa özgür değer kabul et
         if advanced_enabled:
