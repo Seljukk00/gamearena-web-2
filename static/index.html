@@ -3227,6 +3227,8 @@
     <footer class="siteFooter">
         <div class="footerContent">
             <div class="footerLinks">
+                <a href="#" onclick="document.getElementById('privacyBox').classList.remove('hidden'); return false;">🔒 Gizlilik Politikası</a>
+                <span class="footerSeparator">|</span>
                 <a href="#" onclick="showDisclaimer(); return false;">📋 Yasal Bilgi</a>
                 <span class="footerSeparator">|</span>
                 <a href="#" onclick="showAbout(); return false;">ℹ️ Hakkımızda</a>
@@ -3240,6 +3242,29 @@
             </div>
         </div>
     </footer>
+
+    <!-- GİZLİLİK POLİTİKASI POPUP -->
+    <div id="privacyBox" class="overlay hidden">
+        <div class="overlayCard" style="max-width: 600px;">
+            <h2 style="color:#ffd43b;">🔒 Gizlilik Politikası</h2>
+            <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6; max-height:60vh; overflow-y:auto;">
+                <p><b>🔹 Kişisel Veriler:</b></p>
+                <p>GameArena, ziyaretçilerin kişisel verilerini (ad, soyad, e-posta, telefon vb.) sunucularında kalıcı olarak kaydetmez. Oyuna giriş yaparken kullandığınız "Kullanıcı Adı" geçici olup, oyun oturumu kapandığında silinir.</p>
+                
+                <p style="margin-top:15px;"><b>🔹 Çerezler (Cookies):</b></p>
+                <p>Sitemiz, temel işlevselliği sağlamak ve kullanıcı deneyimini iyileştirmek için tarayıcınızda gerekli çerezleri (cookies) ve yerel depolama (local storage) yöntemlerini kullanabilir. Sitemizi kullanarak bu çerezlerin kullanımını kabul etmiş olursunuz.</p>
+                
+                <p style="margin-top:15px;"><b>🔹 Google AdSense ve Reklamlar:</b></p>
+                <p>Sitemizde Google AdSense reklamları yayınlanmaktadır. Google, kullanıcıların sitemize veya diğer sitelere yaptığı önceki ziyaretlere dayalı olarak reklam sunmak için çerezleri (ör. DoubleClick çerezi) kullanır. Kullanıcılar, <a href="https://myadcenter.google.com/" target="_blank" style="color:#4dabf7;">Google Reklam Ayarları</a> sayfasını ziyaret ederek kişiselleştirilmiş reklamcılığı devre dışı bırakabilirler.</p>
+                
+                <p style="margin-top:15px;"><b>🔹 Üçüncü Taraf Bağlantılar:</b></p>
+                <p>Sitemiz üzerinden farklı web sitelerine yönlendirme yapılabilir. GameArena, bağlantı verilen dış sitelerin içeriklerinden veya gizlilik politikalarından sorumlu tutulamaz.</p>
+            </div>
+            <div class="confirmButtons" style="margin-top:20px;">
+                <button onclick="document.getElementById('privacyBox').classList.add('hidden')" class="bigBtn greenBtn">Anladım</button>
+            </div>
+        </div>
+    </div>
 
     <!-- DISCLAIMER POPUP -->
     <div id="disclaimerBox" class="overlay hidden">
