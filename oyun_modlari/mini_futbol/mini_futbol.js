@@ -102,8 +102,351 @@ handleMessage = function(msg) {
     _prevHandleMessageMini(msg);
 };
 
-function handleMiniMessage(msg) {
-    // ==========================================
+function manageVisualBlackHole(rState) {
+    let bh = document.getElementById("cosmicBlackHoleVisual");
+
+    // 🛑 REPLAY / geçersiz state → her zaman temizle (DOM'da kalmasın)
+    if (!rState) {
+        if (bh) bh.remove();
+        return;
+    }
+
+    const isReplayActive = (typeof miniReplay !== "undefined" && (
+        miniReplay.playing === true ||
+        miniReplay.active === true ||
+        miniReplay.isPlaying === true
+    ));
+
+    // Ekranda "Replay" rozeti varsa ekstra güvenlik
+    let replayUiVisible = false;
+    try {
+        const allEls = document.querySelectorAll("#miniCanvas").length
+            ? (document.getElementById("miniCanvas").parentElement || document.body)
+            : document.body;
+        if (allEls && allEls.textContent && /\bReplay\b/i.test(allEls.textContent) && isReplayActive) {
+            replayUiVisible = true;
+        }
+    } catch (e) { /* ignore */ }
+
+    const isGoalWait = (rState.game_state === "goal_wait" && rState.goal_celebration);
+    const celebType = rState.goal_celebration ? rState.goal_celebration.celebration_type : null;
+    const hostWantsBH = (rState.blackHoleActive === true) || (celebType === "cosmic_blackhole");
+
+    // Canlı goal_wait VEYA replay karesi (is_replay) — state varsa göster
+    const isBlackHole = hostWantsBH && (
+        (isGoalWait && !rState.is_replay) ||
+        (rState.is_replay === true)
+    );
+
+    if (!isBlackHole) {
+        if (bh) bh.remove();
+        return;
+    }
+
+    const canvas = document.getElementById("miniCanvas");
+    if (!canvas) return;
+
+    const fw = (miniData.fieldConfig && miniData.fieldConfig.width) || miniData.fieldWidth || 1000;
+    const fh = (miniData.fieldConfig && miniData.fieldConfig.height) || miniData.fieldHeight || 500;
+
+    // 🎯 Konum: SADECE kale çizgisi — orta saha (fw/2) FALLBACK YOK
+    let bhX = null;
+    let bhY = null;
+
+    if (typeof rState.bhX === "number" && isFinite(rState.bhX)) {
+        bhX = rState.bhX;
+    } else if (typeof rState.blackHoleX === "number" && isFinite(rState.blackHoleX)) {
+        bhX = rState.blackHoleX;
+    } else {
+        // Fizik: sol kale (x=0) → scorer takım 2 | sağ kale (x=fw) → scorer takım 1
+        const scorerTeam = (rState.last_goal_scorer != null)
+            ? rState.last_goal_scorer
+            : (rState.goal && rState.goal.team != null ? rState.goal.team : null);
+        if (scorerTeam === 2 || scorerTeam === "blue") bhX = 0;
+        else if (scorerTeam === 1 || scorerTeam === "red") bhX = fw;
+        // own-goal vb. için topun x'i
+        else if (rState.ball && typeof rState.ball.x === "number") {
+            bhX = (rState.ball.x < fw / 2) ? 0 : fw;
+        }
+    }
+
+    if (typeof rState.bhY === "number" && isFinite(rState.bhY)) {
+        bhY = rState.bhY;
+    } else if (typeof rState.blackHoleY === "number" && isFinite(rState.blackHoleY)) {
+        bhY = rState.blackHoleY;
+    } else {
+        bhY = fh / 2;
+    }
+
+    // Geçerli kale konumu yoksa gösterme (orta sahaya asla basma)
+    if (bhX === null || bhY === null || !isFinite(bhX) || !isFinite(bhY)) {
+        if (bh) bh.remove();
+        return;
+    }
+    // Güvenlik: sahayı ortalayan değerleri reddet (±%8 orta bant)
+    if (Math.abs(bhX - fw / 2) < fw * 0.08) {
+        if (bh) bh.remove();
+        return;
+    }
+
+    const pctX = (bhX / fw) * 100;
+    const pctY = (bhY / fh) * 100;
+
+    let style = document.getElementById("bhStyles");
+    if (!bh) {
+        if (!style) {
+            style = document.createElement("style");
+            style.id = "bhStyles";
+            style.innerHTML = `
+                @keyframes bhScaleIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+                @keyframes bhSpinCW { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                @keyframes bhSpinCCW { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+            `;
+            document.head.appendChild(style);
+        }
+
+        bh = document.createElement("div");
+        bh.id = "cosmicBlackHoleVisual";
+        bh.style.cssText = `
+            position: absolute;
+            left: ${pctX}%; top: ${pctY}%;
+            width: 220px; height: 220px;
+            margin-left: -110px; margin-top: -110px;
+            pointer-events: none; z-index: 1;
+            animation: bhScaleIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            display: flex; justify-content: center; align-items: center;
+        `;
+
+        const wisps = document.createElement("div");
+        wisps.style.cssText = `
+            position: absolute;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg,
+                rgba(0,0,0,0) 0%,
+                rgba(30,144,255,0.5) 15%,
+                rgba(0,212,255,0.85) 35%,
+                rgba(0,10,30,0.9) 50%,
+                rgba(30,144,255,0.5) 65%,
+                rgba(0,212,255,0.85) 85%,
+                rgba(0,0,0,0) 100%);
+            filter: blur(8px);
+            animation: bhSpinCW 1.2s linear infinite;
+        `;
+
+        const depth = document.createElement("div");
+        depth.style.cssText = `
+            position: absolute;
+            width: 70%; height: 70%;
+            border-radius: 50%;
+            background: radial-gradient(circle, #000 20%, #020a1f 50%, rgba(2,10,31,0) 80%);
+            filter: blur(10px);
+            animation: bhSpinCCW 2s linear infinite;
+        `;
+
+        const core = document.createElement("div");
+        core.style.cssText = `
+            position: absolute;
+            width: 30%; height: 30%;
+            background: #000;
+            border-radius: 50%;
+            box-shadow: 0 0 30px 15px #000, 0 0 50px 25px rgba(0, 50, 120, 0.95);
+            z-index: 3;
+        `;
+
+        bh.appendChild(wisps);
+        bh.appendChild(depth);
+        bh.appendChild(core);
+
+        if (canvas.parentElement) {
+            if (window.getComputedStyle(canvas.parentElement).position === "static") {
+                canvas.parentElement.style.position = "relative";
+            }
+            canvas.parentElement.appendChild(bh);
+        }
+    } else {
+        bh.style.left = `${pctX}%`;
+        bh.style.top = `${pctY}%`;
+        bh.style.display = "flex";
+    }
+}
+
+// 🛸 UFO kaçırma görseli (sadece canlı gol sevinci)
+function manageVisualUfo(rState) {
+    let ufo = document.getElementById("ufoAbductVisual");
+
+    if (!rState) {
+        if (ufo) ufo.remove();
+        return;
+    }
+
+    const isReplayActive = (typeof miniReplay !== "undefined" && (
+        miniReplay.playing === true ||
+        miniReplay.active === true ||
+        miniReplay.isPlaying === true
+    ));
+
+    const isGoalWait = (rState.game_state === "goal_wait" && rState.goal_celebration);
+    const celebType = rState.goal_celebration ? rState.goal_celebration.celebration_type : null;
+    const hostWants = (rState.ufoActive === true) || (celebType === "ufo_abduct");
+    
+    // ✨ FIX: ufoX yoksa oluşturma (ghost UFO). Replay karesinde de göster.
+    const hasValidCoords = typeof rState.ufoX === "number" && isFinite(rState.ufoX);
+    const show = hostWants && hasValidCoords && (
+        (isGoalWait && !rState.is_replay) ||
+        (rState.is_replay === true)
+    );
+
+    if (!show) {
+        if (ufo) ufo.remove();
+        return;
+    }
+
+    const canvas = document.getElementById("miniCanvas");
+    if (!canvas) return;
+
+    const fw = (miniData.fieldConfig && miniData.fieldConfig.width) || miniData.fieldWidth || 1000;
+    const fh = (miniData.fieldConfig && miniData.fieldConfig.height) || miniData.fieldHeight || 500;
+
+    let ufoX = rState.ufoX;
+    let ufoY = (typeof rState.ufoY === "number" && isFinite(rState.ufoY)) ? rState.ufoY : 80;
+    const phase = rState.ufoPhase || "arrive";
+
+    // Hedef oyuncu (ışın için)
+    let targetX = ufoX;
+    let targetY = ufoY + 120;
+    const tPid = rState.ufoTargetPid;
+    if (tPid != null && rState.players) {
+        const tp = rState.players[tPid] || rState.players[String(tPid)];
+        if (tp && typeof tp.x === "number") {
+            targetX = tp.x;
+            targetY = tp.y;
+        }
+    }
+
+    const pctX = (ufoX / fw) * 100;
+    const pctY = (ufoY / fh) * 100;
+    const beamH = Math.max(40, Math.abs(targetY - ufoY) * (100 / fh));
+    const showBeam = (phase === "beam" || phase === "lift");
+
+    let style = document.getElementById("ufoStyles");
+    if (!style) {
+        style = document.createElement("style");
+        style.id = "ufoStyles";
+        style.innerHTML = `
+            @keyframes ufoHover {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(6px); }
+            }
+            @keyframes ufoBeamPulse {
+                0%, 100% { opacity: 0.55; }
+                50% { opacity: 0.95; }
+            }
+            @keyframes ufoArrive {
+                0% { transform: translateY(-80px) scale(0.4); opacity: 0; }
+                100% { transform: translateY(0) scale(1); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    if (!ufo) {
+        ufo = document.createElement("div");
+        ufo.id = "ufoAbductVisual";
+        ufo.style.cssText = `
+            position: absolute;
+            left: ${pctX}%; top: ${pctY}%;
+            width: 120px; height: 70px;
+            margin-left: -60px; margin-top: -35px;
+            pointer-events: none; z-index: 2;
+            animation: ufoArrive 0.7s ease-out forwards;
+        `;
+
+        // Gövde
+        const body = document.createElement("div");
+        body.id = "ufoBodyEl";
+        body.style.cssText = `
+            position: absolute; left: 50%; top: 0;
+            width: 100px; height: 36px;
+            margin-left: -50px;
+            background: radial-gradient(ellipse at center, #c0f8ff 0%, #4adfff 40%, #1a6a9a 70%, #0a3048 100%);
+            border-radius: 50% 50% 45% 45%;
+            box-shadow: 0 0 18px rgba(0, 220, 255, 0.85), 0 0 40px rgba(80, 180, 255, 0.45);
+            animation: ufoHover 1.4s ease-in-out infinite;
+            z-index: 3;
+        `;
+
+        // Kubbe
+        const dome = document.createElement("div");
+        dome.style.cssText = `
+            position: absolute; left: 50%; top: -18px;
+            width: 44px; height: 28px;
+            margin-left: -22px;
+            background: radial-gradient(circle at 40% 35%, #e8ffff 0%, #5ee7ff 45%, #1a8aaa 100%);
+            border-radius: 50% 50% 40% 40%;
+            box-shadow: 0 0 12px rgba(100, 240, 255, 0.9);
+            z-index: 4;
+        `;
+
+        // Alt halka ışıklar
+        const lights = document.createElement("div");
+        lights.style.cssText = `
+            position: absolute; left: 50%; top: 28px;
+            width: 70px; height: 8px;
+            margin-left: -35px;
+            background: repeating-linear-gradient(90deg,
+                #00ffcc 0px, #00ffcc 8px,
+                transparent 8px, transparent 14px);
+            border-radius: 4px;
+            filter: blur(0.5px);
+            z-index: 3;
+        `;
+
+        // Çekim ışını
+        const beam = document.createElement("div");
+        beam.id = "ufoBeamEl";
+        beam.style.cssText = `
+            position: absolute; left: 50%; top: 34px;
+            width: 36px; height: ${beamH}%;
+            margin-left: -18px;
+            background: linear-gradient(to bottom,
+                rgba(0, 255, 180, 0.75) 0%,
+                rgba(0, 220, 255, 0.35) 55%,
+                rgba(0, 255, 200, 0.05) 100%);
+            clip-path: polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%);
+            animation: ufoBeamPulse 0.6s ease-in-out infinite;
+            display: ${showBeam ? "block" : "none"};
+            z-index: 1;
+            pointer-events: none;
+        `;
+
+        ufo.appendChild(beam);
+        ufo.appendChild(body);
+        ufo.appendChild(dome);
+        ufo.appendChild(lights);
+
+        if (canvas.parentElement) {
+            if (window.getComputedStyle(canvas.parentElement).position === "static") {
+                canvas.parentElement.style.position = "relative";
+            }
+            canvas.parentElement.appendChild(ufo);
+        }
+    } else {
+        ufo.style.left = `${pctX}%`;
+        ufo.style.top = `${pctY}%`;
+        const beamEl = document.getElementById("ufoBeamEl");
+        if (beamEl) {
+            beamEl.style.display = showBeam ? "block" : "none";
+            beamEl.style.height = `${beamH}%`;
+        }
+        if (phase === "leave") {
+            ufo.style.opacity = "0.85";
+            ufo.style.transition = "top 0.2s linear, left 0.2s linear, opacity 0.4s ease";
+        }
+    }
+}
+
+function handleMiniMessage(msg) {    // ==========================================
     // ✨ WEBRTC SİGNALING mesajları
     // ==========================================
     if (msg.type === "mini_webrtc_offer") {
@@ -948,6 +1291,10 @@ function handleMiniMessage(msg) {
             return;
         }
         
+        // ✨ CSS Karadelik + UFO Görselini Tetikle/Temizle
+        manageVisualBlackHole(msg);
+        manageVisualUfo(msg);
+        
         if (msg.game_state === "playing" || msg.game_state === "countdown") {
             miniData._hasSkippedReplay = false;
             
@@ -989,7 +1336,19 @@ function handleMiniMessage(msg) {
                 players: {},
                 kick_effects: (rState.kick_effects || []).map(k => ({ ...k })),
                 hit_events: (rState.hit_events || []).map(h => ({ ...h })),
-                goal_event: rState.goal ? { ...rState.goal, time: Date.now() } : null
+                goal_event: rState.goal ? { ...rState.goal, time: Date.now() } : null,
+                game_state: rState.game_state,
+                goal_celebration: rState.goal_celebration ? { ...rState.goal_celebration } : null,
+                ufoActive: rState.ufoActive === true,
+                ufoX: rState.ufoX,
+                ufoY: rState.ufoY,
+                ufoPhase: rState.ufoPhase,
+                ufoTargetPid: rState.ufoTargetPid,
+                blackHoleActive: rState.blackHoleActive === true,
+                bhX: rState.bhX,
+                bhY: rState.bhY,
+                blackHoleX: rState.blackHoleX,
+                blackHoleY: rState.blackHoleY
             };
             for (const pid in rState.players) {
                 const rp = rState.players[pid];
@@ -1022,7 +1381,19 @@ function handleMiniMessage(msg) {
                     players: {},
                     kick_effects: (rState.kick_effects || []).map(k => ({ ...k })),
                     hit_events: (rState.hit_events || []).map(h => ({ ...h })),
-                    goal_event: rState.goal ? { ...rState.goal, time: Date.now() } : null
+                    goal_event: rState.goal ? { ...rState.goal, time: Date.now() } : null,
+                    game_state: rState.game_state,
+                    goal_celebration: rState.goal_celebration ? { ...rState.goal_celebration } : null,
+                    ufoActive: rState.ufoActive === true,
+                    ufoX: rState.ufoX,
+                    ufoY: rState.ufoY,
+                    ufoPhase: rState.ufoPhase,
+                    ufoTargetPid: rState.ufoTargetPid,
+                    blackHoleActive: rState.blackHoleActive === true,
+                    bhX: rState.bhX,
+                    bhY: rState.bhY,
+                    blackHoleX: rState.blackHoleX,
+                    blackHoleY: rState.blackHoleY
                 };
                 for (const pid in rState.players) {
                     const rp = rState.players[pid];
@@ -1034,7 +1405,9 @@ function handleMiniMessage(msg) {
                         celebration_type: rp.celebration_type,
                         celebration_start: rp.celebration_start,
                         celebration_elapsed: rp.celebration_elapsed,
-                        trail: rp.trail ? rp.trail.map(t => ({ ...t })) : null
+                        trail: rp.trail ? rp.trail.map(t => ({ ...t })) : null,
+                        invisible: rp.invisible,
+                        scale: rp.scale
                     };
                 }
                 miniReplay.buffer.push(currentFrame);
@@ -1074,7 +1447,9 @@ function handleMiniMessage(msg) {
             for (const pid in msg.players) {
                 snapshot.players[pid] = {
                     x: msg.players[pid].x,
-                    y: msg.players[pid].y
+                    y: msg.players[pid].y,
+                    invisible: msg.players[pid].invisible,
+                    scale: msg.players[pid].scale
                 };
             }
         }
@@ -1243,10 +1618,10 @@ function startMiniLocalPhysicsIfNeeded() {
                 
                 // Sadece klasörde fiziksel olarak mevcut olan goal_song_1.mp3 -> goal_song_12.mp3 arasını kullanıyoruz
                 const teamSongs = {
-                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3"],
-                    fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3"],
-                    galatasaray: ["goal_song_6.mp3"],
-                    trabzonspor: ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3"] // TS için tarafsız marşlar fallback
+                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3", "goal_song_35.mp3", "goal_song_38.mp3", "goal_song_40.mp3", "goal_song_41.mp3"],
+                    fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3", "goal_song_22.mp3", "goal_song_30.mp3", "goal_song_32.mp3", "goal_song_36.mp3", "goal_song_37.mp3", "goal_song_42.mp3"],
+                    galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3", "goal_song_39.mp3"],
+                    trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3", "goal_song_34.mp3"]
                 };
 
                 // Takımlara atanmamış tamamen tarafsız gol müzikleri (2, 7, 8, 9 numaralı şarkılar)
@@ -1277,15 +1652,15 @@ function startMiniLocalPhysicsIfNeeded() {
                 }
 
                 // 🌟 BÜTÜNSEL GOL MÜZİĞİ MOTORU (Shuffle Bag - Sıralı Karıştırma)
-                const all41Songs = Array.from({ length: 41 }, (_, i) => `goal_song_${i + 1}.mp3`);
+                const all42Songs = Array.from({ length: 42 }, (_, i) => `goal_song_${i + 1}.mp3`);
                 
                 if (!miniData._playedSongsPools) {
                     miniData._playedSongsPools = {}; // Takımların çalınan şarkı geçmişini tutan obje
                 }
 
                 const currentGoalMusicMode = miniData.goalMusicMode || "team";
-                let poolKey = "all41"; // Varsayılan havuz anahtarı
-                let teamPool = all41Songs;
+                let poolKey = "all42"; // Varsayılan havuz anahtarı
+                let teamPool = all42Songs;
 
                 if (currentGoalMusicMode === "team") {
                     let teamName = actualScoringTeam === "red" ? miniData.redTeamName : miniData.blueTeamName;
@@ -1304,16 +1679,16 @@ function startMiniLocalPhysicsIfNeeded() {
                             poolKey = "trabzonspor";
                             teamPool = pools.trabzonspor;
                         } else {
-                            poolKey = "general_41";
-                            teamPool = all41Songs; // 4 Büyükler dışındaysa tüm havuz
+                            poolKey = "general_42";
+                            teamPool = all42Songs; // 4 Büyükler dışındaysa tüm havuz
                         }
                     } else {
-                        poolKey = "general_41";
-                        teamPool = all41Songs; // İsim yoksa tüm havuz
+                        poolKey = "general_42";
+                        teamPool = all42Songs; // İsim yoksa tüm havuz
                     }
                 } else {
-                    poolKey = "mixed_41";
-                    teamPool = all41Songs; // Rastgele modda tüm havuz
+                    poolKey = "mixed_42";
+                    teamPool = all42Songs; // Rastgele modda tüm havuz
                 }
 
                 // Bu havuz için oynatma geçmişi yoksa oluştur

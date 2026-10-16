@@ -8,7 +8,8 @@ Beşiktaş
 -goal_song_29.mp3 >biz ne baharlar gördük
 -goal_song_35.mp3 >güncel gol müziği
 -goal_song_38.mp3 >112 sene yanyana 
--goal_song_41.mp3 >şinanayda yavrum şinanay
+-goal_song_40.mp3 >BEŞİKTAŞ şinanayda yavrum şina şinanay
+-goal_song_41.mp3 >Oh Oh
 
 Fenerbahçe
 -goal_song_3.mp3 >we from desire
@@ -19,14 +20,14 @@ Fenerbahçe
 -goal_song_32.mp3 >100.yıl marş
 -goal_song_36.mp3 >sana hastayım anlasana
 -goal_song_37.mp3 >çubuklu forma
+-goal_song_42.mp3 >Güzel Günler göreceğiz çocuklar
 
 Galatasaray
 -goal_song_6.mp3 >aşkın olayım
 -goal_song_23.mp3 >gol müziği
 -goal_song_31.mp3 >çocukluk aşkımsın
 -goal_song_33.mp3 >şereftir seni sevmek 
--goal_song_39.mp3 >çocukluk aşkımsın
--goal_song_40.mp3 >ayva çicek açmış yazmı gelecek
+-goal_song_39.mp3 >ayva çicek açmış yazmı gelecek
 
 Trabzonspor
 -goal_song_13.mp3 >düştüysen kalk gel kendine
@@ -35,14 +36,14 @@ Trabzonspor
 -goal_song_34.mp3 >biz dar sokaklarında
 
 Tümü
--goal_song_1.mp3 >varsın olsun 
+-goal_song_1.mp3 >BEŞİKTAŞ varsın olsun 
 -goal_song_2.mp3 >SAMSUNSPOR ara beni 
 -goal_song_3.mp3 >Fenerbahçe we from desire 
 -goal_song_4.mp3 >FENERBAHÇE beni sev
 -goal_song_5.mp3 >FENERBAHÇE söyle bana sebastian
 -goal_song_6.mp3 >GALATASARAY aşkın olayım
--goal_song_7.mp3 >
--goal_song_8.mp3 >erzincanspor gol müziği
+-goal_song_7.mp3 >YA YA YA YA 
+-goal_song_8.mp3 >ERZİNCANSPOR gol müziği
 -goal_song_9.mp3 >ADANASPOR iki deli biraraya gelmemeliydik
 -goal_song_10.mp3 >BEŞİKTAŞ kartal sesi
 -goal_song_11.mp3 >BEŞİKTAŞ seninle ölmeye geldik 
@@ -73,6 +74,7 @@ Tümü
 -goal_song_36.mp3 >FENERBAHÇE sana hastayım anlasana
 -goal_song_37.mp3 >FENERBAHÇE çubuklu forma
 -goal_song_38.mp3 >BEŞİKTAŞ 112 sene yanyana
--goal_song_39.mp3 >GALATASARAY çocukluk aşkımsın
--goal_song_40.mp3 >GALATASARAY ayva çicek açmış yazmı gelecek
--goal_song_41.mp3 >BEŞİKTAŞ şinanayda yavrum şinanay
+-goal_song_39.mp3 >GALATASARAY ayva çicek açmış yazmı gelecek
+-goal_song_40.mp3 >BEŞİKTAŞ şinanayda yavrum şina şinanay
+-goal_song_41.mp3 >BEŞİKTAŞ Oh Oh
+-goal_song_42.mp3 >FENERBAHÇE Güzel Günler göreceğiz çocuklar

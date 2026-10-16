@@ -2,6 +2,30 @@
 // 🎨 MİNİ FUTBOL - CANVAS RENDER VE GÖRSEL EFEKTLER MOTORU (60 FPS)
 // ==========================================================================
 
+// 🛠️ YARDIMCI RENK FONKSİYONLARI (Fallback Koruması)
+function hexToRgbParts(hex) {
+    if (!hex) return { r: 255, g: 255, b: 255 };
+    let c = hex.replace("#", "");
+    if (c.length === 3) c = c.split("").map(x => x + x).join("");
+    const num = parseInt(c, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+function hexToRgba(hex, alpha) {
+    const rgb = hexToRgbParts(hex);
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+}
+
+function shadeHexColor(color, percent) {
+    const rgb = hexToRgbParts(color);
+    const t = percent < 0 ? 0 : 255;
+    const p = percent < 0 ? percent * -1 : percent;
+    const R = Math.round((t - rgb.r) * p) + rgb.r;
+    const G = Math.round((t - rgb.g) * p) + rgb.g;
+    const B = Math.round((t - rgb.b) * p) + rgb.b;
+    return `#${(0x1000000 + (R << 16) + (G << 8) + B).toString(16).slice(1)}`;
+}
+
 // 🎆 BALON PATLAMA & YIRTILAN LASTİK PARTİKÜL SİSTEMİ
 function triggerPlayerExplosion(x, y, teamColor) {
     if (!miniData.celebrationParticles) miniData.celebrationParticles = [];
@@ -271,65 +295,378 @@ function drawTrabzonsporKit(ctx, cx, cy, radius, glowIntensity) {
 }
 
 // ========================================
-// ⏱️ COUNTDOWN & KICKOFF OVERLAYS
+// 🌌 KOZMİK KARADELİK GOL SEVİNCİ EFEKTİ
 // ========================================
-
-function drawCountdownOverlay(ctx, cfg, countdown) {
-    const fontScale = Math.max(1, cfg.width / 1000);
-    const state = miniData.gameState;
-    const silentWhistle = state && state.silent_whistle === true;
+function drawBlackHoleEffect(ctx, cfg, celebration) {
+    if (!celebration) return;
+    const centerX = cfg.width / 2;
+    const centerY = cfg.height / 2;
+    const now = performance.now() / 1000;
     
-    if (countdown === 0 && !miniData._whistlePlayed && !silentWhistle) {
-        MiniAudio.play("whistle.mp3", 0.6);
-        miniData._whistlePlayed = true;
-        MiniVibration.whistle();
-    } else if (countdown > 0) {
-        miniData._whistlePlayed = false;
-        if (!miniData._countdownTicked) miniData._countdownTicked = new Set();
-        const tickKey = `count_${countdown}_${Math.floor(Date.now() / 1500)}`;
-        if (!miniData._countdownTicked.has(tickKey)) {
-            miniData._countdownTicked.add(tickKey);
-            MiniVibration.countdown();
-            if (miniData._countdownTicked.size > 20) miniData._countdownTicked.clear();
+    const elapsed = Math.max(0, 5.0 - celebration.wait_remaining);
+    const scale = Math.min(1.0, elapsed * 0.8);
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    
+    const rotSpeed = now * 5.0;
+    ctx.rotate(-rotSpeed);
+    
+    const maxR = 220 * scale;
+
+    for (let i = 0; i < 4; i++) {
+        ctx.rotate(Math.PI / 2);
+        const diskGrad = ctx.createRadialGradient(0, 0, maxR * 0.1, 0, 0, maxR);
+        diskGrad.addColorStop(0, "rgba(0, 0, 0, 1)");
+        diskGrad.addColorStop(0.15, "rgba(26, 0, 51, 0.95)");
+        diskGrad.addColorStop(0.35, "rgba(106, 13, 173, 0.85)");
+        diskGrad.addColorStop(0.65, "rgba(224, 64, 251, 0.45)");
+        diskGrad.addColorStop(1, "rgba(224, 64, 251, 0)");
+        
+        ctx.fillStyle = diskGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, maxR, maxR * 0.45, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.rotate(rotSpeed);
+    const singRadius = 42 * scale;
+
+    ctx.shadowBlur = 45 * scale;
+    ctx.shadowColor = "#e040fb";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3 * scale;
+    ctx.beginPath();
+    ctx.arc(0, 0, singRadius + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    
+    ctx.fillStyle = "#000000";
+    ctx.beginPath();
+    ctx.arc(0, 0, singRadius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+// ========================================
+// 🛸 UZAY GEMİSİ (UFO ABDUCTION) GOL SEVİNCİ EFEKTİ
+// ========================================
+function drawUfoAbductionCelebration(ctx, cfg, p, syncElapsed, color, playerTeam, pname, radius) {
+    const startX = cfg.width / 2;
+    const startY = -120;
+    const targetX = p.x;
+    const targetY = p.y - 85;
+
+    let ufoX = startX;
+    let ufoY = startY;
+    let beamAlpha = 0;
+    let playerLiftY = 0;
+    let playerScale = 1.0;
+    let playerAlpha = 1.0;
+    let skipNormalDraw = false;
+
+    // ✨ Sunucunun (host) anlık UFO koordinatları ve fazları var mı kontrol et (Replay'de Fallback Timeline kullanılır)
+    const state = miniData.gameState;
+    const isReplay = !!miniData._currentReplayFrame;
+    const useServerAuthoritative = !isReplay && state && state.ufoActive && typeof state.ufoX === "number" && typeof state.ufoY === "number";
+
+    if (useServerAuthoritative) {
+        ufoX = state.ufoX;
+        ufoY = state.ufoY;
+        
+        if (state.ufoPhase === "arrive") {
+            beamAlpha = 0;
+            playerScale = 1.0;
+            playerAlpha = 1.0;
+            skipNormalDraw = false;
+        } else if (state.ufoPhase === "beam") {
+            beamAlpha = 1.0;
+            playerScale = 1.0;
+            playerAlpha = 1.0;
+            skipNormalDraw = true; 
+        } else if (state.ufoPhase === "lift") {
+            beamAlpha = 1.0;
+            skipNormalDraw = true;
+            
+            // Fazın içindeki akıcılık için yerel milisaniye pürüzsüzleştirmesi (Tethering)
+            const phaseElapsed = (performance.now() / 1000) - (state.ufoPhaseStart || 0);
+            const t = Math.min(1.0, Math.max(0.0, phaseElapsed / 1.5));
+            playerLiftY = t * 74;
+            playerScale = Math.max(0.0, 1.0 - t * 1.5);
+            if (t > 0.6) {
+                playerAlpha = 0;
+                playerScale = 0;
+            }
+        } else if (state.ufoPhase === "leave") {
+            beamAlpha = 0;
+            playerAlpha = 0;
+            playerScale = 0;
+            skipNormalDraw = true;
+        }
+    } else {
+        // ✨ Replay veya gecikme anında sunucuyla birebir eşit pürüzsüz yerel zaman akışı (Fallback Timeline)
+        // Faz süreleri: arrive (0.8s) -> beam (0.6s) -> lift (1.5s) -> leave (1.5s)
+        const tArrive = 0.8;
+        const tBeam = tArrive + 0.6; // 1.4
+        const tLift = tBeam + 1.5;   // 2.9
+        const tLeave = tLift + 1.5;  // 4.4
+
+        if (syncElapsed < tArrive) {
+            // Phase 1: Uçarak Gelme (arrive)
+            const t = syncElapsed / tArrive;
+            const ease = 1 - Math.pow(1 - t, 3);
+            ufoX = startX + (targetX - startX) * ease;
+            ufoY = startY + (targetY - startY) * ease;
+            beamAlpha = 0;
+            playerScale = 1.0;
+            playerAlpha = 1.0;
+            skipNormalDraw = false;
+        } else if (syncElapsed < tBeam) {
+            // Phase 2: Işınlama (beam)
+            ufoX = targetX;
+            ufoY = targetY + Math.sin(syncElapsed * 4) * 3;
+            beamAlpha = Math.min(1.0, (syncElapsed - tArrive) / 0.2);
+            playerScale = 1.0;
+            playerAlpha = 1.0;
+            skipNormalDraw = true;
+        } else if (syncElapsed < tLift) {
+            // Phase 3: Yukarı Çekme (lift)
+            ufoX = targetX;
+            ufoY = targetY + Math.sin(syncElapsed * 4) * 3;
+            beamAlpha = 1.0;
+            skipNormalDraw = true;
+
+            const t = (syncElapsed - tBeam) / 1.5; // 0.0 -> 1.0
+            playerLiftY = t * 74;
+            playerScale = Math.max(0.0, 1.0 - t * 1.5);
+            if (t > 0.6) {
+                playerAlpha = 0;
+                playerScale = 0;
+            }
+        } else {
+            // Phase 4: Kaçış (leave)
+            const exitT = Math.min(1.0, (syncElapsed - tLift) / 1.5);
+            const easeIn = exitT * exitT * exitT;
+            ufoX = targetX + (easeIn * 750);
+            ufoY = targetY - (easeIn * 950);
+            beamAlpha = Math.max(0, 1.0 - exitT * 4);
+            playerAlpha = 0;
+            playerScale = 0;
+            skipNormalDraw = true;
         }
     }
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-    ctx.fillRect(0, 0, cfg.width, cfg.height);
-    
-    let text = "";
-    let color = "#ffd43b";
-    let fontSize = 120 * fontScale;
-    
-    if (countdown === 0) {
-        text = "BAŞLA!";
-        color = "#51cf66";
-        fontSize = 80 * fontScale;
-    } else {
-        text = String(countdown);
-        if (countdown === 3) color = "#51cf66";
-        else if (countdown === 2) color = "#ffd43b";
-        else if (countdown === 1) color = "#ff6b6b";
+    // A) TRAKTÖR IŞINI (Tractor Beam)
+    if (beamAlpha > 0) {
+        ctx.save();
+        
+        const beamGrad = ctx.createLinearGradient(ufoX, ufoY + 12, ufoX, p.y + 12);
+        beamGrad.addColorStop(0, `rgba(0, 240, 255, ${0.85 * beamAlpha})`);
+        beamGrad.addColorStop(0.5, `rgba(0, 255, 170, ${0.45 * beamAlpha})`);
+        beamGrad.addColorStop(1, `rgba(0, 240, 255, ${0.05 * beamAlpha})`);
+
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(ufoX - 18, ufoY + 12);
+        ctx.lineTo(ufoX + 18, ufoY + 12);
+        ctx.lineTo(ufoX + 52, p.y + 12);
+        ctx.lineTo(ufoX - 52, p.y + 12);
+        ctx.closePath();
+        ctx.fill();
+
+        // Işın İçindeki Yükselen Parçacıklar
+        const time = Date.now() * 0.006;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * beamAlpha})`;
+        for (let i = 0; i < 14; i++) {
+            const px = ufoX + Math.sin(time + i * 1.4) * (12 + i * 2.2);
+            const py = (p.y + 8) - ((time * 45 + i * 22) % Math.max(20, (p.y - ufoY)));
+            if (py > ufoY + 12 && py < p.y + 8) {
+                ctx.beginPath();
+                ctx.arc(px, py, 1.5 + (i % 3) * 0.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Zemin Halkası Aura
+        ctx.strokeStyle = `rgba(0, 255, 200, ${0.75 * beamAlpha})`;
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#00f0ff";
+        ctx.beginPath();
+        ctx.ellipse(ufoX, p.y + 8, 48, 13, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
     }
-    
-    const pulse = Math.sin(Date.now() / 100) * 0.1 + 1;
-    fontSize *= pulse;
-    
+
+    // B) HAVAYA ÇEKİLEN OYUNCU
+    if (playerAlpha > 0 && skipNormalDraw) {
+        ctx.save();
+        ctx.globalAlpha = playerAlpha;
+        
+        const floatY = p.y - playerLiftY;
+        const spinRot = Math.sin(syncElapsed * 12) * 0.25;
+
+        ctx.translate(p.x, floatY);
+        ctx.rotate(spinRot);
+        ctx.scale(playerScale, playerScale);
+
+        // Çekim Aurası Halesi
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "#00f0ff";
+        ctx.strokeStyle = "#00f0ff";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Oyuncu Gövdesi
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // İsim Etiketi
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = playerAlpha;
+        ctx.font = `bold 14px Segoe UI`;
+        ctx.textAlign = "center";
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = "#000";
+        ctx.fillStyle = "#00f0ff";
+        ctx.fillText(pname, p.x, floatY - (radius * playerScale) - 10);
+        ctx.restore();
+    }
+
+    // C) UFO UZAY GEMİSİ ÇİZİMİ
     ctx.save();
-    ctx.translate(cfg.width / 2, cfg.height / 2);
-    ctx.font = `bold ${fontSize}px Segoe UI`;
+    ctx.translate(ufoX, ufoY);
+
+    if (syncElapsed >= 0.8 && syncElapsed < 2.9) {
+        ctx.rotate(Math.sin(Date.now() * 0.005) * 0.06);
+    } else if (syncElapsed >= 2.9) {
+        ctx.rotate(0.25); // Kaçış eğimi
+    }
+
+    ctx.shadowColor = "#00f0ff";
+    ctx.shadowBlur = 22;
+
+    // Dome (Cam Kubbe)
+    const domeGrad = ctx.createRadialGradient(0, -6, 2, 0, -4, 22);
+    domeGrad.addColorStop(0, "rgba(220, 255, 255, 0.95)");
+    domeGrad.addColorStop(0.6, "rgba(0, 190, 230, 0.75)");
+    domeGrad.addColorStop(1, "rgba(0, 50, 110, 0.4)");
+    
+    ctx.fillStyle = domeGrad;
+    ctx.beginPath();
+    ctx.arc(0, -4, 22, Math.PI, 0);
+    ctx.fill();
+
+    // Gövde (Metalik Disk Body)
+    const bodyGrad = ctx.createLinearGradient(-46, 0, 46, 0);
+    bodyGrad.addColorStop(0, "#3a4556");
+    bodyGrad.addColorStop(0.3, "#cbd5e0");
+    bodyGrad.addColorStop(0.5, "#ffffff");
+    bodyGrad.addColorStop(0.7, "#cbd5e0");
+    bodyGrad.addColorStop(1, "#3a4556");
+
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, 4, 46, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#1a202c";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Alt Motor Yuvası
+    ctx.fillStyle = "#111827";
+    ctx.beginPath();
+    ctx.ellipse(0, 9, 18, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dönen Neon Işıklar
+    const lightCount = 6;
+    const pulseTime = Date.now() * 0.008;
+    for (let i = 0; i < lightCount; i++) {
+        const angle = (i / lightCount) * Math.PI * 2 + pulseTime;
+        const lx = Math.cos(angle) * 35;
+        const ly = Math.sin(angle) * 7 + 4;
+        
+        ctx.fillStyle = (i % 2 === 0) ? "#00f0ff" : "#00ffaa";
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+
+    return { skipPlayerDraw: skipNormalDraw };
+}
+
+// ========================================
+// ⏱️ COUNTDOWN & KICKOFF OVERLAYS
+// ========================================
+
+function drawCountdownOverlay(ctx, cfg, isCountdown, showGo) {
+    const state = miniData.gameState;
+    if (!state) return;
+    const now = performance.now() / 1000;
+
+    let text = "";
+    let isGo = false;
+
+    if (isCountdown) {
+        if (!miniData._countdownSoundPlayed) {
+            MiniAudio.stop("timer_countdown.mp3");
+            MiniAudio.play("timer_countdown.mp3", 0.8);
+            miniData._countdownSoundPlayed = true;
+        }
+
+        const cVal = Number(state.countdown);
+        if (!isNaN(cVal) && state.countdown !== null && state.countdown !== undefined) {
+            if (cVal > 2) text = "3";
+            else if (cVal > 1) text = "2";
+            else text = "1";
+        } else if (state.countdown_end) {
+            const rem = Math.max(0, state.countdown_end - now);
+            if (rem > 2.0) text = "3";
+            else if (rem > 1.0) text = "2";
+            else text = "1";
+        } else {
+            text = "1";
+        }
+    } else if (showGo) {
+        text = "BAŞLA!";
+        isGo = true;
+    }
+
+    if (!text) return;
+
+    ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = color;
-    ctx.fillStyle = color;
-    ctx.fillText(text, 0, 0);
+    const centerX = cfg ? (cfg.width / 2) : (ctx.canvas.width / 2);
+    const centerY = cfg ? (cfg.height / 2) : (ctx.canvas.height / 2);
+
+    ctx.font = isGo ? "900 85px 'Montserrat', sans-serif" : "900 120px 'Montserrat', sans-serif";
     
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 3;
-    ctx.strokeText(text, 0, 0);
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 10;
+    ctx.strokeText(text, centerX, centerY);
+
+    ctx.fillStyle = isGo ? "#2ecc71" : "#ffffff";
+    ctx.fillText(text, centerX, centerY);
+    
     ctx.restore();
 }
 
@@ -699,17 +1036,16 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         for (const _pid in miniData.gameState.players) {
             const _rp = miniData.gameState.players[_pid];
             if (_rp && _rp.celebrating) {
-                const _ct = _rp.celebration_type || "";
-                if (_ct === "snake" || _ct === "eagle_wings" || _ct === "rainbow_trail") {
+                const _ct = _rp.celebration_type || (_rp.celebration && _rp.celebration.type) || _rp.celebration || "";
+                if (["snake", "eagle_wings", "rainbow_trail", "black_hole", "cosmic_blackhole", "ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi"].includes(_ct)) {
                     skipDarken = true;
                     break;
                 }
             }
         }
     }
-    if (celebration.celebration_type === "snake" || 
-        celebration.celebration_type === "eagle_wings" || 
-        celebration.celebration_type === "rainbow_trail") {
+    const globalCType = celebration.celebration_type || celebration.type || celebration || "";
+    if (["snake", "eagle_wings", "rainbow_trail", "black_hole", "cosmic_blackhole", "ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi"].includes(globalCType)) {
         skipDarken = true;
     }
 
@@ -752,7 +1088,6 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             }
 
             song.onerror = () => {
-                // Herhangi bir yüklenme hatasında Beşiktaş yerine tarafsız genel gol müziklerinden birini rastgele çal
                 const fallbackSongs = ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3"];
                 const randFb = fallbackSongs[Math.floor(Math.random() * fallbackSongs.length)];
                 const fb = new Audio(`/oyun_modlari/mini_futbol/sounds/Goal_Songs/${randFb}`);
@@ -1031,7 +1366,6 @@ function miniRender() {
                     miniReplay.replayStartTime = performance.now();
                 }
                 
-                // ⚽ Gerçek Zamanlı 1.0x Oynatım: Saniyede 60 kare sabit ilerleme
                 const elapsedSec = Math.max(0, (performance.now() - miniReplay.replayStartTime) / 1000);
                 let frameIndex = Math.floor(elapsedSec * 60);
                 if (frameIndex >= clip.length) {
@@ -1042,6 +1376,20 @@ function miniRender() {
                 replayFrameData = (targetObj && targetObj.data) ? targetObj.data : targetObj;
                 miniData._currentReplayFrame = replayFrameData;
                 isReplayMode = true;
+
+                // 🛸/🌌 Replay karesinde görsel efektleri (UFO & Karadelik DOM) güncelle
+                // Sadece top ağlara girip "goal_wait" evresine geçildiğinde tetikle
+                if (replayFrameData) {
+                    const currentGS = replayFrameData.game_state || "playing";
+                    const rVisualState = {
+                        ...replayFrameData,
+                        is_replay: true,
+                        game_state: currentGS,
+                        goal_celebration: replayFrameData.goal_celebration || state.goal_celebration
+                    };
+                    if (typeof manageVisualBlackHole === "function") manageVisualBlackHole(rVisualState);
+                    if (typeof manageVisualUfo === "function") manageVisualUfo(rVisualState);
+                }
 
                 if (replayFrameData) {
                     if (replayFrameData.goal_event) {
@@ -1395,10 +1743,26 @@ function miniRender() {
             miniData._snowflakes = null;
         }
         
+        // 🌌 Karadelik sevinci aktif mi kontrolü (Replay Desteği Dahil - Doğru Zamanlama)
+        const activeCel = (isReplayMode && replayFrameData && replayFrameData.goal_celebration)
+            ? replayFrameData.goal_celebration
+            : state.goal_celebration;
+        const currentGameState = isReplayMode ? (replayFrameData.game_state || "playing") : state.game_state;
+        const gType = activeCel ? (activeCel.celebration_type || activeCel.type || activeCel) : "";
+        const isBlackHoleActive = (currentGameState === "goal_wait" && (gType === "black_hole" || gType === "cosmic_blackhole"));
+
+        // (İptal) Eski mor merkez karadelik çizimi kaldırıldı (CSS/DOM kaledeki karadelik kullanılıyor).
+
         for (const pid in state.players) {
             const pidInt = parseInt(pid, 10);
+            const rawP = (isReplayMode && replayFrameData && replayFrameData.players && replayFrameData.players[pid]) ? replayFrameData.players[pid] : state.players[pid];
+
+            // 🧤 Sunucu tarafından explicitly gizlenen veya silinen oyuncuları anında çizimden kaldır (Gereksiz render koruması)
+            if (rawP && (rawP.invisible === true || rawP._exploded === true)) {
+                continue;
+            }
+
             let smoothPos;
-            
             if (isReplayMode && replayFrameData && replayFrameData.players[pid]) {
                 smoothPos = {
                     x: replayFrameData.players[pid].x,
@@ -1414,6 +1778,49 @@ function miniRender() {
             
             const p = { x: smoothPos.x, y: smoothPos.y };
             const isMe = pidInt === miniData.playerId;
+
+            // Sunucunun anlık ölçek değerine (`tp.scale`) göre gerçek yarıçapı hesapla
+            let currentRadius = cfg.player_radius;
+            if (rawP && typeof rawP.scale === "number") {
+                currentRadius *= rawP.scale;
+            }
+
+            let skipPlayerDraw = false;
+
+            // 🌌 Oyuncuları Karadeliğe Çeken Algoritma (Replay Dahil + Hedef Kale Koordinatı)
+            if (isBlackHoleActive) {
+                let bhX = cfg.width / 2;
+                let bhY = cfg.height / 2;
+                const srcState = (isReplayMode && replayFrameData) ? replayFrameData : state;
+                if (typeof srcState.bhX === "number") {
+                    bhX = srcState.bhX;
+                    bhY = srcState.bhY;
+                } else if (activeCel) {
+                    const scorerTeamId = activeCel.scorer_id;
+                    bhX = (scorerTeamId === 1) ? cfg.width : 0; 
+                }
+
+                const dx = bhX - p.x;
+                const dy = bhY - p.y;
+                const dist = Math.hypot(dx, dy);
+                
+                const elapsed = Math.max(0, 5.0 - activeCel.wait_remaining);
+                const pullStrength = Math.min(1.0, elapsed / 3.8);
+
+                if (pullStrength > 0.02) {
+                    const orbitAngle = Math.atan2(dy, dx) + pullStrength * 7.5;
+                    const newDist = dist * (1.0 - pullStrength * 0.98);
+                    
+                    p.x = bhX - Math.cos(orbitAngle) * newDist;
+                    p.y = bhY - Math.sin(orbitAngle) * newDist;
+                    
+                    currentRadius = cfg.player_radius * Math.max(0.01, 1.0 - pullStrength * 0.96);
+                    
+                    if (newDist < 10) {
+                        skipPlayerDraw = true;
+                    }
+                }
+            }
             
             let playerTeam = null;
             const playerInfo = miniData.players.find(pl => pl.id === parseInt(pid));
@@ -1427,13 +1834,38 @@ function miniRender() {
             const color = playerTeam === "blue" ? (miniData.blueTeamColor || "#4dabf7") : (miniData.redTeamColor || "#ff6b6b");
             const justKicked = kickedPlayerIds.has(parseInt(pid));
             
-            const rawP = (isReplayMode && replayFrameData && replayFrameData.players && replayFrameData.players[pid]) ? replayFrameData.players[pid] : state.players[pid];
-            let currentRadius = cfg.player_radius;
-            let skipPlayerDraw = false;
-            
+            // Güvenli Sevinç Tipi Belirleme (Obje/String Korumalı)
+            let celType = "grow_explode";
             if (rawP && rawP.celebrating) {
-                const celType = rawP.celebration_type || "grow_explode";
+                celType = rawP.celebration_type || (rawP.celebration && rawP.celebration.type) || rawP.celebration || "grow_explode";
+            }
+            
+            // 🛸 UZAY GEMİSİ (UFO ABDUCTION) KONTROLÜ VE ANİMASYONU (Replay Desteği Dahil)
+            // 🔥 FİX: Sadece golü atan oyuncuya UFO gelsin. Ortada duran hayalet UFO'ları engeller!
+            const _gCel = (isReplayMode && replayFrameData && replayFrameData.goal_celebration)
+                ? replayFrameData.goal_celebration
+                : state.goal_celebration;
+            const _isScorer = _gCel && (parseInt(_gCel.scorer_pid || _gCel.scorer_id) === pidInt);
+            const _ufoT = (isReplayMode && replayFrameData) ? replayFrameData.ufoTargetPid : state.ufoTargetPid;
+            const _isUfoTarget = (_ufoT !== undefined && _ufoT !== null) ? (parseInt(_ufoT) === pidInt) : _isScorer;
+            
+            const isUfo = rawP && rawP.celebrating && _isUfoTarget && ["ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi"].includes(celType);
+            
+            if (isUfo) {
+                const nowUfo = performance.now() / 1000;
+                const celStartUfo = rawP.celebration_start || 0;
+                const syncUfo = (rawP.celebration_elapsed !== undefined) ? rawP.celebration_elapsed : Math.max(0, nowUfo - celStartUfo);
+                let pnameUfo = miniData.playerNames[pid] || `P${pid}`;
+
+                const ufoRes = drawUfoAbductionCelebration(ctx, cfg, p, syncUfo, color, playerTeam, pnameUfo, cfg.player_radius);
+                if (ufoRes && ufoRes.skipPlayerDraw) {
+                    continue; // Oyuncu UFO içine çekildi veya kaçıyor, yerdeki dairesini çizme!
+                }
+            }
+
+            if (rawP && rawP.celebrating) {
                 const celStart = rawP.celebration_start || 0;
+
                 const nowSec = performance.now() / 1000;
                 const celElapsed = Math.max(0, nowSec - celStart);
                 
@@ -2281,8 +2713,44 @@ function miniRender() {
         };
         const onFire = b.on_fire === true;
         const warning = b.warning === true;
+
+        let ballRadius = cfg.ball_radius;
+        let skipBallDraw = false;
+
+        // 🌌 Topu Karadeliğe Çeken Girdap Algoritması (Replay Dahil + Hedef Kale Koordinatı)
+        if (isBlackHoleActive) {
+            let bhX = cfg.width / 2;
+            let bhY = cfg.height / 2;
+            const srcState = (isReplayMode && replayFrameData) ? replayFrameData : state;
+            if (typeof srcState.bhX === "number") {
+                bhX = srcState.bhX;
+                bhY = srcState.bhY;
+            } else if (activeCel) {
+                const scorerTeamId = activeCel.scorer_id;
+                bhX = (scorerTeamId === 1) ? cfg.width : 0; 
+            }
+
+            const dx = bhX - b.x;
+            const dy = bhY - b.y;
+            const dist = Math.hypot(dx, dy);
+            
+            const elapsed = Math.max(0, 5.0 - activeCel.wait_remaining);
+            const pullStrength = Math.min(1.0, elapsed / 3.8);
+
+            if (pullStrength > 0.02) {
+                const orbitAngle = Math.atan2(dy, dx) + pullStrength * 9.0;
+                const newDist = dist * (1.0 - pullStrength * 0.98);
+                b.x = bhX - Math.cos(orbitAngle) * newDist;
+                b.y = bhY - Math.sin(orbitAngle) * newDist;
+                ballRadius = cfg.ball_radius * Math.max(0.01, 1.0 - pullStrength * 0.96);
+                
+                if (newDist < 8) {
+                    skipBallDraw = true;
+                }
+            }
+        }
         
-        if (warning) {
+        if (warning && !skipBallDraw) {
             const blink = Math.floor(Date.now() / 200) % 2 === 0;
             if (blink) {
                 const warningTeam = state.ball.warning_team;
@@ -2299,7 +2767,7 @@ function miniRender() {
                 ctx.shadowColor = warningColor;
                 ctx.fillStyle = warningColorLight;
                 ctx.beginPath();
-                ctx.arc(b.x, b.y, cfg.ball_radius + 10, 0, Math.PI * 2);
+                ctx.arc(b.x, b.y, ballRadius + 10, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
             }
@@ -2330,59 +2798,61 @@ function miniRender() {
             ctx.shadowBlur = 0;
         }
         
-        ctx.fillStyle = "rgba(0,0,0,0.4)";
-        ctx.beginPath();
-        ctx.arc(b.x + 2, b.y + 2, cfg.ball_radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        if (onFire) {
-            const lastToucher = state.ball.last_toucher;
-            let toucherTeam2 = null;
-            if (lastToucher) {
-                const toucherInfo2 = miniData.players.find(pl => pl.id === lastToucher);
-                if (toucherInfo2) toucherTeam2 = toucherInfo2.team;
-            }
-            const fireHex2 = toucherTeam2 === "blue" ? (miniData.blueTeamColor || "#4dabf7") : (miniData.redTeamColor || "#ff6b00");
-            const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, cfg.ball_radius);
-            grad.addColorStop(0, "#fff");
-            grad.addColorStop(0.6, shadeHexColor(fireHex2, 0.35));
-            grad.addColorStop(1, shadeHexColor(fireHex2, -0.15));
-            ctx.fillStyle = grad;
-        } else if (warning) {
-            const blink = Math.floor(Date.now() / 200) % 2 === 0;
-            const warningTeam = state.ball.warning_team;
-            const warningColor = warningTeam === 2 ? "#4dabf7" : "#ff3333";
-            ctx.fillStyle = blink ? warningColor : "#fff";
-        } else {
-            ctx.fillStyle = "#fff";
-        }
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, cfg.ball_radius, 0, Math.PI * 2);
-        ctx.fill();
-        
-        if (!onFire) {
-            ctx.fillStyle = "#333";
+        if (!skipBallDraw) {
+            ctx.fillStyle = "rgba(0,0,0,0.4)";
             ctx.beginPath();
-            ctx.arc(b.x, b.y, cfg.ball_radius * 0.4, 0, Math.PI * 2);
+            ctx.arc(b.x + 2, b.y + 2, ballRadius, 0, Math.PI * 2);
             ctx.fill();
-        }
-        
-        let ballBorderColor = "#000";
-        if (onFire) {
-            const lastToucher = state.ball.last_toucher;
-            let toucherTeam3 = null;
-            if (lastToucher) {
-                const toucherInfo3 = miniData.players.find(pl => pl.id === lastToucher);
-                if (toucherInfo3) toucherTeam3 = toucherInfo3.team;
+            
+            if (onFire) {
+                const lastToucher = state.ball.last_toucher;
+                let toucherTeam2 = null;
+                if (lastToucher) {
+                    const toucherInfo2 = miniData.players.find(pl => pl.id === lastToucher);
+                    if (toucherInfo2) toucherTeam2 = toucherInfo2.team;
+                }
+                const fireHex2 = toucherTeam2 === "blue" ? (miniData.blueTeamColor || "#4dabf7") : (miniData.redTeamColor || "#ff6b00");
+                const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, ballRadius);
+                grad.addColorStop(0, "#fff");
+                grad.addColorStop(0.6, shadeHexColor(fireHex2, 0.35));
+                grad.addColorStop(1, shadeHexColor(fireHex2, -0.15));
+                ctx.fillStyle = grad;
+            } else if (warning) {
+                const blink = Math.floor(Date.now() / 200) % 2 === 0;
+                const warningTeam = state.ball.warning_team;
+                const warningColor = warningTeam === 2 ? "#4dabf7" : "#ff3333";
+                ctx.fillStyle = blink ? warningColor : "#fff";
+            } else {
+                ctx.fillStyle = "#fff";
             }
-            const fireHex3 = toucherTeam3 === "blue" ? (miniData.blueTeamColor || "#4dabf7") : (miniData.redTeamColor || "#ff6b00");
-            ballBorderColor = shadeHexColor(fireHex3, -0.35);
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, ballRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            if (!onFire) {
+                ctx.fillStyle = "#333";
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, ballRadius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            let ballBorderColor = "#000";
+            if (onFire) {
+                const lastToucher = state.ball.last_toucher;
+                let toucherTeam3 = null;
+                if (lastToucher) {
+                    const toucherInfo3 = miniData.players.find(pl => pl.id === lastToucher);
+                    if (toucherInfo3) toucherTeam3 = toucherInfo3.team;
+                }
+                const fireHex3 = toucherTeam3 === "blue" ? (miniData.blueTeamColor || "#4dabf7") : (miniData.redTeamColor || "#ff6b00");
+                ballBorderColor = shadeHexColor(fireHex3, -0.35);
+            }
+            ctx.strokeStyle = ballBorderColor;
+            ctx.lineWidth = onFire ? 3 : 2;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, ballRadius, 0, Math.PI * 2);
+            ctx.stroke();
         }
-        ctx.strokeStyle = ballBorderColor;
-        ctx.lineWidth = onFire ? 3 : 2;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, cfg.ball_radius, 0, Math.PI * 2);
-        ctx.stroke();
     }
     
     if (state) {
@@ -2406,14 +2876,29 @@ function miniRender() {
             }
         }
 
-        if (state.game_state === "countdown" && state.countdown !== null && state.countdown !== undefined) {
-            drawCountdownOverlay(ctx, cfg, state.countdown);
-        } else if (state.game_state === "goal_wait" && state.goal_celebration) {
+        const nowTime = performance.now() / 1000;
+        const isCountdown = (state.game_state === "countdown");
+
+        if (isCountdown) {
+            miniData._lastCountdownTime = nowTime;
+        }
+
+        const showGo = (!isCountdown && miniData._lastCountdownTime && (nowTime - miniData._lastCountdownTime < 1.0));
+
+        if (isCountdown || showGo) {
+            drawCountdownOverlay(ctx, cfg, isCountdown, showGo);
+        }
+
+        if (state.game_state === "goal_wait" && state.goal_celebration) {
+            miniData._countdownSoundPlayed = false;
+            miniData._lastCountdownTime = null;
+            MiniAudio.stop("timer_countdown.mp3");
             drawGoalCelebration(ctx, cfg, state.goal_celebration);
-        } else {
+        } else if (!isCountdown && !showGo) {
+            miniData._countdownSoundPlayed = false;
             miniData._lastGoalSignature = null;
             miniData._goalSongPlayed = null;
-            miniReplay.replayStartTime = 0; // Gol bekleme bittiğinde yerel zamanlayıcıyı sıfırla
+            miniReplay.replayStartTime = 0;
         }
         if (state.kickoff && state.kickoff.active) {
             drawKickoffInfo(ctx, cfg, state.kickoff);
@@ -2445,3 +2930,9 @@ function miniRender() {
     if (typeof updateMiniHUD === "function") updateMiniHUD();
     miniAnimFrame = requestAnimationFrame(miniRender);
 }
+
+// 🛡️ Global Scope Garantisi
+window.miniRender = miniRender;
+window.drawCountdownOverlay = drawCountdownOverlay;
+window.drawBlackHoleEffect = drawBlackHoleEffect;
+window.drawUfoAbductionCelebration = drawUfoAbductionCelebration;

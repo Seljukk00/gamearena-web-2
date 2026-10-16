@@ -9,6 +9,7 @@ const MiniAudio = {
     _unlocked: false,
     _cache: {},
     _lastPlayed: {},
+    _activeClones: [], // ✨ Çalan klon sesleri takip listesi
     _unlocking: false,
     _audioCtx: null,
 
@@ -73,14 +74,52 @@ const MiniAudio = {
         }
         const clone = audio.cloneNode();
         clone.volume = (volume !== undefined && !isNaN(volume)) ? volume : 0.6;
+        clone._soundName = name;
+
+        // Çalan klonu listeye ekle
+        this._activeClones.push(clone);
+
+        const cleanup = () => {
+            const idx = this._activeClones.indexOf(clone);
+            if (idx !== -1) this._activeClones.splice(idx, 1);
+        };
+
+        clone.onended = cleanup;
+        clone.onpause = cleanup;
+        clone.onerror = cleanup;
+
         return clone.play();
+    },
+
+    stop(name) {
+        for (let i = this._activeClones.length - 1; i >= 0; i--) {
+            const a = this._activeClones[i];
+            if (!name || a._soundName === name) {
+                try {
+                    a.pause();
+                    a.currentTime = 0;
+                } catch(e) {}
+                this._activeClones.splice(i, 1);
+            }
+        }
+    },
+
+    stopAll() {
+        for (let i = this._activeClones.length - 1; i >= 0; i--) {
+            const a = this._activeClones[i];
+            try {
+                a.pause();
+                a.currentTime = 0;
+            } catch(e) {}
+        }
+        this._activeClones = [];
     },
 
     play(name, volume) {
         if (!name) return;
         if (!this._unlocked) this.unlock();
 
-        // 🌟 GOL ŞARKISI KORUMASI: Gol şarkısı isteklerini kontrol edip 1-12 arasına güvenle mapliyoruz
+        // 🌟 GOL ŞARKISI KORUMASI: Gol şarkısı isteklerini kontrol edip 1-41 arasına güvenle mapliyoruz
         if (typeof name === "string" && name.includes("Goal_Songs/goal_song_")) {
             const match = name.match(/goal_song_(\d+)\.mp3/i);
             if (match) {
@@ -101,8 +140,8 @@ const MiniAudio = {
                 if (isNaN(songId) || songId <= 0) {
                     songId = 1;
                 } else {
-                    // 🌟 GOL ŞARKISI LİMİTİ: 12 limitini 41 şarkıya çıkartarak tüm klasörü aktif ediyoruz
-                    songId = ((songId - 1) % 41) + 1;
+                    // 🌟 GOL ŞARKISI LİMİTİ: 41 şarkıya çıkartarak tüm klasörü aktif ediyoruz
+                    songId = ((songId - 1) % 42) + 1;
                 }
                 name = `Goal_Songs/goal_song_${songId}.mp3`;
             }
@@ -146,6 +185,8 @@ const MiniAudio = {
             "wall_hit_1.mp3", "wall_hit_2.mp3",
             "goal_1.mp3", "goal_2.mp3", "goal_3.mp3",
             "whistle.mp3",
+            "whistle2.mp3",
+            "timer_countdown.mp3",
             "fire_kick_1.mp3", "fire_kick_2.mp3", "fire_kick_3.mp3",
             "kick_1.mp3", "kick_2.mp3",
             "own_goal.mp3"
@@ -162,6 +203,17 @@ setTimeout(() => MiniAudio.preloadAll(), 1500); // ✨ cold cache 2. dalga
 ["pointerdown", "touchstart", "click", "keydown"].forEach(evt => {
     document.addEventListener(evt, () => MiniAudio.unlock(), { passive: true, capture: true });
 });
+
+// 🛑 ESC basıldığında sesi kes, menüden dönünce yeni geri sayım için hazırla
+window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" || e.code === "Escape") {
+        MiniAudio.stop("timer_countdown.mp3");
+        MiniAudio.stopAll();
+        if (typeof miniData !== "undefined") {
+            miniData._countdownSoundPlayed = false;
+        }
+    }
+}, { capture: true });
 
 // ========================================
 // 📳 GAMEPAD TİTREŞİM SİSTEMİ

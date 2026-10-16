@@ -565,16 +565,21 @@ function pollGamepad() {
             document.dispatchEvent(enterEvent);
             console.log("[GAMEPAD] START → ENTER (Replay Atla)");
         } else {
-            const escEvent = new KeyboardEvent("keydown", {
-                key: "Escape",
-                code: "Escape",
-                keyCode: 27,
-                which: 27,
-                bubbles: true,
-                cancelable: true
-            });
-            document.dispatchEvent(escEvent);
-            console.log("[GAMEPAD] START → ESC");
+            const currentGS = miniData.gameState && miniData.gameState.game_state;
+            if (currentGS === "goal_wait") {
+                console.log("[GAMEPAD] START → ESC engellendi (Gol Sevinci)");
+            } else {
+                const escEvent = new KeyboardEvent("keydown", {
+                    key: "Escape",
+                    code: "Escape",
+                    keyCode: 27,
+                    which: 27,
+                    bubbles: true,
+                    cancelable: true
+                });
+                document.dispatchEvent(escEvent);
+                console.log("[GAMEPAD] START → ESC");
+            }
         }
     } else if (!btnStart && gpPrevState.start) {
         gpPrevState.start = false;
@@ -676,3 +681,93 @@ function sendGamepadKey(key, pressed) {
 setTimeout(() => {
     initGamepadListeners();
 }, 200);
+
+// ==========================================================================
+// 🌌 KARADELİK GOL SEVİNCİ HOST PHYSICS (HP) ENJEKSİYON YAMASI
+// ==========================================================================
+function patchHostPhysicsBlackHole() {
+    try {
+        const targetArrays = [
+            "CELEBRATION_TYPES", "celebrationTypes", 
+            "MINI_CELEBRATIONS", "miniCelebrations",
+            "celebrations", "CELEBRATIONS"
+        ];
+        
+        targetArrays.forEach(arrName => {
+            if (window[arrName] && Array.isArray(window[arrName])) {
+                if (!window[arrName].includes("black_hole")) {
+                    window[arrName].push("black_hole");
+                }
+            }
+        });
+
+        if (typeof miniData !== "undefined") {
+            if (!miniData.celebrationTypes) miniData.celebrationTypes = [];
+            if (!miniData.celebrationTypes.includes("black_hole")) {
+                miniData.celebrationTypes.push("black_hole");
+            }
+        }
+
+        if (typeof HP !== "undefined") {
+            if (HP.CELEBRATION_TYPES && Array.isArray(HP.CELEBRATION_TYPES)) {
+                if (!HP.CELEBRATION_TYPES.includes("black_hole")) {
+                    HP.CELEBRATION_TYPES.push("black_hole");
+                }
+            }
+
+            if (!HP._blackHolePatched) {
+                HP._blackHolePatched = true;
+                
+                const origApply = HP.applyCelebrationChoice;
+                HP.applyCelebrationChoice = function(pid, celebId) {
+                    if (!HP.playerCelebrations) HP.playerCelebrations = {};
+                    HP.playerCelebrations[pid] = celebId;
+
+                    if (celebId === "black_hole") {
+                        if (HP.room && HP.room.gameState) {
+                            if (HP.room.gameState.players && HP.room.gameState.players[pid]) {
+                                HP.room.gameState.players[pid].celebration = "black_hole";
+                                HP.room.gameState.players[pid].celebration_type = "black_hole";
+                            }
+                            if (HP.room.gameState.goal_celebration) {
+                                HP.room.gameState.goal_celebration.type = "black_hole";
+                                HP.room.gameState.goal_celebration.celebration_type = "black_hole";
+                            }
+                        }
+                        return;
+                    }
+                    if (typeof origApply === "function") {
+                        origApply.call(this, pid, celebId);
+                    }
+                };
+
+                // Gol atıldığı anda HP'nin sevinci rastgele değiştirmesini engelleyen kanca
+                const origStartGoal = HP.startGoalCelebration;
+                if (typeof origStartGoal === "function") {
+                    HP.startGoalCelebration = function(scorerPid, isOwnGoal) {
+                        if (typeof origStartGoal === "function") {
+                            origStartGoal.call(this, scorerPid, isOwnGoal);
+                        }
+                        if (this.room && this.room.gameState && this.room.gameState.goal_celebration) {
+                            const pref = (this.playerCelebrations && this.playerCelebrations[scorerPid]) || 
+                                         (miniData && miniData.playerId === scorerPid && miniData.preferredCelebration);
+                            if (pref === "black_hole") {
+                                this.room.gameState.goal_celebration.type = "black_hole";
+                                this.room.gameState.goal_celebration.celebration_type = "black_hole";
+                                if (this.room.gameState.players && this.room.gameState.players[scorerPid]) {
+                                    this.room.gameState.players[scorerPid].celebration = "black_hole";
+                                    this.room.gameState.players[scorerPid].celebration_type = "black_hole";
+                                }
+                            }
+                        }
+                    };
+                }
+            }
+        }
+    } catch (e) {
+        console.error("[🌌 Karadelik] Yama hatası:", e);
+    }
+}
+
+patchHostPhysicsBlackHole();
+setInterval(patchHostPhysicsBlackHole, 250);

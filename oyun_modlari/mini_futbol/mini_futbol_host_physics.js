@@ -65,17 +65,20 @@ const HP = {  // Host Physics namespace
     applyCelebrationChoice(pid, celebType) {
         if (!this.room || !this.room.gameState) return;
         const gs = this.room.gameState;
-        const allowed = ["random", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
+        // ✨ Karadelik ve Uzay Gemisi izin verilen listeye eklendi
+        const allowed = ["random", "cosmic_blackhole", "blackhole", "ufo_abduct", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
         if (!allowed.includes(celebType)) return;
 
+        let normalizedType = (celebType === "blackhole") ? "cosmic_blackhole" : celebType;
+
         if (!gs.preferredCelebrations) gs.preferredCelebrations = {};
-        gs.preferredCelebrations[String(pid)] = celebType;
-        console.log(`[HP CELEB] Oyuncu ${pid} bir sonraki gol sevinci tercihini kaydetti → ${celebType}`);
+        gs.preferredCelebrations[String(pid)] = normalizedType;
+        console.log(`[HP CELEB] Oyuncu ${pid} bir sonraki gol sevinci tercihini kaydetti → ${normalizedType}`);
     },
 
     pickNextCelebration(gs, scorerPid) {
-        // 🎭 Sevinç havuzu
-        const pool = ["rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
+        // 🎭 Sevinç havuzuna Karadelik ve Uzay Gemisi eklendi
+        const pool = ["cosmic_blackhole", "ufo_abduct", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
 
         // ✨ Gol atan oyuncunun 1/2 tercihi varsa onu kullan (Rastgele hariç)
         if (scorerPid != null && gs.preferredCelebrations) {
@@ -244,7 +247,7 @@ const HP = {  // Host Physics namespace
             gs._savedTimeLeft = gs.time_left;
             gs.state = "countdown";
             gs.countdown_start = now;
-            gs.countdown_end = now + 3.5;
+            gs.countdown_end = now + 3.0;
             delete gs.pause_time;
             gs._silentWhistle = true;
         }
@@ -279,10 +282,10 @@ const HP = {  // Host Physics namespace
         this.resetPositions();
         const now = performance.now() / 1000;
         gs.time_left = this.settings.matchDuration;
-        gs.match_start = now + 3.5;
+        gs.match_start = now + 3.0;
         gs.state = "countdown";
         gs.countdown_start = now;
-        gs.countdown_end = now + 3.5;
+        gs.countdown_end = now + 3.0;
         gs.pause_time = now;
         gs._silentWhistle = false;  // ✨ Restart → düdük çalsın
         for (const pid in gs.players) {
@@ -456,10 +459,10 @@ const HP = {  // Host Physics namespace
             ball: { x: this.FIELD_WIDTH / 2, y: this.FIELD_HEIGHT / 2, vx: 0, vy: 0, spin: 0 },
             scores: { 1: 0, 2: 0 },
             time_left: this.settings.matchDuration,
-            match_start: now + 3.5,  // 3-2-1 sonrası başlar, süre buradan işler
+            match_start: now + 3.0,  // 3-2-1 sonrası başlar, süre buradan işler
             goal_wait_until: 0,
             last_goal_scorer: null,
-            countdown_end: now + 3.5,
+            countdown_end: now + 3.0,
             countdown_start: now,
             state: "countdown",
             kickoff_active: false,
@@ -562,7 +565,7 @@ const HP = {  // Host Physics namespace
         const gs = this.room.gameState;
         gs.state = "countdown";
         gs.countdown_start = now;
-        gs.countdown_end = now + 3.5;
+        gs.countdown_end = now + 3.0;
         gs.pause_time = now;
         
         const redPid = this.room.active_red_player;
@@ -789,6 +792,17 @@ const HP = {  // Host Physics namespace
         if (kickoffInfo) stateMsg.kickoff = kickoffInfo;
         if (gs.kick_effects && gs.kick_effects.length > 0) stateMsg.kick_effects = gs.kick_effects;
         if (gs.hit_events && gs.hit_events.length > 0) stateMsg.hit_events = gs.hit_events;
+        if (gs.bhX !== undefined) {
+            stateMsg.bhX = gs.bhX;
+            stateMsg.bhY = gs.bhY;
+        }
+        if (gs.ufoActive) {
+            stateMsg.ufoActive = true;
+            stateMsg.ufoX = gs.ufoX;
+            stateMsg.ufoY = gs.ufoY;
+            stateMsg.ufoPhase = gs.ufoPhase;
+            stateMsg.ufoTargetPid = gs.ufoTargetPid;
+        }
         
         if (goalEvent) stateMsg.goal = goalEvent;
         
@@ -830,6 +844,23 @@ const HP = {  // Host Physics namespace
     updatePhysics() {
         const gs = this.room.gameState;
         const now = performance.now() / 1000;
+
+        // 🕳️ KARADELİK VE BUZ DEVRI TESPİTİ (Fonksiyonun en üstünde tanımlandı)
+        let blackHoleActive = false;
+        let iceActive = false;
+        if (gs && gs.state === "goal_wait") {
+            for (const _pid in gs.players) {
+                const _pp = gs.players[_pid];
+                if (_pp && _pp.celebrating) {
+                    if (_pp.celebration_type === "cosmic_blackhole" || _pp.celebration_type === "blackhole") {
+                        blackHoleActive = true;
+                    }
+                    if (_pp.celebration_type === "frostbite") {
+                        iceActive = true;
+                    }
+                }
+            }
+        }
         
         // Speed preset
         const preset = this.SPEED_PRESETS[this.settings.gameSpeed] || this.SPEED_PRESETS.normal;
@@ -884,7 +915,7 @@ const HP = {  // Host Physics namespace
         if (gs._pendingCountdownStart && now >= gs._pendingCountdownStart) {
             gs.state = "countdown";
             gs.countdown_start = now;
-            gs.countdown_end = now + 3.5;
+            gs.countdown_end = now + 3.0;
             gs.pause_time = now;
             delete gs._pendingCountdownStart;
             
@@ -1042,17 +1073,8 @@ const HP = {  // Host Physics namespace
             }
             p.sprint_energy = currentEnergy;
             
-            // ❄️ Buz devri aktif mi?
-            let iceActive = false;
-            if (gs.state === "goal_wait") {
-                for (const _pid in gs.players) {
-                    const _pp = gs.players[_pid];
-                    if (_pp && _pp.celebrating && _pp.celebration_type === "frostbite") {
-                        iceActive = true;
-                        break;
-                    }
-                }
-            }
+            // (iceActive ve blackHoleActive updatePhysics başında tespit edildi)
+
 
             // İvme ve Hareket Hesabı (Üstteki celType ve celElapsed değişkenlerini kullanır)
             const cs = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
@@ -1069,7 +1091,6 @@ const HP = {  // Host Physics namespace
                 } else if (celType === "frostbite") {
                     accel = PLAYER_ACCEL * 0.35;
                 } else if (celType === "spin_rush") {
-                    // ✨ Dönerek koşu: daha yüksek ivme
                     accel = PLAYER_ACCEL * 2.6;
                 } else {
                     accel = PLAYER_ACCEL * 2.0;
@@ -1077,11 +1098,53 @@ const HP = {  // Host Physics namespace
             } else if (isSprinting && cs > PLAYER_SPEED * 0.95) {
                 accel = PLAYER_ACCEL * 0.75;
             }
-            
-            if (keys.up) p.vy -= accel;
-            if (keys.down) p.vy += accel;
-            if (keys.left) p.vx -= accel;
-            if (keys.right) p.vx += accel;
+
+            // 🕳️ KARA DELİK: Kaçışsız güçlü emiş ve "lüp" diye yutma fiziği
+            if (blackHoleActive) {
+                if (gs.bhX === undefined) {
+                    // Golün atıldığı kalede doğar
+                    gs.bhX = (gs.ball && gs.ball.x < this.FIELD_WIDTH / 2) ? 0 : this.FIELD_WIDTH;
+                    gs.bhY = this.FIELD_HEIGHT / 2;
+                }
+                const cx = gs.bhX;
+                const cy = gs.bhY;
+                const dx = cx - p.x;
+                const dy = cy - p.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 18) {
+                    // Kaleye yaklaştıkça katlanan kaçınılmaz emiş hızı (Saniyede 8px - 16px)
+                    const pullSpeed = Math.min(16, Math.max(7, 2200 / (dist + 50)));
+                    p.vx = (dx / dist) * pullSpeed;
+                    p.vy = (dy / dist) * pullSpeed;
+
+                    // Yaklaştıkça kavisli/akıcı şekilde ufalma
+                    p.invisible = false;
+                    p.scale = Math.max(0.05, Math.pow(dist / 140, 1.2));
+                } else {
+                    // Merkeze ulaştığı an "LÜP!" - Tamamen yutuldu
+                    p.vx = 0;
+                    p.vy = 0;
+                    p.x = cx;
+                    p.y = cy;
+                    p.invisible = true;
+                    p.scale = 0;
+                }
+            } else {
+                if (gs.bhX !== undefined) {
+                    delete gs.bhX;
+                    delete gs.bhY;
+                }
+                // Karadelik bittiğinde normale dön
+                if (p.scale !== undefined && p.scale !== 1.0) p.scale = 1.0;
+                if (p.invisible) p.invisible = false;
+
+                // Sadece karadelik yokken oyuncu tuş hareketlerine izin ver (Kaçış engellendi!)
+                if (keys.up) p.vy -= accel;
+                if (keys.down) p.vy += accel;
+                if (keys.left) p.vx -= accel;
+                if (keys.right) p.vx += accel;
+            }
             
             // Max hız (sevinç sırasında 3x, sprint ile 4x)
             let maxSpeed = PLAYER_SPEED * (isSprinting ? ADV_SPRINT_MULT : 1.0);
@@ -1513,6 +1576,8 @@ const HP = {  // Host Physics namespace
             return { scorer: gs.last_goal_scorer, own_goal: own, assist: assist, scores: { ...gs.scores } };
         }
         
+        // 🕳️ KARA DELİK: Top serbest kalır (Çekim uygulanmaz)
+
         ball.vx *= this.BALL_FRICTION;
         ball.vy *= this.BALL_FRICTION;
         
@@ -1629,6 +1694,79 @@ const HP = {  // Host Physics namespace
             }
         }
         
+        // === 🛸 UFO KAÇIRMA FİZİĞİ (gol sevinci) ===
+        if (gs.ufoActive && gs.state === "goal_wait") {
+            const ufoNow = now;
+            const phaseT = ufoNow - (gs.ufoPhaseStart || ufoNow);
+            const targetPid = gs.ufoTargetPid;
+            const tp = targetPid != null ? (gs.players[targetPid] || gs.players[String(targetPid)]) : null;
+
+            // Faz süreleri
+            if (gs.ufoPhase === "arrive" && phaseT >= 0.8) {
+                gs.ufoPhase = "beam";
+                gs.ufoPhaseStart = ufoNow;
+            } else if (gs.ufoPhase === "beam" && phaseT >= 0.6) {
+                gs.ufoPhase = "lift";
+                gs.ufoPhaseStart = ufoNow;
+            } else if (gs.ufoPhase === "lift" && phaseT >= 1.5) {
+                gs.ufoPhase = "leave";
+                gs.ufoPhaseStart = ufoNow;
+            } else if (gs.ufoPhase === "leave" && phaseT >= 1.5) {
+                gs.ufoActive = false;
+                gs.ufoPhase = null;
+            }
+
+            // UFO Pozisyonu: Hedef oyuncunun 100px üstünde dur
+            if (tp && (gs.ufoPhase === "arrive" || gs.ufoPhase === "beam" || gs.ufoPhase === "lift")) {
+                gs.ufoX = tp.x;
+                gs.ufoY = Math.max(40, tp.y - 100); 
+            }
+            if (gs.ufoPhase === "leave") {
+                gs.ufoY = (gs.ufoY || 80) - 12; // Gökyüzüne doğru kaçış
+            }
+
+            // Hedef oyuncu: tuşları ez, ışına çek
+            if (tp) {
+                tp.keys.up = false; tp.keys.down = false;
+                tp.keys.left = false; tp.keys.right = false;
+                tp.keys.kick = false; tp.keys.sprint = false;
+
+                if (gs.ufoPhase === "beam" || gs.ufoPhase === "lift") {
+                    const tx = gs.ufoX != null ? gs.ufoX : tp.x;
+                    const ty = (gs.ufoY != null ? gs.ufoY : 80) + 10; // Doğrudan UFO'nun içine çek
+                    const dx = tx - tp.x;
+                    const dy = ty - tp.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    
+                    if (gs.ufoPhase === "lift") {
+                        const spd = 16;
+                        tp.vx = (dx / dist) * spd;
+                        tp.vy = (dy / dist) * spd;
+                        
+                        const liftT = phaseT / 1.5; // 0'dan 1'e oran
+                        tp.scale = Math.max(0.0, 1 - (liftT * 1.5)); // Hızlıca ufalma
+                        
+                        if (liftT > 0.6) {
+                            tp.invisible = true;
+                            tp.scale = 0;
+                            tp.vx = 0;
+                            tp.vy = 0;
+                        }
+                    } else {
+                        // "beam" fazında donup kalır (ışınlanma şoku)
+                        tp.vx = 0;
+                        tp.vy = 0;
+                    }
+                }
+                if (gs.ufoPhase === "leave") {
+                    tp.invisible = true;
+                    tp.scale = 0;
+                    tp.vx = 0;
+                    tp.vy = 0;
+                }
+            }
+        }
+
         // === ŞUT KONTROLÜ ===
         for (const pid in gs.players) {
             const p = gs.players[pid];
@@ -1641,6 +1779,14 @@ const HP = {  // Host Physics namespace
                 if (p._exploded === true) p._exploded = false;
                 if (p.celebrating === true) p.celebrating = false;
                 if (p.celebration_type) p.celebration_type = null;
+                // 🛸 UFO state temizliği (bir kere)
+                if (gs.ufoActive) {
+                    gs.ufoActive = false;
+                    gs.ufoTargetPid = null;
+                    gs.ufoPhase = null;
+                    gs.ufoX = null;
+                    gs.ufoY = null;
+                }
             }
 
             if (p.keys.kick && !p.kick_was_pressed) {
@@ -2185,7 +2331,28 @@ const HP = {  // Host Physics namespace
                 if (celebrationTarget) {
                     const chosenType = this.pickNextCelebration(gs, celebrationTarget);
                     
-                    if (chosenType === "grow_explode") {
+                    if (chosenType === "cosmic_blackhole") {
+                        // 🕳️ Karadelik: topun girdiği sol kale çizgisi
+                        gs.blackHoleActive = true;
+                        gs.bhX = 0;
+                        gs.bhY = this.FIELD_HEIGHT / 2;
+                        for (const cPid in gs.players) {
+                            if (gs.players[cPid]) {
+                                this.selectGoalCelebration(gs.players[cPid], now, "cosmic_blackhole");
+                            }
+                        }
+                    } else if (chosenType === "ufo_abduct") {
+                        // 🛸 Uzay gemisi: gol atanı kaçır
+                        gs.ufoActive = true;
+                        gs.ufoX = this.FIELD_WIDTH / 2;
+                        gs.ufoY = 80;
+                        gs.ufoTargetPid = parseInt(celebrationTarget, 10);
+                        gs.ufoPhase = "arrive"; // arrive → beam → lift → leave
+                        gs.ufoPhaseStart = now;
+                        if (gs.players[celebrationTarget]) {
+                            this.selectGoalCelebration(gs.players[celebrationTarget], now, "ufo_abduct");
+                        }
+                    } else if (chosenType === "grow_explode") {
                         const scorerPid = parseInt(celebrationTarget, 10);
                         const scorerTeam = gs.players[celebrationTarget] ? gs.players[celebrationTarget].team : null;
                         
@@ -2296,7 +2463,28 @@ const HP = {  // Host Physics namespace
                 if (celebrationTarget) {
                     const chosenType = this.pickNextCelebration(gs, celebrationTarget);
                     
-                    if (chosenType === "grow_explode") {
+                    if (chosenType === "cosmic_blackhole") {
+                        // 🕳️ Karadelik: topun girdiği sağ kale çizgisi
+                        gs.blackHoleActive = true;
+                        gs.bhX = this.FIELD_WIDTH;
+                        gs.bhY = this.FIELD_HEIGHT / 2;
+                        for (const cPid in gs.players) {
+                            if (gs.players[cPid]) {
+                                this.selectGoalCelebration(gs.players[cPid], now, "cosmic_blackhole");
+                            }
+                        }
+                    } else if (chosenType === "ufo_abduct") {
+                        // 🛸 Uzay gemisi: gol atanı kaçır
+                        gs.ufoActive = true;
+                        gs.ufoX = this.FIELD_WIDTH / 2;
+                        gs.ufoY = 80;
+                        gs.ufoTargetPid = parseInt(celebrationTarget, 10);
+                        gs.ufoPhase = "arrive";
+                        gs.ufoPhaseStart = now;
+                        if (gs.players[celebrationTarget]) {
+                            this.selectGoalCelebration(gs.players[celebrationTarget], now, "ufo_abduct");
+                        }
+                    } else if (chosenType === "grow_explode") {
                         const scorerPid = parseInt(celebrationTarget, 10);
                         const scorerTeam = gs.players[celebrationTarget] ? gs.players[celebrationTarget].team : null;
                         
@@ -2557,12 +2745,15 @@ const HP = {  // Host Physics namespace
                 }
                 
                 // Sevinç sırasında hareket (Örnek: ortaya doğru yürüme)
+                // 🕳️/🛸 Karadelik veya UFO aktifken bot tuşları kapalı — fizik yönetir
                 if (p.is_bot) {
                     p.keys.up = false; p.keys.down = false; p.keys.left = false; p.keys.right = false; p.keys.kick = false; p.keys.sprint = false;
-                    const cx = this.FIELD_WIDTH / 2;
-                    const cy = this.FIELD_HEIGHT / 2;
-                    if (Math.abs(p.x - cx) > 100) p.keys[p.x < cx ? "right" : "left"] = true;
-                    if (Math.abs(p.y - cy) > 100) p.keys[p.y < cy ? "down" : "up"] = true;
+                    if (!gs.blackHoleActive && !gs.ufoActive) {
+                        const cx = this.FIELD_WIDTH / 2;
+                        const cy = this.FIELD_HEIGHT / 2;
+                        if (Math.abs(p.x - cx) > 100) p.keys[p.x < cx ? "right" : "left"] = true;
+                        if (Math.abs(p.y - cy) > 100) p.keys[p.y < cy ? "down" : "up"] = true;
+                    }
                 }
             }
             return; // Sevinç halindeyken oyun zekası çalışmaz

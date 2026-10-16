@@ -1,0 +1,231 @@
+D:\_Projeler\GameArena_Web\oyun_modlari\mini_futbol\
+│
+├── __init__.py                     # Python paket tanımlayıcısı (boş)
+├── mini_futbol_handler.py          # Python/Asyncio WebSocket backend işleyicisi & oda yönetimi
+│
+├── mini_futbol.js                  # Ana istemci orkestratörü, ekran yöneticisi & ses havuzu
+├── mini_futbol_state.js            # Global state modelleri, bellek tamponları & yardımcı fonksiyonlar
+├── mini_futbol_host_physics.js     # Host taraflı 60 FPS deterministik fizik motoru & Bot Yapay Zekası
+├── mini_futbol_ticker.js           # Arka plan sekme yavaşlamasını önleyen Web Worker zamanlayıcısı
+├── mini_futbol_input.js            # Klavye, Gamepad ve Mobil Dokunmatik (Joystick/Buton) girdi yöneticisi
+├── mini_futbol_render.js           # 60 FPS Canvas render motoru, İnterpolasyon, Özel Formalar & VFX
+├── mini_futbol_rtc.js              # Star-Topology WebRTC P2P DataChannel bağlantı yöneticisi
+├── mini_futbol_ui.js               # Lobi, Pause, Skor Tablosu, Chat, Ayarlar, Sürükle-Bırak & HUD
+├── mini_futbol_audio_vib.js        # Ses motoru (MiniAudio) & Gamepad Haptic/Titreşim motoru (MiniVibration)
+├── mini_futbol.css                 # Modülün tüm UI/UX, animasyon, HUD ve mobil stil tanımları
+│
+├── yapi.txt                        # Bu teknik mimari dokümantasyonu
+│
+└── sounds/                         # Modül ses dosyaları
+    ├── whistle.mp3                 # Başlama/Bitiş düdüğü
+    ├── kick.mp3, kick_fire.mp3     # Şut ve Alevli şut sesleri
+    ├── ball_touch.mp3, post.mp3    # Top teması ve direk çarpışma sesleri
+    ├── countdown.mp3, ping.mp3     # Geri sayım ve ping sesleri
+    ├── goal_conceded.mp3           # Gol yeme sesi
+    └── Goal_Songs/                 # 41 Adet Takım ve Genel Gol Müziği
+        ├── GoalText.txt            # Şarkı eşleşme ve şarkı sözü metadata dosyası
+        ├── goal_song_1.mp3 ... goal_song_41.mp3
+2. SİSTEM MİMARİSİ VE ÇALIŞMA PRENSİBİ
+A. Star Mesh WebRTC P2P + Host-Authoritative Fizik Modeli
+Host (Oda Kurucusu - pid: 1): Fizik simülasyonunu (HP nesnesi) 60 FPS'de Web Worker (mini_futbol_ticker.js) eşliğinde çalıştırır. Bütün çarpışmalar, top sürüşü, bot yapay zekası, şut açıları, gol ve asistler host üzerinde hesaplanır.
+Misafirler (Guests - pid: > 1): Tuş girdilerini (mini_key) doğrudan WebRTC DataChannel üzerinden Host'a aktarır.
+State Dağıtımı: Host, 60 FPS'lik fizik state paketlerini (mini_state) bağlı misafirlere WebRTC üzerinden (varsa), yoksa WebSocket üzerinden yayınlar.
+Misafir İnterpolasyonu (mini_futbol_render.js): Misafir tarayıcılar gelen mini_state paketlerini 50ms'lik bir snapshot tamponunda (miniData.snapshots) saklar ve renderSnapshots() ile requestAnimationFrame senkronunda pürüzsüzce çizer.
+3. DOSYA DETAYLARI, FONKSİYONLAR VE DEĞİŞKENLER
+1. mini_futbol_state.js
+Global durum modelleri, sabitler ve Seljuk güvenlik sistemi.
+
+Global Değişkenler:
+miniData: Odanın tüm anlık çalışma verileri.
+roomCode, myPid, isHost, gameSpeed, teamNames, teamColors, sprintColors.
+players: Odadaki oyuncuların listesi ve meta bilgileri.
+activePlayers: Sahada fiilen oynayan kırmızı/mavi oyuncu ID'leri.
+field: Dinamik saha boyutları (width, height, goal_width, player_radius, ball_radius).
+snapshots: Misafir interpolasyonu için son gelen sunucu paketleri dizisi.
+scores, timeLeft, gameState (lobby, countdown, playing, goal_wait, paused, quick_paused, finished).
+kickoff: Santra kuralı verisi (active, restricted_team, receiving_team, time_remaining).
+sprint: Oyuncu sprint enerji durumları (energy, max_energy, active).
+stats: TAB skor tablosu için istatistikler (goals, assists, passes, saves).
+persistentJerseys: Oyuncuların tarayıcı oturumları boyunca korunan forma numaraları sözlüğü.
+miniReplay: Son 10 saniyelik (600 frame) dairesel gol tekrar tamponu.
+miniChat: Mesaj geçmişi ve yazıyor göstergesi listesi.
+miniGamepad: Aktif gamepad index'i, ölü bölge (deadzone) ve titreşim ayarları.
+Önemli Fonksiyonlar:
+syncPersistentJerseys(players): Gelen oyuncu listesiyle kayıtlı forma numaralarını senkronize eder.
+isSeljukName(name): İsimde "seljuk" varyasyonu olup olmadığını denetler.
+isSeljukVerified() / markSeljukVerified(): Seljuk isim yetkilendirme kontrolü.
+hexToRgba(hex, alpha), hexToRgbParts(hex), shadeHexColor(color, percent): Renk dönüşüm ve tonlama araçları.
+2. mini_futbol_host_physics.js (HP Namespace)
+Host tarayıcısında çalışan deterministik 60 FPS fizik motoru.
+
+Fizik Sabitleri:
+PLAYER_RADIUS: 20, BALL_RADIUS: 12, COLLISION_FORCE: 0.3, BALL_STICK_FACTOR: 0.85
+SPEED_PRESETS: yavas (Hız: 2.0, Şut: 11), normal (Hız: 2.8, Şut: 13), hizli (Hız: 3.5, Şut: 15).
+PLASE_SPIN_FORCE: 0.35, PLASE_SPIN_DECAY: 0.94, PLASE_AFTERTOUCH_TIME: 0.2s.
+State ve Veri Alanları:
+HP.state: Simülasyonun anlık players, ball, scores, time_left, kickoff, state nesnesi.
+HP.replayBuffer: Gol anında misafirlere yayınlanan dairesel 600 frame tamponu.
+HP.skipConsensus: Replay atlama konsensüs takipçisi (Map<pid, boolean>).
+Önemli Metotlar:
+HP.init(roomConfig): Saha boyutlarına (FIELD_SIZES), oyuncu sayısına göre Y-dağılımı ve takımlara göre fizik durumunu sıfırdan kurar.
+HP.tick(): 60 FPS'lik ana fizik adımı:
+updateBotAI() çalıştırılır.
+Oyuncu hareketleri, ivmelenme ve sprint enerji tüketimi (ADV_SPRINT_DRAIN).
+CCD (Continuous Collision Detection) Substep algoritması ile top tunneling engelleme (Max 8 substep).
+Plase After-Touch ve Spin kavis simülasyonu.
+Oyuncu-Oyuncu (katı çarpışma, hız iptali), Oyuncu-Top (yapışma vs sert çarpışmada sekme), Top-Duvar, Top-Kale Direği elastik yansımaları.
+Pas Yardımı (pass_assistance): Top sürerken şut basıldığında aynı takımdaki en uygun takım arkadaşının koşu yoluna top yönünü manyetik olarak kırma.
+Gol Algılama: Kendi kalesine gol, asist tespiti, gol müziği ve sevinç tetikleme (selectGoalCelebration).
+HP.updateBotAI():
+Kaleci (kaleci): Kale çizgisinde kalıp şut açısını daraltma, tehlikede topu uzaklaştırma.
+Defans (defans): Kendi yarı sahasında kademede kalma, rakibi karşılama.
+Kanatlar (sag_kanat, sol_kanat): Kanat çizgisi boyunca bindirme ve orta açma.
+Forvet (forvet): Boş alanlara kaçma, şut çekme, pres yapma.
+Pas Dinleme: İnsan takım arkadaşı pas istediğinde veya boşta olduğunda pas atma.
+HP.registerSkip(pid): Replay atlama talebini kaydeder ve yeterli çoğunlukta oyunu santraya geçirir.
+3. mini_futbol_ticker.js
+Web Worker betiğidir.
+setInterval(..., 1000 / 60) çalıştırarak tarayıcı sekmesi arka plana atılsa dahi 60 FPS saat darbesini (tick) kesintisiz olarak HP.tick() fonksiyonuna gönderir.
+4. mini_futbol_input.js
+Girdi yönetim katmanı.
+
+Mobil Girdi (MiniMobileInput):
+Dinamik sanal analog joystick (açı ve yoğunluk hesaplayarak WASD tuş vektörüne dönüştürür).
+Dokunmatik Şut ve Sprint butonları.
+Ekran yönlendirme (Orientation) kontrolü ve uyarısı.
+Klavye & Gamepad:
+miniKeyDown(e), miniKeyUp(e): Tuş haritası dinleyicisi (Özelleştirilebilir Rebinding destekli).
+pollGamepad(): Gamepad API taraması, sol analog stick ölü bölge filtrelemesi, RT/A butonları.
+Gol Sevinci Kısayolları (1 ve 2 tuşları).
+Replay Atlama Kısayolu (Enter / Space / Gamepad A).
+5. mini_futbol_render.js
+HTML5 Canvas üzerinde çalışan yüksek performanslı görselleştirici.
+
+Görselleştirme Katmanları:
+Saha Çizimi: Dinamik boyutlara (FIELD_WIDTH, FIELD_HEIGHT) göre çim deseni, ceza sahaları, orta yuvarlak, korner yayları, kale ağları ve kale direkleri.
+Özel Takım Formaları:
+drawTurkishStar(): Türkiye forması için ay-yıldız vektörü.
+drawAzerbaijanFlag(): Azerbaycan forması için bayrak motifi.
+drawBesiktasKit(): BJK siyah-beyaz çubuklu desen.
+drawGalatasarayKit(): GS sarı-kırmızı parçalı forma deseni.
+drawFenerbahceKit(): FB sarı-lacivert çubuklu desen.
+drawTrabzonsporKit(): TS bordo-mavi çubuklu desen.
+Oyuncu & Top Çizimi:
+Oyuncu gölgeleri, sprint enerji aurası, forma numaraları ve oyuncu isim etiketleri.
+Alevli şut efekti (ball_on_fire), santra kuralı ceza yanıp sönmesi (warning_team).
+Parçacık Sistemleri & Gol Sevinçleri (VFX):
+cosmic_blackhole: Sahada kara delik açarak tüm oyuncuları ve topu merkezine çeken yerçekimi vorteksi.
+rainbow_trail: Oyuncunun arkasında gökkuşağı renginde parçacık izi.
+frostbite: Sahayı ve oyuncuları donduran buz/kar fırtınası parçacıkları.
+spotlight: Golü atana kilitlenen stadyum projektörü.
+lightning: Oyuncunun üzerine düşen dinamik şimşekler.
+eagle_wings: Kartal kanatları açma ve tüy parçacıkları.
+snake_tail: Yılan kuyruğu efekti.
+spin_rush: Kendi etrafında fırıldak gibi dönme aurası.
+balloon_pop: Oyuncunun devasa balona dönüşüp patlaması.
+HUD ve Overlays:
+Geri sayım (3-2-1), Düdük animasyonu, Gol tabelası, Replay HUD'ı, MVP kutlaması.
+6. mini_futbol_rtc.js (MiniRTC)
+Star-Topology WebRTC DataChannel motoru.
+
+Bağlantı Akışı:
+Host her bağlanan misafir için bir RTCPeerConnection oluşturur (createPeerForGuest).
+mini_webrtc_offer, mini_webrtc_answer, mini_webrtc_ice mesajları Python WebSocket üzerinden relay edilir.
+DataChannel açıldığında (_setupChannel):
+Misafir girdileri (mini_key) 0 latency ile doğrudan Host'a akar.
+Host state paketleri (mini_state) doğrudan misafirlere akar.
+P2P Ping/Pong ölçümü (mini_ping_p2p) yapılır.
+Yedek Mekanizma: WebRTC bağlantısı kurulamazsa sistem otomatik olarak WebSocket relay moduna düşer.
+7. mini_futbol_ui.js
+Lobi ve Kullanıcı Arayüzü motoru.
+
+Lobi ve Takım Düzenleme:
+3 Sütunlu Grid: Kırmızı Takım, İzleyiciler / Havuz, Mavi Takım.
+Drag & Drop (Sürükle-Bırak) oyuncu yerleştirme (setupMiniDropZone, setupMiniDraggableRow).
+Sağ Tık Context Menu: İsim düzenleme, Bot rolü değiştirme, Forma numarası seçme, Yönetici (Admin) atama/kaldırma, Odadan atma (Kick).
+Pause ve Yönetim Modalları:
+showMiniPauseLobby(): Karşılıklı kilit mekanizmalı duraklatma menüsü (Yalnızca duraklatan başlatabilir).
+showMiniQuickPause(): P tuşu ile ekranda hafif şeffaf hızlı duraklatma uyarısı.
+Onay pencereleri: Maçı yeniden başlatma, Lobiye dönme, Kick onayı.
+Gelişmiş Oda Ayarları:
+11 Standart + 10 Gelişmiş Slider (Şut Gücü, Sprint Süresi/Çarpanı, Plase Gücü/Falso, Pas Yardımı, Top Yapışma Faktörü).
+Skor Tablosu (TAB) & Oyun Sonu (Game Over):
+renderMiniScoreboard(): Anlık G/A/P (Gol, Asist, Pas) tablosu.
+showMiniGameOver(): Maç sonu kartı, MVP Algoritması (Gol > Kurtarış > Asist > Pas), Takım İstatistik Çubukları (Topa Sahip Olma, Şut, İsabetli Pas, Kurtarış), 60 sn otomatik dönüş sayacı.
+Gol Sevinci Seçim Çarkı (Carousel):
+Sonsuz sanal index döngüsü (virtualIndex), klavye yön tuşları veya fare ile seçilebilen kart motoru.
+8. mini_futbol_audio_vib.js
+Ses ve Haptic Geri Bildirim altyapısı.
+
+Ses Motoru (MiniAudio):
+HTML5 Audio + WebAudio API entegrasyonu.
+preloadAll(): 16 SFX dosyasının belleğe alınması.
+Shuffle Bag (Tekrarsız Rastgele) Gol Müziği Çalıcısı (BJK, FB, GS, TS özel şarkı havuzları ve 41 şarkılık genel havuz).
+Kendi Kalesine Gol yönlendirmesi (Rakip takımın şarkısı çalar).
+Arka plan sekme koruma zırhı (Sessiz ses döngüsü ile tarayıcı ses kanalını uyanık tutma).
+Titreşim Motoru (MiniVibration):
+Gamepad Dual-Rumble API entegrasyonu (weakMagnitude, strongMagnitude).
+Hazır Presets: kick, firekick, ballTouch, wallHit, postHit, goalScored, goalConceded, playerCollision, countdown, whistle.
+9. mini_futbol_handler.py
+Sunucu tarafı Python/Asyncio WebSocket işleyicisi.
+
+Oda Yönetimi & Protokol Mesajları:
+mini_create_room, mini_join_room: Dinamik saha boyutları (FIELD_SIZES), benzersiz forma numarası ve takım atamaları.
+mini_update_settings: Ayarların sınırlandırılması (Clamping) ve odaya toast bildirim yayını (mini_settings_changed).
+mini_start_game: Oyun başlatma, istatistik sıfırlama, host_mode=True bayrağı ile fizik yetkisini Host'a devretme.
+mini_move_player: Takım dengesi ve kapasite kontrolü (mini_team_full), aktif oyuncu listelerinin güncellenmesi.
+mini_add_bot, mini_change_bot_role: 20 isimlik havuzdan benzersiz bot üretimi, rol yönetimi (kaleci limiti kontrolü).
+mini_set_admin, mini_kick_player: Yetkilendirme ve odadan atma (Kara liste kicked_names).
+mini_chat_send: Saniyede 3 mesaj spam koruması ve 50 mesajlık geçmiş tamponu.
+mini_webrtc_*: WebRTC Star-Mesh Offer/Answer/ICE adaylarının hedeflenen oyuncuya iletilmesi.
+10. sounds/Goal_Songs/GoalText.txt
+41 adet gol müziğinin takım ilişkileri ve şarkı listesi.
+
+Beşiktaş (10 Şarkı): 1 (Varsın Olsun), 10 (Kartal Sesi), 11 (Seninle Ölmeye Geldik), 12 (Come to Beşiktaş), 17 (Kartalım İsterse), 21 (Çingenem), 29 (Biz Ne Baharlar Gördük), 35 (Güncel Gol Müziği), 38 (112 Sene Yanyana), 41 (Şinanay).
+Fenerbahçe (8 Şarkı): 3 (Freed from Desire), 4 (Beni Sev), 5 (Söyle Bana Sebastian), 22 (La La La La), 30 (Ne Sevmek Ne Sevilmek), 32 (100. Yıl Marşı), 36 (Sana Hastayım Anlasana), 37 (Çubuklu Forma).
+Galatasaray (6 Şarkı): 6 (Aşkın Olayım), 23 (Gol Müziği), 31 (Çocukluk Aşkımsın), 33 (Şereftir Seni Sevmek), 39 (Çocukluk Aşkımsın V2), 40 (Ayva Çiçek Açmış).
+Trabzonspor (4 Şarkı): 13 (Düştüysen Kalk Gel Kendine), 14 (Allow Dance), 16 (Uy Aha), 34 (Biz Dar Sokaklarında).
+Diğer Kulüpler & Genel (13 Şarkı): Samsunspor, Erzincanspor, Adanaspor, Ankaragücü, Başakşehir ve popüler tribün marşları.
+4. OYUN İÇİ NETWORK VE EVENT YAŞAM DÖNGÜSÜ (LIFECYCLE)
+text
+
+[İstemci - Lobi]
+   │
+   ├──> WebSocket: "mini_create_room" / "mini_join_room" ──> Python Backend
+   │                                                             │
+   │<── WebSocket: "mini_lobby_update" <─────────────────────────┘
+   │
+[Host Oyunu Başlatır]
+   │
+   ├──> WebSocket: "mini_start_game" ──> Python Backend
+   │                                          │
+   │<── Broadcast: "mini_game_started" <──────┘
+   │
+[WebRTC Bağlantı Fazı]
+   ├── Host: createPeerForGuest() ──> "mini_webrtc_offer" ──> Guest
+   └── Guest: handleOffer() ───────> "mini_webrtc_answer" ──> Host
+         └── DataChannel Açıldı (Star Topology Aktif)
+   │
+[60 FPS Oyun Döngüsü]
+   ├── Guest ──(DataChannel / WS: "mini_key")──────────────────> Host
+   ├── Host Worker (mini_futbol_ticker.js) ─(tick)─> HP.tick()
+   │     ├── updateBotAI()
+   │     ├── CCD Substep Çarpışmalar & Şutlar
+   │     └── Gol / Kurtarış / Asist Kontrolü
+   └── Host ──(DataChannel / WS: "mini_state")─────────────────> Guests
+         └── Guest: snapshots.push() ──> Canvas renderSnapshots()
+   │
+[Gol Anı]
+   ├── HP.state -> "goal_wait" (9 saniye)
+   ├── 5 sn Sevinç (VFX + Gol Müziği) + 4 sn 60 FPS Replay Oynatımı
+   └── Replay Atlama: Misafir "Enter" -> Host Konsensüs -> Santra Geri Sayımı (3-2-1)
+   │
+[Oyun Bitişi]
+   └── Skor Hedefi veya Süre Bitti -> "mini_game_over" -> MVP Ekranı & İstatistikler
+   
+   
+   
+   
+-kodları bul değiştir olarak vereceksin
+-kafana göre tahmin kod istemiyorum kesin kod istiyorum
+-görmediğin dosyaya tahmin kodu vermeyeceksin o dosyamı lazım gönder de gönderiyimi ne istediysem ona göre halledersin bul değiştir olarak

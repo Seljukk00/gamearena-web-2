@@ -3673,6 +3673,14 @@ document.addEventListener("keydown", (e) => {
     const gameScreen = document.getElementById("miniGameScreen");
     if (!gameScreen || gameScreen.classList.contains("hidden")) return;
     
+    // 🚫 Gol sevinci ve replay sırasında ESC devre dışı (sadece 3-2-1 santrada ve oyunda basılabilir)
+    const currentGS = miniData.gameState && miniData.gameState.game_state;
+    if (currentGS === "goal_wait") {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+    
     // Alt popup'lar öncelikli - açıklarsa sadece onlar kapansın
     const subPopups = [
         "roomSettingsBox",
@@ -4433,6 +4441,8 @@ setTimeout(() => {
 function getCelebPickerList() {
     return [
         { id: "random", name: "Rastgele", icon: "🎲" },
+        { id: "cosmic_blackhole", name: "Karadelik", icon: "🕳️" },
+        { id: "ufo_abduct", name: "Uzay Gemisi", icon: "🛸" },
         { id: "grow_explode", name: "Balon Patlama", icon: "🎈" },
         { id: "rainbow_trail", name: "Gökkuşağı", icon: "🌈" },
         { id: "spotlight", name: "Sahne Işığı", icon: "🔦" },
@@ -4687,6 +4697,8 @@ function applyPreferredCelebration(celebId) {
     const myPid = miniData.playerId;
     if (!myPid) return;
 
+    miniData.preferredCelebration = celebId;
+
     const msg = {
         type: "mini_set_celebration",
         from_pid: myPid,
@@ -4697,8 +4709,11 @@ function applyPreferredCelebration(celebId) {
     if (typeof MiniRTC !== "undefined" && MiniRTC.connected) MiniRTC.sendMessage(msg);
     send(msg);
 
-    if (myPid === 1 && typeof HP !== "undefined" && HP.running) {
-        HP.applyCelebrationChoice(myPid, celebId);
+    if (typeof HP !== "undefined") {
+        if (HP.playerCelebrations) HP.playerCelebrations[myPid] = celebId;
+        if (HP.running && typeof HP.applyCelebrationChoice === "function") {
+            HP.applyCelebrationChoice(myPid, celebId);
+        }
     }
 }
 
@@ -4855,5 +4870,4 @@ function handleMiniJerseyChanged(msg) {
     }, 500);
 })();
 
-console.log("Mini Futbol UI motoru yüklendi ✓ (Tamamlandı)");		
-						
+console.log("Mini Futbol UI motoru yüklendi ✓ (Tamamlandı)");
