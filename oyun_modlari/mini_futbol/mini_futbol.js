@@ -1291,9 +1291,13 @@ function handleMiniMessage(msg) {    // ========================================
             return;
         }
         
-        // ✨ CSS Karadelik + UFO Görselini Tetikle/Temizle
-        manageVisualBlackHole(msg);
-        manageVisualUfo(msg);
+        // ✨ CSS Karadelik + UFO Görselini Tetikle/Temizle (Mobilde 10 FPS throttle)
+        const _nowVisual = performance.now();
+        if (!miniData._lastVisualUpdate || (_nowVisual - miniData._lastVisualUpdate > 100)) {
+            miniData._lastVisualUpdate = _nowVisual;
+            manageVisualBlackHole(msg);
+            manageVisualUfo(msg);
+        }
         
         if (msg.game_state === "playing" || msg.game_state === "countdown") {
             miniData._hasSkippedReplay = false;
@@ -1324,18 +1328,33 @@ function handleMiniMessage(msg) {    // ========================================
         const rState = msg;
         const rIsGoalWait = (rState.game_state === "goal_wait" && rState.goal_celebration);
         
+        // Mobilde replay buffer'ı 30 FPS'e düşür (her 2. frame'i atla)
+        const _isMobileReplay = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+        if (_isMobileReplay) {
+            miniData._replayFrameSkip = (miniData._replayFrameSkip || 0) + 1;
+            if (miniData._replayFrameSkip % 2 !== 0) {
+                // Bu frame'i atla ama state'i yine de güncelle
+            } else {
+                _recordReplayFrame(rState, rIsGoalWait);
+            }
+        } else {
+            _recordReplayFrame(rState, rIsGoalWait);
+        }
+
+        // Replay frame kayıt fonksiyonu (orijinal kod bloğu)
+        function _recordReplayFrame(rState, rIsGoalWait) {
         if (rState.game_state === "playing") {
             miniReplay.lockedBuffer = null;
             miniReplay.replayStartTime = 0;
             miniReplay.playedReplayEvents = null;
             miniReplay.goalTimestamp = null;
-            miniReplay.postGoalFramesLeft = 100; // Gol sonrası top fileye oturana kadar ~1.6 sn daha kaydet
+            miniReplay.postGoalFramesLeft = _isMobileReplay ? 50 : 100;
             
             const currentFrame = {
                 ball: { x: rState.ball.x, y: rState.ball.y, on_fire: rState.ball.on_fire, warning: rState.ball.warning, warning_team: rState.ball.warning_team },
                 players: {},
-                kick_effects: (rState.kick_effects || []).map(k => ({ ...k })),
-                hit_events: (rState.hit_events || []).map(h => ({ ...h })),
+                kick_effects: rState.kick_effects || [],
+                hit_events: rState.hit_events || [],
                 goal_event: rState.goal ? { ...rState.goal, time: Date.now() } : null,
                 game_state: rState.game_state,
                 goal_celebration: rState.goal_celebration ? { ...rState.goal_celebration } : null,
@@ -1360,12 +1379,12 @@ function handleMiniMessage(msg) {    // ========================================
                     celebration_type: rp.celebration_type,
                     celebration_start: rp.celebration_start,
                     celebration_elapsed: rp.celebration_elapsed,
-                    trail: rp.trail ? rp.trail.map(t => ({ ...t })) : null
+                    trail: rp.trail || null
                 };
             }
             miniReplay.buffer.push(currentFrame);
-            // Tam 10 saniyelik 60 FPS tampon (600 kare)
-            if (miniReplay.buffer.length > 600) {
+            const _maxBuf = _isMobileReplay ? 300 : 600;
+            if (miniReplay.buffer.length > _maxBuf) {
                 miniReplay.buffer.shift();
             }
         } else if (rIsGoalWait) {
@@ -1411,7 +1430,8 @@ function handleMiniMessage(msg) {    // ========================================
                     };
                 }
                 miniReplay.buffer.push(currentFrame);
-                if (miniReplay.buffer.length > 600) {
+                const _maxBuf2 = _isMobileReplay ? 300 : 600;
+                if (miniReplay.buffer.length > _maxBuf2) {
                     miniReplay.buffer.shift();
                 }
                 miniReplay.postGoalFramesLeft--;
@@ -1422,6 +1442,7 @@ function handleMiniMessage(msg) {    // ========================================
                 miniReplay.lockedBuffer = miniReplay.buffer.slice();
             }
         }
+        } // _recordReplayFrame fonksiyonunun kapanışı
         
         const now_ = performance.now();
         if (miniData.snapshots.length === 0) {
@@ -1455,9 +1476,17 @@ function handleMiniMessage(msg) {    // ========================================
         }
         miniData.snapshots.push(snapshot);
         
-        const cutoffSnaps = now_ - 400;
-        if (miniData.snapshots.length > 25) {
-            miniData.snapshots = miniData.snapshots.filter(s => s.t >= cutoffSnaps);
+        // Mobilde GC baskısını azaltmak için filtreleme sıklığını düşür
+        if (miniData.snapshots.length > 30) {
+            const cutoffSnaps = now_ - 400;
+            let cutIdx = 0;
+            for (let si = 0; si < miniData.snapshots.length; si++) {
+                if (miniData.snapshots[si].t >= cutoffSnaps) break;
+                cutIdx = si + 1;
+            }
+            if (cutIdx > 0) {
+                miniData.snapshots.splice(0, cutIdx);
+            }
         }
         return;
     }
@@ -1618,10 +1647,10 @@ function startMiniLocalPhysicsIfNeeded() {
                 
                 // Sadece klasörde fiziksel olarak mevcut olan goal_song_1.mp3 -> goal_song_12.mp3 arasını kullanıyoruz
                 const teamSongs = {
-                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3", "goal_song_35.mp3", "goal_song_38.mp3", "goal_song_40.mp3", "goal_song_41.mp3"],
+                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3", "goal_song_35.mp3", "goal_song_38.mp3", "goal_song_40.mp3", "goal_song_41.mp3", "goal_song_43.mp3"],
                     fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3", "goal_song_22.mp3", "goal_song_30.mp3", "goal_song_32.mp3", "goal_song_36.mp3", "goal_song_37.mp3", "goal_song_42.mp3"],
                     galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3", "goal_song_39.mp3"],
-                    trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3", "goal_song_34.mp3"]
+                    trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3", "goal_song_34.mp3", "goal_song_44.mp3"]
                 };
 
                 // Takımlara atanmamış tamamen tarafsız gol müzikleri (2, 7, 8, 9 numaralı şarkılar)
@@ -1898,11 +1927,12 @@ function startMiniGame() {
     };
     document.documentElement.addEventListener("mouseleave", miniData._mouseLeaveHandler, true);
     
+    const _isMobFocus = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
     miniData._focusCheckInterval = setInterval(() => {
         if (!document.hasFocus()) {
             miniReleaseAllKeys();
         }
-    }, 500);
+    }, _isMobFocus ? 2000 : 500);
     
     updateMiniControlsInfo();
     

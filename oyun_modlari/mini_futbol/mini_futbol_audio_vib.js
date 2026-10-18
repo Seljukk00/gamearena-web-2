@@ -140,8 +140,8 @@ const MiniAudio = {
                 if (isNaN(songId) || songId <= 0) {
                     songId = 1;
                 } else {
-                    // 🌟 GOL ŞARKISI LİMİTİ: 41 şarkıya çıkartarak tüm klasörü aktif ediyoruz
-                    songId = ((songId - 1) % 42) + 1;
+                    // 🌟 GOL ŞARKISI LİMİTİ: 44 şarkıya çıkartarak tüm klasörü aktif ediyoruz
+                    songId = ((songId - 1) % 44) + 1;
                 }
                 name = `Goal_Songs/goal_song_${songId}.mp3`;
             }

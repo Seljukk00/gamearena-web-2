@@ -31,7 +31,8 @@ function triggerPlayerExplosion(x, y, teamColor) {
     if (!miniData.celebrationParticles) miniData.celebrationParticles = [];
     
     const colors = [teamColor, "#ffffff", shadeHexColor(teamColor, 0.3), shadeHexColor(teamColor, -0.3)];
-    const particleCount = 55;
+    const _mobP = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+    const particleCount = _mobP ? 20 : 55;
     
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -83,7 +84,7 @@ function updateAndDrawCelebrationParticles(ctx) {
             ctx.strokeStyle = pt.color;
             ctx.globalAlpha = Math.max(0, pt.alpha);
             ctx.lineWidth = 4;
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = (window.innerWidth < 768) ? 0 : 15;
             ctx.shadowColor = pt.color;
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
@@ -108,7 +109,7 @@ function updateAndDrawCelebrationParticles(ctx) {
                 ctx.rotate(pt.rot);
                 ctx.fillStyle = pt.color;
                 ctx.globalAlpha = Math.max(0, pt.alpha);
-                ctx.shadowBlur = 8;
+                ctx.shadowBlur = (window.innerWidth < 768) ? 0 : 8;
                 ctx.shadowColor = pt.color;
                 ctx.beginPath();
                 ctx.ellipse(0, 0, pt.size, pt.size * 0.4, 0, 0, Math.PI * 2);
@@ -478,7 +479,8 @@ function drawUfoAbductionCelebration(ctx, cfg, p, syncElapsed, color, playerTeam
         // Işın İçindeki Yükselen Parçacıklar
         const time = Date.now() * 0.006;
         ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * beamAlpha})`;
-        for (let i = 0; i < 14; i++) {
+        const _mobU = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+        for (let i = 0; i < (_mobU ? 5 : 14); i++) {
             const px = ufoX + Math.sin(time + i * 1.4) * (12 + i * 2.2);
             const py = (p.y + 8) - ((time * 45 + i * 22) % Math.max(20, (p.y - ufoY)));
             if (py > ufoY + 12 && py < p.y + 8) {
@@ -1228,9 +1230,22 @@ function miniRender() {
     }
     
     const OUT_MARGIN = 55;
-    canvas.width = cfg.width + OUT_MARGIN * 2;
-    canvas.height = cfg.height + OUT_MARGIN * 2;
-    
+    const _targetW = cfg.width + OUT_MARGIN * 2;
+    const _targetH = cfg.height + OUT_MARGIN * 2;
+
+    const _isMob = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const _dpr = _isMob ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    const _physW = Math.round(_targetW * _dpr);
+    const _physH = Math.round(_targetH * _dpr);
+
+    if (canvas.width !== _physW || canvas.height !== _physH) {
+        canvas.width = _physW;
+        canvas.height = _physH;
+        canvas.style.width = _targetW + "px";
+        canvas.style.height = _targetH + "px";
+    }
+
+    ctx.setTransform(_dpr, 0, 0, _dpr, 0, 0);
     ctx.save();
     ctx.translate(OUT_MARGIN, OUT_MARGIN);
     
@@ -1715,7 +1730,8 @@ function miniRender() {
 
             if (!miniData._snowflakes) {
                 miniData._snowflakes = [];
-                for (let s = 0; s < 70; s++) {
+                const _mobS = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+                for (let s = 0; s < (_mobS ? 25 : 70); s++) {
                     miniData._snowflakes.push({
                         x: -M + Math.random() * totalW,
                         y: -M + Math.random() * totalH,
@@ -2097,7 +2113,8 @@ function miniRender() {
                 hoverY = Math.sin(syncE * 5) * 8 - 18;
 
                 if (!miniData._eagleFeathers) miniData._eagleFeathers = [];
-                if (Math.random() < 0.40 && miniData._eagleFeathers.length < 40) {
+                const _mobE = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
+                if (Math.random() < (_mobE ? 0.15 : 0.40) && miniData._eagleFeathers.length < (_mobE ? 15 : 40)) {
                     miniData._eagleFeathers.push({
                         x: p.x + (Math.random() - 0.5) * R * 2.5,
                         y: p.y + hoverY + (Math.random() - 0.5) * R,

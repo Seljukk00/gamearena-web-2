@@ -66,6 +66,26 @@ const MiniMobileInput = {
             };
         }, { passive: false });
         
+        this._lastTouchMoveRAF = 0;
+        this._pendingTouchData = null;
+
+        const processJoystickMove = () => {
+            this._lastTouchMoveRAF = 0;
+            const td = this._pendingTouchData;
+            if (!td) return;
+            this._pendingTouchData = null;
+
+            const knobEl = document.getElementById("miniJoystickKnob");
+            if (!knobEl) return;
+
+            knobEl.style.transform = `translate(${td.knobX}px, ${td.knobY}px)`;
+
+            this.sendMobileKey("left", td.moveLeft);
+            this.sendMobileKey("right", td.moveRight);
+            this.sendMobileKey("up", td.moveUp);
+            this.sendMobileKey("down", td.moveDown);
+        };
+
         window.addEventListener("touchmove", (e) => {
             if (!this.joystickActive || this.joystickTouchId === null) return;
             
@@ -90,18 +110,18 @@ const MiniMobileInput = {
                 knobY = (dy / dist) * this.JOYSTICK_MAX_DIST;
             }
             
-            knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
-            
             const threshold = 0.35;
-            const moveRight = dx > this.JOYSTICK_MAX_DIST * threshold;
-            const moveLeft  = dx < -this.JOYSTICK_MAX_DIST * threshold;
-            const moveDown  = dy > this.JOYSTICK_MAX_DIST * threshold;
-            const moveUp    = dy < -this.JOYSTICK_MAX_DIST * threshold;
-            
-            this.sendMobileKey("left", moveLeft);
-            this.sendMobileKey("right", moveRight);
-            this.sendMobileKey("up", moveUp);
-            this.sendMobileKey("down", moveDown);
+            this._pendingTouchData = {
+                knobX, knobY,
+                moveRight: dx > this.JOYSTICK_MAX_DIST * threshold,
+                moveLeft:  dx < -this.JOYSTICK_MAX_DIST * threshold,
+                moveDown:  dy > this.JOYSTICK_MAX_DIST * threshold,
+                moveUp:    dy < -this.JOYSTICK_MAX_DIST * threshold
+            };
+
+            if (!this._lastTouchMoveRAF) {
+                this._lastTouchMoveRAF = requestAnimationFrame(processJoystickMove);
+            }
         }, { passive: false });
         
         const resetJoystick = (e) => {
@@ -770,4 +790,5 @@ function patchHostPhysicsBlackHole() {
 }
 
 patchHostPhysicsBlackHole();
-setInterval(patchHostPhysicsBlackHole, 250);
+setTimeout(patchHostPhysicsBlackHole, 2000);
+setTimeout(patchHostPhysicsBlackHole, 5000);
