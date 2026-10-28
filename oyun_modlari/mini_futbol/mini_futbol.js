@@ -1616,16 +1616,16 @@ function startMiniLocalPhysicsIfNeeded() {
                 }
                 miniData._hostSelectedCelebrationType = actualTypeFromHP;
                 
-                // Sadece klasörde fiziksel olarak mevcut olan goal_song_1.mp3 -> goal_song_12.mp3 arasını kullanıyoruz
+                // 🎵 GÜNCEL TAKIM GOL ŞARKILARI (56 şarkı sistemi - goal_song_1 → goal_song_56)
                 const teamSongs = {
-                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3", "goal_song_35.mp3", "goal_song_38.mp3", "goal_song_40.mp3", "goal_song_41.mp3", "goal_song_43.mp3"],
-                    fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3", "goal_song_22.mp3", "goal_song_30.mp3", "goal_song_32.mp3", "goal_song_36.mp3", "goal_song_37.mp3", "goal_song_42.mp3"],
-                    galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3", "goal_song_39.mp3"],
-                    trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3", "goal_song_34.mp3", "goal_song_44.mp3"]
+                    besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3", "goal_song_35.mp3", "goal_song_38.mp3", "goal_song_40.mp3", "goal_song_41.mp3", "goal_song_43.mp3", "goal_song_45.mp3", "goal_song_46.mp3", "goal_song_47.mp3", "goal_song_48.mp3", "goal_song_53.mp3", "goal_song_54.mp3", "goal_song_55.mp3"],
+                    fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3", "goal_song_22.mp3", "goal_song_30.mp3", "goal_song_32.mp3", "goal_song_36.mp3", "goal_song_37.mp3", "goal_song_42.mp3", "goal_song_49.mp3"],
+                    galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3", "goal_song_39.mp3", "goal_song_50.mp3", "goal_song_52.mp3"],
+                    trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3", "goal_song_34.mp3", "goal_song_44.mp3", "goal_song_51.mp3"]
                 };
 
                 // Takımlara atanmamış tamamen tarafsız gol müzikleri (2, 7, 8, 9 numaralı şarkılar)
-                const generalPool = ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3"];
+                const generalPool = ["goal_song_2.mp3", "goal_song_7.mp3", "goal_song_8.mp3", "goal_song_9.mp3", "goal_song_15.mp3", "goal_song_18.mp3", "goal_song_19.mp3", "goal_song_20.mp3", "goal_song_24.mp3", "goal_song_25.mp3", "goal_song_26.mp3", "goal_song_27.mp3", "goal_song_28.mp3"];
 
                 const pools = {
                     ...teamSongs,
@@ -1652,15 +1652,16 @@ function startMiniLocalPhysicsIfNeeded() {
                 }
 
                 // 🌟 BÜTÜNSEL GOL MÜZİĞİ MOTORU (Shuffle Bag - Sıralı Karıştırma)
-                const all42Songs = Array.from({ length: 42 }, (_, i) => `goal_song_${i + 1}.mp3`);
+                // 📁 Klasörde 56 şarkı var: goal_song_1.mp3 → goal_song_56.mp3
+                const all52Songs = Array.from({ length: 56 }, (_, i) => `goal_song_${i + 1}.mp3`);
                 
                 if (!miniData._playedSongsPools) {
                     miniData._playedSongsPools = {}; // Takımların çalınan şarkı geçmişini tutan obje
                 }
 
                 const currentGoalMusicMode = miniData.goalMusicMode || "team";
-                let poolKey = "all42"; // Varsayılan havuz anahtarı
-                let teamPool = all42Songs;
+                let poolKey = "all52"; // Varsayılan havuz anahtarı
+                let teamPool = all52Songs;
 
                 if (currentGoalMusicMode === "team") {
                     let teamName = actualScoringTeam === "red" ? miniData.redTeamName : miniData.blueTeamName;
@@ -1679,16 +1680,16 @@ function startMiniLocalPhysicsIfNeeded() {
                             poolKey = "trabzonspor";
                             teamPool = pools.trabzonspor;
                         } else {
-                            poolKey = "general_42";
-                            teamPool = all42Songs; // 4 Büyükler dışındaysa tüm havuz
+                            poolKey = "general_52";
+                            teamPool = all52Songs; // 4 Büyükler dışındaysa tüm havuz
                         }
                     } else {
-                        poolKey = "general_42";
-                        teamPool = all42Songs; // İsim yoksa tüm havuz
+                        poolKey = "general_52";
+                        teamPool = all52Songs; // İsim yoksa tüm havuz
                     }
                 } else {
-                    poolKey = "mixed_42";
-                    teamPool = all42Songs; // Rastgele modda tüm havuz
+                    poolKey = "mixed_52";
+                    teamPool = all52Songs; // Rastgele modda tüm havuz
                 }
 
                 // Bu havuz için oynatma geçmişi yoksa oluştur

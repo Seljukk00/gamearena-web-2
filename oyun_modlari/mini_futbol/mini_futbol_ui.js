@@ -2412,10 +2412,8 @@ function updateMiniHUD() {
     const s1 = state.scores["1"] || 0;
     const s2 = state.scores["2"] || 0;
     
-    const redPlayer = miniData.players.find(p => p.team === "red");
-    const bluePlayer = miniData.players.find(p => p.team === "blue");
-    const n1 = redPlayer ? redPlayer.name : (miniData.redTeamName || "Kırmızı");
-    const n2 = bluePlayer ? bluePlayer.name : (miniData.blueTeamName || "Mavi");
+    const n1 = (miniData.redTeamName && String(miniData.redTeamName).trim()) ? String(miniData.redTeamName).trim() : "Kırmızı Takım";
+        const n2 = (miniData.blueTeamName && String(miniData.blueTeamName).trim()) ? String(miniData.blueTeamName).trim() : "Mavi Takım";
     
     if (scoreEl) {
         const rc = miniData.redTeamColor || "#ff6b6b";
@@ -4441,16 +4439,18 @@ setTimeout(() => {
 function getCelebPickerList() {
     return [
         { id: "random", name: "Rastgele", icon: "🎲" },
-        { id: "cosmic_blackhole", name: "Karadelik", icon: "🕳️" },
+        { id: "cosmic_blackhole", name: "Karadelik", icon: "🌀" },
         { id: "ufo_abduct", name: "Uzay Gemisi", icon: "🛸" },
         { id: "grow_explode", name: "Balon Patlama", icon: "🎈" },
         { id: "rainbow_trail", name: "Gökkuşağı", icon: "🌈" },
         { id: "spotlight", name: "Sahne Işığı", icon: "🔦" },
         { id: "frostbite", name: "Buz Devri", icon: "❄️" },
         { id: "spin_rush", name: "Kasırga", icon: "🌪️" },
-        { id: "smiley_face", name: "Gülen Yüz", icon: "🙂" },
+        { id: "smiley_face", name: "Gülen Yüz", icon: "😭" },
         { id: "eagle_wings", name: "Kartal Kanadı", icon: "🦅" },
-        { id: "snake", name: "Kral Yılan", icon: "🐍" }
+        { id: "snake", name: "Kral Yılan", icon: "🐍" },
+        { id: "bombardment", name: "Havan Topu", icon: "💣" },
+        { id: "meme_dance", name: "Phonk Dansı", icon: "😄" }
     ];
 }
 

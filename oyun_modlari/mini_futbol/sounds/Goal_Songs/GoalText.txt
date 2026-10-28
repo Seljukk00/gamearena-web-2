@@ -11,6 +11,13 @@ Beşiktaş
 -goal_song_40.mp3 >BEŞİKTAŞ şinanayda yavrum şina şinanay
 -goal_song_41.mp3 >Oh Oh
 -goal_song_43.mp3 >Aradım seni sokaklara
+-goal_song_45.mp3 >gidecek çok deplasman var
+-goal_song_46.mp3 >Beşiktaş hayattır hayatta beşiktaş
+-goal_song_47.mp3 >beşiktaş bitmez yazacağız
+-goal_song_48.mp3 >sensiz olmuyor kartalım
+-goal_song_53.mp3 >bu alemde en büyük Beşiktaş
+-goal_song_54.mp3 >gel benim ol
+-goal_song_55.mp3 >beşiktaşlıyız biz beşiktaşlı
 
 Fenerbahçe
 -goal_song_3.mp3 >we from desire
@@ -22,6 +29,7 @@ Fenerbahçe
 -goal_song_36.mp3 >sana hastayım anlasana
 -goal_song_37.mp3 >çubuklu forma
 -goal_song_42.mp3 >Güzel Günler göreceğiz çocuklar
+-goal_song_49.mp3 >ne sevmek ne sevilmek
 
 Galatasaray
 -goal_song_6.mp3 >aşkın olayım
@@ -29,6 +37,8 @@ Galatasaray
 -goal_song_31.mp3 >çocukluk aşkımsın
 -goal_song_33.mp3 >şereftir seni sevmek 
 -goal_song_39.mp3 >ayva çicek açmış yazmı gelecek
+-goal_song_50.mp3 >yanarım yanarım
+-goal_song_52.mp3 >poci poci poci senta
 
 Trabzonspor
 -goal_song_13.mp3 >düştüysen kalk gel kendine
@@ -36,6 +46,7 @@ Trabzonspor
 -goal_song_14.mp3 >allow dance
 -goal_song_34.mp3 >biz dar sokaklarında
 -goal_song_44.mp3 >şuanda klüpte keyfim yerinde
+-goal_song_51.mp3 >Allah Allah muhammet salah
 
 Tümü
 -goal_song_1.mp3 >BEŞİKTAŞ varsın olsun 
@@ -82,3 +93,15 @@ Tümü
 -goal_song_42.mp3 >FENERBAHÇE Güzel Günler göreceğiz çocuklar
 -goal_song_43.mp3 >BEŞİKTAŞ Aradım seni sokaklara
 -goal_song_44.mp3 >TRABZONSPOR şuanda klüpte keyfim yerinde
+-goal_song_45.mp3 >BEŞİKTAŞ gidecek çok deplasman var
+-goal_song_46.mp3 >BEŞİKTAŞ Beşiktaş hayattır hayatta beşiktaş
+-goal_song_47.mp3 >BEŞİKTAŞ beşiktaş bitmez yazacağız
+-goal_song_48.mp3 >BEŞİKTAŞ sensiz olmuyor kartalım sensiz olmuyor
+-goal_song_49.mp3 >FENERBAHÇE ne sevmek ne sevilmek
+-goal_song_50.mp3 >GALATASARAY yanarım yanarım
+-goal_song_51.mp3 >TRABZONSPOR Allah Allah muhammet salah
+-goal_song_52.mp3 >GALATASARAY poci poci poci senta
+-goal_song_53.mp3 >BEŞİKTAŞ bu alemde en büyük Beşiktaş
+-goal_song_54.mp3 >BEŞİKTAŞ gel benim ol
+-goal_song_55.mp3 >BEŞİKTAŞ beşiktaşlıyız biz beşiktaşlı
+-goal_song_56.mp3 >amman aman

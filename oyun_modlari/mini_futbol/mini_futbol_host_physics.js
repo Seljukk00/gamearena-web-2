@@ -66,7 +66,7 @@ const HP = {  // Host Physics namespace
         if (!this.room || !this.room.gameState) return;
         const gs = this.room.gameState;
         // ✨ Karadelik ve Uzay Gemisi izin verilen listeye eklendi
-        const allowed = ["random", "cosmic_blackhole", "blackhole", "ufo_abduct", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
+        const allowed = ["random", "cosmic_blackhole", "blackhole", "ufo_abduct", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings", "snake", "bombardment", "meme_dance"];
         if (!allowed.includes(celebType)) return;
 
         let normalizedType = (celebType === "blackhole") ? "cosmic_blackhole" : celebType;
@@ -78,13 +78,14 @@ const HP = {  // Host Physics namespace
 
     pickNextCelebration(gs, scorerPid) {
         // 🎭 Sevinç havuzuna Karadelik ve Uzay Gemisi eklendi
-        const pool = ["cosmic_blackhole", "ufo_abduct", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings"];
+        const pool = ["cosmic_blackhole", "ufo_abduct", "rainbow_trail", "grow_explode", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings", "snake", "bombardment", "meme_dance"];
 
         // ✨ Gol atan oyuncunun 1/2 tercihi varsa onu kullan (Rastgele hariç)
         if (scorerPid != null && gs.preferredCelebrations) {
             const pref = gs.preferredCelebrations[String(scorerPid)];
             if (pref && pref !== "random" && pool.includes(pref)) {
                 gs.lastChosenCelebration = pref;
+                gs.last_goal_celebration_type = pref;
                 console.log(`[HP CELEBRATION] Tercih edilen: ${pref}`);
                 return pref;
             }
@@ -107,6 +108,7 @@ const HP = {  // Host Physics namespace
         // Seçilen sevinci torbadan çıkar (bir sonraki gole kadar yasakla)
         gs.availableCelebrations.splice(idx, 1);
         gs.lastChosenCelebration = chosen;
+        gs.last_goal_celebration_type = chosen;
         
         console.log(`[HP CELEBRATION] Seçilen Sevinç: ${chosen} | Torbada Kalan Sevinç Sayısı: ${gs.availableCelebrations.length}`);
         return chosen;
@@ -671,6 +673,7 @@ const HP = {  // Host Physics namespace
             goalCelebration = {
                 scorer_id: gs.last_goal_scorer,
                 scorer_pid: gs.last_goal_scorer_pid,
+                celebration_type: gs.last_goal_celebration_type || null,
                 own_goal: gs.last_goal_own || false,
                 assist_id: gs.last_goal_assist,
                 wait_remaining: remainingWait,
@@ -1092,6 +1095,8 @@ const HP = {  // Host Physics namespace
                     accel = PLAYER_ACCEL * 0.35;
                 } else if (celType === "spin_rush") {
                     accel = PLAYER_ACCEL * 2.6;
+                } else if (celType === "meme_dance") {
+                    accel = PLAYER_ACCEL * 2.0;
                 } else {
                     accel = PLAYER_ACCEL * 2.0;
                 }
@@ -1552,9 +1557,7 @@ const HP = {  // Host Physics namespace
                     
                     let targets = [];
                     if (opponents.length > 0) {
-                        targets = opponents; // Senaryo 1: Rakipler patlar
-                    } else {
-                        targets = [scorerPid]; // Senaryo 2: Rakip yoksa gol atanın kendisi patlar
+                        targets = opponents; // Sadece rakipler patlar, rakip yoksa kimse patlamaz
                     }
                     
                     targets.forEach(pid => {
@@ -2362,11 +2365,7 @@ const HP = {  // Host Physics namespace
                         
                         let targets = [];
                         if (opponents.length > 0) {
-                            targets = opponents;
-                        } else if (teammates.length > 0) {
-                            targets = teammates;
-                        } else {
-                            targets = [scorerPid];
+                            targets = opponents; // Sadece rakipler patlar
                         }
                         
                         targets.forEach(pid => {
@@ -2739,7 +2738,7 @@ const HP = {  // Host Physics namespace
                 if (p.is_bot && !p.celebrating && !p._exploded) {
                     // Bot patlamamış ve sevinmiyorsa ona rastgele bir sevinç ata
                     // Kendi kalesine attıysa sevinmez kuralı updatePhysics'de çalışıyor zaten
-                    const allowedCelebs = ["rainbow_trail", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings", "snake"];
+                    const allowedCelebs = ["rainbow_trail", "spotlight", "frostbite", "spin_rush", "smiley_face", "eagle_wings", "snake", "bombardment", "meme_dance"];
                     const randomType = allowedCelebs[Math.floor(Math.random() * allowedCelebs.length)];
                     this.selectGoalCelebration(p, now, randomType);
                 }

@@ -31,8 +31,7 @@ function triggerPlayerExplosion(x, y, teamColor) {
     if (!miniData.celebrationParticles) miniData.celebrationParticles = [];
     
     const colors = [teamColor, "#ffffff", shadeHexColor(teamColor, 0.3), shadeHexColor(teamColor, -0.3)];
-    const _mobP = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
-    const particleCount = _mobP ? 20 : 55;
+    const particleCount = 55;
     
     for (let i = 0; i < particleCount; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -84,7 +83,7 @@ function updateAndDrawCelebrationParticles(ctx) {
             ctx.strokeStyle = pt.color;
             ctx.globalAlpha = Math.max(0, pt.alpha);
             ctx.lineWidth = 4;
-            ctx.shadowBlur = (window.innerWidth < 768) ? 0 : 15;
+            ctx.shadowBlur = 15;
             ctx.shadowColor = pt.color;
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
@@ -109,7 +108,7 @@ function updateAndDrawCelebrationParticles(ctx) {
                 ctx.rotate(pt.rot);
                 ctx.fillStyle = pt.color;
                 ctx.globalAlpha = Math.max(0, pt.alpha);
-                ctx.shadowBlur = (window.innerWidth < 768) ? 0 : 8;
+                ctx.shadowBlur = 8;
                 ctx.shadowColor = pt.color;
                 ctx.beginPath();
                 ctx.ellipse(0, 0, pt.size, pt.size * 0.4, 0, 0, Math.PI * 2);
@@ -479,8 +478,7 @@ function drawUfoAbductionCelebration(ctx, cfg, p, syncElapsed, color, playerTeam
         // Işın İçindeki Yükselen Parçacıklar
         const time = Date.now() * 0.006;
         ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * beamAlpha})`;
-        const _mobU = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
-        for (let i = 0; i < (_mobU ? 5 : 14); i++) {
+        for (let i = 0; i < 14; i++) {
             const px = ufoX + Math.sin(time + i * 1.4) * (12 + i * 2.2);
             const py = (p.y + 8) - ((time * 45 + i * 22) % Math.max(20, (p.y - ufoY)));
             if (py > ufoY + 12 && py < p.y + 8) {
@@ -612,6 +610,295 @@ function drawUfoAbductionCelebration(ctx, cfg, p, syncElapsed, color, playerTeam
     ctx.restore();
 
     return { skipPlayerDraw: skipNormalDraw };
+}
+
+// ========================================
+// 💣 BOMBARDMAN (HAVAN TOPU) GOL SEVİNCİ EFEKTİ
+// ========================================
+function drawBombardmentCelebration(ctx, cfg, celebration, state, isReplayMode, replayFrameData) {
+    let activeCel = null;
+    if (isReplayMode) {
+        if (replayFrameData && replayFrameData.goal_celebration) {
+            activeCel = replayFrameData.goal_celebration;
+        } else {
+            // Replay oynuyor ama henüz "gol atılma anına" gelinmedi. Havan topu gizli kalsın.
+            return;
+        }
+    } else {
+        activeCel = celebration || (state && state.goal_celebration);
+    }
+    
+    if (!activeCel) return;
+
+    const gType = activeCel.celebration_type || activeCel.type || activeCel || "";
+    if (gType !== "bombardment") return;
+
+    const totalDuration = (typeof activeCel.replay_duration === "number" ? activeCel.replay_duration : 10.0) + 5.0;
+    const elapsed = Math.max(0, totalDuration - (typeof activeCel.wait_remaining === "number" ? activeCel.wait_remaining : 0));
+
+    // Gol atan takım Tespiti (1: Sol Takım/Kırmızı, 2: Sağ Takım/Mavi)
+    let scorerTeamId = activeCel.scorer_id;
+    if (scorerTeamId !== 1 && scorerTeamId !== 2) {
+        const pId = activeCel.scorer_pid || activeCel.scorer_id;
+        if (typeof miniData !== "undefined" && miniData.players) {
+            const pObj = miniData.players.find(p => p.id === pId);
+            if (pObj) scorerTeamId = (pObj.team === "red") ? 1 : 2;
+        }
+    }
+    if (scorerTeamId !== 1 && scorerTeamId !== 2) scorerTeamId = 1;
+
+    // Sol takım gol atarsa sol üst korner, Sağ takım gol atarsa sağ üst korner
+    const isLeftCorner = (scorerTeamId === 1);
+    const mortarX = isLeftCorner ? 70 : (cfg.width - 70);
+    const mortarY = 50;
+    const barrelAngle = isLeftCorner ? 0.7 : -0.7;
+
+    const enemyTeam = scorerTeamId === 1 ? "blue" : "red";
+    const enemyColor = enemyTeam === "blue"
+        ? ((typeof miniData !== "undefined" && miniData.blueTeamColor) || "#4dabf7")
+        : ((typeof miniData !== "undefined" && miniData.redTeamColor) || "#ff6b6b");
+
+    const srcPlayers = (isReplayMode && replayFrameData && replayFrameData.players)
+        ? replayFrameData.players : (state ? state.players : null);
+    if (!srcPlayers) return;
+
+    // Vurulan/Patlayan oyuncuları takip hafızası
+    const celebrationKey = (activeCel.scorer_pid || activeCel.scorer_id || 1) + "_" + (activeCel.scorer_id || 1);
+    if (typeof miniData !== "undefined") {
+        if (miniData._currentBombCelebKey !== celebrationKey) {
+            miniData._currentBombCelebKey = celebrationKey;
+            miniData._bombExplosionKeys = new Set();
+            miniData._bombImpactFx = [];
+        }
+        // Her render karesinde gizli listesini baştan hesaplıyoruz ki replay geriye sarınca oyuncular geri gelsin
+        miniData._bombExplodedPids = new Set();
+    }
+
+    const enemyPlayers = [];
+    for (const pid in srcPlayers) {
+        const p = srcPlayers[pid];
+        if (!p) continue;
+        let pTeam = p.team;
+        if (!pTeam && typeof miniData !== "undefined" && miniData.players) {
+            const playerInfo = miniData.players.find(pl => pl.id === parseInt(pid));
+            pTeam = playerInfo ? playerInfo.team : null;
+        }
+        if (pTeam === enemyTeam) {
+            enemyPlayers.push({ pid: parseInt(pid), x: p.x, y: p.y });
+        }
+    }
+    if (enemyPlayers.length === 0) return;
+
+    // Replay ve canlı izleme arasında hedeflerin aynı sırada kalması için PID'ye göre sırala
+    enemyPlayers.sort((a, b) => a.pid - b.pid);
+
+    const mortarAppearDuration = 0.7;
+    const bombInterval = 0.45;
+    const bombFlightTime = 0.65;
+
+    // --- HAVAN ÇİZİMİ ---
+    const mortarScale = Math.min(1.0, elapsed / mortarAppearDuration);
+    if (mortarScale > 0) {
+        ctx.save();
+        ctx.translate(mortarX, mortarY);
+        ctx.scale(mortarScale, mortarScale);
+        ctx.globalAlpha = mortarScale;
+
+        // Base / Taban
+        ctx.fillStyle = "#5a5a5a";
+        ctx.beginPath();
+        ctx.ellipse(0, 8, 28, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Gövde
+        const bodyGrad = ctx.createLinearGradient(-12, -10, 12, 10);
+        bodyGrad.addColorStop(0, "#6b6b6b");
+        bodyGrad.addColorStop(0.5, "#3d3d3d");
+        bodyGrad.addColorStop(1, "#2a2a2a");
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 20, 14, isLeftCorner ? 0.3 : -0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Namlu
+        ctx.save();
+        ctx.rotate(barrelAngle);
+        const barrelGrad = ctx.createLinearGradient(-7, 0, 7, 0);
+        barrelGrad.addColorStop(0, "#4a4a4a");
+        barrelGrad.addColorStop(0.5, "#2d2d2d");
+        barrelGrad.addColorStop(1, "#1a1a1a");
+        ctx.fillStyle = barrelGrad;
+        ctx.fillRect(-7, -40, 14, 40);
+        ctx.fillStyle = "#111";
+        ctx.beginPath();
+        ctx.ellipse(0, -40, 9, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Ateşleme Alevi Flash
+        if (elapsed > mortarAppearDuration) {
+            const bombIndex = Math.floor((elapsed - mortarAppearDuration) / bombInterval);
+            const bombFrac = ((elapsed - mortarAppearDuration) % bombInterval) / bombInterval;
+            if (bombFrac < 0.2 && bombIndex < enemyPlayers.length) {
+                ctx.save();
+                ctx.rotate(barrelAngle);
+                const flashSize = 14 * (1 - bombFrac / 0.2);
+                ctx.fillStyle = "#ff8800";
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = "#ff4400";
+                ctx.beginPath();
+                ctx.arc(0, -42, flashSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#ffcc00";
+                ctx.beginPath();
+                ctx.arc(0, -42, flashSize * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+        }
+        ctx.restore();
+    }
+
+    // --- BOMBALAR & PATLAMALAR ---
+    if (elapsed > mortarAppearDuration) {
+        for (let i = 0; i < enemyPlayers.length; i++) {
+            const target = enemyPlayers[i];
+            const launchTime = mortarAppearDuration + i * bombInterval;
+            if (elapsed < launchTime) continue;
+
+            const bombProgress = Math.min(1.0, (elapsed - launchTime) / bombFlightTime);
+
+            if (bombProgress >= 1.0) {
+                const expKey = "bomb_" + celebrationKey + "_" + i;
+                if (typeof miniData !== "undefined") {
+                    // Bomba hedefe ulaştıysa oyuncuyu bu karede gizli olarak işaretle (ana döngü gizleyecek)
+                    miniData._bombExplodedPids.add(target.pid);
+
+                    // Patlama efektini sadece İLK VURUŞ ANINDA (bir kez) oynat
+                    if (!miniData._bombExplosionKeys.has(expKey)) {
+                        miniData._bombExplosionKeys.add(expKey);
+
+                        if (typeof window.triggerPlayerExplosion === "function") {
+                            window.triggerPlayerExplosion(target.x, target.y, enemyColor);
+                        } else if (typeof triggerPlayerExplosion === "function") {
+                            triggerPlayerExplosion(target.x, target.y, enemyColor);
+                        }
+
+                        if (!miniData._bombImpactFx) miniData._bombImpactFx = [];
+                        miniData._bombImpactFx.push({ x: target.x, y: target.y, color: enemyColor, t0: Date.now() });
+                    }
+                }
+                continue;
+            }
+
+            const t = bombProgress;
+            const bx = mortarX + (target.x - mortarX) * t;
+            const linearY = mortarY + (target.y - mortarY) * t;
+            const arcHeight = 180 + i * 20;
+            const by = linearY - Math.sin(t * Math.PI) * arcHeight;
+
+            // Duman izi
+            ctx.save();
+            for (let d = 1; d <= 6; d++) {
+                const dt = Math.max(0, t - d * 0.035);
+                if (dt <= 0) continue;
+                const dx = mortarX + (target.x - mortarX) * dt;
+                const dy = mortarY + (target.y - mortarY) * dt - Math.sin(dt * Math.PI) * arcHeight;
+                const dAlpha = 0.22 * (1 - d / 7) * (1 - t * 0.5);
+                ctx.fillStyle = `rgba(120, 120, 120, ${dAlpha})`;
+                ctx.beginPath();
+                ctx.arc(dx, dy, 3 + d * 1.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Zemin gölgesi
+            const shadowScale = 0.3 + t * 0.7;
+            ctx.save();
+            ctx.fillStyle = `rgba(0, 0, 0, ${0.12 + t * 0.18})`;
+            ctx.beginPath();
+            ctx.ellipse(bx, target.y + 5, 8 * shadowScale, 4 * shadowScale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Bomba
+            ctx.save();
+            ctx.translate(bx, by);
+            ctx.rotate(t * Math.PI * 4);
+
+            const bombGrad = ctx.createRadialGradient(-2, -2, 1, 0, 0, 9);
+            bombGrad.addColorStop(0, "#666");
+            bombGrad.addColorStop(0.6, "#333");
+            bombGrad.addColorStop(1, "#111");
+            ctx.fillStyle = bombGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.rotate(-t * Math.PI * 4);
+            ctx.strokeStyle = "#8B4513";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -9);
+            ctx.quadraticCurveTo(4, -15, 2, -19);
+            ctx.stroke();
+
+            const sparkPulse = 2.5 + Math.sin(Date.now() / 40 + i) * 1.5;
+            ctx.fillStyle = "#ffdd00";
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = "#ff6600";
+            ctx.beginPath();
+            ctx.arc(2, -19, sparkPulse, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(2, -19, sparkPulse * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+    }
+
+    // --- PATLAMA ÖZEL EFEKTLERİ ÇİZİMİ ---
+    if (typeof miniData !== "undefined" && miniData._bombImpactFx && miniData._bombImpactFx.length > 0) {
+        const nowMs = Date.now();
+        miniData._bombImpactFx = miniData._bombImpactFx.filter(fx => (nowMs - fx.t0) < 800);
+        for (const fx of miniData._bombImpactFx) {
+            const dt = (nowMs - fx.t0) / 800;
+            ctx.save();
+            
+            // Genişleyen Şok Dalgası Halka
+            ctx.strokeStyle = fx.color || "#ff6b6b";
+            ctx.lineWidth = 5 * (1 - dt);
+            ctx.globalAlpha = 1 - dt;
+            ctx.beginPath();
+            ctx.arc(fx.x, fx.y, 12 + dt * 65, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Alev Çekirdeği Flash
+            ctx.fillStyle = "#ffaa00";
+            ctx.beginPath();
+            ctx.arc(fx.x, fx.y, Math.max(0, 32 * (1 - dt * 2)), 0, Math.PI * 2);
+            ctx.fill();
+
+            // Kıvılcım Parçacıkları
+            for (let p = 0; p < 8; p++) {
+                const ang = (p / 8) * Math.PI * 2;
+                const dist = dt * 60;
+                const px = fx.x + Math.cos(ang) * dist;
+                const py = fx.y + Math.sin(ang) * dist;
+                ctx.fillStyle = p % 2 === 0 ? "#ff4400" : "#ffdd00";
+                ctx.beginPath();
+                ctx.arc(px, py, Math.max(0, 4.5 * (1 - dt)), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
 }
 
 // ========================================
@@ -1039,7 +1326,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
             const _rp = miniData.gameState.players[_pid];
             if (_rp && _rp.celebrating) {
                 const _ct = _rp.celebration_type || (_rp.celebration && _rp.celebration.type) || _rp.celebration || "";
-                if (["snake", "eagle_wings", "rainbow_trail", "black_hole", "cosmic_blackhole", "ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi"].includes(_ct)) {
+                if (["snake", "eagle_wings", "rainbow_trail", "black_hole", "cosmic_blackhole", "ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi", "bombardment", "meme_dance"].includes(_ct)) {
                     skipDarken = true;
                     break;
                 }
@@ -1047,7 +1334,7 @@ function drawGoalCelebration(ctx, cfg, celebration) {
         }
     }
     const globalCType = celebration.celebration_type || celebration.type || celebration || "";
-    if (["snake", "eagle_wings", "rainbow_trail", "black_hole", "cosmic_blackhole", "ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi"].includes(globalCType)) {
+    if (["snake", "eagle_wings", "rainbow_trail", "black_hole", "cosmic_blackhole", "ufo", "ufo_abduction", "ufo_abduct", "alien", "spaceship", "uzay_gemisi", "bombardment", "meme_dance"].includes(globalCType)) {
         skipDarken = true;
     }
 
@@ -1230,22 +1517,9 @@ function miniRender() {
     }
     
     const OUT_MARGIN = 55;
-    const _targetW = cfg.width + OUT_MARGIN * 2;
-    const _targetH = cfg.height + OUT_MARGIN * 2;
-
-    const _isMob = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-    const _dpr = _isMob ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
-    const _physW = Math.round(_targetW * _dpr);
-    const _physH = Math.round(_targetH * _dpr);
-
-    if (canvas.width !== _physW || canvas.height !== _physH) {
-        canvas.width = _physW;
-        canvas.height = _physH;
-        canvas.style.width = _targetW + "px";
-        canvas.style.height = _targetH + "px";
-    }
-
-    ctx.setTransform(_dpr, 0, 0, _dpr, 0, 0);
+    canvas.width = cfg.width + OUT_MARGIN * 2;
+    canvas.height = cfg.height + OUT_MARGIN * 2;
+    
     ctx.save();
     ctx.translate(OUT_MARGIN, OUT_MARGIN);
     
@@ -1730,8 +2004,7 @@ function miniRender() {
 
             if (!miniData._snowflakes) {
                 miniData._snowflakes = [];
-                const _mobS = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
-                for (let s = 0; s < (_mobS ? 25 : 70); s++) {
+                for (let s = 0; s < 70; s++) {
                     miniData._snowflakes.push({
                         x: -M + Math.random() * totalW,
                         y: -M + Math.random() * totalH,
@@ -1777,6 +2050,17 @@ function miniRender() {
             if (rawP && (rawP.invisible === true || rawP._exploded === true)) {
                 continue;
             }
+            // 💣 Havan topu ile vurulup patlayan oyuncuları sahadan gizle
+            // Canlı sevinç fazında: her zaman gizle
+            // Replay modunda: sadece replay frame'inde goal_celebration varsa (gol anı frame'i) gizle
+            if (typeof miniData !== "undefined" && miniData._bombExplodedPids && miniData._bombExplodedPids.has(pidInt)) {
+                if (!isReplayMode) {
+                    continue;
+                }
+                if (isReplayMode && replayFrameData && replayFrameData.goal_celebration) {
+                    continue;
+                }
+            }
 
             let smoothPos;
             if (isReplayMode && replayFrameData && replayFrameData.players[pid]) {
@@ -1820,21 +2104,9 @@ function miniRender() {
                 const dy = bhY - p.y;
                 const dist = Math.hypot(dx, dy);
                 
-                const elapsed = Math.max(0, 5.0 - activeCel.wait_remaining);
-                const pullStrength = Math.min(1.0, elapsed / 3.8);
-
-                if (pullStrength > 0.02) {
-                    const orbitAngle = Math.atan2(dy, dx) + pullStrength * 7.5;
-                    const newDist = dist * (1.0 - pullStrength * 0.98);
-                    
-                    p.x = bhX - Math.cos(orbitAngle) * newDist;
-                    p.y = bhY - Math.sin(orbitAngle) * newDist;
-                    
-                    currentRadius = cfg.player_radius * Math.max(0.01, 1.0 - pullStrength * 0.96);
-                    
-                    if (newDist < 10) {
-                        skipPlayerDraw = true;
-                    }
+                // Karadeliğe girdiğinde direkt kaybol (çekme/spiral animasyonu yok)
+                if (dist < 30) {
+                    skipPlayerDraw = true;
                 }
             }
             
@@ -2030,13 +2302,29 @@ function miniRender() {
             
             if (skipPlayerDraw) continue;
 
-            const isSmiley = rawP && rawP.celebrating && (rawP.celebration_type || "") === "smiley_face";
+            const isGlobalSmiley = (currentGameState === "goal_wait") && (gType === "smiley_face");
+            const isSmiley = (rawP && rawP.celebrating && (rawP.celebration_type || "") === "smiley_face") || isGlobalSmiley;
             if (isSmiley) {
                 const R = currentRadius;
                 const nowS = performance.now() / 1000;
                 const celStartS = rawP.celebration_start || 0;
                 const syncS = (rawP.celebration_elapsed !== undefined) ? rawP.celebration_elapsed : Math.max(0, nowS - celStartS);
-                const bounce = Math.sin(syncS * 10) * 2.5;
+
+                let _isScorerTeam = false;
+                if (activeCel) {
+                    let sTeam = null;
+                    if (activeCel.scorer_id === 1) sTeam = "red";
+                    else if (activeCel.scorer_id === 2) sTeam = "blue";
+                    else {
+                        const sPid = activeCel.scorer_pid || activeCel.scorer_id;
+                        const sp = miniData.players.find(pl => Number(pl.id) === Number(sPid));
+                        if (sp) sTeam = sp.team;
+                    }
+                    if (sTeam) _isScorerTeam = (playerTeam === sTeam);
+                }
+                if (rawP && rawP.celebrating) _isScorerTeam = true;
+
+                const bounce = _isScorerTeam ? Math.sin(syncS * 10) * 2.5 : Math.sin(syncS * 3) * 0.8;
 
                 ctx.save();
                 ctx.translate(0, bounce);
@@ -2046,48 +2334,161 @@ function miniRender() {
                 ctx.ellipse(p.x + 2, p.y + R * 0.85, R * 0.85, R * 0.28, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                const faceGrad = ctx.createRadialGradient(p.x - R * 0.25, p.y - R * 0.3, R * 0.1, p.x, p.y, R);
-                faceGrad.addColorStop(0, "#ffe566");
-                faceGrad.addColorStop(0.55, "#ffd43b");
-                faceGrad.addColorStop(1, "#f59f00");
-                ctx.fillStyle = faceGrad;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
-                ctx.fill();
+                if (_isScorerTeam) {
+                    // 😊 GOL ATAN TAKIM: Neşeli Sarı Gülen Yüz
+                    const faceGrad = ctx.createRadialGradient(p.x - R * 0.25, p.y - R * 0.3, R * 0.1, p.x, p.y, R);
+                    faceGrad.addColorStop(0, "#ffe566");
+                    faceGrad.addColorStop(0.55, "#ffd43b");
+                    faceGrad.addColorStop(1, "#f59f00");
+                    ctx.fillStyle = faceGrad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+                    ctx.fill();
 
-                ctx.strokeStyle = "rgba(0,0,0,0.35)";
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
-                ctx.stroke();
+                    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+                    ctx.stroke();
 
-                const eyeY = p.y - R * 0.18;
-                const eyeDX = R * 0.28;
-                const eyeR = Math.max(2.2, R * 0.11);
-                ctx.fillStyle = "#1a1b1e";
-                ctx.beginPath();
-                ctx.arc(p.x - eyeDX, eyeY, eyeR, 0, Math.PI * 2);
-                ctx.arc(p.x + eyeDX, eyeY, eyeR, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.fillStyle = "#ffffff";
-                ctx.beginPath();
-                ctx.arc(p.x - eyeDX - eyeR * 0.25, eyeY - eyeR * 0.3, eyeR * 0.35, 0, Math.PI * 2);
-                ctx.arc(p.x + eyeDX - eyeR * 0.25, eyeY - eyeR * 0.3, eyeR * 0.35, 0, Math.PI * 2);
-                ctx.fill();
+                    const eyeY = p.y - R * 0.18;
+                    const eyeDX = R * 0.28;
+                    const eyeR = Math.max(2.2, R * 0.11);
+                    ctx.fillStyle = "#1a1b1e";
+                    ctx.beginPath();
+                    ctx.arc(p.x - eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+                    ctx.arc(p.x + eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+                    ctx.fill();
 
-                ctx.strokeStyle = "#1a1b1e";
-                ctx.lineWidth = Math.max(2.5, R * 0.12);
-                ctx.lineCap = "round";
-                ctx.beginPath();
-                ctx.arc(p.x, p.y + R * 0.08, R * 0.42, 0.15 * Math.PI, 0.85 * Math.PI);
-                ctx.stroke();
+                    ctx.fillStyle = "#ffffff";
+                    ctx.beginPath();
+                    ctx.arc(p.x - eyeDX - eyeR * 0.25, eyeY - eyeR * 0.3, eyeR * 0.35, 0, Math.PI * 2);
+                    ctx.arc(p.x + eyeDX - eyeR * 0.25, eyeY - eyeR * 0.3, eyeR * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
 
-                ctx.fillStyle = "rgba(255, 107, 107, 0.35)";
-                ctx.beginPath();
-                ctx.ellipse(p.x - R * 0.42, p.y + R * 0.12, R * 0.14, R * 0.1, 0, 0, Math.PI * 2);
-                ctx.ellipse(p.x + R * 0.42, p.y + R * 0.12, R * 0.14, R * 0.1, 0, 0, Math.PI * 2);
-                ctx.fill();
+                    ctx.strokeStyle = "#1a1b1e";
+                    ctx.lineWidth = Math.max(2.5, R * 0.12);
+                    ctx.lineCap = "round";
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y + R * 0.08, R * 0.42, 0.15 * Math.PI, 0.85 * Math.PI);
+                    ctx.stroke();
+
+                    ctx.fillStyle = "rgba(255, 107, 107, 0.35)";
+                    ctx.beginPath();
+                    ctx.ellipse(p.x - R * 0.42, p.y + R * 0.12, R * 0.14, R * 0.1, 0, 0, Math.PI * 2);
+                    ctx.ellipse(p.x + R * 0.42, p.y + R * 0.12, R * 0.14, R * 0.1, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // 😢 KARŞI TAKIM: Soluk Sarı Üzgün Yüz + Akan Gözyaşları
+                    const faceGrad = ctx.createRadialGradient(p.x - R * 0.2, p.y - R * 0.25, R * 0.1, p.x, p.y, R);
+                    faceGrad.addColorStop(0, "#e0d888");
+                    faceGrad.addColorStop(0.55, "#c8bc58");
+                    faceGrad.addColorStop(1, "#a09438");
+                    ctx.fillStyle = faceGrad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = "rgba(0,0,0,0.4)";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    const eyeY = p.y - R * 0.12;
+                    const eyeDX = R * 0.28;
+                    const eyeR = Math.max(2.5, R * 0.12);
+
+                    // Üzgün Kaşlar (\ /)
+                    ctx.strokeStyle = "#3d2e0a";
+                    ctx.lineWidth = Math.max(2, R * 0.10);
+                    ctx.lineCap = "round";
+                    ctx.beginPath();
+                    ctx.moveTo(p.x - eyeDX - eyeR * 1.1, eyeY - eyeR * 1.5);
+                    ctx.lineTo(p.x - eyeDX + eyeR * 0.7, eyeY - eyeR * 2.3);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + eyeDX + eyeR * 1.1, eyeY - eyeR * 1.5);
+                    ctx.lineTo(p.x + eyeDX - eyeR * 0.7, eyeY - eyeR * 2.3);
+                    ctx.stroke();
+
+                    // Üzgün Kısık Gözler
+                    ctx.fillStyle = "#1a1b1e";
+                    ctx.beginPath();
+                    ctx.ellipse(p.x - eyeDX, eyeY, eyeR, eyeR * 0.75, 0, 0, Math.PI * 2);
+                    ctx.ellipse(p.x + eyeDX, eyeY, eyeR, eyeR * 0.75, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Üzgün Ters Ağız (︵)
+                    ctx.strokeStyle = "#3d2e0a";
+                    ctx.lineWidth = Math.max(2.5, R * 0.12);
+                    ctx.lineCap = "round";
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y + R * 0.45, R * 0.32, 1.2 * Math.PI, 1.8 * Math.PI);
+                    ctx.stroke();
+
+                    // 🌊 ÇİZGİ FİLM ŞELALE GÖZYAŞLARI (Gürül Gürül Fışkıran Su Akıntısı & Damlalar)
+                    // Ayağın altında büyüyen su birikintisi / gölet
+                    ctx.fillStyle = "rgba(0, 180, 255, 0.4)";
+                    ctx.beginPath();
+                    ctx.ellipse(p.x, p.y + R * 1.5, R * 0.9 + Math.sin(syncS * 6) * 3, R * 0.25, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    for (let side = -1; side <= 1; side += 2) {
+                        const tearStartX = p.x + side * eyeDX;
+                        const tearStartY = eyeY + eyeR * 1.1; // Gözün hemen altından çıkış
+                        const endY = p.y + R * 1.5;
+                        const endX = tearStartX + side * R * 0.38;
+
+                        // 1. Ana Kalın Su Şelalesi Akıntısı (Mavi Dış Katman + Beyaz İç Parlak Çekirdek)
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(tearStartX, tearStartY);
+                        ctx.quadraticCurveTo(
+                            tearStartX + side * R * 0.3 + Math.sin(syncS * 10 + side) * 2,
+                            p.y + R * 0.6,
+                            endX + Math.sin(syncS * 12 + side) * 2,
+                            endY
+                        );
+
+                        ctx.lineWidth = Math.max(5, R * 0.32);
+                        ctx.strokeStyle = "rgba(0, 195, 255, 0.9)";
+                        ctx.lineCap = "round";
+                        ctx.stroke();
+
+                        ctx.lineWidth = Math.max(2, R * 0.14);
+                        ctx.strokeStyle = "rgba(240, 250, 255, 0.95)";
+                        ctx.stroke();
+                        ctx.restore();
+
+                        // 2. Gürül Gürül Dökülen Hızlı Çizgi Film Damlaları
+                        for (let t = 0; t < 6; t++) {
+                            const tearPhase = ((syncS * 4.8 + t * 0.22 + side * 0.15) % 1.0);
+                            const dropY = tearStartY + tearPhase * (endY - tearStartY);
+                            const dropX = tearStartX + side * tearPhase * R * 0.38 + Math.sin(syncS * 14 + t * 2) * (R * 0.08);
+                            const dropSize = (R * 0.12 + tearPhase * R * 0.10);
+
+                            ctx.fillStyle = "#00b4d8";
+                            ctx.beginPath();
+                            ctx.ellipse(dropX, dropY, dropSize * 0.7, dropSize * 1.3, 0, 0, Math.PI * 2);
+                            ctx.fill();
+
+                            ctx.fillStyle = "#ffffff";
+                            ctx.beginPath();
+                            ctx.arc(dropX - dropSize * 0.2, dropY - dropSize * 0.3, dropSize * 0.35, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+
+                        // 3. Zeminde Sıçrayan Su Dalgaları
+                        const splashSize = (R * 0.2) + ((syncS * 8 + side) % 1.0) * (R * 0.25);
+                        ctx.strokeStyle = "rgba(0, 220, 255, 0.85)";
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.ellipse(endX, endY, splashSize, splashSize * 0.4, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    ctx.lineCap = "butt";
+                }
                 ctx.restore();
 
                 let pname = miniData.playerNames[pid] || `P${pid}`;
@@ -2095,8 +2496,162 @@ function miniRender() {
                 ctx.textAlign = "center";
                 ctx.shadowBlur = 5;
                 ctx.shadowColor = "#000";
-                ctx.fillStyle = "#ffd43b";
+                ctx.fillStyle = _isScorerTeam ? "#ffd43b" : "#74b9ff";
                 ctx.fillText(pname, p.x, p.y - R - 12);
+                ctx.shadowBlur = 0;
+                continue;
+            }
+
+            const isMemeDance = rawP && rawP.celebrating && (rawP.celebration_type || "") === "meme_dance";
+            if (isMemeDance) {
+                const R = currentRadius;
+                const nowM = performance.now() / 1000;
+                const celStartM = rawP.celebration_start || 0;
+                const syncM = (rawP.celebration_elapsed !== undefined) ? rawP.celebration_elapsed : Math.max(0, nowM - celStartM);
+
+                // Dans Ritim & Zıplama Fiziği
+                const bounceY = Math.sin(syncM * 14) * 4;
+                const armWave = Math.sin(syncM * 12) * (R * 0.55);
+                const tiltLeft = Math.sin(syncM * 12) * 0.35;
+                const tiltRight = -tiltLeft;
+
+                const fx = p.x;
+                const fy = p.y + bounceY;
+
+                ctx.save();
+
+                // 1. Zemin Gölgesi
+                ctx.fillStyle = "rgba(0,0,0,0.3)";
+                ctx.beginPath();
+                ctx.ellipse(p.x + 2, p.y + R * 0.85, R * 0.85, R * 0.28, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 2. İşaret Parmağı Gösteren Dans Eden Sarı Eller (Meme Emoji El Fonksiyonu)
+                const drawPointingHand = (hx, hy, isLeft, rot) => {
+                    ctx.save();
+                    ctx.translate(hx, hy);
+                    ctx.rotate(rot);
+
+                    const hR = R * 0.42;
+                    const handGrad = ctx.createRadialGradient(-hR * 0.2, -hR * 0.2, hR * 0.1, 0, 0, hR);
+                    handGrad.addColorStop(0, "#fff176");
+                    handGrad.addColorStop(0.6, "#ffd54f");
+                    handGrad.addColorStop(1, "#f57f17");
+
+                    ctx.fillStyle = handGrad;
+                    ctx.strokeStyle = "#a75d00";
+                    ctx.lineWidth = 1.8;
+
+                    // Avuç / Yumruk
+                    ctx.beginPath();
+                    ctx.arc(0, 0, hR, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Yukarı Çapraz İşaret Eden İşaret Parmağı
+                    const fingerLen = hR * 1.5;
+                    const fingerW = hR * 0.48;
+                    ctx.save();
+                    ctx.rotate(isLeft ? -0.4 : 0.4);
+                    ctx.beginPath();
+                    ctx.roundRect(-fingerW / 2, -fingerLen, fingerW, fingerLen, fingerW / 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // Başparmak
+                    ctx.beginPath();
+                    ctx.arc(isLeft ? hR * 0.45 : -hR * 0.45, hR * 0.2, hR * 0.32, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.restore();
+                };
+
+                // Sol El (Sol üst yöne işaret ediyor, ritimle yükselip iniyor)
+                drawPointingHand(fx - R - 8, fy + armWave, true, -0.3 + tiltLeft);
+
+                // Sağ El (Sağ üst yöne işaret ediyor, zıt ritimle hareket ediyor)
+                drawPointingHand(fx + R + 8, fy - armWave, false, 0.3 + tiltRight);
+
+                // 3. Emoji Sarı Gövde (Resimdeki gibi 3D Parlak Gradient)
+                const faceGrad = ctx.createRadialGradient(fx - R * 0.3, fy - R * 0.3, R * 0.1, fx, fy, R);
+                faceGrad.addColorStop(0, "#fff59d");
+                faceGrad.addColorStop(0.4, "#ffd54f");
+                faceGrad.addColorStop(0.85, "#ffb300");
+                faceGrad.addColorStop(1, "#e65100");
+
+                ctx.fillStyle = faceGrad;
+                ctx.beginPath();
+                ctx.arc(fx, fy, R, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = "#b75000";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(fx, fy, R, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // 4. Mutlu Gözler (^ ^ Kavisli Koyu Kahve Mutluluk Çizgileri)
+                const eyeY = fy - R * 0.22;
+                const eyeXOffset = R * 0.32;
+                const eyeSize = R * 0.22;
+
+                ctx.strokeStyle = "#3e2723";
+                ctx.lineWidth = 3.5;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+
+                // Sol Göz (^)
+                ctx.beginPath();
+                ctx.moveTo(fx - eyeXOffset - eyeSize, eyeY + eyeSize * 0.5);
+                ctx.lineTo(fx - eyeXOffset, eyeY - eyeSize * 0.8);
+                ctx.lineTo(fx - eyeXOffset + eyeSize, eyeY + eyeSize * 0.5);
+                ctx.stroke();
+
+                // Sağ Göz (^)
+                ctx.beginPath();
+                ctx.moveTo(fx + eyeXOffset - eyeSize, eyeY + eyeSize * 0.5);
+                ctx.lineTo(fx + eyeXOffset, eyeY - eyeSize * 0.8);
+                ctx.lineTo(fx + eyeXOffset + eyeSize, eyeY + eyeSize * 0.5);
+                ctx.stroke();
+
+                // 5. Gülümseyen Ağız (Geniş Dişli Beyaz Gülüş)
+                const mouthY = fy + R * 0.15;
+                const mouthW = R * 0.52;
+                const mouthH = R * 0.35;
+
+                // Dişli Ağız İçi
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath();
+                ctx.ellipse(fx, mouthY, mouthW, mouthH, 0, 0, Math.PI);
+                ctx.fill();
+
+                // Ağız Çerçevesi
+                ctx.strokeStyle = "#3e2723";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.ellipse(fx, mouthY, mouthW, mouthH, 0, 0, Math.PI);
+                ctx.closePath();
+                ctx.stroke();
+
+                // Orta Diş Çizgisi
+                ctx.beginPath();
+                ctx.moveTo(fx - mouthW + 2, mouthY);
+                ctx.lineTo(fx + mouthW - 2, mouthY);
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Oyuncu İsmi
+                let pnameM = miniData.playerNames[pid] || `P${pid}`;
+                ctx.font = `bold 14px Segoe UI`;
+                ctx.textAlign = "center";
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = "#000";
+                ctx.fillStyle = "#ffd43b";
+                ctx.fillText(pnameM, p.x, fy - R - 12);
                 ctx.shadowBlur = 0;
                 continue;
             }
@@ -2113,8 +2668,7 @@ function miniRender() {
                 hoverY = Math.sin(syncE * 5) * 8 - 18;
 
                 if (!miniData._eagleFeathers) miniData._eagleFeathers = [];
-                const _mobE = window.innerWidth < 768 || /Mobi|Android/i.test(navigator.userAgent);
-                if (Math.random() < (_mobE ? 0.15 : 0.40) && miniData._eagleFeathers.length < (_mobE ? 15 : 40)) {
+                if (Math.random() < 0.40 && miniData._eagleFeathers.length < 40) {
                     miniData._eagleFeathers.push({
                         x: p.x + (Math.random() - 0.5) * R * 2.5,
                         y: p.y + hoverY + (Math.random() - 0.5) * R,
@@ -2686,6 +3240,12 @@ function miniRender() {
                 nameColor = "#ffed00";
             } else if (["galatasaray", "gs"].includes(_fieldNorm)) {
                 nameColor = "#fdb913";
+            } else if (["beşiktaş", "besiktas", "bjk"].includes(_fieldNorm)) {
+                nameColor = "#ffffff";
+            } else if (["trabzonspor", "ts"].includes(_fieldNorm)) {
+                nameColor = "#4ab3e8";
+            } else if (["türkiye", "turkiye"].includes(_fieldNorm)) {
+                nameColor = "#ffffff";
             } else {
                 nameColor = playerTeam === "blue" ? (miniData.blueTeamColor || "#7abfff") : (miniData.redTeamColor || "#ff8a8a");
             }
@@ -2734,7 +3294,7 @@ function miniRender() {
         let ballRadius = cfg.ball_radius;
         let skipBallDraw = false;
 
-        // 🌌 Topu Karadeliğe Çeken Girdap Algoritması (Replay Dahil + Hedef Kale Koordinatı)
+        // 🌌 Topu Karadeliğe Çeken Algoritma (Replay Dahil + Hedef Kale Koordinatı)
         if (isBlackHoleActive) {
             let bhX = cfg.width / 2;
             let bhY = cfg.height / 2;
@@ -2751,19 +3311,9 @@ function miniRender() {
             const dy = bhY - b.y;
             const dist = Math.hypot(dx, dy);
             
-            const elapsed = Math.max(0, 5.0 - activeCel.wait_remaining);
-            const pullStrength = Math.min(1.0, elapsed / 3.8);
-
-            if (pullStrength > 0.02) {
-                const orbitAngle = Math.atan2(dy, dx) + pullStrength * 9.0;
-                const newDist = dist * (1.0 - pullStrength * 0.98);
-                b.x = bhX - Math.cos(orbitAngle) * newDist;
-                b.y = bhY - Math.sin(orbitAngle) * newDist;
-                ballRadius = cfg.ball_radius * Math.max(0.01, 1.0 - pullStrength * 0.96);
-                
-                if (newDist < 8) {
-                    skipBallDraw = true;
-                }
+            // Karadeliğe girdiğinde direkt kaybol (çekme/spiral animasyonu yok)
+            if (dist < 30) {
+                skipBallDraw = true;
             }
         }
         
@@ -2911,11 +3461,17 @@ function miniRender() {
             miniData._lastCountdownTime = null;
             MiniAudio.stop("timer_countdown.mp3");
             drawGoalCelebration(ctx, cfg, state.goal_celebration);
-        } else if (!isCountdown && !showGo) {
-            miniData._countdownSoundPlayed = false;
-            miniData._lastGoalSignature = null;
-            miniData._goalSongPlayed = null;
-            miniReplay.replayStartTime = 0;
+            drawBombardmentCelebration(ctx, cfg, state.goal_celebration, state, typeof isReplayMode !== 'undefined' ? isReplayMode : false, typeof replayFrameData !== 'undefined' ? replayFrameData : null);
+        } else {
+            // 🔧 FIX: goal_wait bittiğinde bomb set'ini HER ZAMAN temizle (countdown/showGo/playing fark etmez)
+            miniData._bombExplodedPids = null;
+            miniData._currentBombCelebKey = null;
+            if (!isCountdown && !showGo) {
+                miniData._countdownSoundPlayed = false;
+                miniData._lastGoalSignature = null;
+                miniData._goalSongPlayed = null;
+                miniReplay.replayStartTime = 0;
+            }
         }
         if (state.kickoff && state.kickoff.active) {
             drawKickoffInfo(ctx, cfg, state.kickoff);
@@ -2953,3 +3509,4 @@ window.miniRender = miniRender;
 window.drawCountdownOverlay = drawCountdownOverlay;
 window.drawBlackHoleEffect = drawBlackHoleEffect;
 window.drawUfoAbductionCelebration = drawUfoAbductionCelebration;
+window.drawBombardmentCelebration = drawBombardmentCelebration;
