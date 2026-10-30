@@ -130,16 +130,15 @@ def gizem_pick_question(exclude_indices=None, difficulty="karisik", round_no=0, 
     random.shuffle(options)
     correct_idx = options.index(player["name"])
 
-    from oyun_modlari.gizemli_kariyer.takimlar import resolve_team_name
+    from oyun_modlari.gizemli_kariyer.takimlar import resolve_team_name, get_team_logo_url
     
     career_data = []
     for team_name in player["career"]:
         # ✨ Alias'ı çöz (eski isim → yeni isim)
         resolved_name = resolve_team_name(team_name) or team_name
         team_info = GIZEM_TEAMS.get(resolved_name, {})
-        # ✨ Lokal dosya kullan (resolved isim üzerinden slug)
-        slug = gizem_team_slug(resolved_name)
-        logo_url = f"/takim_logolari/{slug}.png"
+        # ✨ Akıllı logo bulucu (webp, png ve TM kontrol eder)
+        logo_url = get_team_logo_url(team_name)
         career_data.append({
             "name": team_name,  # Görsel isim (kariyerdeki orijinal)
             "logo_url": logo_url,

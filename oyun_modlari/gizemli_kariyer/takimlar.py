@@ -4,6 +4,9 @@ Her takim: renk (fallback), TM ID (logo icin)
 Logo dosyasi: /takim_logolari/{slug}.png
 """
 
+import os
+import re
+
 ALL_TEAMS = {
     # ============================================
     # ISPANYA - La Liga
@@ -33,10 +36,12 @@ ALL_TEAMS = {
     "Rayo Vallecano":           {"color": (200, 16, 46),   "tm_id": 367},
     "Levante":                  {"color": (0, 100, 50),    "tm_id": 3368},
     "Albacete":                 {"color": (255, 255, 255), "tm_id": 1532},
+    "Osasuna":                  {"color": (200, 16, 46),   "tm_id": 331},
 
     # ============================================
     # INGILTERE - Premier League
     # ============================================
+    "Burnley":                  {"color": (112, 25, 60),   "tm_id": 1132},
     "Manchester United":        {"color": (218, 41, 28),   "tm_id": 985},
     "Manchester City":          {"color": (108, 171, 221), "tm_id": 281},
     "Liverpool":                {"color": (200, 16, 46),   "tm_id": 31},
@@ -179,6 +184,8 @@ ALL_TEAMS = {
     "Antalyaspor":              {"color": (200, 16, 46),   "tm_id": 589},
     "Bursaspor":                {"color": (0, 100, 50),    "tm_id": 619},
     "Ankaragucu":               {"color": (255, 255, 255), "tm_id": 620},
+    "Gaziantepspor":            {"color": (200, 16, 46),   "tm_id": 527},
+    "Rizespor":                 {"color": (0, 100, 50),    "tm_id": 126},
     "Kartalspor":               {"color": (0, 0, 0),       "tm_id": 2445},
     "Sariyer":                  {"color": (0, 100, 200),   "tm_id": 1568},
     "Vefa":                     {"color": (100, 100, 100), "tm_id": 15498},
@@ -365,6 +372,65 @@ ALL_TEAMS = {
     "Brasiliense":              {"color": (255, 215, 0),   "tm_id": 4680},
     "Sagan Tosu":               {"color": (255, 105, 180), "tm_id": 3936},
     "Barcelona B":              {"color": (165, 0, 80),    "tm_id": 2988},
+    "Buducnost":                {"color": (0, 68, 148),    "tm_id": 3158},
+    "Marsonia":                 {"color": (255, 255, 255), "tm_id": 3718},
+
+    # ============================================
+    # POLONYA - Alt Lig
+    # ============================================
+    "Goczalkowice":             {"color": (0, 100, 50),    "tm_id": 78248},
+
+    # ============================================
+    # ISVEC
+    # ============================================
+    "Malmo":                    {"color": (0, 100, 200),   "tm_id": 496},
+    "Orebro":                   {"color": (0, 0, 0),       "tm_id": 1092},
+
+    # ============================================
+    # ISPANYA - Alt Lig
+    # ============================================
+    "Extremadura":              {"color": (0, 68, 148),    "tm_id": 26903},
+    "Leganes":                  {"color": (0, 80, 180),    "tm_id": 1244},
+    "Mallorca":                 {"color": (210, 20, 20),   "tm_id": 237},
+
+    # ============================================
+    # YUNANISTAN
+    # ============================================
+    "Atromitos":                {"color": (0, 68, 148),    "tm_id": 3060},
+
+    # ============================================
+    # JAPONYA / CIN
+    # ============================================
+    "Urawa Red":                {"color": (220, 5, 45),    "tm_id": 1000},
+    "Beijing Guoan":            {"color": (0, 120, 50),    "tm_id": 11808},
+
+    # ============================================
+    # ISKOCYA / HOLLANDA
+    # ============================================
+    "Queen Park":               {"color": (0, 0, 0),       "tm_id": 1282},
+    "Dundee":                   {"color": (0, 0, 100),     "tm_id": 502},
+    "Fortuna Sittard":          {"color": (230, 200, 0),   "tm_id": 192},
+
+    # ============================================
+    # TURKIYE - EK KULUPLER
+    # ============================================
+    "Altinordu":                {"color": (190, 20, 20),   "tm_id": 12053},
+    "Bodrumspor":               {"color": (0, 140, 75),    "tm_id": 25191},
+    "24 Erzincanspor":          {"color": (200, 16, 46),   "tm_id": 23963},
+    "Karacabey Bld":            {"color": (35, 31, 32),    "tm_id": 42123},
+    "Seker spor":               {"color": (0, 100, 180),   "tm_id": 3108},
+    "Orduspor":                 {"color": (120, 30, 140),  "tm_id": 3180},
+    "Bakirkoyspor":             {"color": (0, 100, 180),   "tm_id": 6248},
+    "Kahramanmaraspor":         {"color": (180, 20, 20),   "tm_id": 6249},
+    "Zeytinburnuspor":          {"color": (0, 100, 50),    "tm_id": 6247},
+
+    # ============================================
+    # DIGER EK TAKIMLAR
+    # ============================================
+    "Brighton":                 {"color": (0, 87, 184),    "tm_id": 1237},
+    "Bahia":                    {"color": (0, 56, 168),    "tm_id": 1001},
+    "Fortuna Dusseldorf":       {"color": (213, 0, 28),    "tm_id": 38},
+    "NEC Nijmegen":             {"color": (0, 133, 63),    "tm_id": 467},
 }
 
 
@@ -380,7 +446,9 @@ TEAM_ALIASES = {
     "Atletico Paranaense": "Athletico Paranaense",
     "Sporting Braga": "Braga",
     "TSV 1860": "Munih 1860",
-    "Marsonia": None,   # tm_id=30000 sahte, kullanılamaz
+    "Istanbul Basaksehir": "Basaksehir",
+    "Erzincanspor": "24 Erzincanspor",
+    "Guangzhou FC": "Guangzhou",
     "Sarayonu": None,   # tm_id=30000 sahte, kullanılamaz
 }
 
@@ -405,10 +473,26 @@ def get_team_color(team_name):
     return (100, 100, 100)
 
 
+def _team_slug(name):
+    """Takim adindan dosya slug'i olustur"""
+    slug = name.lower().replace(" ", "_").replace("-", "_")
+    slug = re.sub(r'[^a-z0-9_]', '', slug)
+    return slug
+
+
 def get_team_logo_url(team_name):
-    """Bir takimin TM logo URL'ini dondurur (yoksa None)"""
+    """Bir takimin logo URL'ini dondurur (once lokal, sonra TM)"""
     resolved = resolve_team_name(team_name)
     if resolved and resolved in ALL_TEAMS:
+        # Once lokal logo kontrolu (webp oncelikli, sonra png)
+        slug = _team_slug(resolved)
+        local_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "takim_logolari")
+        for ext in ("webp", "png"):
+            local_file = os.path.join(local_dir, f"{slug}.{ext}")
+            if os.path.exists(local_file):
+                return f"/takim_logolari/{slug}.{ext}"
+
+        # Yoksa TM'den cek
         team = ALL_TEAMS[resolved]
         if team.get("tm_id"):
             return f"{TM_LOGO_BASE}/{team['tm_id']}.png"
