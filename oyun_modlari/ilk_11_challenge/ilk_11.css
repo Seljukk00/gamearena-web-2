@@ -595,6 +595,74 @@
     border-radius: 4px;
 }
 
+/* ==========================================
+   SİMÜLASYON HIZ KONTROL PANELİ
+   ========================================== */
+.simControlsBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(132, 94, 247, 0.5);
+    margin-top: 5px;
+}
+
+.simSpeedTitle {
+    color: #845ef7;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.simSpeedBtns {
+    display: flex;
+    gap: 8px;
+}
+
+.simSpeedBtn {
+    background: #1a1a2e;
+    color: #ced4da;
+    border: 1px solid #444;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.simSpeedBtn:hover {
+    background: #2b2b48;
+    color: white;
+    border-color: #845ef7;
+}
+
+.simSpeedBtn.active {
+    background: #845ef7;
+    color: white;
+    border-color: #ffd43b;
+    box-shadow: 0 0 10px rgba(132, 94, 247, 0.6);
+}
+
+.simPost {
+    border-left: 4px solid #ffa94d !important;
+    background: rgba(255, 169, 77, 0.15);
+}
+
+.simSave {
+    border-left: 4px solid #74c0fc !important;
+    background: rgba(116, 192, 252, 0.15);
+}
+
+.simCard {
+    border-left: 4px solid #ffd43b !important;
+    background: rgba(255, 212, 59, 0.15);
+}
+
 @keyframes fadeInSlide {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }

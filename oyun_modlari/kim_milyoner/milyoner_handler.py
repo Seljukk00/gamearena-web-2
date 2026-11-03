@@ -276,8 +276,28 @@ def ml_pick_question(room, q_idx):
             supabase_save_question(category, level, q)
             return q
     
-    # --- 4. FALLBACK: history dikkate almadan tekrar dene (kullanıcı bu sorulari zaten görmüş ama başka çare yok) ---
-    print(f"[ML] ⚠️ Yeni soru bulunamadı, tekrarlanan soru gösterilebilir (level={level})")
+    # --- 4. FALLBACK: seen_hashes ile filtrele, yine bulunamazsa mecburen tekrar göster ---
+    print(f"[ML] ⚠️ Havuz daraldı, fallback devrede (level={level})")
+    
+    if category == "karisik":
+        pool = []
+        for cat in ["futbol", "genel_kultur"]:
+            for q in ML_QUESTIONS.get(cat, {}).get(level, []):
+                if q["soru"] not in played and q["soru"] not in seen_hashes:
+                    pool.append(q)
+    else:
+        pool = [q for q in ML_QUESTIONS.get(category, {}).get(level, [])
+                if q["soru"] not in played and q["soru"] not in seen_hashes]
+    
+    if pool:
+        q = random.choice(pool)
+        played.append(q["soru"])
+        room["ml_played"] = played
+        return q
+    
+    # --- 5. SON ÇARE: Tüm sorular görülmüş, mecburen tekrar göster ---
+    print(f"[ML] 🔄 Tüm sorular tüketildi, tekrar başlıyor (level={level})")
+    room["ml_pool_exhausted"] = True
     
     if category == "karisik":
         pool = []
@@ -406,6 +426,14 @@ async def ml_next_turn(room, broadcast):
         "total_questions": total_q
     })
 
+    # ✨ Havuz tükendi uyarısı
+    if room.get("ml_pool_exhausted"):
+        room["ml_pool_exhausted"] = False
+        await broadcast(room, {
+            "type": "ml_warning",
+            "message": "🔄 Bu kategorideki tüm soruları tamamladınız! Sorular başa dönüyor."
+        })
+
     old_task = room.get("ml_task")
     if old_task and not old_task.done():
         old_task.cancel()
@@ -502,6 +530,15 @@ async def start_ml_game(room, safe_send, broadcast):
             "total_questions": total_q,
             "max_players": room.get("ml_max_players", 2)
         })
+
+    # ✨ Havuz tükendi uyarısı (ilk soruda)
+    if room.get("ml_pool_exhausted"):
+        room["ml_pool_exhausted"] = False
+        for pid, pdata in room["players"].items():
+            await safe_send(pdata["ws"], {
+                "type": "ml_warning",
+                "message": "🔄 Bu kategorideki tüm soruları tamamladınız! Sorular başa dönüyor."
+            })
 
     room["ml_task"] = asyncio.create_task(ml_turn_timer(room, first_player, q_idx, broadcast))
 
@@ -767,6 +804,14 @@ async def handle_milyoner_message(
         current_room_code = join_code
         current_player_id = new_pid
         room["players"][new_pid] = {"ws": websocket, "name": name}
+
+        # ✨ Misafirin seen_hashes'ini de al (tekrar soru gelmesin)
+        guest_seen = data.get("seen_hashes", [])
+        if isinstance(guest_seen, list) and guest_seen:
+            if "ml_seen_hashes" not in room:
+                room["ml_seen_hashes"] = set()
+            room["ml_seen_hashes"].update(guest_seen)
+            print(f"[ML] Misafir history: {len(guest_seen)} soru eklendi (toplam: {len(room['ml_seen_hashes'])})")
 
         await safe_send(websocket, {
             "type": "ml_room_joined",

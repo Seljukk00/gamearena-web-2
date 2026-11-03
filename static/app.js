@@ -960,20 +960,39 @@ function openGameOver(msg) {
     const mySecretName = mySecretIndex != null ? footballers[mySecretIndex].name : "?";
     const oppSecretName = oppSecretIndex != null ? footballers[oppSecretIndex].name : "?";
 
+    // ✨ Resim yollarını al ve img taglerini hazırla
+    const mySecretImg = mySecretIndex != null ? `/static/images/${footballers[mySecretIndex].img_file || footballers[mySecretIndex].img + ".webp"}` : "";
+    const oppSecretImg = oppSecretIndex != null ? `/static/images/${footballers[oppSecretIndex].img_file || footballers[oppSecretIndex].img + ".webp"}` : "";
+    
+    const myImgTag = mySecretImg ? `<img src="${mySecretImg}" style="width:100px; height:100px; object-fit:cover; border-radius:10px; border:3px solid #51cf66; box-shadow:0 0 15px rgba(81,207,102,0.3); background:#1a1e2e; margin-top:8px;">` : `<div style="width:100px; height:100px; border:3px dashed #51cf66; border-radius:10px; margin:8px auto 0 auto; display:flex; align-items:center; justify-content:center; color:#51cf66; font-size:24px;">?</div>`;
+    const oppImgTag = oppSecretImg ? `<img src="${oppSecretImg}" style="width:100px; height:100px; object-fit:cover; border-radius:10px; border:3px solid #ff6b6b; box-shadow:0 0 15px rgba(255,107,107,0.3); background:#1a1e2e; margin-top:8px;">` : `<div style="width:100px; height:100px; border:3px dashed #ff6b6b; border-radius:10px; margin:8px auto 0 auto; display:flex; align-items:center; justify-content:center; color:#ff6b6b; font-size:24px;">?</div>`;
+
     let extra = "";
     if (msg.wrong_guess) {
         if (msg.loser_id === playerId) {
-            extra = `<p style="color:#ff6b6b; font-size:18px; margin-top:15px;"><b>YANLIŞ TAHMİN!</b><br>Tahmin ettiğin: <b>${msg.guessed_name}</b></p>`;
+            extra = `<p style="color:#ff6b6b; font-size:16px; margin-top:10px; background:rgba(255,107,107,0.1); padding:8px; border-radius:8px; border:1px solid rgba(255,107,107,0.3);"><b>YANLIŞ TAHMİN!</b><br>Tahmin ettiğin: <b style="color:#fff;">${msg.guessed_name}</b></p>`;
         } else {
-            extra = `<p style="color:#51cf66; font-size:18px; margin-top:15px;"><b>Rakip yanlış tahmin etti!</b><br>Tahmin ettiği: <b>${msg.guessed_name}</b></p>`;
+            extra = `<p style="color:#51cf66; font-size:16px; margin-top:10px; background:rgba(81,207,102,0.1); padding:8px; border-radius:8px; border:1px solid rgba(81,207,102,0.3);"><b>Rakip yanlış tahmin etti!</b><br>Tahmin ettiği: <b style="color:#fff;">${msg.guessed_name}</b></p>`;
         }
     }
 
     gameOverText.innerHTML = `
         ${extra}
-        <p style="margin-top:20px;">Senin futbolcun: <b style="color:#51cf66;">${mySecretName}</b></p>
-        <p>Rakibin futbolcusu: <b style="color:#ff6b6b;">${oppSecretName}</b></p>
-        <p style="margin-top:15px; font-size:22px;">Skor: <b>${scores[playerId]} - ${scores[otherId]}</b></p>
+        <div style="display:flex; justify-content:center; gap:20px; margin-top:15px;">
+            <div style="flex:1; text-align:center; background:rgba(81,207,102,0.05); padding:10px; border-radius:12px; border:1px solid rgba(81,207,102,0.2);">
+                <div style="color:#adb5bd; font-size:13px; margin-bottom:4px;">Senin Futbolcun</div>
+                <div style="color:#51cf66; font-weight:bold; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${mySecretName}</div>
+                ${myImgTag}
+            </div>
+            <div style="flex:1; text-align:center; background:rgba(255,107,107,0.05); padding:10px; border-radius:12px; border:1px solid rgba(255,107,107,0.2);">
+                <div style="color:#adb5bd; font-size:13px; margin-bottom:4px;">Rakibin Futbolcusu</div>
+                <div style="color:#ff6b6b; font-weight:bold; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${oppSecretName}</div>
+                ${oppImgTag}
+            </div>
+        </div>
+        <div style="margin-top:20px; font-size:20px; background:rgba(0,0,0,0.3); padding:10px; border-radius:10px; border:1px solid #3b4c63;">
+            Skor: <b style="color:#ffd43b; font-size:24px; margin-left:10px;">${scores[playerId]} - ${scores[otherId]}</b>
+        </div>
     `;
 
     if (playerId === 1) newRoundBtn.classList.remove("hidden");
@@ -1313,7 +1332,7 @@ function handleMessage(msg) {
         if (msg.mode === "takim_bilmece") {
             send({ type: "takim_join_room", name: name, room_code: code });
         } else if (msg.mode === "kim_milyoner") {
-            send({ type: "ml_join_room", name: name, room_code: code });
+            send({ type: "ml_join_room", name: name, room_code: code, seen_hashes: (typeof getMlHistory === "function") ? getMlHistory() : [] });
         } else if (msg.mode === "haritadan_bul") {
             send({ type: "harita_join_room", name: name, room_code: code });
         } else if (msg.mode === "gizemli_kariyer") {
@@ -1587,8 +1606,9 @@ function handleMessage(msg) {
     if (msg.type === "wrong_guess_continue") {
         if (msg.guesses_left) guessesLeft = msg.guesses_left;
 
-        // Yanlış tahmin edilen oyuncuyu tahtadan ele (üzerine X at)
-        if (msg.guessed_name) {
+        // ✨ Yanlış tahmin edilen oyuncuyu SADECE tahmin edenin tahtasından ele
+        // (Rakip tahmin ettiyse benim tahtamda silme YAPMA - o futbolcu benim gizlim olabilir!)
+        if (msg.guessed_name && msg.guesser_id === playerId) {
             const idx = footballers.findIndex(f => f.name === msg.guessed_name);
             if (idx !== -1 && !eliminated[idx]) {
                 eliminated[idx] = true;

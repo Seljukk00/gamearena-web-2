@@ -100,7 +100,7 @@ def build_prompt(category, difficulty="karisik"):
     
     zorluk_aciklamasi = ""
     if difficulty == "kolay":
-        zorluk_aciklamasi = "Genel oyuncular için KOLAY seviye. Herkesin bildiği temel sorular olsun."
+        zorluk_aciklamasi = "Genel futbol/kültür takipçileri için KOLAY seviye. Bilindik ama kaliteli sorular olsun (asla kreş/ilkokul seviyesi olmasın)."
     elif difficulty == "orta":
         zorluk_aciklamasi = "Ortalama futbol/kültür bilgisi olan biri için ORTA seviye."
     elif difficulty == "zor":
@@ -110,7 +110,7 @@ def build_prompt(category, difficulty="karisik"):
     else:
         zorluk_aciklamasi = "Klasik Milyoner formatı, aşamalı zorluk."
 
-    prompt = f"""Sen bir "Kim Milyoner Olmak İster?" oyununun soru hazırlayıcısısın.
+    prompt = f"""Sen bir "Kim Milyoner Olmak İster?" yarışmasının profesyonel soru hazırlayıcısısın.
 
 [Session ID: {random_seed}-{timestamp}]
 
@@ -120,24 +120,24 @@ ZORLUK PROFİLİ: {difficulty.upper()}
 {zorluk_aciklamasi}
 
 ZORLUK DAĞILIMI:
-- {dist['kolay']} KOLAY (herkes bilir)
+- {dist['kolay']} KOLAY (bilindik ama kaliteli)
 - {dist['orta']} ORTA (biraz düşünmek lazım)
 - {dist['zor']} ZOR (uzmanlık gerektirir)
 - {dist['cok_zor']} ÇOK ZOR (nadir bilinir)
 
+⚠️ KESİNLİKLE YASAKLI VE KREŞ SEVİYESİ SORULAR (ASLA SORMA!):
+- Takımların renkleri ("Beşiktaş'ın renkleri nedir?", "Galatasaray hangi renklere sahiptir?" vb.) -> KESİNLİKLE YASAK!
+- Takımların simgeleri veya takma isimleri ("Sarı Kanaryalar kimdir?", "Kara Kartal hangi takımdır?") -> KESİNLİKLE YASAK!
+- Şehir takımlarının şehri ("Trabzonspor hangi şehirdedir?", "Adana Demirspor nerenin takımıdır?") -> KESİNLİKLE YASAK!
+- Ülkelerin bayrak renkleri veya kıtaları ("Türkiye hangi kıtadadır?", "Brezilya bayrağında hangi renk vardır?") -> KESİNLİKLE YASAK!
+- Temel ilkokul bilgileri ("Futbol kaç kişiyle oynanır?", "Kalecinin görevi nedir?", "Ofsayt nedir?") -> KESİNLİKLE YASAK!
+- Klişe genel kültür ("Türkiye'nin başkenti neresidir?", "İstanbul ne zaman fethedildi?") -> KESİNLİKLE YASAK!
+
 ⚠️ ÇOK ÖNEMLİ — YARATICILIK KURALLARI:
-- YAPMAK ZORUNDA olduğun: HER SEFERİNDE FARKLI sorular üret. Aynı soruları tekrar etme!
-- KAÇINACAKLARIN (klişe sorular — kesinlikle sorma):
-  * "Türkiye'nin başkenti neresidir?"
-  * "Bir futbol takımı sahada kaç oyuncu ile oynar?"
-  * "İstanbul'un fethi hangi yıldadır?"
-  * "Süper Lig'de kaç takım var?"
-  * "Türkiye'nin en yüksek dağı hangisidir?"
-  * "En son Dünya Kupası'nı kim kazandı?"
-  * "Fenerbahçe/Galatasaray/Beşiktaş kaç yılında kuruldu?"
-- Az bilinen, ilginç, düşündürücü sorular sor
-- Rastgele ve orijinal ol — 12 farklı konuya değin
-- Aynı takım/kişi/yıl 3'ten fazla soruda geçmesin
+- "KOLAY" seviyedeki soru bile futbolseverin/yetişkinin zevk alacağı kalitede olmalıdır (Örn: "Şampiyonlar Ligi'ni en çok kazanan kulüp?", "Messi ilk Ballon d'Or'unu ne zaman aldı?").
+- Her seferinde FARKLI ve BÖLGESEL ÇEŞİTLİLİĞİ olan sorular üret.
+- Az bilinen, ilginç, düşündürücü ve yarışma tadında sorular sor.
+- 12 soru tamamen farklı konulara/dönemlere değinsin.
 
 DİĞER KURALLAR:
 1. Her soru 4 şıklı olsun (A, B, C, D)

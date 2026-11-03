@@ -468,10 +468,21 @@ function updateIlk11Lobby() {
 function startIlk11Timer(seconds) {
     stopIlk11Timer();
     ilk11Data.timerSeconds = seconds;
+    ilk11Data.timerWarningPlaying = false;
     updateIlk11TimerDisplay();
     ilk11Data.timerInterval = setInterval(() => {
         ilk11Data.timerSeconds--;
         updateIlk11TimerDisplay();
+        if (ilk11Data.timerSeconds <= 10 && !ilk11Data.timerWarningPlaying) {
+            ilk11Data.timerWarningPlaying = true;
+            try {
+                const vol = (typeof getGlobalVolume === "function") ? getGlobalVolume() : 0.3;
+                ilk11Data._timerWarningAudio = new Audio("/ml_assets/timer_warning.mp3");
+                ilk11Data._timerWarningAudio.volume = vol;
+                ilk11Data._timerWarningAudio.loop = true;
+                ilk11Data._timerWarningAudio.play().catch(() => {});
+            } catch(e) {}
+        }
         if (ilk11Data.timerSeconds <= 0) stopIlk11Timer();
     }, 1000);
 }
@@ -481,6 +492,11 @@ function stopIlk11Timer() {
         clearInterval(ilk11Data.timerInterval);
         ilk11Data.timerInterval = null;
     }
+    if (ilk11Data._timerWarningAudio) {
+        try { ilk11Data._timerWarningAudio.pause(); ilk11Data._timerWarningAudio.currentTime = 0; } catch(e) {}
+        ilk11Data._timerWarningAudio = null;
+    }
+    ilk11Data.timerWarningPlaying = false;
 }
 
 function updateIlk11TimerDisplay() {
@@ -848,6 +864,10 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "ilk11_game_started") {
+        stopIlk11Simulation();
+        ilk11ResultBox.classList.add("hidden");
+        ilk11PopupBox.classList.add("hidden");
+
         ilk11Data.playerId = msg.player_id;
         ilk11Data.players = msg.players;
         ilk11Data.turnSeconds = msg.turn_seconds;
@@ -955,6 +975,7 @@ handleMessage = function(msg) {
     
     // ✨ Host lobiye döndü → herkesi lobiye at
     if (msg.type === "ilk11_back_to_lobby") {
+        stopIlk11Simulation();
         ilk11ResultBox.classList.add("hidden");
         ilk11PopupBox.classList.add("hidden");
         stopIlk11Timer();
@@ -962,77 +983,72 @@ handleMessage = function(msg) {
         updateIlk11Lobby();
         return;
     }
-    
-    // ✨ Simülasyon Eventleri (Manager Spikeri)
-    if (msg.type === "ilk11_sim_start") {
-        document.querySelector(".ilk11ResultTeams").style.display = "none";
-        
-        let simBox = document.getElementById("ilk11SimBox");
-        if(!simBox) {
-            simBox = document.createElement("div");
-            simBox.id = "ilk11SimBox";
-            simBox.className = "ilk11SimBox";
-            document.querySelector(".ilk11ResultTeams").parentNode.insertBefore(simBox, document.querySelector(".ilk11ResultTeams"));
-        }
-        simBox.style.display = "flex";
-        simBox.innerHTML = `
-            <div class="simScoreboard">
-                <div class="simTeam">${msg.p1}</div>
-                <div class="simScore" id="simScoreText">0 - 0</div>
-                <div class="simTeam">${msg.p2}</div>
-            </div>
-            <div class="simLogContainer" id="simLogContainer"></div>
-        `;
-        document.getElementById("ilk11ResultWinner").textContent = "MAÇ OYNANIYOR...";
-        document.getElementById("ilk11ResultWinner").style.color = "#845ef7";
-        return;
-    }
-    
-    if (msg.type === "ilk11_sim_event") {
-        const simScore = document.getElementById("simScoreText");
-        const simLog = document.getElementById("simLogContainer");
-        if(simScore) simScore.textContent = `${msg.score1} - ${msg.score2}`;
-        
-        if(simLog) {
-            const ev = document.createElement("div");
-            ev.className = "simEvent " + (msg.is_goal ? "simGoal" : "");
-            ev.innerHTML = `<span class="simMin">${msg.min}'</span> ${msg.text}`;
-            simLog.appendChild(ev);
-            simLog.scrollTop = simLog.scrollHeight; // Otomatik aşağı kaydır
-        }
-        
-        if(msg.is_goal) {
-            try { new Audio("/static/sounds/game_correct.mp3").play().catch(()=>{}); } catch(e){}
-        }
-        return;
-    }
-    
-    if (msg.type === "ilk11_sim_end") {
-        const simLog = document.getElementById("simLogContainer");
-        if(simLog) {
-            const ev = document.createElement("div");
-            ev.className = "simEvent simMatchEnd";
-            ev.innerHTML = `Hakem bitiş düdüğünü çalıyor! Maç Sonucu: ${msg.score1} - ${msg.score2}`;
-            simLog.appendChild(ev);
-            simLog.scrollTop = simLog.scrollHeight;
-        }
-        
-        const winnerEl = document.getElementById("ilk11ResultWinner");
-        if (msg.score1 > msg.score2) {
-            winnerEl.textContent = ilk11Data.playerId === 1 ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
-            winnerEl.style.color = ilk11Data.playerId === 1 ? "#51cf66" : "#ff6b6b";
-            if(ilk11Data.playerId === 1) startConfetti();
-        } else if (msg.score2 > msg.score1) {
-            winnerEl.textContent = ilk11Data.playerId === 2 ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
-            winnerEl.style.color = ilk11Data.playerId === 2 ? "#51cf66" : "#ff6b6b";
-            if(ilk11Data.playerId === 2) startConfetti();
-        } else {
-            winnerEl.textContent = "⚖️ BERABERE!";
-            winnerEl.style.color = "#74c0fc";
-        }
 
-        const simBtn = document.getElementById("ilk11SimBtn");
-        if(simBtn) simBtn.style.display = "none";
+    // ⚡ Simülasyon Hızı Senkronize Et
+    if (msg.type === "ilk11_sim_speed_updated") {
+        applyIlk11SimSpeed(msg.speed);
+        return;
+    }
+    
+    // ==========================================
+    // 📺 CANLI HIZ AYARLI SİMÜLASYON MOTORU
+    // ==========================================
+    if (msg.type === "ilk11_sim_start") {
+        try {
+            const teamsBox = document.querySelector(".ilk11ResultTeams");
+            if (teamsBox) teamsBox.style.display = "none";
+            
+            let simBox = document.getElementById("ilk11SimBox");
+            if (!simBox) {
+                simBox = document.createElement("div");
+                simBox.id = "ilk11SimBox";
+                simBox.className = "ilk11SimBox";
+                
+                if (teamsBox && teamsBox.parentNode) {
+                    teamsBox.parentNode.insertBefore(simBox, teamsBox);
+                } else {
+                    const resCard = document.querySelector(".ilk11ResultCard") || document.getElementById("ilk11ResultBox");
+                    if (resCard) resCard.appendChild(simBox);
+                }
+            }
+            simBox.style.display = "flex";
+            simBox.innerHTML = `
+                <div class="simScoreboard">
+                    <div class="simTeam">${msg.p1 || "1. Takım"}</div>
+                    <div class="simScore" id="simScoreText">0 - 0</div>
+                    <div class="simTeam">${msg.p2 || "2. Takım"}</div>
+                </div>
+                <div class="simLogContainer" id="simLogContainer"></div>
+                <div class="simControlsBar">
+                    <div class="simSpeedTitle">⚡ Simülasyon Hızı:</div>
+                    <div class="simSpeedBtns">
+                        <button class="simSpeedBtn active" onclick="setIlk11SimSpeed(1)">1x</button>
+                        <button class="simSpeedBtn" onclick="setIlk11SimSpeed(2)">2x</button>
+                        <button class="simSpeedBtn" onclick="setIlk11SimSpeed(5)">5x</button>
+                        <button class="simSpeedBtn" onclick="setIlk11SimSpeed(20)">⚡ MAX</button>
+                    </div>
+                </div>
+            `;
+            const winnerEl = document.getElementById("ilk11ResultWinner");
+            if (winnerEl) {
+                winnerEl.textContent = "MAÇ OYNANIYOR...";
+                winnerEl.style.color = "#845ef7";
+            }
+
+            // Simülasyon Durumunu Başlat
+            window.ilk11SimState = {
+                events: msg.events || [],
+                index: 0,
+                speed: 1,
+                timer: null,
+                final1: msg.final_score1 || 0,
+                final2: msg.final_score2 || 0
+            };
+
+            runNextIlk11SimEvent();
+        } catch(e) {
+            console.error("[ILK11 SIM START ERR]", e);
+        }
         return;
     }
 
@@ -1040,6 +1056,114 @@ handleMessage = function(msg) {
 };
 
 // (Bu blok silindi - app.js zaten room_mode_result işliyor)
+
+// ==========================================
+// ⚡ SİMÜLASYON OYNATMA & HIZ YÖNETİCİSİ
+// ==========================================
+function stopIlk11Simulation() {
+    if (window.ilk11SimState) {
+        if (window.ilk11SimState.timer) {
+            clearTimeout(window.ilk11SimState.timer);
+        }
+        window.ilk11SimState = null;
+    }
+    const simBox = document.getElementById("ilk11SimBox");
+    if (simBox) simBox.style.display = "none";
+    
+    const teamsBox = document.querySelector(".ilk11ResultTeams");
+    if (teamsBox) teamsBox.style.display = "flex";
+}
+
+function setIlk11SimSpeed(multiplier) {
+    send({ type: "ilk11_sim_speed", speed: multiplier });
+}
+
+function applyIlk11SimSpeed(multiplier) {
+    if (!window.ilk11SimState) return;
+    window.ilk11SimState.speed = multiplier;
+
+    document.querySelectorAll(".simSpeedBtn").forEach(btn => {
+        btn.classList.remove("active");
+        if ((multiplier === 1 && btn.textContent.includes("1x")) ||
+            (multiplier === 2 && btn.textContent.includes("2x")) ||
+            (multiplier === 5 && btn.textContent.includes("5x")) ||
+            (multiplier === 20 && btn.textContent.includes("MAX"))) {
+            btn.classList.add("active");
+        }
+    });
+
+    if (window.ilk11SimState.timer) {
+        clearTimeout(window.ilk11SimState.timer);
+        window.ilk11SimState.timer = null;
+        runNextIlk11SimEvent();
+    }
+}
+
+function runNextIlk11SimEvent() {
+    const st = window.ilk11SimState;
+    if (!st) return;
+
+    if (st.index >= st.events.length) {
+        // Maç Bitti!
+        const simLog = document.getElementById("simLogContainer");
+        if (simLog) {
+            const ev = document.createElement("div");
+            ev.className = "simEvent simMatchEnd";
+            ev.innerHTML = `Hakem bitiş düdüğünü çalıyor! Maç Sonucu: ${st.final1} - ${st.final2}`;
+            simLog.appendChild(ev);
+            simLog.scrollTop = simLog.scrollHeight;
+        }
+
+        const winnerEl = document.getElementById("ilk11ResultWinner");
+        if (winnerEl) {
+            if (st.final1 > st.final2) {
+                winnerEl.textContent = ilk11Data.playerId === 1 ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
+                winnerEl.style.color = ilk11Data.playerId === 1 ? "#51cf66" : "#ff6b6b";
+                if (ilk11Data.playerId === 1) startConfetti();
+            } else if (st.final2 > st.final1) {
+                winnerEl.textContent = ilk11Data.playerId === 2 ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
+                winnerEl.style.color = ilk11Data.playerId === 2 ? "#51cf66" : "#ff6b6b";
+                if (ilk11Data.playerId === 2) startConfetti();
+            } else {
+                winnerEl.textContent = "⚖️ BERABERE!";
+                winnerEl.style.color = "#74c0fc";
+            }
+        }
+
+        const simBtn = document.getElementById("ilk11SimBtn");
+        if (simBtn) simBtn.style.display = "none";
+        return;
+    }
+
+    const item = st.events[st.index];
+    st.index++;
+
+    const simScore = document.getElementById("simScoreText");
+    const simLog = document.getElementById("simLogContainer");
+    if (simScore) simScore.textContent = `${item.score1} - ${item.score2}`;
+
+    if (simLog) {
+        const ev = document.createElement("div");
+        let cls = "simEvent";
+        if (item.event_type === "goal") cls += " simGoal";
+        else if (item.event_type === "post") cls += " simPost";
+        else if (item.event_type === "save") cls += " simSave";
+        else if (item.event_type === "card") cls += " simCard";
+
+        ev.className = cls;
+        ev.innerHTML = `<span class="simMin">${item.min}'</span> ${item.text}`;
+        simLog.appendChild(ev);
+        simLog.scrollTop = simLog.scrollHeight;
+    }
+
+    if (item.is_goal) {
+        try { new Audio("/static/sounds/game_correct.mp3").play().catch(() => {}); } catch (e) {}
+    }
+
+    // Temel gecikme: 1400ms. Hıza bölerek dinamik süre alıyoruz.
+    const delay = Math.max(50, Math.floor(1400 / st.speed));
+    st.timer = setTimeout(runNextIlk11SimEvent, delay);
+}
 
 // Başlangıçta popup'ları kapat
 ilk11PopupBox.classList.add("hidden");

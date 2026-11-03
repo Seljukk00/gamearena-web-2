@@ -465,10 +465,21 @@ document.getElementById("gizemPassNoBtn").onclick = () => {
 function startGizemTimer(seconds) {
     stopGizemTimer();
     gizemData.timerSeconds = seconds;
+    gizemData.timerWarningPlaying = false;
     updateGizemTimerDisplay();
     gizemData.timerInterval = setInterval(() => {
         gizemData.timerSeconds--;
         updateGizemTimerDisplay();
+        if (gizemData.timerSeconds <= 10 && !gizemData.timerWarningPlaying) {
+            gizemData.timerWarningPlaying = true;
+            try {
+                const vol = (typeof getGlobalVolume === "function") ? getGlobalVolume() : 0.3;
+                gizemData._timerWarningAudio = new Audio("/ml_assets/timer_warning.mp3");
+                gizemData._timerWarningAudio.volume = vol;
+                gizemData._timerWarningAudio.loop = true;
+                gizemData._timerWarningAudio.play().catch(() => {});
+            } catch(e) {}
+        }
         if (gizemData.timerSeconds <= 0) stopGizemTimer();
     }, 1000);
 }
@@ -478,6 +489,11 @@ function stopGizemTimer() {
         clearInterval(gizemData.timerInterval);
         gizemData.timerInterval = null;
     }
+    if (gizemData._timerWarningAudio) {
+        try { gizemData._timerWarningAudio.pause(); gizemData._timerWarningAudio.currentTime = 0; } catch(e) {}
+        gizemData._timerWarningAudio = null;
+    }
+    gizemData.timerWarningPlaying = false;
 }
 
 function updateGizemTimerDisplay() {

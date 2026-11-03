@@ -35,7 +35,8 @@ const mlSounds = {
     correct: null,
     wrong: null,
     question: null,
-    menu: null
+    menu: null,
+    timer_warning: null
 };
 
 // ========================================
@@ -248,8 +249,9 @@ function loadMlSounds() {
     try {
         mlSounds.correct = new Audio("/ml_assets/correct.mp3");
         mlSounds.wrong = new Audio("/ml_assets/wrong.mp3");
-        mlSounds.question = new Audio("/ml_assets/question.WAV");
+        mlSounds.question = new Audio("/ml_assets/question.mp3");
         mlSounds.menu = new Audio("/ml_assets/menu.mp3");
+        mlSounds.timer_warning = new Audio("/ml_assets/timer_warning.mp3");
         
         const saved = localStorage.getItem("mlVolume");
         const savedVol = saved !== null ? parseInt(saved) : 0;
@@ -257,6 +259,7 @@ function loadMlSounds() {
         
         if (mlSounds.question) mlSounds.question.loop = true;
         if (mlSounds.menu) mlSounds.menu.loop = true;
+        if (mlSounds.timer_warning) mlSounds.timer_warning.loop = true;
     } catch (e) {
         console.error("Ses yükleme hatası:", e);
     }
@@ -636,6 +639,9 @@ document.getElementById("createMlBtn").onclick = () => {
     const maxPlayers = parseInt(document.getElementById("mlMaxPlayersSelect").value) || 2;
     const totalQuestions = parseInt(document.getElementById("mlTotalQuestionsSelect").value) || 12;
 
+    mlData.category = category;
+    mlData.difficulty = difficulty;
+
     // ✨ Ayarları hafızaya kaydet
     try {
         localStorage.setItem("mlCategory", category);
@@ -669,7 +675,10 @@ document.getElementById("createMlBtn").onclick = () => {
 
     // Normal akış (Turnstile gerekli)
     if (!enteredName) { if (msgEl) msgEl.textContent = "İsim gir."; return; }
-    if (!mlTurnstileToken) { if (msgEl) msgEl.textContent = "⏳ Güvenlik doğrulaması bekleniyor..."; return; }
+    
+    // ✨ Lokal test kontrolü (127.0.0.1 veya localhost iken Turnstile zorunlu değil)
+    const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+    if (!mlTurnstileToken && !isLocal) { if (msgEl) msgEl.textContent = "⏳ Güvenlik doğrulaması bekleniyor..."; return; }
     
     localStorage.setItem("playerName", enteredName);
     myName = enteredName;
@@ -682,10 +691,12 @@ document.getElementById("createMlBtn").onclick = () => {
         turn_seconds: turnSec,
         max_players: maxPlayers,
         total_questions: totalQuestions,
-        turnstile_token: mlTurnstileToken
+        turnstile_token: mlTurnstileToken || "local_dev_token"
     });
     mlTurnstileToken = null;
-    if (window.turnstile) window.turnstile.reset("#mlTurnstileWidget");
+    if (window.turnstile) {
+        try { window.turnstile.reset("#mlTurnstileWidget"); } catch(e) {}
+    }
 };
 
 document.getElementById("createMlBackBtn").onclick = () => {
@@ -893,14 +904,24 @@ document.getElementById("mlJokerPhone").onclick = () => {
 function startMlTimer(seconds) {
     stopMlTimer();
     mlData.timerSeconds = seconds;
+    mlData.timerWarningPlaying = false;
     updateMlTimerDisplay();
     mlData.timerInterval = setInterval(() => {
-        mlData.timerSeconds--; updateMlTimerDisplay();
+        mlData.timerSeconds--;
+        updateMlTimerDisplay();
+        if (mlData.timerSeconds <= 10 && mlData.timerSeconds > 0 && !mlData.timerWarningPlaying) {
+            mlData.timerWarningPlaying = true;
+            playMlSound("timer_warning");
+        }
         if (mlData.timerSeconds <= 0) stopMlTimer();
     }, 1000);
 }
-function stopMlTimer() { clearInterval(mlData.timerInterval); mlData.timerInterval = null; }
-function updateMlTimerDisplay() {
+function stopMlTimer() {
+    clearInterval(mlData.timerInterval);
+    mlData.timerInterval = null;
+    mlData.timerWarningPlaying = false;
+    stopMlSound("timer_warning");
+}function updateMlTimerDisplay() {
     const el = document.getElementById("mlTimer");
     el.textContent = mlData.timerSeconds;
     el.className = "mlTimerBig " + (mlData.timerSeconds <= 10 ? "danger" : mlData.timerSeconds <= 20 ? "warning" : "");
@@ -920,9 +941,13 @@ function updateMlLobby() {
         const catLabels = {
             "futbol": "⚽ Futbol",
             "genel_kultur": "📚 Genel Kültür",
-            "karisik": "🎲 Karışık"
+            "genel": "📚 Genel Kültür",
+            "karisik": "🎲 Karışık",
+            "karışık": "🎲 Karışık",
+            "all": "🎲 Karışık"
         };
-        catEl.textContent = catLabels[mlData.category] || "⚽ Futbol";
+        const catKey = (mlData.category || "karisik").toLowerCase();
+        catEl.textContent = catLabels[catKey] || "🎲 Karışık";
     }
     
     // ✨ Zorluk göster
@@ -1230,8 +1255,8 @@ handleMessage = function(msg) {
             try { new Audio("/static/sounds/player_join.mp3").play().catch(()=>{}); } catch(e){}
             mlData.playerId = msg.player_id; mlData.roomCode = msg.room_code;
             mlData.turnSeconds = msg.turn_seconds; 
-            mlData.category = msg.category || "futbol";
-            mlData.difficulty = msg.difficulty || "karisik";
+            if (msg.category) mlData.category = msg.category;
+            if (msg.difficulty) mlData.difficulty = msg.difficulty;
             if (msg.max_players !== undefined) mlData.maxPlayers = msg.max_players;
             if (msg.total_questions !== undefined) mlData.totalQuestions = msg.total_questions;
             mlData.aiReady = false;
@@ -1375,6 +1400,10 @@ handleMessage = function(msg) {
                     "${msg.result}"
                 `;
                 renderMlJokers();
+            }
+        } else if (msg.type === "ml_warning") {
+            if (typeof showToast === "function") {
+                showToast(msg.message || "⚠️ Uyarı", "warn");
             }
         } else if (msg.type === "ml_game_over") {
             stopAllMlSounds();

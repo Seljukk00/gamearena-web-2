@@ -23,6 +23,8 @@
     let sarkiTotalRounds = 10;
     let sarkiTimerInterval = null;
     let sarkiTimerRemaining = 0;
+    let sarkiTimerWarningPlaying = false;
+    let _sarkiTimerWarningAudio = null;
     let sarkiAudio = null;
     let sarkiHasAnswered = false;
     let sarkiCurrentPhase = "waiting";
@@ -1330,11 +1332,23 @@
     function startSarkiTimer(totalSeconds) {
         stopSarkiTimer();
         sarkiTimerRemaining = totalSeconds;
+        sarkiTimerWarningPlaying = false;
         updateSarkiTimerDisplay(sarkiTimerRemaining);
 
         sarkiTimerInterval = setInterval(() => {
             sarkiTimerRemaining--;
             updateSarkiTimerDisplay(sarkiTimerRemaining);
+            if (sarkiTimerRemaining <= 10 && !sarkiTimerWarningPlaying) {
+                sarkiTimerWarningPlaying = true;
+                try {
+                    let vol = 0.5;
+                    if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+                    _sarkiTimerWarningAudio = new Audio("/ml_assets/timer_warning.mp3");
+                    _sarkiTimerWarningAudio.volume = vol;
+                    _sarkiTimerWarningAudio.loop = true;
+                    _sarkiTimerWarningAudio.play().catch(() => {});
+                } catch(e) {}
+            }
             if (sarkiTimerRemaining <= 0) {
                 stopSarkiTimer();
             }
@@ -1387,6 +1401,11 @@
             clearInterval(sarkiTimerInterval);
             sarkiTimerInterval = null;
         }
+        if (_sarkiTimerWarningAudio) {
+            try { _sarkiTimerWarningAudio.pause(); _sarkiTimerWarningAudio.currentTime = 0; } catch(e) {}
+            _sarkiTimerWarningAudio = null;
+        }
+        sarkiTimerWarningPlaying = false;
     }
 
     function sendAnswer(idx) {

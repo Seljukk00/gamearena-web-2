@@ -974,11 +974,22 @@ function startTakimTimer(seconds) {
     stopTakimTimer();
     takimData.timerSeconds = seconds;
     takimData.timerUnlimited = (seconds === 0);  // ✨ Sınırsız mı?
+    takimData.timerWarningPlaying = false;
     updateTakimTimerDisplay();
     if (takimData.timerUnlimited) return;  // Sınırsızda geri sayım yok
     takimData.timerInterval = setInterval(() => {
         takimData.timerSeconds--;
         updateTakimTimerDisplay();
+        if (takimData.timerSeconds <= 10 && !takimData.timerWarningPlaying) {
+            takimData.timerWarningPlaying = true;
+            try {
+                const vol = (typeof getGlobalVolume === "function") ? getGlobalVolume() : 0.3;
+                takimData._timerWarningAudio = new Audio("/ml_assets/timer_warning.mp3");
+                takimData._timerWarningAudio.volume = vol;
+                takimData._timerWarningAudio.loop = true;
+                takimData._timerWarningAudio.play().catch(() => {});
+            } catch(e) {}
+        }
         if (takimData.timerSeconds <= 0) stopTakimTimer();
     }, 1000);
 }
@@ -988,6 +999,11 @@ function stopTakimTimer() {
         clearInterval(takimData.timerInterval);
         takimData.timerInterval = null;
     }
+    if (takimData._timerWarningAudio) {
+        try { takimData._timerWarningAudio.pause(); takimData._timerWarningAudio.currentTime = 0; } catch(e) {}
+        takimData._timerWarningAudio = null;
+    }
+    takimData.timerWarningPlaying = false;
 }
 
 function updateTakimTimerDisplay() {

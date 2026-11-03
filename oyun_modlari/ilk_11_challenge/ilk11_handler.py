@@ -386,84 +386,181 @@ async def send_ilk11_lobby_update(room, broadcast):
 
 
 # ==========================================
-# SİMÜLASYON MOTORU (FOOTBALL MANAGER)
+# SİMÜLASYON MOTORU (GERÇEKÇİ MAÇ MOTORU)
 # ==========================================
 async def run_ilk11_simulation(room, broadcast):
-    room["phase"] = "simulation"
-    team1 = room["ilk11_teams"].get(1, {})
-    team2 = room["ilk11_teams"].get(2, {})
-    
-    _, _, t1 = calculate_total_score(team1)
-    _, _, t2 = calculate_total_score(team2)
-    
-    p1_name = room["players"][1]["name"]
-    p2_name = room["players"][2]["name"]
-    
-    def get_random_player(team_dict):
-        if not team_dict: return "Bir oyuncu"
-        try:
-            idx = random.choice(list(team_dict.values()))
-            if 0 <= idx < len(ALL_FOOTBALLERS):
-                return ALL_FOOTBALLERS[idx]["name"]
-        except:
-            pass
-        return "Bir oyuncu"
+    try:
+        room["phase"] = "simulation"
+        team1 = room["ilk11_teams"].get(1, {})
+        team2 = room["ilk11_teams"].get(2, {})
+        
+        r1, c1, t1 = calculate_total_score(team1)
+        r2, c2, t2 = calculate_total_score(team2)
+        
+        p1_name = room["players"].get(1, {}).get("name", "1. Oyuncu")
+        p2_name = room["players"].get(2, {}).get("name", "2. Oyuncu")
+        
+        def get_team_roster(team_dict):
+            roster = {"GK": [], "DEF": [], "MID": [], "FWD": [], "ALL": []}
+            for pos_id, idx in team_dict.items():
+                if 0 <= idx < len(ALL_FOOTBALLERS):
+                    f = ALL_FOOTBALLERS[idx]
+                    pos_type = POSITIONS.get(pos_id, {}).get('type', 'Forvet')
+                    rating = calculate_rating(f, pos_type)
+                    p_obj = {"name": f["name"], "rating": rating, "pos_id": pos_id, "pos_type": pos_type}
+                    roster["ALL"].append(p_obj)
+                    if pos_type == 'Kaleci': roster["GK"].append(p_obj)
+                    elif pos_type == 'Defans': roster["DEF"].append(p_obj)
+                    elif pos_type == 'Orta Saha': roster["MID"].append(p_obj)
+                    else: roster["FWD"].append(p_obj)
+            return roster
 
-    await broadcast(room, {"type": "ilk11_sim_start", "p1": p1_name, "p2": p2_name})
-    
-    score1, score2 = 0, 0
-    
-    # Ortalama 90 dakikayı 18 adımda (her 5 dakikada bir) simüle ediyoruz.
-    # Her adım 1.5 saniye sürecek (Toplam ~27 saniye)
-    for minute in range(1, 92, 5):
-        await asyncio.sleep(1.5)
-        
-        # Hangi takımın atağa kalkacağı, güç (reyting+kimya) dengesine göre belirleniyor
-        total_power = t1 + t2
-        if total_power == 0: total_power = 1
-        chance = random.uniform(0, total_power)
-        
-        atk_team = 1 if chance <= t1 else 2
-        atk_name = p1_name if atk_team == 1 else p2_name
-        
-        shooter = get_random_player(team1 if atk_team == 1 else team2)
-        
-        # Gol olma ihtimali (standart %16)
-        is_goal = random.random() < 0.16
-        
-        if is_goal:
-            if atk_team == 1: score1 += 1
-            else: score2 += 1
-            texts = [
-                f"GOOOOL! {shooter} harika bir vuruşla topu ağlara gönderdi!",
-                f"MUHTEŞEM BİR GOL! {atk_name} takımı {shooter} ile öne geçiyor.",
-                f"GOL GOL GOL! {shooter} ceza sahası dışından mükemmel vurdu!",
-                f"İnanılmaz! {shooter} defansı ipe dizdi ve kaleciyi avladı!",
-                f"Kafayı harika vurdu! {shooter} takımına golü kazandırıyor."
-            ]
-            text = random.choice(texts)
-        else:
-            texts = [
-                f"İnanılmaz bir fırsat kaçtı! {shooter} topu direğin yanından dışarı vurdu.",
-                f"Kaleci son anda çıkardı! {shooter} gole çok yaklaştı.",
-                f"{atk_name} atağında {shooter} sert vurdu, top defanstan döndü.",
-                f"Net fırsat! {shooter} kaleciyle karşı karşıya kaldı ama atamadı.",
-                f"Taktiksel bir faul! {shooter} sarı kart görüyor.",
-                f"Orta sahada kıyasıya mücadele devam ediyor."
-            ]
-            text = random.choice(texts)
+        ros1 = get_team_roster(team1)
+        ros2 = get_team_roster(team2)
+
+        def pick_player(roster, line=None):
+            pool = roster.get(line, []) if line and roster.get(line) else roster["ALL"]
+            if not pool:
+                pool = roster["ALL"]
+            if not pool:
+                return {"name": "Oyuncu", "rating": 70}
+            return random.choice(pool)
+
+        # Güç farkı hesaplama
+        diff = t1 - t2
+        # Sürpriz ihtimali (%12)
+        upset = random.random() < 0.12
+        if upset:
+            diff = -diff * 0.5  # Sürpriz maç dengesi
+
+        # Gol üretme katsayıları
+        p1_atk_weight = max(10, t1 + (diff if diff > 0 else diff * 0.5))
+        p2_atk_weight = max(10, t2 - (diff if diff < 0 else diff * 0.5))
+        total_weight = p1_atk_weight + p2_atk_weight
+
+        score1, score2 = 0, 0
+        events = []
+
+        # 90 Dakikalık Maç Zaman Çizelgesi (18 ila 22 Pozisyon)
+        num_events = random.randint(18, 22)
+        minutes = sorted(random.sample(range(2, 91), num_events))
+
+        for minute in minutes:
+            # Atak yapan takımı seç
+            atk_team = 1 if random.uniform(0, total_weight) <= p1_atk_weight else 2
+            def_team = 2 if atk_team == 1 else 1
             
+            atk_ros = ros1 if atk_team == 1 else ros2
+            def_ros = ros2 if atk_team == 1 else ros1
+            atk_pname = p1_name if atk_team == 1 else p2_name
+            
+            # Pozisyon türünü belirle (%60 Forvet/Kanat, %25 Orta Saha, %15 Defans/Bek)
+            pos_roll = random.random()
+            if pos_roll < 0.60:
+                shooter = pick_player(atk_ros, "FWD")
+            elif pos_roll < 0.85:
+                shooter = pick_player(atk_ros, "MID")
+            else:
+                shooter = pick_player(atk_ros, "DEF")
+
+            defender = pick_player(def_ros, "DEF")
+            gk = pick_player(def_ros, "GK")
+
+            shooter_name = shooter.get("name", "Oyuncu")
+            shooter_rating = shooter.get("rating", 70)
+            gk_name = gk.get("name", "Kaleci")
+            gk_rating = gk.get("rating", 70)
+            def_name = defender.get("name", "Defans")
+            def_rating = defender.get("rating", 70)
+
+            # Gol Şansı Hesaplama (Oyuncu Reytingi vs Defans/Kaleci Reytingi)
+            atk_power = shooter_rating + (t1 if atk_team == 1 else t2) * 0.05
+            def_power = (gk_rating + def_rating) / 2 + (t2 if atk_team == 1 else t1) * 0.05
+            
+            goal_prob = 0.18 + (atk_power - def_power) * 0.003
+            goal_prob = max(0.06, min(0.42, goal_prob))
+
+            event_roll = random.random()
+            event_type = "miss"
+            is_goal = False
+
+            if event_roll < goal_prob:
+                is_goal = True
+                event_type = "goal"
+                if atk_team == 1: score1 += 1
+                else: score2 += 1
+
+                goal_texts = [
+                    f"GOOOOL! {shooter_name} harika bir şutla ağları havalandırıyor!",
+                    f"GOL GOL GOL! {shooter_name} ceza sahası dışından füze gönderdi!",
+                    f"MUHTEŞEM GOL! {shooter_name} kaleci {gk_name}'yi çaresiz bıraktı!",
+                    f"GOOOOL! {atk_pname} takımında {shooter_name} kafayla topu ağlara yolladı!",
+                    f"MÜKEMMEL BİR BİTİRİŞ! {shooter_name} defansı ipe dizip golü attı!"
+                ]
+                text = random.choice(goal_texts)
+
+            elif event_roll < goal_prob + 0.15:
+                # Direkten Dönen Top
+                event_type = "post"
+                texts = [
+                    f"DİREK! {shooter_name} vurdu, top üst direkte patladı!",
+                    f"İnanılmaz an! {shooter_name}'in şutu yan direkten dışarı gitti!",
+                    f"Son anda direk! {atk_pname} mutlak bir golden oldu!"
+                ]
+                text = random.choice(texts)
+
+            elif event_roll < goal_prob + 0.40:
+                # Kaleci Kurtarışı
+                event_type = "save"
+                texts = [
+                    f"DEVLEŞTİ! Kaleci {gk_name}, {shooter_name}'in şutunu son anda kornere çeldi!",
+                    f"İnanılmaz refleks! {gk_name} geçit vermiyor!",
+                    f"{shooter_name} sert vurdu ama kaleci {gk_name} iki hamlede topa sahip oldu."
+                ]
+                text = random.choice(texts)
+
+            elif event_roll < goal_prob + 0.50:
+                # Sarı Kart / Faul
+                event_type = "card"
+                foul_player = pick_player(def_ros, "DEF")
+                foul_name = foul_player.get("name", "Defans")
+                texts = [
+                    f"SARI KART! {foul_name}, {shooter_name}'i sert bir müdahaleyle durdurdu.",
+                    f"Hakem düdüğünü çaldı. {foul_name} kontrolsüz kaydığı için sarı kart görüyor."
+                ]
+                text = random.choice(texts)
+
+            else:
+                # Dışarı giden şut / Blok
+                event_type = "miss"
+                texts = [
+                    f"{shooter_name} ceza sahasına girdi, şutu az farkla üstten dışarı gitti.",
+                    f"{def_name} kritik bir müdahaleyle {shooter_name}'in şutunu blokladı.",
+                    f"{atk_pname} atağında {shooter_name} topu çerçeveye bulduramadı."
+                ]
+                text = random.choice(texts)
+
+            events.append({
+                "min": minute,
+                "text": text,
+                "score1": score1,
+                "score2": score2,
+                "is_goal": is_goal,
+                "event_type": event_type,
+                "team": atk_team
+            })
+
+        # Frontend'e tüm simülasyon paketini gönder
         await broadcast(room, {
-            "type": "ilk11_sim_event",
-            "min": minute + random.randint(0, 4),
-            "text": text,
-            "score1": score1,
-            "score2": score2,
-            "is_goal": is_goal
+            "type": "ilk11_sim_start",
+            "p1": p1_name,
+            "p2": p2_name,
+            "events": events,
+            "final_score1": score1,
+            "final_score2": score2
         })
-        
-    await asyncio.sleep(2)
-    await broadcast(room, {"type": "ilk11_sim_end", "score1": score1, "score2": score2})
+    except Exception as e:
+        print(f"[ILK11 SIMULASYON HATASI] {e}")
 
 
 # ==========================================
@@ -761,6 +858,19 @@ async def handle_ilk11_message(
         
         # Simülasyonu arka planda başlat
         asyncio.create_task(run_ilk11_simulation(room, broadcast))
+        return _handled(current_room_code, current_player_id)
+
+    # ---------- SIMULATION SPEED ----------
+    if msg_type == "ilk11_sim_speed":
+        speed = data.get("speed", 1)
+        try:
+            speed = float(speed)
+        except:
+            speed = 1.0
+        await broadcast(room, {
+            "type": "ilk11_sim_speed_updated",
+            "speed": speed
+        })
         return _handled(current_room_code, current_player_id)
 
     # ---------- REMATCH ----------

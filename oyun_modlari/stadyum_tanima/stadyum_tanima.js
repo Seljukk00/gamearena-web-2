@@ -479,10 +479,22 @@ document.getElementById("stadJoker5050Btn").onclick = () => {
 function startStadTimer(seconds) {
     stopStadTimer();
     stadData.timerSeconds = seconds;
+    stadData.timerWarningPlaying = false;
     updateStadTimerDisplay();
     stadData.timerInterval = setInterval(() => {
         stadData.timerSeconds--;
         updateStadTimerDisplay();
+        if (stadData.timerSeconds <= 10 && !stadData.timerWarningPlaying) {
+            stadData.timerWarningPlaying = true;
+            try {
+                let vol = 0.5;
+                if (typeof getGlobalVolume === "function") vol = getGlobalVolume();
+                stadData._timerWarningAudio = new Audio("/ml_assets/timer_warning.mp3");
+                stadData._timerWarningAudio.volume = vol;
+                stadData._timerWarningAudio.loop = true;
+                stadData._timerWarningAudio.play().catch(() => {});
+            } catch(e) {}
+        }
         if (stadData.timerSeconds <= 0) stopStadTimer();
     }, 1000);
 }
@@ -492,6 +504,11 @@ function stopStadTimer() {
         clearInterval(stadData.timerInterval);
         stadData.timerInterval = null;
     }
+    if (stadData._timerWarningAudio) {
+        try { stadData._timerWarningAudio.pause(); stadData._timerWarningAudio.currentTime = 0; } catch(e) {}
+        stadData._timerWarningAudio = null;
+    }
+    stadData.timerWarningPlaying = false;
 }
 
 function updateStadTimerDisplay() {
