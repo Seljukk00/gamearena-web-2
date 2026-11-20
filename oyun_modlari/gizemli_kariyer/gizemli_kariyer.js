@@ -810,6 +810,36 @@ function setGizemStatus(text, type) {
     if (type) el.classList.add(type);
 }
 
+let _gizemOverlayTimer = null;
+function showGizemTurnOverlay() {
+    if (isGizemSolo()) return;
+    const overlay = document.getElementById("sarkiBigOverlay");
+    const overlayText = document.getElementById("sarkiBigOverlayText");
+    if (!overlay || !overlayText) return;
+
+    if (_gizemOverlayTimer) {
+        clearTimeout(_gizemOverlayTimer);
+        _gizemOverlayTimer = null;
+    }
+
+    const isMine = gizemData.currentTurn === gizemData.playerId;
+    overlay.classList.remove("mine", "other");
+    overlay.classList.add(isMine ? "mine" : "other");
+
+    if (isMine) {
+        overlayText.textContent = "SIRA SENDE!";
+    } else {
+        const turnName = getGizemPlayerName(gizemData.currentTurn).toUpperCase();
+        overlayText.textContent = `${turnName} OYNUYOR`;
+    }
+
+    overlay.classList.remove("hidden");
+    _gizemOverlayTimer = setTimeout(() => {
+        overlay.classList.add("hidden");
+        _gizemOverlayTimer = null;
+    }, 1800);
+}
+
 const _prevHandleMessageGizem = handleMessage;
 handleMessage = function(msg) {
     if (msg.type === "gizem_room_created" || msg.type === "gizem_room_joined") {
@@ -903,6 +933,7 @@ handleMessage = function(msg) {
         } else {
             setGizemStatus(getGizemPlayerName(gizemData.currentTurn) + " oynuyor...", "info");
         }
+        showGizemTurnOverlay();
         return;
     }
 
@@ -927,6 +958,7 @@ handleMessage = function(msg) {
         } else {
             setGizemStatus(getGizemPlayerName(gizemData.currentTurn) + " oynuyor...", "info");
         }
+        showGizemTurnOverlay();
         return;
     }
 

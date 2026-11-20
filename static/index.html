@@ -91,17 +91,17 @@
 
         <!-- ANA MENÜ -->
         <section id="homeScreen" class="panel">
-            <h2 class="mainTitle">Ne Yapmak İstersin?</h2>
+            <h2 class="mainTitle">Meydan Okumaya Hazır mısın?</h2>
             <div class="menuCards">
                 <div class="menuCard" id="menuCreateCard">
                     <div class="menuIcon">🎮</div>
-                    <div class="menuTitle">Oda Oluştur</div>
-                    <div class="menuDesc">Yeni bir oyun kur, arkadaşını davet et</div>
+                    <div class="menuTitle">Lobi Oluştur</div>
+                    <div class="menuDesc">Kendi arenanı kur, arkadaşlarını sahaya çağır!</div>
                 </div>
                 <div class="menuCard" id="menuJoinCard">
                     <div class="menuIcon">🚪</div>
-                    <div class="menuTitle">Odaya Katıl</div>
-                    <div class="menuDesc">Oda kodunla bir arkadaşına katıl</div>
+                    <div class="menuTitle">Sahaya Çık</div>
+                    <div class="menuDesc">Oda kodunu gir veya açık maçlara katıl!</div>
                 </div>
             </div>
 
@@ -121,92 +121,80 @@
 
         <!-- MOD SEÇİM EKRANI -->
         <section id="modSelectScreen" class="panel hidden">
-            <h2 class="mainTitle">Mod Seç</h2>
-            <p style="text-align:center; color:#adb5bd; margin-bottom:10px;">Oynamak istediğin modu seç</p>
+            <h2 class="mainTitle">Arenayı Seç</h2>
+            <p style="text-align:center; color:#adb5bd; margin-bottom:10px;">Oynamak istediğiniz modu seçin!</p>
             <div class="mod-grid">
-
                 <div class="mod-card" data-mod="bil_bakalim">
                     <img src="/mod_resimleri/bil_bakalim.webp" alt="Bil Bakalım">
                     <div class="mod-info">
                         <h3>Bil Bakalım</h3>
-                        <p>Klasik futbolcu tahmin oyunu</p>
+                        <p>Soru sorarak rakibinin gizli futbolcusunu bul!</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="takim_bilmece">
                     <img src="/mod_resimleri/takim_bilmece.webp" alt="Takım Bilmece">
                     <div class="mod-info">
                         <h3>Takım Bilmece</h3>
-                        <p>11 oyuncudan takımı bul</p>
+                        <p>11 futbolcunun bayrağından takımı tahmin et.</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="kim_milyoner">
                     <img src="/mod_resimleri/kim_milyoner.webp" alt="Kim Milyoner">
                     <div class="mod-info">
                         <h3>Kim Milyoner?</h3>
-                        <p>Milyoner tarzı bilgi yarışması</p>
+                        <p>Futbol ve genel kültür sorularıyla en yüksek ödüle ulaş.</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="ilk_11_challenge">
                     <img src="/mod_resimleri/ilk_11.webp" alt="İlk 11">
                     <div class="mod-info">
                         <h3>İlk 11 Challenge</h3>
-                        <p>4-3-3 kadroyu kur, rakibi yen</p>
+                        <p>4-3-3 kadronu kur, reyting ve kimya puanıyla kazan.</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="gizemli_kariyer">
                     <img src="/mod_resimleri/gizemli_kariyer.webp" alt="Gizemli Kariyer">
                     <div class="mod-info">
                         <h3>Gizemli Kariyer</h3>
-                        <p>Kariyerden futbolcuyu bul</p>
+                        <p>Oynadığı takımlara bakarak futbolcuyu tahmin et.</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="haritadan_bul">
                     <img src="/mod_resimleri/haritadan_bul.webp" alt="Haritadan Bul">
                     <div class="mod-info">
                         <h3>Haritadan Bul</h3>
-                        <p>Ülkeyi haritada göster</p>
+                        <p>Futbolcunun doğduğu ülkeyi dünya haritasında bul!</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="stadyum_tanima">
                     <img src="/mod_resimleri/stadyum_tanima.webp" alt="Stadyum Tanıma">
                     <div class="mod-info">
                         <h3>Stadyum Tanıma</h3>
-                        <p>Stadyumu gör, 4 şık Arasından Bul</p>
+                        <p>Fotoğraftan hangi stadyum olduğunu bul.</p>
                     </div>
                 </div>
-
                 
-
                 <div class="mod-card" data-mod="sarkidan_bul">
                     <img src="/mod_resimleri/sarkidan_bul.webp" alt="Şarkıdan Bul" onerror="this.style.display='none'">
                     <div class="mod-info">
                         <h3>🎵 Şarkıdan Bul</h3>
-                        <p>Şarkıyı dinle, sanatçıyı ve adını bul!</p>
+                        <p>Çalan şarkıyı rakibinden önce tahmin et.</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="mini_futbol">
                     <img src="/mod_resimleri/mini_futbol.webp" alt="Mini Futbol" onerror="this.style.display='none'">
                     <div class="mod-info">
                         <h3>⚽ Mini Futbol</h3>
-                        <p>1v1'den 5v5'e gerçek zamanlı futbol!</p>
+                        <p>Gerçek zamanlı 2D futbol maçında rakibini yen.</p>
                     </div>
                 </div>
-
                 <div class="mod-card" data-mod="jokerli_satranc">
                     <img src="/mod_resimleri/jokerli_satranc.webp" alt="Jokerli Satranç" onerror="this.style.display='none'">
                     <div class="mod-info">
                         <h3>♟️ Jokerli Satranç</h3>
-                        <p>34 jokerle klasik satrancı alt üst et!</p>
+                        <p>30 farklı jokerle kuralları esneten satranç oyna.</p>
                     </div>
                 </div>
-
             </div>
 
             <!-- Google AdSense - Mod Seçim Reklamı -->
@@ -909,7 +897,7 @@
             </div>
 
             <div class="row">
-                <button id="createTakimBtn" class="bigBtn greenBtn">Bil Bakalım</button>
+                <button id="createTakimBtn" class="bigBtn greenBtn">Lobiyi Başlat 🚀</button>
                 <button id="createTakimBackBtn" class="bigBtn">← Geri</button>
             </div>
 
@@ -3303,28 +3291,26 @@
             <h2 style="color:#51cf66;">ℹ️ Hakkımızda</h2>
             <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6;">
                 <p><b>🎮 GameArena Nedir?</b></p>
-                <p>GameArena, futbol severler için 9 farklı oyun modu sunan online multiplayer bir eğlence platformudur.</p>
+                <p>GameArena, rekabetçi oyuncular ve futbol severler için geliştirilmiş, 10 farklı benzersiz mod içeren gerçek zamanlı multiplayer oyun platformudur.</p>
                 
-                <p style="margin-top:15px;"><b>⚽ Modlarımız:</b></p>
+                <p style="margin-top:15px;"><b>⚽ Arenalarımız:</b></p>
                 <ul style="padding-left:20px;">
-                    <li>Bil Bakalım - Klasik futbolcu tahmin</li>
-                    <li>Kim Milyoner - AI destekli quiz</li>
-                    <li>Takım Bilmece - 11 oyuncudan takımı bul</li>
-                    <li>Haritadan Bul - Ülke tahmin Et</li>
-                    <li>Gizemli Kariyer - Kariyerden futbolcuyu bul</li>
-                    <li>İlk 11 Challenge - En iyi kadroyu kur</li>
-                    <li>Stadyum Tanıma - Stadyumu tanı</li>
-					<li>Şarkıdan Bul - Sesi duyup 4 şık arasından bul</li>
-                    
-                    <li>Mini Futbol - 1v1'den 5v5'e gerçek zamanlı futbol</li>
-					<li>Jokerli Satranç - Satrancın Jokerli Hali</li>
+                    <li>Bil Bakalım - Karakter tahmin düellosu</li>
+                    <li>Kim Milyoner - Bilgi maratonu</li>
+                    <li>Takım Bilmece - 11 oyuncudan takımı çöz</li>
+                    <li>Haritadan Bul - Dünya coğrafyası kapışması</li>
+                    <li>Gizemli Kariyer - Kariyer izini sür</li>
+                    <li>İlk 11 Challenge - Rüya 4-3-3 kadronu kur</li>
+                    <li>Stadyum Tanıma - Tribünden mabedi tanı</li>
+                    <li>Şarkıdan Bul - Sesi aç, parçayı yakala</li>
+                    <li>Mini Futbol - 60 FPS Gerçek Zamanlı Haxball</li>
+                    <li>Jokerli Satranç - 30 özel güçle kaos dolu satranç</li>
                 </ul>
                 
                 <p style="margin-top:15px;"><b>❤️ Özel Teşekkürler:</b></p>
-                <p>Talha Mengi,Oğuzhan Çeliker</p>
+                <p>Talha Mengi, Oğuzhan Çeliker</p>
                 
-                <p style="margin-top:15px;"><b>🎯 Sürüm:</b> v1.0</p>
-                <p><b>📅 Kuruluş:</b> 28 Temmuz 2026</p>
+                <p style="margin-top:15px;"><b>🎯 Sürüm:</b> v10.2 (Production)</p>
             </div>
             <div class="confirmButtons" style="margin-top:20px;">
                 <button onclick="closeAbout()" class="bigBtn greenBtn">Kapat</button>

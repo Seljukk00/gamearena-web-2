@@ -1808,7 +1808,7 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
                 if (nameBox) nameBox.style.display = "";
             }
             const takimCreateBtn = document.getElementById("createTakimBtn");
-            if (takimCreateBtn) takimCreateBtn.textContent = "Bil Bakalım";
+            if (takimCreateBtn) takimCreateBtn.textContent = "Oda Oluştur";
             window._pendingModeChangeCtx = null;
 
             // ✨ Kaydedilmiş ayarları yükle
@@ -3091,6 +3091,35 @@ window.getGlobalVolume = getGlobalVolume;
     });
 })();
 
+// 🎮 Üstteki "GameArena Web" başlığına tıklayınca odadan ayrılma onayı / ana menü
+const _mainHeaderTitle = document.querySelector(".container > h1.mainTitle");
+if (_mainHeaderTitle) {
+    _mainHeaderTitle.style.cursor = "pointer";
+    _mainHeaderTitle.title = "Ana Menü / Odadan Ayrıl";
+    _mainHeaderTitle.addEventListener("click", () => {
+        const current = getCurrentScreen();
+        const inRoomScreens = [
+            "lobby", "select", "game",
+            "mlLobby", "mlGame",
+            "takimLobby", "takimGame",
+            "haritaLobby", "haritaGame",
+            "gizemLobby", "gizemGame",
+            "ilk11Lobby", "ilk11Game",
+            "stadLobby", "stadGame",
+            "sarkiLobby", "sarkiGame",
+            "miniLobby", "miniGame",
+            "satrancLobby", "satrancGame"
+        ];
+        if (inRoomScreens.includes(current)) {
+            if (typeof window._showLeaveConfirmPopup === "function") {
+                window._showLeaveConfirmPopup();
+            }
+        } else if (current !== "home") {
+            showScreen("home");
+        }
+    });
+}
+
 console.log("GameArena - app.js yüklendi ✓");
 
 // Kick engel popup kapatma
@@ -3187,7 +3216,7 @@ showScreen = function(screenName) {
             if (nameBox) nameBox.style.display = "";
         }
         const takimCreateBtn = document.getElementById("createTakimBtn");
-        if (takimCreateBtn) takimCreateBtn.textContent = "Bil Bakalım";
+        if (takimCreateBtn) takimCreateBtn.textContent = "Oda Oluştur";
     }
 
     document.getElementById("createGizemBtn").onclick = () => {

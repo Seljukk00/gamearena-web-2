@@ -963,6 +963,30 @@ function renderTakimScoreboardList() {
     });
 }
 
+function showTakimTurnOverlay() {
+    if (isTakimSolo()) return;
+    const overlay = document.getElementById("sarkiBigOverlay");
+    const textEl = document.getElementById("sarkiBigOverlayText");
+    if (!overlay || !textEl) return;
+
+    const isMyTurn = (takimData.currentTurn === takimData.playerId);
+    overlay.classList.remove("mine", "other", "hidden");
+
+    if (isMyTurn) {
+        overlay.classList.add("mine");
+        textEl.textContent = "SIRA SENDE!";
+    } else {
+        overlay.classList.add("other");
+        const upperName = getTakimPlayerName(takimData.currentTurn).toUpperCase();
+        textEl.textContent = `${upperName} OYNUYOR`;
+    }
+
+    if (window._takimOverlayTimer) clearTimeout(window._takimOverlayTimer);
+    window._takimOverlayTimer = setTimeout(() => {
+        overlay.classList.add("hidden");
+    }, 1800);
+}
+
 function renderTakimAll() {
     renderTakimScoreboard();
     renderTakimField();
@@ -1110,6 +1134,7 @@ handleMessage = function(msg) {
         document.getElementById("takimGameOverBox").classList.add("hidden");
         showScreen("takimGame");
         renderTakimAll();
+        showTakimTurnOverlay();
         startTakimTimer(takimData.turnSeconds);
         if (isTakimSolo() || takimData.currentTurn === takimData.playerId) {
             updateTakimStatus(isTakimSolo() ? "Solo mod — sıra sende!" : "Senin sıran!", "#51cf66");
@@ -1138,6 +1163,7 @@ handleMessage = function(msg) {
         takimPickPlayerMode = false;
         document.getElementById("takimJokerCancelBtn").classList.add("hidden");
         renderTakimAll();
+        showTakimTurnOverlay();
         startTakimTimer(takimData.turnSeconds);
         if (isTakimSolo() || takimData.currentTurn === takimData.playerId) {
             updateTakimStatus(isTakimSolo() ? "Solo mod — sıra sende!" : "Senin sıran!", "#51cf66");
