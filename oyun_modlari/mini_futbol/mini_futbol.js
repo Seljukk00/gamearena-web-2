@@ -1616,11 +1616,11 @@ function startMiniLocalPhysicsIfNeeded() {
                 }
                 miniData._hostSelectedCelebrationType = actualTypeFromHP;
                 
-                // 🎵 GÜNCEL TAKIM GOL ŞARKILARI (59 şarkı sistemi - goal_song_1 → goal_song_59)
+                // 🎵 GÜNCEL TAKIM GOL ŞARKILARI (61 şarkı sistemi - goal_song_1 → goal_song_61)
                 const teamSongs = {
                     besiktas: ["goal_song_1.mp3", "goal_song_10.mp3", "goal_song_11.mp3", "goal_song_12.mp3", "goal_song_17.mp3", "goal_song_21.mp3", "goal_song_29.mp3", "goal_song_35.mp3", "goal_song_38.mp3", "goal_song_40.mp3", "goal_song_41.mp3", "goal_song_43.mp3", "goal_song_45.mp3", "goal_song_46.mp3", "goal_song_47.mp3", "goal_song_48.mp3", "goal_song_53.mp3", "goal_song_54.mp3", "goal_song_55.mp3"],
                     fenerbahce: ["goal_song_3.mp3", "goal_song_4.mp3", "goal_song_5.mp3", "goal_song_22.mp3", "goal_song_30.mp3", "goal_song_32.mp3", "goal_song_36.mp3", "goal_song_37.mp3", "goal_song_42.mp3", "goal_song_49.mp3", "goal_song_58.mp3"],
-                    galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3", "goal_song_39.mp3", "goal_song_50.mp3", "goal_song_52.mp3", "goal_song_59.mp3"],
+                    galatasaray: ["goal_song_6.mp3", "goal_song_23.mp3", "goal_song_31.mp3", "goal_song_33.mp3", "goal_song_39.mp3", "goal_song_50.mp3", "goal_song_52.mp3", "goal_song_59.mp3", "goal_song_60.mp3", "goal_song_61.mp3"],
                     trabzonspor: ["goal_song_13.mp3", "goal_song_14.mp3", "goal_song_16.mp3", "goal_song_34.mp3", "goal_song_44.mp3", "goal_song_51.mp3"]
                 };
 
@@ -1652,8 +1652,8 @@ function startMiniLocalPhysicsIfNeeded() {
                 }
 
                 // 🌟 BÜTÜNSEL GOL MÜZİĞİ MOTORU (Shuffle Bag - Sıralı Karıştırma)
-                // 📁 Klasörde 59 şarkı var: goal_song_1.mp3 → goal_song_59.mp3
-                const all52Songs = Array.from({ length: 59 }, (_, i) => `goal_song_${i + 1}.mp3`);
+                // 📁 Klasörde 61 şarkı var: goal_song_1.mp3 → goal_song_61.mp3
+                const all52Songs = Array.from({ length: 61 }, (_, i) => `goal_song_${i + 1}.mp3`);
                 
                 if (!miniData._playedSongsPools) {
                     miniData._playedSongsPools = {}; // Takımların çalınan şarkı geçmişini tutan obje

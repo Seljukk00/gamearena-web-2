@@ -1,4 +1,4 @@
-Beşiktaş
+Beşiktaş (19)
 -goal_song_1.mp3 >varsın olsun 
 -goal_song_10.mp3 >kartal sesi
 -goal_song_11.mp3 >seninle ölmeye geldik
@@ -19,7 +19,7 @@ Beşiktaş
 -goal_song_54.mp3 >gel benim ol
 -goal_song_55.mp3 >beşiktaşlıyız biz beşiktaşlı
 
-Fenerbahçe
+Fenerbahçe (11)
 -goal_song_3.mp3 >we from desire
 -goal_song_4.mp3 >beni sev
 -goal_song_5.mp3 >söyle bana sebastian
@@ -32,7 +32,7 @@ Fenerbahçe
 -goal_song_49.mp3 >ne sevmek ne sevilmek
 -goal_song_58.mp3 >noldu pek bi keyfin yok 
 
-Galatasaray
+Galatasaray (10)
 -goal_song_6.mp3 >aşkın olayım
 -goal_song_23.mp3 >gol müziği
 -goal_song_31.mp3 >çocukluk aşkımsın
@@ -41,8 +41,10 @@ Galatasaray
 -goal_song_50.mp3 >yanarım yanarım
 -goal_song_52.mp3 >poci poci poci senta
 -goal_song_59.mp3 >Minicik Kaldırım taşı pırlantayamı karşı 
+-goal_song_60.mp3 >GALATASARAY benim yarim narim
+-goal_song_61.mp3 >GALATASARAY Alex batrakov şarkısı
 
-Trabzonspor
+Trabzonspor (6)
 -goal_song_13.mp3 >düştüysen kalk gel kendine
 -goal_song_16.mp3 >uy aha
 -goal_song_14.mp3 >allow dance
@@ -50,7 +52,7 @@ Trabzonspor
 -goal_song_44.mp3 >şuanda klüpte keyfim yerinde
 -goal_song_51.mp3 >Allah Allah muhammet salah
 
-Tümü
+Tümü (61)
 -goal_song_1.mp3 >BEŞİKTAŞ varsın olsun 
 -goal_song_2.mp3 >SAMSUNSPOR ara beni 
 -goal_song_3.mp3 >Fenerbahçe we from desire 
@@ -110,3 +112,5 @@ Tümü
 -goal_song_57.mp3 >hadise Farkımız Var
 -goal_song_58.mp3 >FENERBAHÇE noldu pek bi keyfin yok 
 -goal_song_59.mp3 >GALATASARAY Minicik Kaldırım taşı pırlantayamı karşı 
+-goal_song_60.mp3 >GALATASARAY benim yarim narim
+-goal_song_61.mp3 >GALATASARAY Alex batrakov şarkısı
