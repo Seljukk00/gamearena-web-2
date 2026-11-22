@@ -1938,7 +1938,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "portekiz", "name": "Pauleta"},
             {"pos": "LW", "flag": "portekiz", "name": "Ronaldo"},
         ],
-        "options": ["Portekiz 2004", "Yunanistan 2004", "Cek 2004", "Hollanda 2004"],
+        "options": ["Portekiz 2004", "Portekiz 2005", "Cek 2004", "Hollanda 2004"],
         "answer": 0
     },
     {
@@ -2010,7 +2010,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "portekiz", "name": "Ronaldo"},
             {"pos": "LW", "flag": "portekiz", "name": "Felix"},
         ],
-        "options": ["Portekiz 2022", "Ispanya 2022", "Fas 2022", "Brezilya 2022"],
+        "options": ["Portekiz 2022", "Portekiz 2020", "Fas 2022", "Brezilya 2022"],
         "answer": 0
     },
 
@@ -2064,7 +2064,7 @@ ALL_TEAMS = [
             {"pos": "CM", "flag": "danimarka", "name": "Schone"},
             {"pos": "CM", "flag": "hollanda", "name": "Van de Beek"},
             {"pos": "RW", "flag": "hollanda", "name": "Ziyech"},
-            {"pos": "ST", "flag": "serbistan", "name": "Tadic"},
+            {"pos": "ST", "flag": "sirbistan", "name": "Tadic"},
             {"pos": "LW", "flag": "brezilya", "name": "Neres"},
         ],
         "options": ["PSV", "Feyenoord", "Ajax", "AZ Alkmaar"],
@@ -3185,7 +3185,7 @@ ALL_TEAMS = [
             {"pos": "CB", "flag": "sirbistan", "name": "Savic"},
             {"pos": "CB", "flag": "nijerya",   "name": "Nwaiwu"},
             {"pos": "LB", "flag": "turkiye",   "name": "Eskihellac"},
-            {"pos": "DM", "flag": "albanya",   "name": "Muci"},
+            {"pos": "DM", "flag": "arnavutluk",   "name": "Muci"},
             {"pos": "CM", "flag": "brezilya",  "name": "Fabinho"},
             {"pos": "CM", "flag": "turkiye",   "name": "Tufan"},
             {"pos": "RW", "flag": "portekiz",  "name": "Saviolo"},
@@ -3313,7 +3313,7 @@ ALL_TEAMS = [
             {"pos": "GK", "flag": "ingiltere","name": "Johnstone"},
             {"pos": "RB", "flag": "iskocya",  "name": "Donovan"},
             {"pos": "CB", "flag": "iskocya",  "name": "Murray"},
-            {"pos": "CB", "flag": "ireland",  "name": "Scales"},
+            {"pos": "CB", "flag": "irlanda",  "name": "Scales"},
             {"pos": "LB", "flag": "iskocya",  "name": "Tierney"},
             {"pos": "DM", "flag": "iskocya",  "name": "McGregor"},
             {"pos": "DM", "flag": "almanya",  "name": "Baur"},
