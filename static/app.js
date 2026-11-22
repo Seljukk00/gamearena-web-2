@@ -155,10 +155,15 @@ function connectWS() {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     ws = new WebSocket(`${protocol}://${location.host}/ws`);
 
-    ws.onopen = () => { console.log("Bağlantı hazır."); };
+    ws.onopen = () => { console.log("Bağlantı hazır.");
+        // ✨ Yeni bağlantı kurulduğunda liste anlık yenilensin
+        _publicRoomsDebouncedRefresh();
+    };
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         handleMessage(msg);
+        // ✨ Her mesajda açık sunucular listesini anlık yenile (backend bir değişiklik bildirirse yakalar)
+        _publicRoomsDebouncedRefresh();
     };
     ws.onclose = () => { console.log("Bağlantı kapandı."); };
 }
@@ -172,6 +177,39 @@ function send(data) {
 }
 
 // ============ EKRAN YÖNETİMİ ============
+// ✨ Join ekranda "katıl" formunu gizle - sadece açık sunucular kısmı kalsın
+// (oda kodu input, isim input, Katıl butonu, mod bilgi kutusu + sarmalayan kutu + başlık etiketleri gizlenir)
+function hideJoinForm() {
+    ["roomInput", "joinNameInput", "joinBtn", "joinBackBtn", "joinRoomModeInfo"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
+
+    // ✨ "Katıl" formunu sarmalayan kutuları da gizle → boş ization/boşluk kalmasın
+    ["roomInput", "joinNameInput"].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const box = el.closest(".centerBox");
+        if (!box) return;
+        const list = document.getElementById("publicRoomsList");
+        // Açık sunucular listesi bu kutu içindeyse kutu kapanmaz (görev akışı bozulmaz)
+        if (list && box.contains(list)) return;
+        box.style.display = "none";
+    });
+
+    // Tüm başlık etiketlerini yakala ve gizle (h1-h6 dahil)
+    const joinScreenEl = document.getElementById("joinScreen");
+    if (!joinScreenEl) return;
+    joinScreenEl.querySelectorAll("label, span, p, h1, h2, h3, h4, h5, h6, b, strong").forEach(el => {
+        if (el.children && el.children.length > 1) return;  // Çok çocuklu kutular muksa
+        const t = (el.textContent || "").trim().toLowerCase();
+        if (t.includes("oda kodu") || t === "katıl" || t.includes("katıl")
+            || t.includes("isim") || t.includes("adınız") || t.includes("adın")) {
+            el.style.display = "none";
+        }
+    });
+}
+
 function showScreen(screenName) {
     // 🎯 Alt Bar (Footer / Yasal Bilgi) Sadece Ana Menüde (home) Görünsün
     const footers = document.querySelectorAll("footer, .footer, #footer, .siteFooter, .site-footer, .legal-footer");
@@ -194,7 +232,18 @@ function showScreen(screenName) {
 
     if (screenName === "home") homeScreen.classList.remove("hidden");
     if (screenName === "create") createScreen.classList.remove("hidden");
-    if (screenName === "join") joinScreen.classList.remove("hidden");
+    if (screenName === "join") {
+        joinScreen.classList.remove("hidden");
+        hideJoinForm();  // ✨ Katıl formunu gizle - sadece açık sunucular kalsın
+        // ✨ Açık Sunucular kutusu - "🎮 GameArena Web" başlık çizgisinin tam altına taşındı,
+        //    sadece join ekranda görünür
+        const publicRoomsBox = document.getElementById("publicRoomsBox");
+        if (publicRoomsBox) publicRoomsBox.classList.remove("hidden");
+    } else {
+        // ✨ Diğer ekranlarda açık sunucular kutusu görünmez
+        const publicRoomsBoxHide = document.getElementById("publicRoomsBox");
+        if (publicRoomsBoxHide) publicRoomsBoxHide.classList.add("hidden");
+    }
 	if (screenName !== "join") stopPublicRoomsRefresh();
     if (screenName === "lobby") lobbyScreen.classList.remove("hidden");
     if (screenName === "select") selectScreen.classList.remove("hidden");
@@ -276,22 +325,42 @@ function updateTimerDisplay() {
 
 // ============ LOBBY ============
 function updateLobby() {
-    // ✨ Ortak helper kullan (yeşil ###### + link ****** görünümü)
-    if (window.setupRoomCodeAndLink && !window._bilBakalimRoomHelper) {
-        window._bilBakalimRoomHelper = window.setupRoomCodeAndLink({
-            codeTextId: "roomCodeText",
-            codeEyeBtnId: "roomCodeEyeBtn",
-            copyHintId: "copyHint",
-            linkTextId: "inviteLinkText",
-            linkEyeBtnId: "inviteLinkEyeBtn",
-            linkHintId: "inviteLinkHint",
-            getRoomCode: () => roomCode,
-            getPlayerId: () => playerId
-        });
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    // ✨ Davet linki gözük butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const bilRoomCodeEl = document.getElementById("roomCodeText");
+    if (bilRoomCodeEl) {
+        const bilRoomCodeBox = bilRoomCodeEl.closest(".roomCodeBox");
+        if (bilRoomCodeBox) bilRoomCodeBox.style.display = "none";
+        bilRoomCodeEl.style.display = "none";
     }
-    if (window._bilBakalimRoomHelper) {
-        window._bilBakalimRoomHelper.renderCode();
-        window._bilBakalimRoomHelper.renderLink();
+    const bilRoomCodeEyeEl = document.getElementById("roomCodeEyeBtn");
+    if (bilRoomCodeEyeEl) bilRoomCodeEyeEl.style.display = "none";
+    const bilCopyHintEl = document.getElementById("copyHint");
+    if (bilCopyHintEl) bilCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu da kaldırılır - link kısmı sürekli görünür
+    const bilInviteLinkEyeEl = document.getElementById("inviteLinkEyeBtn");
+    if (bilInviteLinkEyeEl) bilInviteLinkEyeEl.style.display = "none";
+
+    const bilInviteLinkText = document.getElementById("inviteLinkText");
+    const bilInviteLinkHint = document.getElementById("inviteLinkHint");
+    if (bilInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        bilInviteLinkText.classList.remove("hiddenLink");
+        bilInviteLinkText.textContent = `${location.origin}/?join=${roomCode}`;
+        bilInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        bilInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                if (bilInviteLinkHint) {
+                    bilInviteLinkHint.textContent = "✓ Link kopyalandı!";
+                    bilInviteLinkHint.classList.add("show");
+                    setTimeout(() => bilInviteLinkHint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
     }
     
     lobbyTurnSeconds.textContent = turnSeconds;
@@ -1345,7 +1414,10 @@ function handleMessage(msg) {
     // Katıl butonuna basıldığında odaya bağlan
     if (msg.type === "room_mode_result") {
         if (!msg.found) { setMsg(joinMsg, "Oda bulunamadı.", "#ff6b6b"); return; }
-        const name = joinNameInput.value.trim();
+        // ✨ İsim input'u kaldırıldı - prompt ile girilen ismi kullan
+        const name = (window._joinName && window._joinName.trim())
+            ? window._joinName.trim()
+            : (joinNameInput ? joinNameInput.value.trim() : "");
         const code = msg.room_code;
         if (msg.mode === "takim_bilmece") {
             send({ type: "takim_join_room", name: name, room_code: code });
@@ -1783,10 +1855,8 @@ function handleMessage(msg) {
 menuCreateCard.onclick = () => { showScreen("modselect"); };
 menuJoinCard.onclick = () => {
     showScreen("join");
-    joinNameInput.focus();
     startPublicRoomsRefresh();
-};
-createBackBtn.onclick = () => {
+};createBackBtn.onclick = () => {
     const pendingModeChange = window._pendingModeChangeCtx;
     if (pendingModeChange && pendingModeChange.newMode === "bil_bakalim" && pendingModeChange.createScreen === "create") {
         const returnScreen = pendingModeChange.returnScreen || "lobby";
@@ -2012,6 +2082,120 @@ joinBackBtn.onclick = () => { showScreen("home"); };
 // ==========================================
 let _publicRoomsInterval = null;
 
+// ✨ Katıl anında isim isteme - join ekranında isim input'u artık yok
+// "Katıl →" butonuna veya sunucu kartına basınca prompt ile isim sorulur, onaylanınca katıl
+// (query_room_mode → room_mode_result adımında isim buradaki değerden kullanılır)
+window._joinName = "";
+function askJoinName() {
+    // ✨ Modern isim modalı - katıl anında açılan şık kutusu
+    return new Promise((resolve) => {
+        const saved = localStorage.getItem("playerName") || "";
+
+        // Keyframe'lar (görsel animasyonlar) - sadece bir kez ekle
+        if (!document.getElementById("joinNameModalStyles")) {
+            const style = document.createElement("style");
+            style.id = "joinNameModalStyles";
+            style.textContent =
+                "@keyframes joinNamePop{from{transform:scale(0.9);opacity:0}to{transform:scale(1);opacity:1}}" +
+                "@keyframes joinNameFadeOut{to{opacity:0;transform:scale(0.95)}}";
+            document.head.appendChild(style);
+        }
+
+        const overlay = document.createElement("div");
+        overlay.id = "joinNameModalOverlay";
+        overlay.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.78); display:flex; align-items:center; justify-content:center; z-index:100000; padding:20px;";
+        overlay.innerHTML = `
+            <div style="background:linear-gradient(145deg,#1e2746,#141a2e); border:2px solid #ffd43b; border-radius:16px;
+                        padding:30px 28px; max-width:420px; width:100%;
+                        box-shadow:0 0 50px rgba(255,212,59,0.25), 0 0 80px rgba(0,0,0,0.6);
+                        animation:joinNamePop 0.25s ease;">
+                <div style="font-size:52px; text-align:center; margin-bottom:6px;">🎮</div>
+                <h2 style="color:#ffd43b; text-align:center; margin:0 0 4px 0; font-size:24px;">Odaya Katıl</h2>
+                <p style="color:#adb5bd; text-align:center; font-size:14px; margin:0 0 20px 0;">Odaya katılmak için adını gir</p>
+                <input id="joinNameModalInput" type="text" placeholder="Adını yaz" maxlength="20" value=""
+                       style="width:100%; padding:14px 16px; font-size:16px; background:#0f1422; color:#fff;
+                              border:2px solid #3b4c63; border-radius:10px; box-sizing:border-box;
+                              outline:none; transition:border-color 0.2s, box-shadow 0.2s;"
+                       autocomplete="off">
+                <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                    <span id="joinNameModalCount" style="color:#6c757d; font-size:12px;">0/20</span>
+                </div>
+                <p id="joinNameModalError" style="color:#ff6b6b; font-size:13px; min-height:18px; margin:8px 0 0 0; text-align:center;"></p>
+                <div style="display:flex; gap:12px; margin-top:18px;">
+                    <button id="joinNameModalOk" class="bigBtn greenBtn" style="flex:1;">✅ Katıl</button>
+                    <button id="joinNameModalCancel" class="bigBtn redBtn" style="flex:1;">İptal</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector("#joinNameModalInput");
+        const errorEl = overlay.querySelector("#joinNameModalError");
+        const countEl = overlay.querySelector("#joinNameModalCount");
+        const okBtn = overlay.querySelector("#joinNameModalOk");
+        const cancelBtn = overlay.querySelector("#joinNameModalCancel");
+
+        input.value = saved;
+        input.focus();
+        input.select();
+
+        function updateCount() {
+            countEl.textContent = input.value.length + "/20";
+        }
+        updateCount();
+
+        // Odaklanınca altın çerçeve, çağrıyı bırakınca eski hale dön
+        input.addEventListener("input", updateCount);
+        input.addEventListener("focus", () => {
+            input.style.borderColor = "#ffd43b";
+            input.style.boxShadow = "0 0 0 3px rgba(255,212,59,0.15)";
+        });
+        input.addEventListener("blur", () => {
+            input.style.borderColor = "#3b4c63";
+            input.style.boxShadow = "";
+        });
+
+        function close(result) {
+            overlay.style.animation = "joinNameFadeOut 0.15s ease forwards";
+            setTimeout(() => {
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                resolve(result);
+            }, 150);
+        }
+
+        function submit() {
+            const trimmed = input.value.trim();
+            if (!trimmed) {
+                errorEl.textContent = "⚠️ İsim boş bırakılamaz";
+                input.focus();
+                return;
+            }
+            if (trimmed.length > 20) {
+                errorEl.textContent = "⚠️ İsim en fazla 20 karakter olabilir";
+                input.focus();
+                return;
+            }
+            window._joinName = trimmed;
+            localStorage.setItem("playerName", trimmed);
+            close(trimmed);
+        }
+
+        okBtn.onclick = () => submit();
+        cancelBtn.onclick = () => close(null);
+
+        // Enter ile gönder, ESC ile iptal
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); submit(); }
+            if (e.key === "Escape") { e.preventDefault(); close(null); }
+        });
+
+        // Kutunun dışında tıklayınca iptal
+        overlay.addEventListener("mousedown", (e) => {
+            if (e.target === overlay) close(null);
+        });
+    });
+}
+
 function fetchPublicRooms() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     send({ type: "list_public_rooms" });
@@ -2026,68 +2210,120 @@ function renderPublicRooms(rooms) {
         return;
     }
 
-    list.innerHTML = "";
-    rooms.forEach(function(r) {
-        const card = document.createElement("div");
-        card.style.cssText = "background:rgba(255,255,255,0.05); border:1px solid #3b4c63; border-radius:10px; padding:12px 15px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; transition: all 0.2s;";
+    // ✨ Kartlar yeniden yapılmaz - mevcut kartlar yerinde güncellenir (titreme olmaz)
+    const newRooms = {};
+    rooms.forEach(function(r) { newRooms[r.room_code] = r; });
 
-        card.onmouseenter = function() {
-            card.style.borderColor = "#4dabf7";
-            card.style.background = "rgba(77,171,247,0.08)";
-        };
-        card.onmouseleave = function() {
-            card.style.borderColor = "#3b4c63";
-            card.style.background = "rgba(255,255,255,0.05)";
-        };
-
-        const left = document.createElement("div");
-        left.innerHTML = '<div style="color:#fff; font-weight:bold; font-size:15px;">' + r.mode_display + '</div>' +
-            '<div style="color:#adb5bd; font-size:13px; margin-top:3px;">Host: ' + (r.host_name || "???") + '</div>';
-
-        const right = document.createElement("div");
-        right.style.cssText = "display:flex; align-items:center; gap:10px;";
-
-        const count = document.createElement("span");
-        count.style.cssText = "color:#51cf66; font-size:13px; font-weight:bold;";
-        count.textContent = "👥 " + r.player_count + "/" + r.max_players;
-
-        const btn = document.createElement("button");
-        btn.textContent = "Katıl →";
-        btn.style.cssText = "background:#51cf66; color:#1a1e2e; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;";
-
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            const nameInput = document.getElementById("joinNameInput");
-            const roomInput2 = document.getElementById("roomInput");
-            if (!nameInput.value.trim()) {
-                document.getElementById("joinMsg").textContent = "Önce adını yaz!";
-                document.getElementById("joinMsg").style.color = "#ff6b6b";
-                nameInput.focus();
-                return;
-            }
-            roomInput2.value = r.room_code;
-            joinBtn.click();
-        };
-
-        right.appendChild(count);
-        right.appendChild(btn);
-        card.appendChild(left);
-        card.appendChild(right);
-
-        card.onclick = function() {
-            const roomInput2 = document.getElementById("roomInput");
-            roomInput2.value = r.room_code;
-            roomInput2.dispatchEvent(new Event("input"));
-        };
-
-        list.appendChild(card);
+    // Artık listede olmayan kartları sil
+    Array.from(list.children).forEach(function(card) {
+        const code = card.dataset ? card.dataset.roomCode : null;
+        if (!code || !newRooms[code]) card.remove();
     });
+
+    // Mevcut kartları güncelle, olmayanları ekle
+    rooms.forEach(function(r) {
+        let card = null;
+        Array.from(list.children).forEach(function(c) {
+            if (c.dataset && c.dataset.roomCode === r.room_code) card = c;
+        });
+        if (!card) {
+            card = createPublicRoomCard(r);
+            list.appendChild(card);
+        } else {
+            updatePublicRoomCard(card, r);
+        }
+    });
+
+    // ✨ ?join=CODE ile açıldıysa o odayı yeşil vurgula + ekrana scroll
+    if (window._pendingJoinHighlight) {
+        Array.from(list.children).forEach(card => {
+            if (card.dataset && card.dataset.roomCode === window._pendingJoinHighlight) {
+                card.style.border = "2px solid #51cf66";
+                card.style.boxShadow = "0 0 20px rgba(81,207,102,0.6)";
+                card.scrollIntoView({ behavior: "smooth", block: "center" });
+                window._pendingJoinHighlight = null;
+            }
+        });
+    }
+}
+
+// ✨ Tek bir oda kartını oluşturur (hover/tık handler'ları tek seferlik bağlanır)
+function createPublicRoomCard(r) {
+    const card = document.createElement("div");
+    card.dataset.roomCode = r.room_code;
+    card._isFull = false;
+    card.style.cssText = "background:rgba(255,255,255,0.05); border:1px solid #3b4c63; border-radius:10px; padding:12px 15px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; transition: all 0.2s;";
+
+    card.onmouseenter = function() {
+        card.style.borderColor = "#4dabf7";
+        card.style.background = "rgba(77,171,247,0.08)";
+    };
+    card.onmouseleave = function() {
+        card.style.borderColor = "#3b4c63";
+        card.style.background = "rgba(255,255,255,0.05)";
+    };
+
+    const left = document.createElement("div");
+    card._elLeft = left;
+
+    const right = document.createElement("div");
+    right.style.cssText = "display:flex; align-items:center; gap:10px;";
+
+    const count = document.createElement("span");
+    count.style.cssText = "color:#51cf66; font-size:13px; font-weight:bold;";
+    card._elCount = count;
+
+    const btn = document.createElement("button");
+    btn.style.cssText = "background:#51cf66; color:#1a1e2e; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;";
+    card._elBtn = btn;
+
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        if (card._isFull) {
+            // ✨ Dolu odaya basınca "Oda Dolu!" denir, modal açılmaz
+            showToast("🚪 Oda Dolu!", "Bu oda dolu, katılılamaz.", null, "warning");
+            return;
+        }
+        // ✨ İsim input'u yok - katıl anında modern modal ile isim sor, onaylanınca katıl
+        askJoinName().then(name => {
+            if (!name) return;
+            send({ type: "query_room_mode", room_code: card.dataset.roomCode });
+        });
+    };
+
+    right.appendChild(count);
+    right.appendChild(btn);
+    card.appendChild(left);
+    card.appendChild(right);
+
+    updatePublicRoomCard(card, r);
+    return card;
+}
+
+// ✨ Kartın içeriğini yerinde günceller (göz atma titrememesi için)
+function updatePublicRoomCard(card, r) {
+    const isFull = (r.player_count >= r.max_players);
+    card._isFull = isFull;
+
+    // Sol kısım: mod + host (her oda normal görünümde)
+    card._elLeft.innerHTML = '<div style="color:#fff; font-weight:bold; font-size:15px;">' + r.mode_display + '</div>' +
+        '<div style="color:#adb5bd; font-size:13px; margin-top:3px;">Host: ' + (r.host_name || "???") + '</div>';
+
+    // Oyuncu sayısı
+    card._elCount.textContent = "👥 " + r.player_count + "/" + r.max_players;
+    card._elCount.style.color = "#51cf66";
+
+    // Buton (dolu olsa da normal "Katıl →" görünümü)
+    card._elBtn.textContent = "Katıl →";
+    card._elBtn.style.cssText = "background:#51cf66; color:#1a1e2e; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:13px;";
+    card._elBtn.disabled = false;
 }
 
 function startPublicRoomsRefresh() {
     stopPublicRoomsRefresh();
     fetchPublicRooms();
-    _publicRoomsInterval = setInterval(fetchPublicRooms, 5000);
+    // ✨ Anlık güncelleme için 2 sn'lik polling (biri çıkıp/girince hemen görünür)
+    _publicRoomsInterval = setInterval(fetchPublicRooms, 2000);
 }
 
 function stopPublicRoomsRefresh() {
@@ -2096,6 +2332,23 @@ function stopPublicRoomsRefresh() {
         _publicRoomsInterval = null;
     }
 }
+
+let _publicRoomsDebounce = null;
+// ✨ Anlık güncelleme yardımcısı: çağrıldığında 250ms bekleyip listeyi yeniden çeker
+function _publicRoomsDebouncedRefresh() {
+    if (_publicRoomsDebounce) clearTimeout(_publicRoomsDebounce);
+    _publicRoomsDebounce = setTimeout(() => {
+        fetchPublicRooms();
+    }, 250);
+}
+
+// ✨ Sayfa yeniden görünür olduğunda / pencere odaklandığında anlık yenile
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) _publicRoomsDebouncedRefresh();
+});
+window.addEventListener("focus", () => {
+    _publicRoomsDebouncedRefresh();
+});
 
 const _publicRoomsRefreshBtn = document.getElementById("publicRoomsRefreshBtn");
 if (_publicRoomsRefreshBtn) {
@@ -2168,14 +2421,8 @@ createBtn.onclick = () => {
     });
 };
 
-joinBtn.onclick = () => {
-    myName = joinNameInput.value.trim();
-    const code = roomInput.value.trim().toUpperCase();
-    if (!myName) { setMsg(joinMsg, "İsim gir.", "#ff6b6b"); return; }
-    if (!code) { setMsg(joinMsg, "Oda kodu gir.", "#ff6b6b"); return; }
-    localStorage.setItem("playerName", myName);
-    send({ type: "query_room_mode", room_code: code });
-};
+// ✨ "Katıl" butonu kaldırıldı - katıl ekranda sadece açık sunucular listesi kalıyor
+// (odaya katılma, açık sunucular listesindeki kart/buton üzerinden yapılır)
 
 startBtn.onclick = () => { send({ type: "start_game" }); };
 
@@ -2328,34 +2575,11 @@ document.getElementById("inviteLinkText").onclick = () => {
 };
 
 createNameInput.addEventListener("keypress", (e) => { if (e.key === "Enter") createBtn.click(); });
-joinNameInput.addEventListener("keypress", (e) => { if (e.key === "Enter") roomInput.focus(); });
-roomInput.addEventListener("keypress", (e) => { if (e.key === "Enter") joinBtn.click(); });
+// ✨ Oda kodu input'u ve Katıl butonu kaldırıldı - ilgili keypress handler'lar da kaldırıldı
+// (joinNameInput'a Enter basılınca artık hiçbir şey yapmasın)
 
-// Oda kodu yazılınca otomatik mod bilgisi getir
-let joinModeQueryTimer = null;
-roomInput.addEventListener("input", () => {
-    const code = roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-    if (roomInput.value !== code) roomInput.value = code;
-
-    const infoBox = document.getElementById("joinRoomModeInfo");
-    if (!infoBox) return;
-
-    if (code.length < 6) {
-        infoBox.textContent = "";
-        infoBox.classList.remove("show", "error", "loading");
-        return;
-    }
-
-    if (joinModeQueryTimer) clearTimeout(joinModeQueryTimer);
-
-    infoBox.textContent = "";
-    infoBox.classList.remove("error", "show", "loading");
-
-    joinModeQueryTimer = setTimeout(() => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: "query_room_mode_check", room_code: code }));
-    }, 350);
-});
+// ✨ Oda kodu input'u kaldırıldı - otomatik mod bilgisi sorgusu da kaldırıldı
+// (joinRoomModeInfo kutusu artık kullanılmaz)
 
 window.addEventListener("resize", () => {
     if (confettiCanvas.style.display === "block") {
@@ -2781,6 +3005,13 @@ window._showLeaveConfirmPopup = function() {
         try { new Audio("/static/sounds/player_leave.mp3").play().catch(()=>{}); } catch(e){}
         const wasHost = _isCurrentHost();
         inRoom = false;
+        // ✨ Mod-özel ayrılma temizlik hook'u varsa çağır (ör. Şarkıdan Bul - leaveSarkiRoom)
+        if (typeof window._leaveConfirmHook === "function") {
+            const hook = window._leaveConfirmHook;
+            window._leaveConfirmHook = null;
+            hook();
+            return;
+        }
         if (ws) { try { ws.close(); } catch(e) {} }
         setTimeout(() => {
             connectWS();
@@ -2945,17 +3176,26 @@ setTimeout(() => {
     fetchPublicRooms();
 }, 1500);
 
-// URL'de ?join=XXXX varsa otomatik oda kod inputuna doldur
+// URL'de ?join=XXXX varsa katıl ekranını aç + o oda için vurgu kodu kaydet
+// (oda kodu input'u artık yok - oda açık sunucular listesinde vurgulanır)
+// ✨ Davet linkinden girince auto "katıla basılmış" gibi davran:
+//    açılan isim modalına isim girip Katıl basınca direkt o loby'e atılır
 const urlParams = new URLSearchParams(window.location.search);
 const joinCode = urlParams.get("join");
 if (joinCode) {
     showScreen("join");
+    window._pendingJoinHighlight = joinCode.toUpperCase();
     setTimeout(() => {
-        roomInput.value = joinCode.toUpperCase();
-        joinNameInput.focus();
-        // Input event tetikle ki mod sorgusu gitsin
-        roomInput.dispatchEvent(new Event("input"));
+        startPublicRoomsRefresh();
     }, 100);
+
+    // ✨ Otomatik katıl: isim modalını aç, isim girip onaylanınca direkt query_room_mode
+    setTimeout(() => {
+        askJoinName().then(name => {
+            if (!name) return;   // IPTAL → katılma, join ekranda kalsın
+            send({ type: "query_room_mode", room_code: joinCode.toUpperCase() });
+        });
+    }, 300);
 }
 
 // ============ ORTAK ODA KODU / DAVET LİNKİ HELPER ============

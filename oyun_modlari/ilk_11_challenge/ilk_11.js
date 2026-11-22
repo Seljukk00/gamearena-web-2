@@ -345,16 +345,9 @@ document.getElementById("ilk11RoomSettingsBtn").onclick = () => {
     });
 };
 
-const ilk11RoomHelper = window.setupRoomCodeAndLink({
-    codeTextId: "ilk11RoomCodeText",
-    codeEyeBtnId: "ilk11RoomCodeEyeBtn",
-    copyHintId: "ilk11CopyHint",
-    linkTextId: "ilk11InviteLinkText",
-    linkEyeBtnId: "ilk11InviteLinkEyeBtn",
-    linkHintId: "ilk11InviteLinkHint",
-    getRoomCode: () => ilk11Data.roomCode,
-    getPlayerId: () => ilk11Data.playerId
-});
+// ✨ ODA KODU MUHABBETİ KALDIRILDI + DAVET LİNKI GÖZ BUTONU KALDIRILDI
+// Eski setupRoomCodeAndLink çağrısı kaldırıldı - lobby'de doğrudan yönetiliyor (Bil Bakalım'daki aynı düzen)
+const ilk11RoomHelper = null; // ✅ sadece geriye uyumluluk için bırakıldı
 
 document.getElementById("ilk11BackBtn").onclick = () => {
     showEscPopup();
@@ -426,7 +419,42 @@ function getIlk11PlayerName(id) {
 }
 
 function updateIlk11Lobby() {
-    if (ilk11RoomHelper) { ilk11RoomHelper.renderCode(); ilk11RoomHelper.renderLink(); }
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    const _ilk11RoomCodeEl = document.getElementById("ilk11RoomCodeText");
+    if (_ilk11RoomCodeEl) {
+        const _ilk11RoomCodeBox = _ilk11RoomCodeEl.closest(".roomCodeBox");
+        if (_ilk11RoomCodeBox) _ilk11RoomCodeBox.style.display = "none";
+        _ilk11RoomCodeEl.style.display = "none";
+    }
+    const _ilk11RoomCodeEyeEl = document.getElementById("ilk11RoomCodeEyeBtn");
+    if (_ilk11RoomCodeEyeEl) _ilk11RoomCodeEyeEl.style.display = "none";
+    const _ilk11CopyHintEl = document.getElementById("ilk11CopyHint");
+    if (_ilk11CopyHintEl) _ilk11CopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _ilk11InviteLinkEyeEl = document.getElementById("ilk11InviteLinkEyeBtn");
+    if (_ilk11InviteLinkEyeEl) _ilk11InviteLinkEyeEl.style.display = "none";
+
+    const _ilk11InviteLinkText = document.getElementById("ilk11InviteLinkText");
+    if (_ilk11InviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _ilk11InviteLinkText.classList.remove("hiddenLink");
+        _ilk11InviteLinkText.textContent = `${location.origin}/?join=${ilk11Data.roomCode}`;
+        _ilk11InviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _ilk11InviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${ilk11Data.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("ilk11InviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
+    }
     document.getElementById("ilk11LobbyTurnSeconds").textContent = ilk11Data.turnSeconds || 120;
 
     const list = document.getElementById("ilk11PlayersList");

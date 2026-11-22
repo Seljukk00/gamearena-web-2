@@ -346,7 +346,15 @@
         if (startBtn) startBtn.addEventListener('click', startSarkiGame);
 
         const leaveBtn = $("sarkiLobbyLeaveBtn");
-        if (leaveBtn) leaveBtn.addEventListener('click', leaveSarkiRoom);
+        if (leaveBtn) leaveBtn.addEventListener('click', () => {
+            // ✨ Odadan ayrılma onayı - onaylandıktan sonra leaveSarkiRoom çalışsın
+            if (typeof window._showLeaveConfirmPopup === "function") {
+                window._leaveConfirmHook = leaveSarkiRoom;
+                window._showLeaveConfirmPopup();
+            } else {
+                if (confirm("Odadan ayrılmak istediğine emin misin?")) leaveSarkiRoom();
+            }
+        });
 
         const roomSettingsBtn = $("sarkiRoomSettingsBtn");
         if (roomSettingsBtn) roomSettingsBtn.addEventListener('click', openSarkiRoomSettings);
@@ -394,7 +402,15 @@
         });
 
         const backToMenuBtn = $("sarkiBackToMenuBtn");
-        if (backToMenuBtn) backToMenuBtn.addEventListener('click', leaveSarkiRoom);
+        if (backToMenuBtn) backToMenuBtn.addEventListener('click', () => {
+            // ✨ Ana Menüye dönmek de odadan ayrılmaktır - aynı onay popup'ı
+            if (typeof window._showLeaveConfirmPopup === "function") {
+                window._leaveConfirmHook = leaveSarkiRoom;
+                window._showLeaveConfirmPopup();
+            } else {
+                if (confirm("Odadan ayrılmak istediğine emin misin?")) leaveSarkiRoom();
+            }
+        });
 
         setupSarkiChat();
 
@@ -862,24 +878,42 @@
             }
         }
 
-        // Oda kodu + davet linki (helper'ı bir kez oluştur, sonra render'ları çağır)
-        if (window.setupRoomCodeAndLink) {
-            if (!window._sarkiRoomHelper) {
-                window._sarkiRoomHelper = window.setupRoomCodeAndLink({
-                    codeTextId: "sarkiRoomCodeText",
-                    codeEyeBtnId: "sarkiRoomCodeEyeBtn",
-                    copyHintId: "sarkiCopyHint",
-                    linkTextId: "sarkiInviteLinkText",
-                    linkEyeBtnId: "sarkiInviteLinkEyeBtn",
-                    linkHintId: "sarkiInviteLinkHint",
-                    getRoomCode: () => sarkiRoomCode,
-                    getPlayerId: () => sarkiPlayerId
-                });
-            }
-            if (window._sarkiRoomHelper) {
-                window._sarkiRoomHelper.renderCode();
-                window._sarkiRoomHelper.renderLink();
-            }
+        // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+        // ✨ Davet linki gözük butonu KALDIRILDI - link her zaman görünür (hep açık)
+        window._sarkiRoomHelper = null; // ✅ eski helper çağrısı kaldırıldı (Bil Bakalım'daki aynı düzen)
+        const _sarkiRoomCodeEl = document.getElementById("sarkiRoomCodeText");
+        if (_sarkiRoomCodeEl) {
+            const _sarkiRoomCodeBox = _sarkiRoomCodeEl.closest(".roomCodeBox");
+            if (_sarkiRoomCodeBox) _sarkiRoomCodeBox.style.display = "none";
+            _sarkiRoomCodeEl.style.display = "none";
+        }
+        const _sarkiRoomCodeEyeEl = document.getElementById("sarkiRoomCodeEyeBtn");
+        if (_sarkiRoomCodeEyeEl) _sarkiRoomCodeEyeEl.style.display = "none";
+        const _sarkiCopyHintEl = document.getElementById("sarkiCopyHint");
+        if (_sarkiCopyHintEl) _sarkiCopyHintEl.style.display = "none";
+
+        const _sarkiInviteLinkEyeEl = document.getElementById("sarkiInviteLinkEyeBtn");
+        if (_sarkiInviteLinkEyeEl) _sarkiInviteLinkEyeEl.style.display = "none";
+
+        const _sarkiInviteLinkText = document.getElementById("sarkiInviteLinkText");
+        if (_sarkiInviteLinkText) {
+            // Gizli state'i temizle → link her zaman açık görünür
+            localStorage.removeItem("hideInviteLink");
+            _sarkiInviteLinkText.classList.remove("hiddenLink");
+            _sarkiInviteLinkText.textContent = `${location.origin}/?join=${sarkiRoomCode}`;
+            _sarkiInviteLinkText.style.opacity = "";
+            // Tıkla → kopyala
+            _sarkiInviteLinkText.onclick = () => {
+                const link = `${location.origin}/?join=${sarkiRoomCode}`;
+                navigator.clipboard.writeText(link).then(() => {
+                    const _hint = document.getElementById("sarkiInviteLinkHint");
+                    if (_hint) {
+                        _hint.textContent = "✓ Link kopyalandı!";
+                        _hint.classList.add("show");
+                        setTimeout(() => _hint.classList.remove("show"), 2000);
+                    }
+                }).catch(() => {});
+            };
         }
 
         // Oyuncular

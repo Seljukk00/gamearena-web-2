@@ -994,17 +994,9 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
         syncTotalQuestionOptions();
     }
 };
-// Ortak setup
-const mlRoomHelper = window.setupRoomCodeAndLink({
-    codeTextId: "mlRoomCodeText",
-    codeEyeBtnId: "mlRoomCodeEyeBtn",
-    copyHintId: "mlCopyHint",
-    linkTextId: "mlInviteLinkText",
-    linkEyeBtnId: "mlInviteLinkEyeBtn",
-    linkHintId: "mlInviteLinkHint",
-    getRoomCode: () => mlData.roomCode,
-    getPlayerId: () => mlData.playerId
-});
+// ✨ ODA KODU MUHABBETİ KALDIRILDI + DAVET LİNKI GÖZ BUTONU KALDIRILDI
+// Eski setupRoomCodeAndLink çağrısı kaldırıldı - lobby'de doğrudan yönetiliyor (Bil Bakalım'daki aynı düzen)
+const mlRoomHelper = null; // ✅ sadece geriye uyumluluk için bırakıldı
 document.getElementById("mlBackBtn").onclick = () => { showEscPopup(); };
 document.getElementById("mlBackToMenuBtn").onclick = () => location.reload();
 document.getElementById("mlRematchBtn").onclick = () => { 
@@ -1107,7 +1099,42 @@ function stopMlTimer() {
 }
 
 function updateMlLobby() {
-    if (mlRoomHelper) { mlRoomHelper.renderCode(); mlRoomHelper.renderLink(); }
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    const _mlRoomCodeEl = document.getElementById("mlRoomCodeText");
+    if (_mlRoomCodeEl) {
+        const _mlRoomCodeBox = _mlRoomCodeEl.closest(".roomCodeBox");
+        if (_mlRoomCodeBox) _mlRoomCodeBox.style.display = "none";
+        _mlRoomCodeEl.style.display = "none";
+    }
+    const _mlRoomCodeEyeEl = document.getElementById("mlRoomCodeEyeBtn");
+    if (_mlRoomCodeEyeEl) _mlRoomCodeEyeEl.style.display = "none";
+    const _mlCopyHintEl = document.getElementById("mlCopyHint");
+    if (_mlCopyHintEl) _mlCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _mlInviteLinkEyeEl = document.getElementById("mlInviteLinkEyeBtn");
+    if (_mlInviteLinkEyeEl) _mlInviteLinkEyeEl.style.display = "none";
+
+    const _mlInviteLinkText = document.getElementById("mlInviteLinkText");
+    if (_mlInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _mlInviteLinkText.classList.remove("hiddenLink");
+        _mlInviteLinkText.textContent = `${location.origin}/?join=${mlData.roomCode}`;
+        _mlInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _mlInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${mlData.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("mlInviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
+    }
     document.getElementById("mlLobbyTurnSeconds").textContent = mlData.turnSeconds;
     const _maxEl = document.getElementById("mlLobbyMaxPlayers");
     if (_maxEl) _maxEl.textContent = mlData.maxPlayers || 2;

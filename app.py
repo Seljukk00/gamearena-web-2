@@ -339,8 +339,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             max_players = int(max_players)
                         except:
                             max_players = 2
-                    if player_count >= max_players:
-                        continue
+                    # ✨ Dolu odalar da listeye dahil edilir (frontend "🚪 DOLU" rozetiyle gösterir)
                     mode = room.get("mode", "bil_bakalim")
                     host_name = ""
                     for pid, pdata in room.get("players", {}).items():

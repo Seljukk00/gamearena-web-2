@@ -577,16 +577,9 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
     }
 };
 
-const haritaRoomHelper = window.setupRoomCodeAndLink({
-    codeTextId: "haritaRoomCodeText",
-    codeEyeBtnId: "haritaRoomCodeEyeBtn",
-    copyHintId: "haritaCopyHint",
-    linkTextId: "haritaInviteLinkText",
-    linkEyeBtnId: "haritaInviteLinkEyeBtn",
-    linkHintId: "haritaInviteLinkHint",
-    getRoomCode: () => haritaData.roomCode,
-    getPlayerId: () => haritaData.playerId
-});
+// ✨ ODA KODU MUHABBETİ KALDIRILDI + DAVET LİNKI GÖZ BUTONU KALDIRILDI
+// Eski setupRoomCodeAndLink çağrısı kaldırıldı - lobby'de doğrudan yönetiliyor (Bil Bakalım'daki aynı düzen)
+const haritaRoomHelper = null; // ✅ sadece geriye uyumluluk için bırakıldı
 
 // Oyun butonları
 document.getElementById("haritaBackBtn").onclick = () => {
@@ -929,7 +922,42 @@ function isHaritaSolo() {
 }
 
 function updateHaritaLobby() {
-    if (haritaRoomHelper) { haritaRoomHelper.renderCode(); haritaRoomHelper.renderLink(); }
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    const _haritaRoomCodeEl = document.getElementById("haritaRoomCodeText");
+    if (_haritaRoomCodeEl) {
+        const _haritaRoomCodeBox = _haritaRoomCodeEl.closest(".roomCodeBox");
+        if (_haritaRoomCodeBox) _haritaRoomCodeBox.style.display = "none";
+        _haritaRoomCodeEl.style.display = "none";
+    }
+    const _haritaRoomCodeEyeEl = document.getElementById("haritaRoomCodeEyeBtn");
+    if (_haritaRoomCodeEyeEl) _haritaRoomCodeEyeEl.style.display = "none";
+    const _haritaCopyHintEl = document.getElementById("haritaCopyHint");
+    if (_haritaCopyHintEl) _haritaCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _haritaInviteLinkEyeEl = document.getElementById("haritaInviteLinkEyeBtn");
+    if (_haritaInviteLinkEyeEl) _haritaInviteLinkEyeEl.style.display = "none";
+
+    const _haritaInviteLinkText = document.getElementById("haritaInviteLinkText");
+    if (_haritaInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _haritaInviteLinkText.classList.remove("hiddenLink");
+        _haritaInviteLinkText.textContent = `${location.origin}/?join=${haritaData.roomCode}`;
+        _haritaInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _haritaInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${haritaData.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("haritaInviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
+    }
     const _ts = haritaData.turnSeconds;
     document.getElementById("haritaLobbyTurnSeconds").textContent = (_ts === 0) ? "♾️" : _ts;
     

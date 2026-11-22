@@ -2994,21 +2994,43 @@ function showCarkifelekAnimation(msg) {
 // LOBBY
 // ==========================================
 function updateSatrancLobby() {
-    if (window.setupRoomCodeAndLink && !_satrancRoomHelper) {
-        _satrancRoomHelper = window.setupRoomCodeAndLink({
-            codeTextId: "satrancRoomCodeText",
-            codeEyeBtnId: "satrancRoomCodeEyeBtn",
-            copyHintId: "satrancCopyHint",
-            linkTextId: "satrancInviteLinkText",
-            linkEyeBtnId: "satrancInviteLinkEyeBtn",
-            linkHintId: "satrancInviteLinkHint",
-            getRoomCode: () => satrancData.roomCode,
-            getPlayerId: () => satrancData.playerId
-        });
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    // ✨ Davet linki gözük butonu KALDIRILDI - link her zaman görünür (hep açık)
+    _satrancRoomHelper = null; // ✅ eski helper çağrısı kaldırıldı (Bil Bakalım'daki aynı düzen)
+    const _satrancRoomCodeEl = document.getElementById("satrancRoomCodeText");
+    if (_satrancRoomCodeEl) {
+        const _satrancRoomCodeBox = _satrancRoomCodeEl.closest(".roomCodeBox");
+        if (_satrancRoomCodeBox) _satrancRoomCodeBox.style.display = "none";
+        _satrancRoomCodeEl.style.display = "none";
     }
-    if (_satrancRoomHelper) {
-        _satrancRoomHelper.renderCode();
-        _satrancRoomHelper.renderLink();
+    const _satrancRoomCodeEyeEl = document.getElementById("satrancRoomCodeEyeBtn");
+    if (_satrancRoomCodeEyeEl) _satrancRoomCodeEyeEl.style.display = "none";
+    const _satrancCopyHintEl = document.getElementById("satrancCopyHint");
+    if (_satrancCopyHintEl) _satrancCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _satrancInviteLinkEyeEl = document.getElementById("satrancInviteLinkEyeBtn");
+    if (_satrancInviteLinkEyeEl) _satrancInviteLinkEyeEl.style.display = "none";
+
+    const _satrancInviteLinkText = document.getElementById("satrancInviteLinkText");
+    if (_satrancInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _satrancInviteLinkText.classList.remove("hiddenLink");
+        _satrancInviteLinkText.textContent = `${location.origin}/?join=${satrancData.roomCode}`;
+        _satrancInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _satrancInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${satrancData.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("satrancInviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
     }
 
     const timeModeNames = {

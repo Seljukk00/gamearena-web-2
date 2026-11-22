@@ -376,16 +376,9 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
     }
 };
 
-const takimRoomHelper = window.setupRoomCodeAndLink({
-    codeTextId: "takimRoomCodeText",
-    codeEyeBtnId: "takimRoomCodeEyeBtn",
-    copyHintId: "takimCopyHint",
-    linkTextId: "takimInviteLinkText",
-    linkEyeBtnId: "takimInviteLinkEyeBtn",
-    linkHintId: "takimInviteLinkHint",
-    getRoomCode: () => takimData.roomCode,
-    getPlayerId: () => takimData.playerId
-});
+// ✨ ODA KODU MUHABBETİ KALDIRILDI + DAVET LİNKI GÖZ BUTONU KALDIRILDI
+// Eski setupRoomCodeAndLink çağrısı kaldırıldı - lobby'de doğrudan yönetiliyor (Bil Bakalım'daki aynı düzen)
+const takimRoomHelper = null; // ✅ sadece geriye uyumluluk için bırakıldı
 
 document.getElementById("takimBackBtn").onclick = () => {
     showEscPopup();
@@ -494,7 +487,42 @@ function updateTakimStatus(text, color) {
 }
 
 function updateTakimLobby() {
-    if (takimRoomHelper) { takimRoomHelper.renderCode(); takimRoomHelper.renderLink(); }
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    const _takimRoomCodeEl = document.getElementById("takimRoomCodeText");
+    if (_takimRoomCodeEl) {
+        const _takimRoomCodeBox = _takimRoomCodeEl.closest(".roomCodeBox");
+        if (_takimRoomCodeBox) _takimRoomCodeBox.style.display = "none";
+        _takimRoomCodeEl.style.display = "none";
+    }
+    const _takimRoomCodeEyeEl = document.getElementById("takimRoomCodeEyeBtn");
+    if (_takimRoomCodeEyeEl) _takimRoomCodeEyeEl.style.display = "none";
+    const _takimCopyHintEl = document.getElementById("takimCopyHint");
+    if (_takimCopyHintEl) _takimCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _takimInviteLinkEyeEl = document.getElementById("takimInviteLinkEyeBtn");
+    if (_takimInviteLinkEyeEl) _takimInviteLinkEyeEl.style.display = "none";
+
+    const _takimInviteLinkText = document.getElementById("takimInviteLinkText");
+    if (_takimInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _takimInviteLinkText.classList.remove("hiddenLink");
+        _takimInviteLinkText.textContent = `${location.origin}/?join=${takimData.roomCode}`;
+        _takimInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _takimInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${takimData.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("takimInviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
+    }
     const diffNames = { 
         kolay: "🟢 Kolay", 
         orta: "🟡 Orta", 

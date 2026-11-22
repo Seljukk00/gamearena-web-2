@@ -1169,22 +1169,44 @@ function updateMiniLobby() {
         }
     }
     
-    if (window.setupRoomCodeAndLink) {
-        const helper = window.setupRoomCodeAndLink({
-            codeTextId: "miniRoomCodeText",
-            codeEyeBtnId: "miniRoomCodeEyeBtn",
-            copyHintId: "miniCopyHint",
-            linkTextId: "miniInviteLinkText",
-            linkEyeBtnId: "miniInviteLinkEyeBtn",
-            linkHintId: "miniInviteLinkHint",
-            getRoomCode: () => miniData.roomCode,
-            getPlayerId: () => miniData.playerId
-        });
-        if (helper) {
-            helper.renderCode();
-            helper.renderLink();
-        }
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _miniRoomCodeEl = document.getElementById("miniRoomCodeText");
+    if (_miniRoomCodeEl) {
+        const _miniRoomCodeBox = _miniRoomCodeEl.closest(".roomCodeBox");
+        if (_miniRoomCodeBox) _miniRoomCodeBox.style.display = "none";
+        _miniRoomCodeEl.style.display = "none";
     }
+    const _miniRoomCodeEyeEl = document.getElementById("miniRoomCodeEyeBtn");
+    if (_miniRoomCodeEyeEl) _miniRoomCodeEyeEl.style.display = "none";
+    const _miniCopyHintEl = document.getElementById("miniCopyHint");
+    if (_miniCopyHintEl) _miniCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _miniInviteLinkEyeEl = document.getElementById("miniInviteLinkEyeBtn");
+    if (_miniInviteLinkEyeEl) _miniInviteLinkEyeEl.style.display = "none";
+
+    const _miniInviteLinkText = document.getElementById("miniInviteLinkText");
+    if (_miniInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _miniInviteLinkText.classList.remove("hiddenLink");
+        _miniInviteLinkText.textContent = `${location.origin}/?join=${miniData.roomCode}`;
+        _miniInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _miniInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${miniData.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("miniInviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
+    }
+
 }
 
 function renderTeamColumn(containerId, players, teamKey) {

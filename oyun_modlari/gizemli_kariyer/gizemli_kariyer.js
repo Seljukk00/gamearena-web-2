@@ -506,16 +506,9 @@ document.getElementById("gizemRoomSettingsBtn").onclick = () => {
     }
 };
 
-const gizemRoomHelper = window.setupRoomCodeAndLink({
-    codeTextId: "gizemRoomCodeText",
-    codeEyeBtnId: "gizemRoomCodeEyeBtn",
-    copyHintId: "gizemCopyHint",
-    linkTextId: "gizemInviteLinkText",
-    linkEyeBtnId: "gizemInviteLinkEyeBtn",
-    linkHintId: "gizemInviteLinkHint",
-    getRoomCode: () => gizemData.roomCode,
-    getPlayerId: () => gizemData.playerId
-});
+// ✨ ODA KODU MUHABBETİ KALDIRILDI + DAVET LİNKI GÖZ BUTONU KALDIRILDI
+// Eski setupRoomCodeAndLink çağrısı kaldırıldı - lobby'de doğrudan yönetiliyor (Bil Bakalım'daki aynı düzen)
+const gizemRoomHelper = null; // ✅ sadece geriye uyumluluk için bırakıldı
 
 document.getElementById("gizemBackBtn").onclick = () => {
     showEscPopup();
@@ -639,7 +632,42 @@ function isGizemSolo() {
 }
 
 function updateGizemLobby() {
-    if (gizemRoomHelper) { gizemRoomHelper.renderCode(); gizemRoomHelper.renderLink(); }
+    // ✨ ODA KODU MUHABBETİ KALDIRILDI - "Oda Kodu: ###### 👁️" kısmı gizlenir, sadece davet linki kalır
+    const _gizemRoomCodeEl = document.getElementById("gizemRoomCodeText");
+    if (_gizemRoomCodeEl) {
+        const _gizemRoomCodeBox = _gizemRoomCodeEl.closest(".roomCodeBox");
+        if (_gizemRoomCodeBox) _gizemRoomCodeBox.style.display = "none";
+        _gizemRoomCodeEl.style.display = "none";
+    }
+    const _gizemRoomCodeEyeEl = document.getElementById("gizemRoomCodeEyeBtn");
+    if (_gizemRoomCodeEyeEl) _gizemRoomCodeEyeEl.style.display = "none";
+    const _gizemCopyHintEl = document.getElementById("gizemCopyHint");
+    if (_gizemCopyHintEl) _gizemCopyHintEl.style.display = "none";
+
+    // ✨ Davet linki göz butonu KALDIRILDI - link her zaman görünür (hep açık)
+    const _gizemInviteLinkEyeEl = document.getElementById("gizemInviteLinkEyeBtn");
+    if (_gizemInviteLinkEyeEl) _gizemInviteLinkEyeEl.style.display = "none";
+
+    const _gizemInviteLinkText = document.getElementById("gizemInviteLinkText");
+    if (_gizemInviteLinkText) {
+        // Gizli state'i temizle → link her zaman açık görünür
+        localStorage.removeItem("hideInviteLink");
+        _gizemInviteLinkText.classList.remove("hiddenLink");
+        _gizemInviteLinkText.textContent = `${location.origin}/?join=${gizemData.roomCode}`;
+        _gizemInviteLinkText.style.opacity = "";
+        // Tıkla → kopyala
+        _gizemInviteLinkText.onclick = () => {
+            const link = `${location.origin}/?join=${gizemData.roomCode}`;
+            navigator.clipboard.writeText(link).then(() => {
+                const _hint = document.getElementById("gizemInviteLinkHint");
+                if (_hint) {
+                    _hint.textContent = "✓ Link kopyalandı!";
+                    _hint.classList.add("show");
+                    setTimeout(() => _hint.classList.remove("show"), 2000);
+                }
+            }).catch(() => {});
+        };
+    }
     document.getElementById("gizemLobbyTurnSeconds").textContent = gizemData.turnSeconds || 60;
     
     const _maxEl = document.getElementById("gizemLobbyMaxPlayers");
