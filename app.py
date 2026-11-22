@@ -22,7 +22,6 @@ from oyun_modlari.haritadan_bul.harita_handler import handle_harita_message
 from oyun_modlari.kim_milyoner.milyoner_handler import handle_milyoner_message
 from oyun_modlari.takim_bilmece.takim_handler import handle_takim_message
 from oyun_modlari.ilk_11_challenge.ilk11_handler import handle_ilk11_message
-from oyun_modlari.stadyum_tanima.stadyum_handler import handle_stadyum_message
 
 from oyun_modlari.sarkidan_bul.sarki_handler import handle_sarki_message
 from oyun_modlari.mini_futbol.mini_futbol_handler import handle_mini_message
@@ -146,7 +145,6 @@ app.mount("/mod_resimleri", StaticFiles(directory="mod_resimleri"), name="mod_re
 app.mount("/flags", StaticFiles(directory="oyun_modlari/takim_bilmece/flags"), name="flags")
 app.mount("/ml_assets", StaticFiles(directory="oyun_modlari/kim_milyoner/assets"), name="ml_assets")
 app.mount("/harita_assets", StaticFiles(directory="oyun_modlari/haritadan_bul"), name="harita_assets")
-app.mount("/stadyum_images", StaticFiles(directory="oyun_modlari/stadyum_tanima/images"), name="stadyum_images")
 app.mount("/takim_logolari", StaticFiles(directory="oyun_modlari/gizemli_kariyer/takim_logolari"), name="takim_logolari")
 app.mount("/satranc_vendor", StaticFiles(directory="oyun_modlari/jokerli_satranc/vendor"), name="satranc_vendor")
 app.mount("/satranc_sounds", StaticFiles(directory="oyun_modlari/jokerli_satranc/sounds"), name="satranc_sounds")
@@ -318,7 +316,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "haritadan_bul": "🌍 Haritadan Bul",
                     "gizemli_kariyer": "🎭 Gizemli Kariyer",
                     "ilk_11_challenge": "⚽ İlk 11 Challenge",
-                    "stadyum_tanima": "🏟️ Stadyum Tanıma",
                     "sarkidan_bul": "🎵 Şarkıdan Bul",
                     "mini_futbol": "⚽ Mini Futbol",
                     "jokerli_satranc": "♟️ Jokerli Satranç"
@@ -461,8 +458,6 @@ async def websocket_endpoint(websocket: WebSocket):
                                     from oyun_modlari.gizemli_kariyer.gizem_handler import send_gizem_lobby_update as slu
                                 elif room_mode == "ilk_11_challenge":
                                     from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
-                                elif room_mode == "stadyum_tanima":
-                                    from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
                                 elif room_mode == "sarkidan_bul":
                                     from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                                 elif room_mode == "mini_futbol":
@@ -496,7 +491,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 new_mode = data.get("new_mode") or ""
                 new_mode = str(new_mode).strip()
                 valid_modes = ["bil_bakalim", "takim_bilmece", "kim_milyoner", "haritadan_bul",
-                              "gizemli_kariyer", "ilk_11_challenge", "stadyum_tanima",
+                              "gizemli_kariyer", "ilk_11_challenge",
                               "sarkidan_bul", "mini_futbol", "jokerli_satranc"]
                 if not new_mode:
                     await safe_send(websocket, {"type": "error", "message": "Mod seçilmedi."})
@@ -508,7 +503,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Eski tasks'ları iptal et
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
-                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                 "harita_task", "gizem_task", "ilk11_task",
                                  "sarki_task", "mini_task"]:
                     task = room.get(task_key)
                     if task and not task.done():
@@ -553,7 +548,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif new_mode == "takim_bilmece":
                     ms = data.get("mode_settings", {})
                     _mp = int(ms.get("max_players", 2))
-                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    if _mp not in [1, 2, 3, 4, 5]: _mp = 2
                     _tq = int(ms.get("total_questions", 12))
                     if _tq not in [6, 9, 12, 15, 20, 25]: _tq = 12
                     _ts = int(ms.get("turn_seconds", 60))
@@ -568,7 +563,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif new_mode == "kim_milyoner":
                     ms = data.get("mode_settings", {})
                     _mp = int(ms.get("ml_max_players", 2))
-                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    if _mp not in [1, 2, 3, 4, 5]: _mp = 2
                     _tq = int(ms.get("ml_total_questions", 12))
                     if _tq not in [6, 8, 10, 12, 15, 20, 25]: _tq = 12
                     _cat = ms.get("ml_category", "futbol")
@@ -587,7 +582,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif new_mode == "haritadan_bul":
                     ms = data.get("mode_settings", {})
                     _mp = int(ms.get("max_players", 2))
-                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    if _mp not in [1, 2, 3, 4, 5]: _mp = 2
                     _tr = int(ms.get("total_rounds", 10))
                     if _tr not in [5, 10, 15, 20]: _tr = 10
                     _diff = ms.get("difficulty", "karisik")
@@ -602,7 +597,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif new_mode == "gizemli_kariyer":
                     ms = data.get("mode_settings", {})
                     _mp = int(ms.get("max_players", 2))
-                    if _mp not in [2, 3, 4, 5]: _mp = 2
+                    if _mp not in [1, 2, 3, 4, 5]: _mp = 2
                     _tr = int(ms.get("total_rounds", 10))
                     if _tr not in [5, 10, 15, 20]: _tr = 10
                     _diff = ms.get("difficulty", "karisik")
@@ -626,27 +621,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     new_room.update({
                         "turn_seconds": _ts, "ilk11_task": None
                     })
-                elif new_mode == "stadyum_tanima":
-                    ms = data.get("mode_settings", {})
-                    _mp = int(ms.get("max_players", 2))
-                    if _mp not in [2, 3, 4, 5]: _mp = 2
-                    _tr = int(ms.get("total_rounds", 10))
-                    if _tr not in [5, 10, 15, 20]: _tr = 10
-                    _ts = int(ms.get("turn_seconds", 20))
-                    if _ts not in [15, 20, 30, 45]: _ts = 20
+                
                     
-                    new_room.update({
-                        "max_players": _mp, "total_rounds": _tr, "turn_seconds": _ts,
-                        "stad_current_player": 1, "stad_task": None,
-                        "stad_jokers_left": {}, "stad_used_jokers": {}
-                    })
                 elif new_mode == "sarkidan_bul":
                     # ✨ Host özel ayarlar gönderdiyse onları kullan, yoksa default
                     sarki_settings = data.get("sarki_settings", {})
                     
                     # Ayarları güvenli çevir
                     _max_p = int(sarki_settings.get("max_players", 2))
-                    if _max_p not in [2, 3, 4, 5]: _max_p = 2
+                    if _max_p not in [1, 2, 3, 4, 5]: _max_p = 2
                     
                     _dil = sarki_settings.get("dil", "karisik")
                     if _dil not in ["tr", "yabanci", "karisik"]: _dil = "karisik"
@@ -790,8 +773,6 @@ async def websocket_endpoint(websocket: WebSocket):
                         from oyun_modlari.gizemli_kariyer.gizem_handler import send_gizem_lobby_update as slu
                     elif new_mode == "ilk_11_challenge":
                         from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
-                    elif new_mode == "stadyum_tanima":
-                        from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
                     elif new_mode == "sarkidan_bul":
                         from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                     elif new_mode == "mini_futbol":
@@ -822,8 +803,7 @@ async def websocket_endpoint(websocket: WebSocket):
             # ==========================================
             if msg_type in ["join_room", "takim_join_room", "ml_join_room", 
                            "harita_join_room", "gizem_join_room", 
-                           "ilk11_join_room", "stad_join_room",
-                           "sarki_join_room", "mini_join_room", "satranc_join_room"]:
+                           "ilk11_join_room",                           "sarki_join_room", "mini_join_room", "satranc_join_room"]:
                 join_code = (data.get("room_code") or "").strip().upper()
                 join_name = (data.get("name") or "").strip()
                 if join_code in rooms:
@@ -894,16 +874,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 player_id = ilk11_result["player_id"]
                 continue
 
-            # --- Stadyum Tanıma ---
-            stad_result = await handle_stadyum_message(
-                msg_type=msg_type, data=data, websocket=websocket,
-                rooms=rooms, room_code=room_code, player_id=player_id,
-                make_room_code=make_room_code, safe_send=safe_send, broadcast=broadcast
-            )
-            if stad_result["handled"]:
-                room_code = stad_result["room_code"]
-                player_id = stad_result["player_id"]
-                continue
+            
 
             
 
@@ -1046,7 +1017,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if len(room["players"]) == 0:
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
-                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                 "harita_task", "gizem_task", "ilk11_task",
                                  "sarki_task", "mini_task",
                                  "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
@@ -1063,7 +1034,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Tüm task'ları iptal et
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
-                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                 "harita_task", "gizem_task", "ilk11_task",
                                  "sarki_task", "mini_task",
                                  "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
@@ -1410,54 +1381,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     return    
                 
-                # ✨ STADYUM TANIMA 3+ KİŞİLİK - Özel davranış (oyun devam eder)
-                if room_mode == "stadyum_tanima" and room.get("max_players", 2) >= 3:
-                    if player_id == 1:
-                        for pid, pdata in room["players"].items():
-                            await safe_send(pdata["ws"], {
-                                "type": "opponent_left",
-                                "message": "Host odayı kapattı.",
-                                "player_name": left_name
-                            })
-                        for task_key in ["stad_task"]:
-                            task = room.get(task_key)
-                            if task and not task.done():
-                                task.cancel()
-                        rooms.pop(room_code, None)
-                        return
-                    
-                    if "left_players" not in room:
-                        room["left_players"] = {}
-                    room["left_players"][player_id] = left_name
-                    
-                    if "scores" in room and player_id in room["scores"]:
-                        del room["scores"][player_id]
-                    if "stad_jokers_left" in room and player_id in room["stad_jokers_left"]:
-                        del room["stad_jokers_left"][player_id]
-                    if "stad_used_jokers" in room and player_id in room["stad_used_jokers"]:
-                        del room["stad_used_jokers"][player_id]
-                    
-                    await broadcast(room, {
-                        "type": "stad_player_left",
-                        "player_id": player_id,
-                        "name": left_name,
-                        "scores": room.get("scores", {}),
-                        "jokers_left": room.get("stad_jokers_left", {}),
-                        "players": [{"id": pid, "name": pdata["name"]} for pid, pdata in sorted(room["players"].items())]
-                    })
-                    
-                    if room.get("stad_current_player") == player_id:
-                        old_task = room.get("stad_task")
-                        if old_task and not old_task.done():
-                            old_task.cancel()
-                        try:
-                            from oyun_modlari.stadyum_tanima.stadyum_handler import stad_next_round
-                            import asyncio as _asyncio
-                            _asyncio.create_task(stad_next_round(room, broadcast))
-                        except Exception as e:
-                            print(f"[STAD DISCONNECT next_round HATA] {e}")
-                    
-                    return
+                
                 
                 # Host ayrıldıysa → oda kapansın (misafir oynayamaz)
                 if player_id == 1:
@@ -1469,7 +1393,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         })
                     for task_key in ["turn_task", "selection_task", "answer_task",
                                      "takim_task", "ml_task", "ml_ai_generation_task",
-                                     "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                     "harita_task", "gizem_task", "ilk11_task",
                                      "sarki_task", "mini_task"]:
                         task = room.get(task_key)
                         if task and not task.done():
@@ -1482,7 +1406,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Task'ları iptal et
                     for task_key in ["turn_task", "selection_task", "answer_task",
                                      "takim_task", "ml_task",
-                                     "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                     "harita_task", "gizem_task", "ilk11_task",
                                      "sarki_task",
                                      "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                         task = room.get(task_key)
@@ -1515,8 +1439,6 @@ async def websocket_endpoint(websocket: WebSocket):
                             from oyun_modlari.gizemli_kariyer.gizem_handler import send_gizem_lobby_update as slu
                         elif room_mode == "ilk_11_challenge":
                             from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
-                        elif room_mode == "stadyum_tanima":
-                            from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
                         elif room_mode == "sarkidan_bul":
                             from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu
                         elif room_mode == "jokerli_satranc":
@@ -1539,7 +1461,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     })
                 for task_key in ["turn_task", "selection_task", "answer_task",
                                  "takim_task", "ml_task", "ml_ai_generation_task",
-                                 "harita_task", "gizem_task", "ilk11_task", "stad_task",
+                                 "harita_task", "gizem_task", "ilk11_task",
                                  "sarki_task", "mini_task",
                                  "satranc_task", "satranc_clock_task", "satranc_selection_task"]:
                     task = room.get(task_key)
@@ -1575,9 +1497,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     await slu(room, broadcast)
                 elif room_mode == "ilk_11_challenge":
                     from oyun_modlari.ilk_11_challenge.ilk11_handler import send_ilk11_lobby_update as slu
-                    await slu(room, broadcast)
-                elif room_mode == "stadyum_tanima":
-                    from oyun_modlari.stadyum_tanima.stadyum_handler import send_stad_lobby_update as slu
                     await slu(room, broadcast)
                 elif room_mode == "sarkidan_bul":
                     from oyun_modlari.sarkidan_bul.sarki_handler import send_sarki_lobby_update as slu

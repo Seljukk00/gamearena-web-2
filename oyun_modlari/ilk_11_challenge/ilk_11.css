@@ -282,6 +282,126 @@
     width: 95vw;
 }
 
+.ilk11PopupHeader {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    margin-bottom: 4px;
+}
+
+.ilk11PopupHeader h2 {
+    margin: 0;
+    padding: 0 145px;
+}
+
+.ilk11RerollBtn {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    min-width: 0;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 212, 59, 0.7);
+    border-radius: 8px;
+    background: linear-gradient(135deg, #b7791f, #e0a800);
+    color: #111827;
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    box-shadow: 0 0 12px rgba(255, 212, 59, 0.25);
+}
+
+.ilk11RerollBtn:hover:not(:disabled) {
+    transform: translateY(calc(-50% - 2px));
+    filter: brightness(1.1);
+    box-shadow: 0 0 16px rgba(255, 212, 59, 0.45);
+}
+
+.ilk11RerollBtn:disabled {
+    transform: translateY(-50%);
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.ilk11PopupGrid.rerolling {
+    pointer-events: none;
+}
+
+.ilk11PopupOptionExiting {
+    animation: ilk11PopupCardExit 0.22s ease-in forwards;
+    pointer-events: none;
+}
+
+.ilk11PopupOptionEntering {
+    backface-visibility: hidden;
+    animation: ilk11PopupCardEnter 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ilk11PopupEmpty {
+    width: 100%;
+    padding: 25px 10px;
+    color: #ffa94d;
+    font-weight: bold;
+    text-align: center;
+}
+
+@keyframes ilk11PopupCardExit {
+    from {
+        opacity: 1;
+        transform: perspective(700px) rotateY(0deg) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: perspective(700px) rotateY(80deg) scale(0.8);
+    }
+}
+
+@keyframes ilk11PopupCardEnter {
+    0% {
+        opacity: 0;
+        transform: perspective(700px) rotateY(-75deg) scale(0.82);
+    }
+    65% {
+        opacity: 1;
+        transform: perspective(700px) rotateY(8deg) scale(1.03);
+    }
+    100% {
+        opacity: 1;
+        transform: perspective(700px) rotateY(0deg) scale(1);
+    }
+}
+
+@media (max-width: 600px) {
+    .ilk11PopupHeader {
+        min-height: 0;
+        padding-top: 38px;
+    }
+
+    .ilk11PopupHeader h2 {
+        padding: 0;
+        font-size: 18px;
+    }
+
+    .ilk11RerollBtn {
+        top: 0;
+        right: 0;
+        transform: none;
+        padding: 6px 9px;
+        font-size: 11px;
+    }
+
+    .ilk11RerollBtn:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .ilk11RerollBtn:disabled {
+        transform: none;
+    }
+}
+
 .ilk11PopupGrid {
     display: flex;
     gap: 10px;
@@ -639,6 +759,17 @@
     background: #2b2b48;
     color: white;
     border-color: #845ef7;
+}
+
+.simSpeedBtn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.simSpeedBtn:disabled:hover {
+    background: #1a1a2e;
+    color: #ced4da;
+    border-color: #444;
 }
 
 .simSpeedBtn.active {

@@ -378,6 +378,17 @@ _add_alias("Avustralya", "australia", "avustralya")
 _add_alias("Yeni Zelanda", "new zealand", "yeni zelanda")
 _add_alias("Papua Yeni Gine", "papua new guinea", "papua yeni gine")
 
+# Haritadan Bul'da haritada olmayan ülkelerin oyuncuları gelmesin
+EXCLUDED_NATIONALITIES = {
+    "galler", "wales",
+    "iskocya", "scotland",
+    "kuzey irlanda", "northern ireland",
+}
+
+def is_excluded_nationality(nationality):
+    """Haritada olmayan ülke mü? (Galler, İskoçya, Kuzey İrlanda)"""
+    return _normalize(nationality) in EXCLUDED_NATIONALITIES
+
 def get_country_key(nationality):
     """Futbolcunun nationality değerinden COUNTRIES key'ini bul"""
     return COUNTRY_ALIASES.get(_normalize(nationality))
@@ -387,6 +398,8 @@ def get_valid_footballer_indices(all_footballers):
     valid = []
     for i, f in enumerate(all_footballers):
         nat = f.get("nationality", "")
+        if is_excluded_nationality(nat):
+            continue
         if get_country_key(nat):
             valid.append(i)
     return valid
@@ -470,6 +483,8 @@ def get_footballers_by_difficulty(all_footballers, difficulty):
     valid = []
     for i, f in enumerate(all_footballers):
         nat = f.get("nationality", "")
+        if is_excluded_nationality(nat):
+            continue  # Haritada olmayan ülkeleri atla (Galler, İskoçya, Kuzey İrlanda)
         if not get_country_key(nat):
             continue  # Ülkesi tanınmayanları atla
         

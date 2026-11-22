@@ -20,6 +20,8 @@ let questionIndices = [];
 let eliminated = [];
 let mySelection = null;
 let selectionConfirmed = false;
+let selectionReadyCount = 0;
+let selectionCancelPending = false;
 let currentTurn = null;
 let guessMode = false;
 let scores = { 1: 0, 2: 0 };
@@ -99,6 +101,7 @@ const copyHint = document.getElementById("copyHint");
 const lobbyTurnSeconds = document.getElementById("lobbyTurnSeconds");
 const playersList = document.getElementById("playersList");
 const selectGrid = document.getElementById("selectGrid");
+const cancelSecretBtn = document.getElementById("cancelSecretBtn");
 const gameGrid = document.getElementById("gameGrid");
 const questionsBox = document.getElementById("questionsBox");
 const logBox = document.getElementById("logBox");
@@ -137,7 +140,6 @@ window.addEventListener("beforeunload", (e) => {
                           "haritaGame", "haritaLobby",
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby",
                           "sarkiGame", "sarkiLobby",
                           "miniGame", "miniLobby",
                           "satrancGame", "satrancLobby"];
@@ -385,6 +387,18 @@ function renderSelectGrid() {
     });
 }
 
+function updateCancelSecretButton() {
+    if (!cancelSecretBtn) return;
+
+    const canCancel = selectionConfirmed
+        && selectionReadyCount < 2
+        && !gameOver
+        && !selectScreen.classList.contains("hidden");
+
+    cancelSecretBtn.classList.toggle("hidden", !canCancel);
+    cancelSecretBtn.disabled = !canCancel || selectionCancelPending;
+}
+
 // ============ OYUN EKRANI ============
 function renderGameGrid() {
     gameGrid.innerHTML = "";
@@ -469,8 +483,10 @@ function createCard(f, index, mode) {
             openConfirmBox("Gizli Futbolcunu Seç", f, `${f.name} adlı futbolcuyu seçmek istediğine emin misin?`, () => {
                 mySelection = index;
                 selectionConfirmed = true;
+                selectionReadyCount = Math.min(2, selectionReadyCount + 1);
                 setMsg(selectMsg, `Seçimin: ${f.name} ✓`);
                 renderSelectGrid();
+                updateCancelSecretButton();
                 send({ type: "select_secret", index: index });
             });
         };
@@ -1010,6 +1026,8 @@ function resetForNewRound() {
     eliminated = [];
     mySelection = null;
     selectionConfirmed = false;
+    selectionReadyCount = 0;
+    selectionCancelPending = false;
     currentTurn = null;
     guessMode = false;
     remaining = { 1: 32, 2: 32 };
@@ -1023,6 +1041,7 @@ function resetForNewRound() {
     setMsg(selectMsg, "");
     hideAnswerPanel();
     stopTimer();
+    updateCancelSecretButton();
 }
 
 function fullReset() {
@@ -1305,7 +1324,6 @@ function handleMessage(msg) {
                     "haritadan_bul": "🌍 Haritadan Bul",
                     "gizemli_kariyer": "🎭 Gizemli Kariyer",
                     "ilk_11_challenge": "⚽ İlk 11 Challenge",
-                    "stadyum_tanima": "🏟️ Stadyum Tanıma",
                     "sarkidan_bul": "🎵 Şarkıdan Bul",
                     "mini_futbol": "⚽ Mini Futbol",
                     "jokerli_satranc": "♟️ Jokerli Satranç"
@@ -1339,8 +1357,6 @@ function handleMessage(msg) {
             send({ type: "gizem_join_room", name: name, room_code: code });
         } else if (msg.mode === "ilk_11_challenge") {
             send({ type: "ilk11_join_room", name: name, room_code: code });
-        } else if (msg.mode === "stadyum_tanima") {
-            send({ type: "stad_join_room", name: name, room_code: code });
         } else if (msg.mode === "sarkidan_bul") {
             send({ type: "sarki_join_room", name: name, room_code: code });
         } else if (msg.mode === "mini_futbol") {
@@ -1424,9 +1440,36 @@ function handleMessage(msg) {
         return;
     }
 
+    if (msg.type === "selection_cancel_denied") {
+        selectionCancelPending = false;
+        updateCancelSecretButton();
+        if (!selectScreen.classList.contains("hidden")) {
+            setMsg(selectMsg, msg.message || "Seçimin iptal edilemedi.", "#ff6b6b");
+        }
+        return;
+    }
+
     if (msg.type === "selection_status") {
-        if (msg.selected_count < 2) setMsg(selectMsg, `Hazır oyuncu: ${msg.selected_count}/2`);
+        selectionReadyCount = Number.isInteger(msg.selected_count) ? msg.selected_count : 0;
+
+        if (Number.isInteger(msg.selected_player_id) && msg.selected_player_id !== playerId) {
+            showToast("🎯 Rakip Seçimini Yaptı", "Rakip gizli futbolcusunu seçti.", null, "success");
+        }
+
+        if (msg.cancelled_player_id === playerId) {
+            mySelection = null;
+            selectionConfirmed = false;
+            selectionCancelPending = false;
+            renderSelectGrid();
+            showToast("✅ Seçim İptal Edildi", "Yeni bir gizli futbolcu seçebilirsin.", null, "success");
+        } else if (Number.isInteger(msg.cancelled_player_id) && msg.cancelled_player_id !== playerId) {
+            showToast("↩️ Rakip Seçimini İptal Etti", "Rakip yeniden gizli futbolcu seçecek.", null, "warning");
+        }
+
+        if (selectionReadyCount < 2) setMsg(selectMsg, `Hazır oyuncu: ${selectionReadyCount}/2`);
         else setMsg(selectMsg, "İki oyuncu da seçti. Oyun başlıyor...");
+
+        updateCancelSecretButton();
         return;
     }
 
@@ -1651,7 +1694,6 @@ function handleMessage(msg) {
         else if (current.includes("harita")) showScreen("haritaLobby");
         else if (current.includes("gizem")) showScreen("gizemLobby");
         else if (current.includes("ilk11")) showScreen("ilk11Lobby");
-        else if (current.includes("stad")) showScreen("stadLobby");
         else if (current.includes("satranc")) showScreen("satrancLobby");
         else showScreen("lobby");  // Bil Bakalım
         
@@ -1693,7 +1735,7 @@ function handleMessage(msg) {
         
         // ✨ Lobby'de ayrıldıysa → popup YOK, sadece toast
         const lobbyScreens = ["lobby", "takimLobby", "mlLobby", "haritaLobby", 
-                              "gizemLobby", "ilk11Lobby", "stadLobby"];
+                              "gizemLobby", "ilk11Lobby"];
         if (lobbyScreens.includes(current)) {
             showToast("👋 Rakip Ayrıldı", msg.message || "Rakip lobbyden ayrıldı.", null, "warning");
             return;
@@ -1826,7 +1868,16 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
                 if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
                 if (diffSel && savedDiff) diffSel.value = savedDiff;
                 if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
-                if (totalQSel && savedTotalQ) totalQSel.value = savedTotalQ;
+
+                if (totalQSel && typeof window.updateTakimQuestionOptions === "function") {
+                    window.updateTakimQuestionOptions(
+                        maxPSel ? maxPSel.value : 2,
+                        savedTotalQ || totalQSel.value,
+                        "takimTotalQuestionsSelect"
+                    );
+                } else if (totalQSel && savedTotalQ) {
+                    totalQSel.value = savedTotalQ;
+                }
 
                 if (typeof updateJokerInfo === "function") updateJokerInfo();
             } catch(e) {}
@@ -1839,6 +1890,82 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
 });
 
 const takimDifficultySelect = document.getElementById("takimDifficultySelect");
+
+window.getTakimQuestionOptions = function(maxPlayers) {
+    const playerCount = parseInt(maxPlayers, 10) || 2;
+
+    if (playerCount === 1) {
+        return [2, 4, 6, 9, 12, 15, 20, 25];
+    }
+
+    const maxQuestions = playerCount === 4 ? 32 : 30;
+    const options = [];
+
+    for (let count = playerCount; count <= maxQuestions; count += playerCount) {
+        options.push(count);
+    }
+
+    return options;
+};
+
+window.getNearestTakimQuestionCount = function(value, options) {
+    if (!Array.isArray(options) || options.length === 0) return null;
+
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) return options[0];
+
+    return options.reduce((nearest, candidate) => {
+        const candidateDistance = Math.abs(candidate - parsedValue);
+        const nearestDistance = Math.abs(nearest - parsedValue);
+
+        if (
+            candidateDistance < nearestDistance ||
+            (candidateDistance === nearestDistance && candidate < nearest)
+        ) {
+            return candidate;
+        }
+
+        return nearest;
+    }, options[0]);
+};
+
+window.updateTakimQuestionOptions = function(maxPlayersValue, preferredValue, selectId) {
+    const createMaxPlayersSelect = document.getElementById("takimMaxPlayersSelect");
+    const questionSelect = document.getElementById(selectId || "takimTotalQuestionsSelect");
+
+    if (!questionSelect) return;
+
+    const playerCount = maxPlayersValue !== undefined && maxPlayersValue !== null
+        ? maxPlayersValue
+        : (createMaxPlayersSelect ? createMaxPlayersSelect.value : 2);
+
+    const options = window.getTakimQuestionOptions(playerCount);
+    const currentValue = preferredValue !== undefined && preferredValue !== null
+        ? preferredValue
+        : questionSelect.value;
+    const selectedValue = window.getNearestTakimQuestionCount(currentValue, options);
+
+    if (selectedValue === null) return;
+
+    questionSelect.innerHTML = "";
+    options.forEach(value => {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = `${value} Soru`;
+        questionSelect.appendChild(option);
+    });
+
+    questionSelect.value = String(selectedValue);
+};
+
+const takimMaxPlayersSelectForQuestions = document.getElementById("takimMaxPlayersSelect");
+if (takimMaxPlayersSelectForQuestions) {
+    takimMaxPlayersSelectForQuestions.addEventListener("change", () => {
+        window.updateTakimQuestionOptions(takimMaxPlayersSelectForQuestions.value);
+    });
+    window.updateTakimQuestionOptions(takimMaxPlayersSelectForQuestions.value);
+}
+
 const jokerData = {
     kolay:  { name: 3, year: 3, elim: 3, pass: 3, title: "🟢 KOLAY - Jokerler" },
     orta:   { name: 2, year: 2, elim: 2, pass: 1, title: "🟡 ORTA - Jokerler" },
@@ -2051,6 +2178,21 @@ joinBtn.onclick = () => {
 };
 
 startBtn.onclick = () => { send({ type: "start_game" }); };
+
+if (cancelSecretBtn) {
+    cancelSecretBtn.onclick = () => {
+        if (!selectionConfirmed
+            || selectionReadyCount >= 2
+            || selectScreen.classList.contains("hidden")
+            || selectionCancelPending) {
+            return;
+        }
+
+        selectionCancelPending = true;
+        updateCancelSecretButton();
+        send({ type: "cancel_secret_selection" });
+    };
+}
 
 lobbyLeaveBtn.onclick = () => {
     _showLeaveConfirmPopup();
@@ -2363,7 +2505,6 @@ function getCurrentScreen() {
         "createHarita": "createHaritaScreen",
         "createGizem": "createGizemScreen",
         "createIlk11": "createIlk11Screen",
-        "createStad": "createStadScreen",
         "lobby": "lobbyScreen",
         "select": "selectScreen",
         "game": "gameScreen",
@@ -2377,8 +2518,6 @@ function getCurrentScreen() {
         "gizemGame": "gizemGameScreen",
         "ilk11Lobby": "ilk11LobbyScreen",
         "ilk11Game": "ilk11GameScreen",
-        "stadLobby": "stadLobbyScreen",
-        "stadGame": "stadGameScreen",
         "createSarki": "createSarkiScreen",
         "sarkiLobby": "sarkiLobbyScreen",
         "sarkiGame": "sarkiGameScreen",
@@ -2407,14 +2546,13 @@ function getPreviousScreen() {
                           "haritaGame", "haritaLobby",
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby",
                           "miniGame", "miniLobby"];
     if (gameScreens.includes(current)) return null;
     
     // Oda oluştur ekranlarından modselect'e
     const createScreens = ["create", "createTakim", "createMl",
                            "createHarita", "createGizem",
-                           "createIlk11", "createStad",
+                           "createIlk11",
                            "createMini"];
     if (createScreens.includes(current)) return "modselect";
     
@@ -2516,7 +2654,7 @@ function _updateEscPopupButtons() {
     
     // Lobby ekranlarında "Lobiye Dön" gereksiz - gizle
     const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby", 
-                          "gizemLobby", "ilk11Lobby", "stadLobby", 
+                          "gizemLobby", "ilk11Lobby", 
                           "miniLobby"];
     if (lobbyScreens.includes(current)) {
         if (lobbyBtn) lobbyBtn.style.display = "none";
@@ -2535,7 +2673,6 @@ function _isCurrentHost() {
     if (typeof haritaData !== "undefined" && haritaData.playerId === 1) return true;
     if (typeof gizemData !== "undefined" && gizemData.playerId === 1) return true;
     if (typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) return true;
-    if (typeof stadData !== "undefined" && stadData.playerId === 1) return true;
     if (typeof window._sarkiIsHostRef === "function" && window._sarkiIsHostRef()) return true;
     if (typeof miniData !== "undefined" && miniData.playerId === 1) return true;
     if (typeof satrancData !== "undefined" && satrancData.playerId === 1) return true;
@@ -2550,7 +2687,6 @@ function _getCurrentModePrefix() {
     if (current.startsWith("harita")) return "harita";
     if (current.startsWith("gizem")) return "gizem";
     if (current.startsWith("ilk11")) return "ilk11";
-    if (current.startsWith("stad")) return "stad";
     if (current.startsWith("sarki")) return "sarki";
     if (current.startsWith("mini")) return "mini";
     if (current.startsWith("satranc")) return "satranc";
@@ -2711,7 +2847,6 @@ document.addEventListener("keydown", (e) => {
                               "haritaGame", "haritaLobby",
                               "gizemGame", "gizemLobby",
                               "ilk11Game", "ilk11Lobby",
-                              "stadGame", "stadLobby",
                               "sarkiGame", "sarkiLobby",
                               "miniLobby"];
         if (gameScreens.includes(current)) {
@@ -2741,7 +2876,7 @@ document.addEventListener("keydown", (e) => {
 
         // Mesajları temizle
         const msgIds = ["createMsg", "createTakimMsg", "createMlMsg", "createHaritaMsg",
-                        "createGizemMsg", "createIlk11Msg", "createStadMsg",
+                        "createGizemMsg", "createIlk11Msg",
                         "createSarkiMsg", "createMiniMsg", "createSatrancMsg"];
         msgIds.forEach(id => {
             const el = document.getElementById(id);
@@ -2773,7 +2908,7 @@ document.addEventListener("keydown", (e) => {
     
     // ✨ Lobby ekranlarında ESC → direkt ayrılma onayı
     const lobbyScreens = ["lobby", "mlLobby", "takimLobby", "haritaLobby",
-                          "gizemLobby", "ilk11Lobby", "stadLobby",
+                          "gizemLobby", "ilk11Lobby",
                           "sarkiLobby", "miniLobby", "satrancLobby"];
     if (lobbyScreens.includes(current)) {
         window._showLeaveConfirmPopup();
@@ -2787,7 +2922,6 @@ document.addEventListener("keydown", (e) => {
                           "haritaGame",
                           "gizemGame",
                           "ilk11Game",
-                          "stadGame",
                           "sarkiGame",
                           "satrancGame"];
     
@@ -3105,7 +3239,6 @@ if (_mainHeaderTitle) {
             "haritaLobby", "haritaGame",
             "gizemLobby", "gizemGame",
             "ilk11Lobby", "ilk11Game",
-            "stadLobby", "stadGame",
             "sarkiLobby", "sarkiGame",
             "miniLobby", "miniGame",
             "satrancLobby", "satrancGame"
@@ -3144,7 +3277,6 @@ setTimeout(() => {
             if (!wasHost && typeof haritaData !== "undefined" && haritaData.playerId === 1) wasHost = true;
             if (!wasHost && typeof gizemData !== "undefined" && gizemData.playerId === 1) wasHost = true;
             if (!wasHost && typeof ilk11Data !== "undefined" && ilk11Data.playerId === 1) wasHost = true;
-            if (!wasHost && typeof stadData !== "undefined" && stadData.playerId === 1) wasHost = true;
             if (!wasHost && typeof miniData !== "undefined" && miniData.playerId === 1) wasHost = true;
             
             const goHome = _escFromF5;
@@ -3356,21 +3488,7 @@ showScreen = function(screenName) {
         if (ilk11CreateBtn) ilk11CreateBtn.textContent = "Oda Oluştur";
     }
 
-    // Stadyum Tanıma createStad
-    if (pendingModeChange && pendingModeChange.createScreen === "createStad" && screenName !== "createStad") {
-        window._pendingModeChangeCtx = null;
-        const stadMsgEl = document.getElementById("createStadMsg");
-        if (stadMsgEl) stadMsgEl.textContent = "";
-
-        const stadNameInput = document.getElementById("createStadNameInput");
-        if (stadNameInput) {
-            const nameBox = stadNameInput.closest(".centerBox");
-            if (nameBox) nameBox.style.display = "";
-        }
-        const stadCreateBtn = document.getElementById("createStadBtn");
-        if (stadCreateBtn) stadCreateBtn.textContent = "Oda Oluştur";
-    }
-
+    
     // ✨ Kaydedilmiş Şarkıdan Bul ayarlarını yükle
     if (screenName === "createSarki") {
         try {
@@ -3394,22 +3512,7 @@ showScreen = function(screenName) {
         } catch(e) {}
     }
 
-    // ✨ Kaydedilmiş Stadyum Tanıma ayarlarını yükle
-    if (screenName === "createStad") {
-        try {
-            const savedMaxP = localStorage.getItem("stadMaxPlayers");
-            const savedTurnSec = localStorage.getItem("stadTurnSeconds");
-            const savedTotalR = localStorage.getItem("stadTotalRounds");
-
-            const maxPSel = document.getElementById("stadMaxPlayersSelect");
-            const turnSecSel = document.getElementById("stadTurnSecondsSelect");
-            const totalRSel = document.getElementById("stadTotalRoundsSelect");
-
-            if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
-            if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
-            if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
-        } catch(e) {}
-    }
+    
 
     // Jokerli Satranç createSatranc
     if (pendingModeChange && pendingModeChange.createScreen === "createSatranc" && screenName !== "createSatranc") {
@@ -3468,7 +3571,6 @@ window.addEventListener("popstate", (e) => {
                           "haritaGame", "haritaLobby",
                           "gizemGame", "gizemLobby",
                           "ilk11Game", "ilk11Lobby",
-                          "stadGame", "stadLobby",
                           "miniGame", "miniLobby"];
 
     if (gameScreens.includes(current)) {
@@ -3482,7 +3584,7 @@ window.addEventListener("popstate", (e) => {
     // Oda oluştur ekranlarındaysa → mod seçime dön
     const createScreens = ["create", "createTakim", "createMl",
                            "createHarita", "createGizem",
-                           "createIlk11", "createStad",
+                           "createIlk11",
                            "createMini"];
     if (createScreens.includes(current)) {
         showScreen("modselect");
@@ -4195,7 +4297,7 @@ const ALL_MODES = [
     { id: "ilk_11_challenge", name: "İlk 11 Challenge", img: "/mod_resimleri/ilk_11.webp", desc: "4-3-3 kadroyu kur, rakibi yen", maxPlayers: 2 },
     { id: "gizemli_kariyer", name: "Gizemli Kariyer", img: "/mod_resimleri/gizemli_kariyer.webp", desc: "Kariyerden futbolcuyu bul", maxPlayers: 5 },
     { id: "haritadan_bul", name: "Haritadan Bul", img: "/mod_resimleri/haritadan_bul.webp", desc: "Ülkeyi haritada göster", maxPlayers: 5 },
-    { id: "stadyum_tanima", name: "Stadyum Tanıma", img: "/mod_resimleri/stadyum_tanima.webp", desc: "Stadyumu gör, 4 şık arasından bul", maxPlayers: 5 },
+    
     
     { id: "sarkidan_bul", name: "🎵 Şarkıdan Bul", img: "/mod_resimleri/sarkidan_bul.webp", desc: "Şarkıyı dinle, sanatçıyı ve adını bul!", maxPlayers: 5 },
     { id: "mini_futbol", name: "⚽ Mini Futbol", img: "/mod_resimleri/mini_futbol.webp", desc: "1v1'den 5v5'e gerçek zamanlı futbol!", maxPlayers: 15 },
@@ -4214,7 +4316,6 @@ function getCurrentMode() {
     if (current.startsWith("harita")) return "haritadan_bul";
     if (current.startsWith("gizem")) return "gizemli_kariyer";
     if (current.startsWith("ilk11")) return "ilk_11_challenge";
-    if (current.startsWith("stad")) return "stadyum_tanima";
     if (current.startsWith("sarki")) return "sarkidan_bul";
     if (current.startsWith("mini")) return "mini_futbol";
     if (current.startsWith("satranc")) return "jokerli_satranc";
@@ -4246,8 +4347,7 @@ function openChangeModeModal() {
         currentPlayerCount = gizemData.players.length;
     } else if (typeof ilk11Data !== "undefined" && ilk11Data.players && ilk11Data.players.length > 0) {
         currentPlayerCount = ilk11Data.players.length;
-    } else if (typeof stadData !== "undefined" && stadData.players && stadData.players.length > 0) {
-        currentPlayerCount = stadData.players.length;
+    
     } else if (typeof miniData !== "undefined" && miniData.players && miniData.players.length > 0) {
         currentPlayerCount = miniData.players.length;
     } else if (typeof satrancData !== "undefined" && satrancData.players && satrancData.players.length > 0) {
@@ -4415,7 +4515,6 @@ const _allChangeModeBtnIds = [
     "haritaChangeModeBtn",
     "gizemChangeModeBtn",
     "ilk11ChangeModeBtn",
-    "stadChangeModeBtn",
     "sarkiChangeModeBtn",
     "miniChangeModeBtn",
     "satrancChangeModeBtn"
@@ -4453,7 +4552,7 @@ window._getCurrentRoomPlayerCount = function() {
         else if (typeof haritaData !== "undefined" && haritaData.players && haritaData.players.length > 0) count = haritaData.players.length;
         else if (typeof gizemData !== "undefined" && gizemData.players && gizemData.players.length > 0) count = gizemData.players.length;
         else if (typeof ilk11Data !== "undefined" && ilk11Data.players && ilk11Data.players.length > 0) count = ilk11Data.players.length;
-        else if (typeof stadData !== "undefined" && stadData.players && stadData.players.length > 0) count = stadData.players.length;
+        
         else if (typeof miniData !== "undefined" && miniData.players && miniData.players.length > 0) count = miniData.players.length;
         else if (typeof satrancData !== "undefined" && satrancData.players && satrancData.players.length > 0) count = satrancData.players.length;
     } catch(e) {}
@@ -4529,7 +4628,7 @@ function _getModeChangeLobbyScreen(modeId) {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
         "jokerli_satranc": "satrancLobby"
@@ -4606,7 +4705,7 @@ handleMessage = function(msg) {
         try { if (typeof haritaData !== "undefined") { haritaData.playerId = null; haritaData.roomCode = ""; haritaData.inGame = false; } } catch(e) {}
         try { if (typeof gizemData !== "undefined") { gizemData.playerId = null; gizemData.roomCode = ""; gizemData.inGame = false; } } catch(e) {}
         try { if (typeof ilk11Data !== "undefined") { ilk11Data.playerId = null; ilk11Data.roomCode = ""; ilk11Data.inGame = false; } } catch(e) {}
-        try { if (typeof stadData !== "undefined") { stadData.playerId = null; stadData.roomCode = ""; stadData.inGame = false; } } catch(e) {}
+        
         try { if (typeof miniData !== "undefined") { miniData.playerId = null; miniData.roomCode = ""; miniData.players = []; miniData.gameState = null; } } catch(e) {}
         try { if (typeof satrancData !== "undefined") { satrancData.playerId = null; satrancData.roomCode = ""; } } catch(e) {}
         
@@ -4651,7 +4750,6 @@ handleMessage = function(msg) {
         try { if (typeof hideHaritaChat === "function") hideHaritaChat(); } catch(e) {}
         try { if (typeof hideGizemChat === "function") hideGizemChat(); } catch(e) {}
         try { if (typeof hideIlk11Chat === "function") hideIlk11Chat(); } catch(e) {}
-        try { if (typeof hideStadChat === "function") hideStadChat(); } catch(e) {}
         try { if (typeof hideSarkiChat === "function") hideSarkiChat(); } catch(e) {}
         
         // Timer temizle (Bil Bakalım vs.)
@@ -4692,11 +4790,7 @@ handleMessage = function(msg) {
             ilk11Data.roomCode = msg.room_code;
             ilk11Data.inGame = true;
         }
-        if (msg.new_mode === "stadyum_tanima" && typeof stadData !== "undefined") {
-            stadData.playerId = msg.player_id;
-            stadData.roomCode = msg.room_code;
-            stadData.inGame = true;
-        }
+        
         if (msg.new_mode === "sarkidan_bul") {
             // ✨ Sarkı state'ini de senkronize et (sarkiIsHost için)
             // Modül scope'lu değişkenlerine erişim window fonksiyonları ile
@@ -4721,7 +4815,7 @@ handleMessage = function(msg) {
             "haritadan_bul": "haritaLobby",
             "gizemli_kariyer": "gizemLobby",
             "ilk_11_challenge": "ilk11Lobby",
-            "stadyum_tanima": "stadLobby",
+            
             "sarkidan_bul": "sarkiLobby",
             "mini_futbol": "miniLobby",
             "jokerli_satranc": "satrancLobby"
@@ -4738,7 +4832,6 @@ handleMessage = function(msg) {
             "haritadan_bul": "Haritadan Bul",
             "gizemli_kariyer": "Gizemli Kariyer",
             "ilk_11_challenge": "İlk 11 Challenge",
-            "stadyum_tanima": "Stadyum Tanıma",
             "sarkidan_bul": "🎵 Şarkıdan Bul",
             "mini_futbol": "⚽ Mini Futbol",
             "jokerli_satranc": "♟️ Jokerli Satranç"
@@ -4769,7 +4862,7 @@ window._modeChangeHandlers["bil_bakalim"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -4825,7 +4918,7 @@ window._modeChangeHandlers["takim_bilmece"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         "meme_arena": "memeLobby",
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -4860,6 +4953,10 @@ window._modeChangeHandlers["takim_bilmece"] = function() {
         const currentCount = window._getCurrentRoomPlayerCount();
         if (currentCount > 2) {
             window._applyMinPlayerLimit("takimMaxPlayersSelect", currentCount);
+            const maxPlayersSelect = document.getElementById("takimMaxPlayersSelect");
+            if (maxPlayersSelect) {
+                maxPlayersSelect.dispatchEvent(new Event("change"));
+            }
         }
     }, 100);
 
@@ -4886,7 +4983,7 @@ window._modeChangeHandlers["kim_milyoner"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -4928,6 +5025,10 @@ window._modeChangeHandlers["kim_milyoner"] = function() {
         const currentCount = window._getCurrentRoomPlayerCount();
         if (currentCount > 2) {
             window._applyMinPlayerLimit("mlMaxPlayersSelect", currentCount);
+            const maxPlayersSelect = document.getElementById("mlMaxPlayersSelect");
+            if (maxPlayersSelect) {
+                maxPlayersSelect.dispatchEvent(new Event("change"));
+            }
         }
     }, 100);
 
@@ -4954,7 +5055,7 @@ window._modeChangeHandlers["haritadan_bul"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -4989,6 +5090,10 @@ window._modeChangeHandlers["haritadan_bul"] = function() {
         const currentCount = window._getCurrentRoomPlayerCount();
         if (currentCount > 2) {
             window._applyMinPlayerLimit("haritaMaxPlayersSelect", currentCount);
+            const maxPlayersSelect = document.getElementById("haritaMaxPlayersSelect");
+            if (maxPlayersSelect) {
+                maxPlayersSelect.dispatchEvent(new Event("change"));
+            }
         }
     }, 100);
 
@@ -5015,7 +5120,7 @@ window._modeChangeHandlers["gizemli_kariyer"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -5050,6 +5155,10 @@ window._modeChangeHandlers["gizemli_kariyer"] = function() {
         const currentCount = window._getCurrentRoomPlayerCount();
         if (currentCount > 2) {
             window._applyMinPlayerLimit("gizemMaxPlayersSelect", currentCount);
+            const maxPlayersSelect = document.getElementById("gizemMaxPlayersSelect");
+            if (maxPlayersSelect) {
+                maxPlayersSelect.dispatchEvent(new Event("change"));
+            }
         }
     }, 100);
 
@@ -5076,7 +5185,7 @@ window._modeChangeHandlers["ilk_11_challenge"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -5112,66 +5221,7 @@ window._modeChangeHandlers["ilk_11_challenge"] = function() {
 
 console.log("[MODE CHANGE] İlk 11 handler kayıt edildi ✓");
 
-// ==========================================
-// STADYUM TANIMA handler
-// ==========================================
-window._modeChangeHandlers["stadyum_tanima"] = function() {
-    if (!_isCurrentHost()) return false;
 
-    const fromMode = (typeof _currentActiveMode !== "undefined" && _currentActiveMode)
-        ? _currentActiveMode
-        : getCurrentMode();
-
-    const modeToScreen = {
-        "bil_bakalim": "lobby",
-        "takim_bilmece": "takimLobby",
-        "kim_milyoner": "mlLobby",
-        "haritadan_bul": "haritaLobby",
-        "gizemli_kariyer": "gizemLobby",
-        "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
-        
-        "sarkidan_bul": "sarkiLobby",
-        "mini_futbol": "miniLobby",
-        "jokerli_satranc": "satrancLobby"
-    };
-
-    window._pendingModeChangeCtx = {
-        newMode: "stadyum_tanima",
-        createScreen: "createStad",
-        returnScreen: modeToScreen[fromMode] || "stadLobby"
-    };
-
-    const nameInput = document.getElementById("createStadNameInput");
-    if (nameInput) {
-        const nameBox = nameInput.closest(".centerBox");
-        if (nameBox) nameBox.style.display = "none";
-    }
-
-    const createBtnEl = document.getElementById("createStadBtn");
-    if (createBtnEl) createBtnEl.textContent = "✅ Modu Değiştir";
-
-    const msgEl = document.getElementById("createStadMsg");
-    if (msgEl) {
-        msgEl.textContent = 'Stadyum Tanıma ayarlarını seç, sonra butona bas.';
-        msgEl.style.color = "#ffd43b";
-    }
-
-    showScreen("createStad");
-
-    // ✨ Oyuncu sayısı kısıtlama
-    setTimeout(() => {
-        const currentCount = window._getCurrentRoomPlayerCount();
-        if (currentCount > 2) {
-            window._applyMinPlayerLimit("stadMaxPlayersSelect", currentCount);
-        }
-    }, 100);
-
-    console.log("[MODE CHANGE] Stadyum Tanıma create ekranı açıldı");
-    return true;
-};
-
-console.log("[MODE CHANGE] Stadyum Tanıma handler kayıt edildi ✓");
 
 // ==========================================
 // JOKERLİ SATRANÇ handler
@@ -5190,7 +5240,7 @@ window._modeChangeHandlers["jokerli_satranc"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",
@@ -5243,7 +5293,7 @@ window._modeChangeHandlers["mini_futbol"] = function() {
         "haritadan_bul": "haritaLobby",
         "gizemli_kariyer": "gizemLobby",
         "ilk_11_challenge": "ilk11Lobby",
-        "stadyum_tanima": "stadLobby",
+        
         
         "sarkidan_bul": "sarkiLobby",
         "mini_futbol": "miniLobby",

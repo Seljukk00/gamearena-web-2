@@ -73,7 +73,38 @@ const MiniAudio = {
             this._cache[name] = audio;
         }
         const clone = audio.cloneNode();
-        clone.volume = (volume !== undefined && !isNaN(volume)) ? volume : 0.6;
+        const _normVol = (v) => {
+            v = parseFloat(v);
+            if (isNaN(v)) return 0.6;
+            if (v > 1) v = v / 100;
+            if (v < 0) v = 0;
+            if (v > 1) v = 1;
+            return v;
+        };
+        const _masterVol = (function () {
+            try {
+                if (typeof getGlobalVolume === "function") {
+                    const gv = getGlobalVolume();
+                    if (gv !== undefined && gv !== null && gv !== "") return _normVol(gv);
+                }
+            } catch (e) {}
+            try {
+                const raw = localStorage.getItem("gameArenaVolume");
+                if (raw !== null && raw !== "") return _normVol(raw);
+            } catch (e) {}
+            return 0.6;
+        })();
+        let _vol;
+        if (name === "timer_countdown.mp3") {
+            // Geri sayim sesi her zaman sag alttaki global ses seviyesine uysun
+            _vol = _masterVol;
+        } else if (volume !== undefined && !isNaN(volume)) {
+            _vol = _normVol(volume);
+        } else {
+            // Volume verilmeden calinan sesler de global seviyeye uysun
+            _vol = _masterVol;
+        }
+        clone.volume = _vol;
         clone._soundName = name;
 
         // Çalan klonu listeye ekle

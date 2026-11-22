@@ -798,7 +798,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "fransa", "name": "Guivarch"},
             {"pos": "ST", "flag": "fransa", "name": "Henry"},
         ],
-        "options": ["Brezilya 1998", "Italya 1998", "Fransa 1998", "Hollanda 1998"],
+        "options": ["Brezilya 1998", "Italya 1998", "Fransa 1998", "Fransa 1980"],
         "answer": 2
     },
     {
@@ -816,11 +816,11 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "brezilya", "name": "Ronaldo"},
             {"pos": "ST", "flag": "brezilya", "name": "Juninho"},
         ],
-        "options": ["Arjantin 2002", "Brezilya 2002", "Almanya 2002", "Turkiye 2002"],
+        "options": ["Arjantin 2002", "Brezilya 2002", "Brezilya 2005", "Turkiye 2002"],
         "answer": 1
     },
     {
-        "name": "Almanya Milli", "year": "2014", "difficulty": "kolay",
+        "name": "Almanya Milli", "year": "2014", "difficulty": "zor",
         "players": [
             {"pos": "GK", "flag": "almanya", "name": "Neuer"},
             {"pos": "RB", "flag": "almanya", "name": "Lahm"},
@@ -838,7 +838,7 @@ ALL_TEAMS = [
         "answer": 0
     },
     {
-        "name": "Ispanya Milli", "year": "2010", "difficulty": "kolay",
+        "name": "Ispanya Milli", "year": "2010", "difficulty": "orta",
         "players": [
             {"pos": "GK", "flag": "ispanya", "name": "Casillas"},
             {"pos": "RB", "flag": "ispanya", "name": "Ramos"},
@@ -870,7 +870,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "italya", "name": "Toni"},
             {"pos": "ST", "flag": "italya", "name": "Del Piero"},
         ],
-        "options": ["Fransa 2006", "Italya 2006", "Almanya 2006", "Portekiz 2006"],
+        "options": ["Fransa 2006", "Italya 2006", "Italya 2008", "Portekiz 2006"],
         "answer": 1
     },
     {
@@ -906,7 +906,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "hollanda", "name": "Van Persie"},
             {"pos": "LW", "flag": "hollanda", "name": "Robben"},
         ],
-        "options": ["Hollanda 2010", "Hollanda 2014", "Belcika 2010", "Almanya 2010"],
+        "options": ["Hollanda 2010", "Hollanda 2014", "Hollanda 2005", "Almanya 2010"],
         "answer": 0
     },
     {
@@ -942,7 +942,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "hirvatistan", "name": "Mandzukic"},
             {"pos": "LW", "flag": "hirvatistan", "name": "Perisic"},
         ],
-        "options": ["Hirvatistan 2018", "Sirbistan 2018", "Bosna 2018", "Slovenya 2018"],
+        "options": ["Hirvatistan 2018", "Hirvatistan 2015", "Bosna 2018", "Slovenya 2018"],
         "answer": 0
     },
     {
@@ -960,7 +960,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "belcika", "name": "Lukaku"},
             {"pos": "RW", "flag": "belcika", "name": "Mertens"},
         ],
-        "options": ["Belcika 2018", "Hollanda 2018", "Fransa 2018", "Portekiz 2018"],
+        "options": ["Belcika 2018", "Belcika 2015", "Fransa 2018", "Portekiz 2018"],
         "answer": 0
     },
     {
@@ -1086,7 +1086,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "fransa", "name": "Giroud"},
             {"pos": "LW", "flag": "fransa", "name": "Griezmann"},
         ],
-        "options": ["Fransa 2018", "Hirvatistan 2018", "Belcika 2018", "Brezilya 2018"],
+        "options": ["Fransa 2018", "Fransa 2015", "Belcika 2018", "Brezilya 2018"],
         "answer": 0
     },
     {
@@ -1194,7 +1194,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "hollanda", "name": "Van Basten"},
             {"pos": "ST", "flag": "hollanda", "name": "Gullit"},
         ],
-        "options": ["Hollanda 2000", "Hollanda 1998", "Italya 1988", "Sovyetler 1988"],
+        "options": ["Hollanda 2000", "Hollanda 1988", "Italya 1988", "Sovyetler 1988"],
         "answer": 1
     },
     {
@@ -1369,7 +1369,7 @@ ALL_TEAMS = [
             {"pos": "RB", "flag": "ingiltere", "name": "Walker"},
             {"pos": "CB", "flag": "portekiz", "name": "Dias"},
             {"pos": "CB", "flag": "hollanda", "name": "Ake"},
-            {"pos": "LB", "flag": "hollanda", "name": "Ake"},
+            {"pos": "LB", "flag": "hollanda", "name": "Gvardiol"},
             {"pos": "CM", "flag": "ispanya", "name": "Rodri"},
             {"pos": "CM", "flag": "belcika", "name": "De Bruyne"},
             {"pos": "CM", "flag": "portekiz", "name": "B.Silva"},
@@ -2556,7 +2556,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "kamerun", "name": "Milla"},
             {"pos": "LW", "flag": "kamerun", "name": "Omam-Biyik"},
         ],
-        "options": ["Kamerun 1980", "Nijerya 1990", "Kamerun 1999", "Cezayir 1990"],
+        "options": ["Kamerun 1980", "Kamerun 1990", "Kamerun 1999", "Cezayir 1990"],
         "answer": 1
     },
     {
@@ -2574,7 +2574,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "danimarka", "name": "Povlsen"},
             {"pos": "LW", "flag": "danimarka", "name": "Laudrup"},
         ],
-        "options": ["Danimarka 2003", "Danimarka 2000", "Danimarka 2003", "Danimarka 1992"],
+        "options": ["Danimarka 2003", "Danimarka 2000", "Danimarka 1998", "Danimarka 1992"],
         "answer": 3
     },
     {
@@ -2701,7 +2701,7 @@ ALL_TEAMS = [
             {"pos": "LW", "flag": "gana", "name": "Tagoe"},
         ],
         "options": ["Gana 2018", "Gana 2014", "Gana 2010", "Gana 2015"],
-        "answer": 3
+        "answer": 2
     },
     {
         "name": "Cezayir Milli", "year": "2014", "difficulty": "zor",
@@ -2937,7 +2937,7 @@ ALL_TEAMS = [
             {"pos": "ST", "flag": "yunanistan", "name": "Machlas"},
             {"pos": "ST", "flag": "yunanistan", "name": "Saravakos"},
         ],
-        "options": ["Yunanistan 2004", "Yunanistan 1994", "Romanya 1994", "Yunanistan 2004"],
+        "options": ["Yunanistan 2004", "Yunanistan 1994", "Romanya 1994", "Yunanistan 2008"],
         "answer": 1
     },
     {
@@ -3101,6 +3101,321 @@ ALL_TEAMS = [
         ],
         "options": ["Japonya 2010", "Japonya 2011", "Japonya 2018", "Iran 2018"],
         "answer": 2
+    },
+
+    # ==================== 2026 — 4 BÜYÜK + TRABZONSPOR (2026) =================
+    # Kadrolar 2026-27 sezonu public kaynaklara dayalıdır (kaynak notları ekte)
+    {
+        "name": "Galatasaray", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "turkiye",   "name": "Ugurcan Cakir"},
+            {"pos": "RB", "flag": "macaristan", "name": "Sallai"},
+            {"pos": "CB", "flag": "kolombiya", "name": "Sanchez"},
+            {"pos": "CB", "flag": "senegal",   "name": "Jakobs"},
+            {"pos": "LB", "flag": "turkiye",   "name": "Bardakci"},
+            {"pos": "CM", "flag": "brezilya",  "name": "Sara"},
+            {"pos": "CM", "flag": "uruguay",   "name": "Torreira"},
+            {"pos": "AM", "flag": "rusya",     "name": "Batrakov"},
+            {"pos": "RW", "flag": "turkiye",   "name": "Akgun"},
+            {"pos": "ST", "flag": "nijerya",   "name": "Osimhen"},
+            {"pos": "LW", "flag": "portekiz",  "name": "Leao"},
+        ],
+        "options": ["Galatasaray", "Fenerbahce", "Besiktas", "Trabzonspor"],
+        "answer": 0
+    },
+    {
+        "name": "Fenerbahce", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya",  "name": "Ederson"},
+            {"pos": "RB", "flag": "portekiz",  "name": "Semedo"},
+            {"pos": "CB", "flag": "slovakya",  "name": "Skriniar"},
+            {"pos": "CB", "flag": "hollanda",  "name": "Ake"},
+            {"pos": "LB", "flag": "ingiltere", "name": "Brown"},
+            {"pos": "CM", "flag": "fransa",    "name": "Guendouzi"},
+            {"pos": "CM", "flag": "fransa",    "name": "Kante"},
+            {"pos": "AM", "flag": "turkiye",   "name": "Akturkoglu"},
+            {"pos": "RW", "flag": "ingiltere", "name": "Greenwood"},
+            {"pos": "LW", "flag": "turkiye",   "name": "Aydin"},
+            {"pos": "ST", "flag": "kosova",    "name": "Muriqi"},
+        ],
+        "options": ["Fenerbahce", "Galatasaray", "Besiktas", "Basaksehir"],
+        "answer": 0
+    },
+    {
+        "name": "Besiktas", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "almanya",   "name": "Nuebel"},
+            {"pos": "RB", "flag": "panama",    "name": "Murillo"},
+            {"pos": "CB", "flag": "fildisi",   "name": "Agbadou"},
+            {"pos": "CB", "flag": "turkiye",   "name": "Topcu"},
+            {"pos": "LB", "flag": "fildisi",   "name": "Ouattara"},
+            {"pos": "DM", "flag": "turkiye",   "name": "Ozcan"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Kokcu"},
+            {"pos": "CM", "flag": "italya",    "name": "Miretti"},
+            {"pos": "RW", "flag": "hollanda",  "name": "Poku"},
+            {"pos": "ST", "flag": "sirbistan", "name": "Vlahovic"},
+            {"pos": "LW", "flag": "belcika",   "name": "Trossard"},
+        ],
+        "options": ["Besiktas", "Galatasaray", "Fenerbahce", "Basaksehir"],
+        "answer": 0
+    },
+    {
+        "name": "Basaksehir", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "turkiye",    "name": "Sengezer"},
+            {"pos": "RB", "flag": "turkiye",    "name": "Sahiner"},
+            {"pos": "CB", "flag": "turkiye",    "name": "Bayram"},
+            {"pos": "CB", "flag": "ingiltere",  "name": "Opoku"},
+            {"pos": "LB", "flag": "fildisi",    "name": "Operi"},
+            {"pos": "CM", "flag": "polonya",    "name": "Kaluzinski"},
+            {"pos": "CM", "flag": "turkiye",    "name": "Gunes"},
+            {"pos": "AM", "flag": "uzbekistan", "name": "Fayzullaev"},
+            {"pos": "RW", "flag": "danimarka",  "name": "Skov Olsen"},
+            {"pos": "ST", "flag": "uzbekistan", "name": "Shomurodov"},
+            {"pos": "LW", "flag": "kamerun",    "name": "Kemen"},
+        ],
+        "options": ["Basaksehir", "Trabzonspor", "Konyaspor", "Besiktas"],
+        "answer": 0
+    },
+    {
+        "name": "Trabzonspor", "year": "2026", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "kamerun",   "name": "Onana"},
+            {"pos": "RB", "flag": "cape-verde","name": "Pina"},
+            {"pos": "CB", "flag": "sirbistan", "name": "Savic"},
+            {"pos": "CB", "flag": "nijerya",   "name": "Nwaiwu"},
+            {"pos": "LB", "flag": "turkiye",   "name": "Eskihellac"},
+            {"pos": "DM", "flag": "albanya",   "name": "Muci"},
+            {"pos": "CM", "flag": "brezilya",  "name": "Fabinho"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Tufan"},
+            {"pos": "RW", "flag": "portekiz",  "name": "Saviolo"},
+            {"pos": "ST", "flag": "misir",     "name": "Salah"},
+            {"pos": "LW", "flag": "nijerya",   "name": "Onuachu"},
+        ],
+        "options": ["Trabzonspor", "Fenerbahce", "Galatasaray", "Besiktas"],
+        "answer": 0
+    },
+
+    # ==================== 2019/1992 — Prime dönemler =================
+    {
+        "name": "Denizlispor", "year": "2019", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "turkiye",   "name": "Altintas"},
+            {"pos": "RB", "flag": "turkiye",   "name": "Babacan"},
+            {"pos": "CB", "flag": "turkiye",   "name": "Velioglu"},
+            {"pos": "CB", "flag": "turkiye",   "name": "Yilmaz"},
+            {"pos": "LB", "flag": "turkiye",   "name": "Seker"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Vural"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Alkurt"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Niyaz"},
+            {"pos": "RW", "flag": "turkiye",   "name": "Akyuz"},
+            {"pos": "ST", "flag": "turkiye",   "name": "Calik"},
+            {"pos": "LW", "flag": "fas",       "name": "Aissati"},
+        ],
+        "options": ["Denizlispor", "Alanyaspor", "Samsunspor", "Gaziantep"],
+        "answer": 0
+    },
+    {
+        "name": "Samsunspor", "year": "1992", "difficulty": "zor",
+        "players": [
+            {"pos": "GK", "flag": "sirbistan", "name": "Radaca"},
+            {"pos": "RB", "flag": "turkiye",   "name": "Arslan"},
+            {"pos": "CB", "flag": "turkiye",   "name": "Cikla"},
+            {"pos": "CB", "flag": "turkiye",   "name": "Turan"},
+            {"pos": "LB", "flag": "turkiye",   "name": "Tuzun"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Koseoglu"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Ersoy"},
+            {"pos": "CM", "flag": "turkiye",   "name": "Kahraman"},
+            {"pos": "AM", "flag": "turkiye",   "name": "Tezeller"},
+            {"pos": "ST", "flag": "turkiye",   "name": "Aykut"},
+            {"pos": "ST", "flag": "turkiye",   "name": "Sengun"},
+        ],
+        "options": ["Samsunspor", "Trabzonspor", "Erzurumspor", "Bursaspor"],
+        "answer": 0
+    },
+
+    # ==================== 2026 — AVRUPA (La Liga / Ligue 1 / Serie A / SNP) ====
+    {
+        "name": "Barcelona", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya",  "name": "Garcia"},
+            {"pos": "RB", "flag": "fransa",   "name": "Kounde"},
+            {"pos": "CB", "flag": "ispanya",  "name": "Cubarsi"},
+            {"pos": "CB", "flag": "ispanya",  "name": "E.Garcia"},
+            {"pos": "LB", "flag": "ispanya",  "name": "Balde"},
+            {"pos": "CM", "flag": "ispanya",  "name": "Rodri"},
+            {"pos": "CM", "flag": "ispanya",  "name": "Pedri"},
+            {"pos": "RW", "flag": "ispanya",  "name": "Yamal"},
+            {"pos": "AM", "flag": "ispanya",  "name": "Olmo"},
+            {"pos": "LW", "flag": "ingiltere","name": "Gordon"},
+            {"pos": "ST", "flag": "brezilya", "name": "Raphinha"},
+        ],
+        "options": ["Barcelona", "Real Madrid", "Atletico Madrid", "Sevilla"],
+        "answer": 0
+    },
+    {
+        "name": "PSG", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "rusya",     "name": "Safonov"},
+            {"pos": "RB", "flag": "fas",       "name": "Hakimi"},
+            {"pos": "CB", "flag": "brezilya",  "name": "Marquinhos"},
+            {"pos": "CB", "flag": "brezilya",  "name": "Pacho"},
+            {"pos": "LB", "flag": "portekiz",  "name": "Mendes"},
+            {"pos": "CM", "flag": "ispanya",   "name": "Ruiz"},
+            {"pos": "CM", "flag": "portekiz",  "name": "Vitinha"},
+            {"pos": "AM", "flag": "fransa",    "name": "Akliouche"},
+            {"pos": "RW", "flag": "belcika",   "name": "Godts"},
+            {"pos": "ST", "flag": "fransa",    "name": "Dembele"},
+            {"pos": "LW", "flag": "gurcistan", "name": "Kvaratskhelia"},
+        ],
+        "options": ["PSG", "Monaco", "Marseille", "Lyon"],
+        "answer": 0
+    },
+    {
+        "name": "Real Madrid", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "belcika",   "name": "Courtois"},
+            {"pos": "RB", "flag": "hollanda",  "name": "Dumfries"},
+            {"pos": "CB", "flag": "fransa",    "name": "Konate"},
+            {"pos": "CB", "flag": "ispanya",   "name": "Huijsen"},
+            {"pos": "LB", "flag": "ispanya",   "name": "Carreras"},
+            {"pos": "CM", "flag": "uruguay",   "name": "Valverde"},
+            {"pos": "CM", "flag": "portekiz",  "name": "Bernardo"},
+            {"pos": "AM", "flag": "turkiye",   "name": "Guler"},
+            {"pos": "RW", "flag": "ingiltere", "name": "Bellingham"},
+            {"pos": "ST", "flag": "fransa",    "name": "Mbappe"},
+            {"pos": "LW", "flag": "brezilya",  "name": "Vinicius"},
+        ],
+        "options": ["Real Madrid", "Barcelona", "Atletico Madrid", "Villarreal"],
+        "answer": 0
+    },
+    {
+        "name": "Atletico Madrid", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "slovenya", "name": "Oblak"},
+            {"pos": "RB", "flag": "ispanya",  "name": "Grimaldo"},
+            {"pos": "CB", "flag": "slovakya", "name": "Hancko"},
+            {"pos": "CB", "flag": "ispanya",  "name": "Pubill"},
+            {"pos": "LB", "flag": "ispanya",  "name": "Llorente"},
+            {"pos": "DM", "flag": "ispanya",  "name": "Koke"},
+            {"pos": "DM", "flag": "ispanya",  "name": "Barrios"},
+            {"pos": "AM", "flag": "kore",     "name": "Kang-in"},
+            {"pos": "RW", "flag": "arjantin", "name": "Simeone"},
+            {"pos": "ST", "flag": "arjantin", "name": "Alvarez"},
+            {"pos": "LW", "flag": "ispanya",  "name": "Baena"},
+        ],
+        "options": ["Atletico Madrid", "Real Madrid", "Barcelona", "Sevilla"],
+        "answer": 0
+    },
+    {
+        "name": "Celtic", "year": "2026", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "ingiltere","name": "Johnstone"},
+            {"pos": "RB", "flag": "iskocya",  "name": "Donovan"},
+            {"pos": "CB", "flag": "iskocya",  "name": "Murray"},
+            {"pos": "CB", "flag": "ireland",  "name": "Scales"},
+            {"pos": "LB", "flag": "iskocya",  "name": "Tierney"},
+            {"pos": "DM", "flag": "iskocya",  "name": "McGregor"},
+            {"pos": "DM", "flag": "almanya",  "name": "Baur"},
+            {"pos": "AM", "flag": "isvec",    "name": "Nygren"},
+            {"pos": "RW", "flag": "galler",   "name": "Osmand"},
+            {"pos": "ST", "flag": "kolombiya","name": "Duran"},
+            {"pos": "LW", "flag": "danimarka","name": "Hogh"},
+        ],
+        "options": ["Celtic", "Rangers", "Aberdeen", "St Johnstone"],
+        "answer": 0
+    },
+    {
+        "name": "Fiorentina", "year": "2026", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "ispanya",  "name": "de Gea"},
+            {"pos": "RB", "flag": "romanya",  "name": "Draguin"},
+            {"pos": "CB", "flag": "hirvatistan","name": "Pongracic"},
+            {"pos": "CB", "flag": "italya",    "name": "Ranieri"},
+            {"pos": "LB", "flag": "brezilya",  "name": "Dodo"},
+            {"pos": "CM", "flag": "italya",    "name": "Fagioli"},
+            {"pos": "CM", "flag": "italya",    "name": "Ndour"},
+            {"pos": "CM", "flag": "fransa",    "name": "Atta"},
+            {"pos": "RW", "flag": "arjantin",  "name": "Mastantuono"},
+            {"pos": "ST", "flag": "arjantin",  "name": "Pellegrino"},
+            {"pos": "LW", "flag": "italya",    "name": "Gnonto"},
+        ],
+        "options": ["Fiorentina", "Roma", "Lazio", "Napoli"],
+        "answer": 0
+    },
+
+    # ==================== 2026 — Premier League + Serie A =================
+    {
+        "name": "Manchester City", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "italya",    "name": "Donnarumma"},
+            {"pos": "RB", "flag": "uzbekistan","name": "Khusanov"},
+            {"pos": "CB", "flag": "portekiz",  "name": "Dias"},
+            {"pos": "CB", "flag": "ingiltere", "name": "Guehi"},
+            {"pos": "LB", "flag": "ingiltere", "name": "O'Reilly"},
+            {"pos": "CM", "flag": "hirvatistan","name": "Kovacic"},
+            {"pos": "CM", "flag": "ingiltere", "name": "Anderson"},
+            {"pos": "AM", "flag": "ingiltere", "name": "Foden"},
+            {"pos": "RW", "flag": "gana",      "name": "Semenyo"},
+            {"pos": "LW", "flag": "belcika",   "name": "Doku"},
+            {"pos": "ST", "flag": "norvec",    "name": "Haaland"},
+        ],
+        "options": ["Manchester City", "Arsenal", "Liverpool", "Chelsea"],
+        "answer": 0
+    },
+    {
+        "name": "Liverpool", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "brezilya", "name": "Alisson"},
+            {"pos": "RB", "flag": "gana",     "name": "Frimpong"},
+            {"pos": "CB", "flag": "fransa",   "name": "Jacquet"},
+            {"pos": "CB", "flag": "hollanda", "name": "Van Dijk"},
+            {"pos": "LB", "flag": "macaristan","name": "Kerkez"},
+            {"pos": "CM", "flag": "hollanda", "name": "Gravenberch"},
+            {"pos": "CM", "flag": "macaristan","name": "Szoboszlai"},
+            {"pos": "AM", "flag": "almanya",  "name": "Wirtz"},
+            {"pos": "RW", "flag": "hollanda", "name": "Gakpo"},
+            {"pos": "ST", "flag": "isvec",    "name": "Isak"},
+            {"pos": "LW", "flag": "ingiltere","name": "Ngumoha"},
+        ],
+        "options": ["Liverpool", "Manchester City", "Arsenal", "Chelsea"],
+        "answer": 0
+    },
+    {
+        "name": "Arsenal", "year": "2026", "difficulty": "kolay",
+        "players": [
+            {"pos": "GK", "flag": "ispanya",  "name": "Raya"},
+            {"pos": "RB", "flag": "ingiltere","name": "Timber"},
+            {"pos": "CB", "flag": "brezilya", "name": "Gabriel"},
+            {"pos": "CB", "flag": "fransa",   "name": "Saliba"},
+            {"pos": "LB", "flag": "italya",   "name": "Calafiori"},
+            {"pos": "CM", "flag": "brezilya", "name": "Guimaraes"},
+            {"pos": "CM", "flag": "ingiltere","name": "Rice"},
+            {"pos": "AM", "flag": "norvec",   "name": "Odegaard"},
+            {"pos": "RW", "flag": "ingiltere","name": "Saka"},
+            {"pos": "ST", "flag": "almanya",  "name": "Havertz"},
+            {"pos": "LW", "flag": "brezilya", "name": "Martinelli"},
+        ],
+        "options": ["Arsenal", "Manchester City", "Liverpool", "Chelsea"],
+        "answer": 0
+    },
+    {
+        "name": "Inter", "year": "2026", "difficulty": "orta",
+        "players": [
+            {"pos": "GK", "flag": "ispanya",   "name": "Martinez"},
+            {"pos": "RB", "flag": "fransa",    "name": "Diouf"},
+            {"pos": "CB", "flag": "almanya",   "name": "Bisseck"},
+            {"pos": "CB", "flag": "isvicre",   "name": "Akanji"},
+            {"pos": "CB", "flag": "italya",    "name": "Bastoni"},
+            {"pos": "DM", "flag": "turkiye",   "name": "Calhanoglu"},
+            {"pos": "DM", "flag": "polonya",   "name": "Zielinski"},
+            {"pos": "CM", "flag": "italya",    "name": "Barella"},
+            {"pos": "LB", "flag": "italya",    "name": "Dimarco"},
+            {"pos": "ST", "flag": "fransa",    "name": "Thuram"},
+            {"pos": "ST", "flag": "italya",    "name": "Esposito"},
+        ],
+        "options": ["Inter", "Juventus", "AC Milan", "Napoli"],
+        "answer": 0
     },
 ]
    

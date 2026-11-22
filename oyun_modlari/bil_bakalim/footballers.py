@@ -75,7 +75,7 @@ ALL_FOOTBALLERS = [
 
     {"name": "Vinicius JR", "img": "vinicius", "nationality": "Brezilya", "continent": "G.Amerika",
      "position": "Forvet", "league": "LaLiga", "young": True, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": True, "europe": True, "captain": False, "goals100": False,
+     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
      "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": True},
@@ -174,7 +174,7 @@ ALL_FOOTBALLERS = [
     {"name": "Hakimi", "img": "hakimi", "nationality": "Fas", "continent": "Afrika",
      "position": "Defans", "league": "Ligue1", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
@@ -287,7 +287,7 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "SuperLig", "young": True, "superlig": True, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
-     "headband": True, "bald": True, "african": True, "number10": False, "number9": False,
+     "headband": True, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Szymanski", "img": "szymanski", "nationality": "Polonya", "continent": "Avrupa",
@@ -325,7 +325,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
-    {"name": "Cordozo", "img": "cordozo", "nationality": "Kolombiya", "continent": "G.Amerika",
+    {"name": "Cardozo", "img": "cordozo", "nationality": "Paraguay", "continent": "G.Amerika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": True, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": False,
      "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
@@ -385,7 +385,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": True, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
+     "headband": False, "bald": True, "african": False, "number10": True, "number9": False,
      "number7": False},
 
     {"name": "Sneijder", "img": "sneijder", "nationality": "Hollanda", "continent": "Avrupa",
@@ -404,7 +404,7 @@ ALL_FOOTBALLERS = [
 
     {"name": "Pele", "img": "pele", "nationality": "Brezilya", "continent": "G.Amerika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": True,
+     "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
@@ -489,7 +489,7 @@ ALL_FOOTBALLERS = [
     {"name": "Romario", "img": "romario", "nationality": "Brezilya", "continent": "G.Amerika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": True, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -510,14 +510,14 @@ ALL_FOOTBALLERS = [
     {"name": "Crespo", "img": "crespo", "nationality": "Arjantin", "continent": "G.Amerika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
+     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Batistuta", "img": "batistuta", "nationality": "Arjantin", "continent": "G.Amerika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": True, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -531,7 +531,7 @@ ALL_FOOTBALLERS = [
     {"name": "Veron", "img": "veron", "nationality": "Arjantin", "continent": "G.Amerika",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": True, "ballondor": False, "europe": False, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
+     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -587,22 +587,22 @@ ALL_FOOTBALLERS = [
     {"name": "Gullit", "img": "gullit", "nationality": "Hollanda", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": True, "ballondor": True, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": True, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
 
     {"name": "Rijkaard", "img": "rijkaard", "nationality": "Hollanda", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Bergkamp", "img": "bergkamp", "nationality": "Hollanda", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": True,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Laudrup", "img": "laudrup", "nationality": "Danimarka", "continent": "Avrupa",
@@ -615,7 +615,7 @@ ALL_FOOTBALLERS = [
     {"name": "Neeskens", "img": "neeskens", "nationality": "Hollanda", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -630,7 +630,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Giggs", "img": "giggs", "nationality": "Galler", "continent": "Avrupa",
@@ -664,7 +664,7 @@ ALL_FOOTBALLERS = [
     {"name": "Lineker", "img": "lineker", "nationality": "Ingiltere", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -721,7 +721,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Karembeu", "img": "karembeu", "nationality": "Fransa", "continent": "Avrupa",
@@ -733,7 +733,7 @@ ALL_FOOTBALLERS = [
 
     {"name": "Maldini", "img": "maldini", "nationality": "Italya", "continent": "Avrupa",
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": False,
+     "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": True, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
@@ -742,13 +742,13 @@ ALL_FOOTBALLERS = [
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Baggio", "img": "baggio", "nationality": "Italya", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": True, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
+     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
 
@@ -769,14 +769,14 @@ ALL_FOOTBALLERS = [
     {"name": "Zola", "img": "zola", "nationality": "Italya", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Buffon", "img": "buffon", "nationality": "Italya", "continent": "Avrupa",
      "position": "Kaleci", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -798,7 +798,7 @@ ALL_FOOTBALLERS = [
      "position": "Kaleci", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Yashin", "img": "yashin", "nationality": "Rusya", "continent": "Avrupa",
@@ -819,7 +819,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Effenberg", "img": "effenberg", "nationality": "Almanya", "continent": "Avrupa",
@@ -833,13 +833,14 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": True,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
+
 
     {"name": "Rummenigge", "img": "rummenigge", "nationality": "Almanya", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -861,7 +862,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Petit", "img": "petit", "nationality": "Fransa", "continent": "Avrupa",
@@ -908,8 +909,8 @@ ALL_FOOTBALLERS = [
 
     {"name": "Dembele", "img": "dembele", "nationality": "Fransa", "continent": "Avrupa",
      "position": "Forvet", "league": "Ligue1", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": False,
+     "blonde": False, "ballondor": True, "europe": True, "captain": False, "goals100": False,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
 
@@ -1070,7 +1071,7 @@ ALL_FOOTBALLERS = [
     {"name": "Donnarumma", "img": "donnarumma", "nationality": "Italya", "continent": "Avrupa",
      "position": "Kaleci", "league": "Ligue1", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -1197,7 +1198,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Suudi", "young": False, "superlig": False, "beard": True,
      "blonde": True, "ballondor": False, "europe": False, "captain": False, "goals100": False,
      "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Kovacic", "img": "kovacic", "nationality": "Hirvatistan", "continent": "Avrupa",
@@ -1210,7 +1211,7 @@ ALL_FOOTBALLERS = [
     {"name": "Kvaratskhelia", "img": "kvaratskhelia", "nationality": "Gurcistan", "continent": "Avrupa",
      "position": "Forvet", "league": "Ligue1", "young": True, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": True},
 
@@ -1505,7 +1506,7 @@ ALL_FOOTBALLERS = [
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": True, "goals100": False,
      "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Aguero", "img": "aguero", "nationality": "Arjantin", "continent": "G.Amerika",
@@ -1609,7 +1610,7 @@ ALL_FOOTBALLERS = [
     {"name": "Klose", "img": "klose", "nationality": "Almanya", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -1673,7 +1674,7 @@ ALL_FOOTBALLERS = [
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Materazzi", "img": "materazzi", "nationality": "Italya", "continent": "Avrupa",
@@ -1757,7 +1758,7 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": True, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": True, "number10": False, "number9": True,
+     "headband": False, "bald": True, "african": True, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Essien", "img": "essien", "nationality": "Gana", "continent": "Afrika",
@@ -1771,14 +1772,14 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": True, "number10": False, "number9": True,
+     "headband": False, "bald": False, "african": True, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Kanu", "img": "kanu", "nationality": "Nijerya", "continent": "Afrika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": True, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Okocha", "img": "okocha", "nationality": "Nijerya", "continent": "Afrika",
@@ -1791,7 +1792,7 @@ ALL_FOOTBALLERS = [
     {"name": "Mendieta", "img": "mendieta", "nationality": "Ispanya", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
 
@@ -1920,7 +1921,7 @@ ALL_FOOTBALLERS = [
     {"name": "Zaire-Emery", "img": "zaireemery", "nationality": "Fransa", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Ligue1", "young": True, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -1963,7 +1964,7 @@ ALL_FOOTBALLERS = [
     {"name": "Fabian Ruiz", "img": "fabianruiz", "nationality": "Ispanya", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Ligue1", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": True, "tattoo": False, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -2131,12 +2132,7 @@ ALL_FOOTBALLERS = [
      "number7": False},
 
     # === SÜPER LİG YABANCILAR ===
-    {"name": "Edin Visca", "img": "edinvisca", "nationality": "Bosna", "continent": "Avrupa",
-     "position": "Forvet", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
-     "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "En-Nesyri", "img": "ennesyri", "nationality": "Fas", "continent": "Afrika",
      "position": "Forvet", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
@@ -2145,12 +2141,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": False, "number9": True,
      "number7": False},
 
-    {"name": "Dries Mertens", "img": "driesmertens", "nationality": "Belcika", "continent": "Avrupa",
-     "position": "Forvet", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
-     "blonde": True, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Sofyan Amrabat", "img": "amrabat", "nationality": "Fas", "continent": "Afrika",
      "position": "Orta Saha", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
@@ -2159,12 +2150,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Lucas Torreira", "img": "lucastorreira", "nationality": "Uruguay", "continent": "G.Amerika",
-     "position": "Orta Saha", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
-     "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": True, "over30": False,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Krzysztof Piatek", "img": "piatek", "nationality": "Polonya", "continent": "Avrupa",
      "position": "Forvet", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
@@ -2191,7 +2177,7 @@ ALL_FOOTBALLERS = [
     {"name": "Ronaldo Nazario", "img": "ronaldonazario", "nationality": "Brezilya", "continent": "G.Amerika",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": True, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
      "headband": False, "bald": True, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -2223,12 +2209,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Franco Baresi", "img": "francobaresi", "nationality": "Italya", "continent": "Avrupa",
-     "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Sammer", "img": "sammer", "nationality": "Almanya", "continent": "Avrupa",
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
@@ -2241,14 +2222,14 @@ ALL_FOOTBALLERS = [
      "position": "Kaleci", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": True, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Schmeichel", "img": "schmeichel", "nationality": "Danimarka", "continent": "Avrupa",
      "position": "Kaleci", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": True, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Zoff", "img": "zoff", "nationality": "Italya", "continent": "Avrupa",
@@ -2378,27 +2359,17 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Fred Rodrigues", "img": "fredrodrigues", "nationality": "Brezilya", "continent": "G.Amerika",
-     "position": "Orta Saha", "league": "SerieA", "young": False, "superlig": False, "beard": True,
-     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": False,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     # === AFRİKA - MODERN ===
     {"name": "Hakim Ziyech", "img": "ziyech", "nationality": "Fas", "continent": "Afrika",
-     "position": "Sağ Kanat", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
+     "position": "Forvet", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
      "leftfoot": True, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Andre Onana", "img": "andreonana", "nationality": "Kamerun", "continent": "Afrika",
-     "position": "Kaleci", "league": "Premier", "young": False, "superlig": False, "beard": True,
-     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": False,
-     "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Lookman", "img": "lookman", "nationality": "Nijerya", "continent": "Afrika",
      "position": "Forvet", "league": "SerieA", "young": False, "superlig": False, "beard": True,
@@ -2482,7 +2453,7 @@ ALL_FOOTBALLERS = [
     {"name": "Vitinha", "img": "vitinha", "nationality": "Portekiz", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Ligue1", "young": True, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -2604,7 +2575,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Wayne Bridge", "img": "waynebridge", "nationality": "Ingiltere", "continent": "Avrupa",
@@ -2621,12 +2592,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": True, "number9": False,
      "number7": False},
 
-    {"name": "Michael Owen", "img": "michaelowen", "nationality": "Ingiltere", "continent": "Avrupa",
-     "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
-     "number7": False},
+    
 
     {"name": "Ashley Cole", "img": "ashleycole", "nationality": "Ingiltere", "continent": "Avrupa",
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": True,
@@ -2639,7 +2605,7 @@ ALL_FOOTBALLERS = [
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Jaap Stam", "img": "stam", "nationality": "Hollanda", "continent": "Avrupa",
@@ -2663,12 +2629,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Shevchenko", "img": "andriyshevchenko", "nationality": "Ukrayna", "continent": "Avrupa",
-     "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": True, "ballondor": True, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": True},
+    
 
     # ==================== PART 1 (100 YENİ) ====================
 
@@ -2896,7 +2857,7 @@ ALL_FOOTBALLERS = [
     {"name": "Süle", "img": "sule", "nationality": "Almanya", "continent": "Avrupa",
      "position": "Defans", "league": "Bundesliga", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
@@ -2918,7 +2879,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Bundesliga", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": True, "goals100": False,
      "leftfoot": True, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Boniface", "img": "boniface", "nationality": "Nijerya", "continent": "Afrika",
@@ -2939,14 +2900,14 @@ ALL_FOOTBALLERS = [
     {"name": "Barcola", "img": "barcola", "nationality": "Fransa", "continent": "Avrupa",
      "position": "Forvet", "league": "Ligue1", "young": True, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": True},
 
     {"name": "Gonçalo Ramos", "img": "ramosgoncalo", "nationality": "Portekiz", "continent": "Avrupa",
      "position": "Forvet", "league": "Ligue1", "young": True, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": False,
+     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": False,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
@@ -2967,7 +2928,7 @@ ALL_FOOTBALLERS = [
     {"name": "Marquinhos", "img": "marquinhos", "nationality": "Brezilya", "continent": "G.Amerika",
      "position": "Defans", "league": "Ligue1", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": True, "captain": True, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": True,
+     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -3036,12 +2997,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Uğurcan Çakır", "img": "ugurcanck", "nationality": "Turkiye", "continent": "Avrupa",
-     "position": "Kaleci", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
-     "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Okay Yokuşlu", "img": "okayyokuslu", "nationality": "Turkiye", "continent": "Avrupa",
      "position": "Orta Saha", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
@@ -3097,8 +3053,7 @@ ALL_FOOTBALLERS = [
      "position": "Kaleci", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
-     "number7": False},
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,     "number7": False},
 
     {"name": "Valdes", "img": "valdes", "nationality": "İspanya", "continent": "Avrupa",
      "position": "Kaleci", "league": "Emekli", "young": False, "superlig": False, "beard": True,
@@ -3114,17 +3069,12 @@ ALL_FOOTBALLERS = [
      "headband": True, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Cafu", "img": "cafumarcos", "nationality": "Brezilya", "continent": "G.Amerika",
-     "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Emerson Palmieri", "img": "emerson", "nationality": "Brezilya", "continent": "G.Amerika",
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
-     "leftfoot": True, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": True, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -3139,13 +3089,13 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": True,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Costacurta", "img": "costacurta", "nationality": "İtalya", "continent": "Avrupa",
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
@@ -3160,7 +3110,7 @@ ALL_FOOTBALLERS = [
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "De Rossi", "img": "derossi", "nationality": "İtalya", "continent": "Avrupa",
@@ -3187,7 +3137,7 @@ ALL_FOOTBALLERS = [
     {"name": "Anelka", "img": "anelka", "nationality": "Fransa", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": True, "african": True, "number10": False, "number9": True,
      "number7": False},
 
@@ -3206,7 +3156,7 @@ ALL_FOOTBALLERS = [
      "number7": False},
      
     {"name": "Nani", "img": "nani", "nationality": "Portekiz", "continent": "Avrupa",
-     "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
+     "position": "Forvet", "league": "Emekli", "young": False, "superlig": True, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
@@ -3224,7 +3174,7 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": True, "number10": False, "number9": True,
+     "headband": False, "bald": False, "african": True, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Solskjaer", "img": "solskjaer", "nationality": "Norveç", "continent": "Avrupa",
@@ -3238,7 +3188,7 @@ ALL_FOOTBALLERS = [
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
      "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": False, "number10": False, "number9": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": False},
 
     {"name": "Van Nistelrooy", "img": "vannistelrooy", "nationality": "Hollanda", "continent": "Avrupa",
@@ -3263,12 +3213,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
-    {"name": "Ibrahima Konate", "img": "konateibrahima", "nationality": "Fransa", "continent": "Avrupa",
-     "position": "Defans", "league": "Premier", "young": False, "superlig": False, "beard": True,
-     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": False,
-     "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Upamecano", "img": "upamecano", "nationality": "Fransa", "continent": "Avrupa",
      "position": "Defans", "league": "Bundesliga", "young": False, "superlig": False, "beard": True,
@@ -3386,12 +3331,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
      "number7": True},
 
-    {"name": "Ferran Torres", "img": "ferranchico", "nationality": "İspanya", "continent": "Avrupa",
-     "position": "Forvet", "league": "LaLiga", "young": True, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": False, "tattoo": True, "ucl": False, "worldcup": False, "over30": False,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
-     "number7": False},
+    
 
     {"name": "Bellerin", "img": "bellerin", "nationality": "İspanya", "continent": "Avrupa",
      "position": "Defans", "league": "LaLiga", "young": False, "superlig": False, "beard": True,
@@ -3480,12 +3420,7 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
 
-    {"name": "Orkun Kökçü ", "img": "kokcuorkun", "nationality": "Turkiye", "continent": "Avrupa",
-     "position": "Orta Saha", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
-     "blonde": False, "ballondor": False, "europe": True, "captain": False, "goals100": False,
-     "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": False, "over30": False,
-     "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
-     "number7": False},
+    
 
     {"name": "Halil Dervişoğlu", "img": "halildervis", "nationality": "Turkiye", "continent": "Avrupa",
      "position": "Forvet", "league": "SuperLig", "young": True, "superlig": True, "beard": True,
@@ -3617,21 +3552,10 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
-    # === FRANSA EFSANELERİ (2) ===
-    {"name": "Arsene Wenger", "img": "wenger", "nationality": "Fransa", "continent": "Avrupa",
-     "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
-     "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
-     "number7": False},
+    
 
     # === ARJANTİN EFSANELERİ (3) ===
-    {"name": "Batistuta Gabriel", "img": "batigol", "nationality": "Arjantin", "continent": "G.Amerika",
-     "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": True,
-     "blonde": True, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
-     "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
-     "number7": False},
+    
 
     {"name": "Passarella", "img": "passarella", "nationality": "Arjantin", "continent": "G.Amerika",
      "position": "Defans", "league": "Emekli", "young": False, "superlig": False, "beard": True,
@@ -3681,7 +3605,7 @@ ALL_FOOTBALLERS = [
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
      "leftfoot": False, "tattoo": True, "ucl": True, "worldcup": False, "over30": True,
-     "headband": False, "bald": True, "african": True, "number10": False, "number9": True,
+     "headband": False, "bald": False, "african": True, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Overmars", "img": "overmars", "nationality": "Hollanda", "continent": "Avrupa",
@@ -3759,14 +3683,14 @@ ALL_FOOTBALLERS = [
     {"name": "Suker", "img": "suker", "nationality": "Hırvatistan", "continent": "Avrupa",
      "position": "Forvet", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
+     "leftfoot": True, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": False, "number9": True,
      "number7": False},
 
     {"name": "Boban", "img": "boban", "nationality": "Hırvatistan", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
      "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": True,
-     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": True, "over30": True,
+     "leftfoot": False, "tattoo": False, "ucl": True, "worldcup": False, "over30": True,
      "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
      "number7": False},
 
@@ -3930,6 +3854,27 @@ ALL_FOOTBALLERS = [
      "headband": False, "bald": False, "african": True, "number10": False, "number9": False,
      "number7": False},
 
+    {"name": "Cengiz Ünder", "img": "cengizunder", "nationality": "Turkiye", "continent": "Avrupa",
+     "position": "Forvet", "league": "SuperLig", "young": False, "superlig": True, "beard": True,
+     "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": False,
+     "leftfoot": True, "tattoo": True, "ucl": False, "worldcup": False, "over30": False,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
+     "number7": False},
+
+    {"name": "Overath", "img": "Overath", "nationality": "Almanya", "continent": "Avrupa",
+     "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": False,
+     "blonde": False, "ballondor": False, "europe": False, "captain": False, "goals100": False,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": True, "over30": True,
+     "headband": False, "bald": False, "african": False, "number10": True, "number9": False,
+     "number7": False},
+
+    {"name": "Simeone", "img": "Simeone", "nationality": "Arjantin", "continent": "G.Amerika",
+     "position": "Orta Saha", "league": "Emekli", "young": False, "superlig": False, "beard": True,
+     "blonde": False, "ballondor": False, "europe": False, "captain": True, "goals100": False,
+     "leftfoot": False, "tattoo": False, "ucl": False, "worldcup": False, "over30": True,
+     "headband": False, "bald": False, "african": False, "number10": False, "number9": False,
+     "number7": False},
+
     {"name": "Xavi Simons", "img": "xavisimons", "nationality": "Hollanda", "continent": "Avrupa",
      "position": "Orta Saha", "league": "Bundesliga", "young": True, "superlig": False, "beard": False,
      "blonde": True, "ballondor": False, "europe": True, "captain": False, "goals100": False,
@@ -4022,22 +3967,21 @@ FOOTBALLER_ENRICHMENTS = {
     "Raphinha": {"detailed_position": "SagKanat", "barcelona": True},
     "Barış Alper": {"detailed_position": "SagKanat"},
     "Yunus Akgün": {"detailed_position": "SagKanat"},
-    "Edin Visca": {"detailed_position": "SagKanat"},
+    "Visca": {"detailed_position": "SagKanat"},
     "Semih Kılıçsoy": {"detailed_position": "Santrafor"},
-    "Quagresma": {"detailed_position": "SagKanat", "freekick": True},
+    
     "Quaresma": {"detailed_position": "SagKanat", "freekick": True},
+    "Cengiz Ünder": {"detailed_position": "SagKanat"},
     "Yattara": {"detailed_position": "SagKanat"},
     "Mario Gomez": {"detailed_position": "Santrafor", "tall": True},
-    "Cordozo": {"detailed_position": "Santrafor", "tall": True},
+    "Cardozo": {"detailed_position": "Santrafor", "tall": True},
     "Firmino": {"detailed_position": "Santrafor"},
     "Babel": {"detailed_position": "SolKanat"},
     "Hakan Şükür": {"detailed_position": "Santrafor", "tall": True},
     "Romario": {"detailed_position": "Santrafor", "barcelona": True, "copa_america": True},
     "Rivaldo": {"detailed_position": "OOS", "barcelona": True, "freekick": True, "copa_america": True},
     "Crespo": {"detailed_position": "Santrafor", "tall": True},
-    "Batistuta": {"detailed_position": "Santrafor", "tall": True, "copa_america": True},
-    "Batistuta Gabriel": {"detailed_position": "Santrafor", "tall": True, "copa_america": True},
-    "Salas": {"detailed_position": "Santrafor"},
+    "Batistuta": {"detailed_position": "Santrafor", "tall": True, "copa_america": True},    "Salas": {"detailed_position": "Santrafor"},
     "Zamorano": {"detailed_position": "Santrafor", "real_madrid": True},
     "Raul": {"detailed_position": "Santrafor", "real_madrid": True},
     "Van Basten": {"detailed_position": "Santrafor", "tall": True},
@@ -4240,6 +4184,8 @@ FOOTBALLER_ENRICHMENTS = {
     "Luis Enrique": {"detailed_position": "MOS", "barcelona": True, "real_madrid": True},
     "Gullit": {"detailed_position": "OOS", "tall": True, "curly_hair": True, "long_hair": True},
     "Rijkaard": {"detailed_position": "DOS", "tall": True},
+    "Overath": {"detailed_position": "OOS", "worldcup": True},
+    "Simeone": {"detailed_position": "DOS", "copa_america": True},
     "Laudrup": {"detailed_position": "OOS", "barcelona": True, "real_madrid": True},
     "Neeskens": {"detailed_position": "MOS", "barcelona": True},
     "Beckham": {"detailed_position": "SagKanat", "real_madrid": True, "freekick": True},
@@ -4274,7 +4220,7 @@ FOOTBALLER_ENRICHMENTS = {
     "Fofana": {"detailed_position": "MOS"},
     "Milinkovic Savic": {"detailed_position": "MOS", "tall": True},
     "Perotta": {"detailed_position": "MOS"},
-    "Arsene Wenger": {"detailed_position": "DOS"},
+    
     "Dunga": {"detailed_position": "DOS", "copa_america": True},
     "Falcao Paulo": {"detailed_position": "MOS"},
     "Davids": {"detailed_position": "DOS"},
@@ -4384,7 +4330,7 @@ FOOTBALLER_ENRICHMENTS = {
     "Rio Ferdinand": {"detailed_position": "Stoper", "tall": True},
     "Jaap Stam": {"detailed_position": "Stoper", "tall": True},
     "Marek Jankulovski": {"detailed_position": "SolBek"},
-    "Ibrahima Konate": {"detailed_position": "Stoper", "tall": True},
+    "Konate": {"detailed_position": "Stoper", "tall": True},
     "Upamecano": {"detailed_position": "Stoper", "tall": True},
     "Guehi": {"detailed_position": "Stoper"},
     "Konsa": {"detailed_position": "Stoper"},
@@ -4436,12 +4382,40 @@ FOOTBALLER_ENRICHMENTS = {
     "Adler Rene": {"detailed_position": "Kaleci", "tall": True},
     "Trapp": {"detailed_position": "Kaleci", "tall": True},
     "Pickford": {"detailed_position": "Kaleci"},
-    "Andre Onana": {"detailed_position": "Kaleci", "tall": True},
     "Onana": {"detailed_position": "Kaleci", "tall": True}
+}
+
+# =========================================================================
+# 🌍 ÜLKE ADI TEK YAZIM HARİTASI (v10.3 - Aşama 3)
+# =========================================================================
+# Veride aynı ülke iki türlü yazılmıştı ("Ingiltere" ve "İngiltere" gibi).
+# Bu yüzden ülke bazlı filtreler kayıtların yarısını kaçırıyordu.
+# Kanonik yazım = ASCII; çünkü bayrak dosyaları (turkiye.png) ve mevcut
+# kod ASCII ile çalışıyor.
+# =========================================================================
+NATIONALITY_FIX = {
+    "İngiltere":        "Ingiltere",
+    "İtalya":           "Italya",
+    "İspanya":          "Ispanya",
+    "Türkiye":          "Turkiye",
+    "Norveç":           "Norvec",
+    "Belçika":          "Belcika",
+    "Hırvatistan":      "Hirvatistan",
+    "İsveç":            "Isvec",
+    "İsviçre":          "Isvicre",
+    "Sırbistan":        "Sirbistan",
+    "Şili":             "Sili",
+    "Fildişi":          "Fildisi",
+    "Çek Cumhuriyeti":  "Cek Cumhuriyeti",
+    "İskoçya":          "Iskocya",
+    "İrlanda":          "Irlanda",
+    "Kuzey irlanda":    "Kuzey Irlanda",
 }
 
 # Varsayılan (fallback) ataması ve zenginleştirme uygula
 for f in ALL_FOOTBALLERS:
+    # Orijinal kategoriyi ezilmeden önce sakla (Forvet / Orta Saha / Defans / Kaleci)
+    f["category"] = f.get("position", "")
     fname = f.get("name", "")
     
     # Zenginleştirme sözlüğünden özellikleri üzerine yaz
@@ -4460,3 +4434,111 @@ for f in ALL_FOOTBALLERS:
     dp = f.get("detailed_position", "")
     if dp in DETAILED_POSITION_LABELS:
         f["position"] = DETAILED_POSITION_LABELS[dp]
+
+    # Ülke adını tek yazıma indir ("İngiltere" -> "Ingiltere")
+    f["nationality"] = NATIONALITY_FIX.get(f.get("nationality", ""), f.get("nationality", ""))
+
+    # Afrikalı bayrağı tek kaynaktan: continent alanı (çelişki imkansız)
+    f["african"] = (f.get("continent", "") == "Afrika")
+
+    # Avrupa bayrağı tek kaynaktan: lig alanı (Alaba/Casemiro/Thiago çelişkisi biter)
+    f["europe"] = f.get("league") in ("Premier", "LaLiga", "SerieA", "Bundesliga", "Ligue1")
+
+
+# =========================================================================
+# 🎂 YAŞ TABANLI over30 HESABI (v10.3 - Aşama 4A)
+# =========================================================================
+# "over30" artık elle girilmiyor, doğum yılından hesaplanıyor.
+# Böylece bayrak bir daha bayatlamaz. Listede olmayan oyuncuların
+# mevcut değeri aynen kalır.
+# =========================================================================
+from datetime import datetime as _dt
+
+BIRTH_YEARS = {
+    # 30+ olduğu halde "False" kalmış oyuncular
+    "Alaba": 1992,
+    "Kerem Demirbay": 1993,
+    "Ederson": 1993,
+    "Abdülkerim Bardakcı": 1994,
+    "Samet Akaydın": 1994,
+    "Okay Yokuşlu": 1994,
+    "Ake": 1994,
+    "Bouanga": 1994,
+    "Iñaki Williams": 1994,
+    "Cancelo": 1994,
+    "Pickford": 1994,
+    "Sterling": 1994,
+    "Stones": 1994,
+    "Bruno Fernandes": 1994,
+    "Akanji": 1995,
+    "Fofana": 1995,
+    "Palhinha": 1995,
+    "Krzysztof Piatek": 1995,
+    "İrfan Can Kahveci": 1995,
+    "Gnabry": 1995,
+    "Kimmich": 1995,
+    "Goretzka": 1995,
+    "Anguissa": 1995,
+    "Maignan": 1995,
+    "Lozano": 1995,
+    "Watkins": 1995,
+    "Sorloth": 1995,
+    "Sane": 1996,
+    "Coman": 1996,
+    "Kingsley Coman": 1996,
+    "Torreira": 1996,
+    "Guirassy": 1996,
+    "Fabian Ruiz": 1996,
+    "Merino": 1996,
+    "Rodri": 1996,
+    "Dumfries": 1996,
+    "Çağlar Söyüncü": 1996,
+    "Uğurcan Çakır": 1996,
+    "Kim Min-jae": 1996,
+    "Onana": 1996,
+    "Sofyan Amrabat": 1996,
+    "Wissa": 1996,
+    "Pellegrini": 1996,
+    "Iheanacho": 1996,
+    "Cengiz Ünder": 1997,
+    "Overath": 1943,
+    "Simeone": 1970,
+
+    # --- young düzeltmesi: 26 yaş üstü young sayılmayacak ---
+    "Kobel": 1997,
+    "Mitoma": 1997,
+    "Nkunku": 1997,
+    "Mbappe": 1998,
+    "Kerem Aktürkoğlu": 1998,
+    "Osimhen": 1998,
+    "Odegaard": 1998,
+    "Alexander Arnold": 1998,
+    "Salih Özcan": 1998,
+    "Mac Allister": 1998,
+    "Nunes": 1998,
+    "Szymanski": 1999,
+    "Nunez": 1999,
+    "Rice": 1999,
+    "Mount": 1999,
+    "Havertz": 1999,
+    "Ferdi Kadıoğlu": 1999,
+    "Gedson Fernandes": 1999,
+    "Isak": 1999,
+    "Zubimendi": 1999,
+    "İsmail Yüksek": 1999,
+    "Scamacca": 1999,
+    "Joao Felix": 1999,
+    "Rafael Leao": 1999,
+    "Tyler Adams": 1999,
+    "Frattesi": 1999,
+    "Halil Dervişoğlu": 1999,
+    "Openda": 2000,
+}
+
+_BUGUN_YIL = _dt.now().year
+
+for _f2 in ALL_FOOTBALLERS:
+    _yil = BIRTH_YEARS.get(_f2.get("name", ""))
+    if _yil:
+        _f2["over30"] = (_BUGUN_YIL - _yil) >= 30
+        _f2["young"] = (_BUGUN_YIL - _yil) <= 26

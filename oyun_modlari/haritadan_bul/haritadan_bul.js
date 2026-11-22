@@ -252,7 +252,88 @@ showScreen = function(screenName) {
     if (!haritaScreens.includes(screenName)) {
         hideHaritaChat();
     }
+    
+    // 🛑 Oyun ekranından çıkıldı → sayaç + uyarı sesi + overlay kesin kapanır
+    if (screenName !== "haritaGame") {
+        stopHaritaTimer();
+        hideHaritaBigOverlay();
+    }
 };
+
+window.getHaritaRoundOptions = function(maxPlayers) {
+    const playerCount = parseInt(maxPlayers, 10) || 2;
+
+    if (playerCount === 1) {
+        return [2, 4, 5, 10, 15, 20];
+    }
+
+    const maxRounds = playerCount === 4 ? 32 : 30;
+    const options = [];
+
+    for (let count = playerCount; count <= maxRounds; count += playerCount) {
+        options.push(count);
+    }
+
+    return options;
+};
+
+window.getNearestHaritaRoundCount = function(value, options) {
+    if (!Array.isArray(options) || options.length === 0) return null;
+
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) return options[0];
+
+    return options.reduce((nearest, candidate) => {
+        const candidateDistance = Math.abs(candidate - parsedValue);
+        const nearestDistance = Math.abs(nearest - parsedValue);
+
+        if (
+            candidateDistance < nearestDistance ||
+            (candidateDistance === nearestDistance && candidate < nearest)
+        ) {
+            return candidate;
+        }
+
+        return nearest;
+    }, options[0]);
+};
+
+window.updateHaritaRoundOptions = function(maxPlayersValue, preferredValue, selectId) {
+    const createMaxPlayersSelect = document.getElementById("haritaMaxPlayersSelect");
+    const roundsSelect = document.getElementById(selectId || "haritaTotalRoundsSelect");
+
+    if (!roundsSelect) return;
+
+    const playerCount = maxPlayersValue !== undefined && maxPlayersValue !== null
+        ? maxPlayersValue
+        : (createMaxPlayersSelect ? createMaxPlayersSelect.value : 2);
+
+    const options = window.getHaritaRoundOptions(playerCount);
+    const currentValue = preferredValue !== undefined && preferredValue !== null
+        ? preferredValue
+        : roundsSelect.value;
+    const selectedValue = window.getNearestHaritaRoundCount(currentValue, options);
+
+    if (selectedValue === null) return;
+
+    roundsSelect.innerHTML = "";
+    options.forEach(value => {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = `${value} Tur`;
+        roundsSelect.appendChild(option);
+    });
+
+    roundsSelect.value = String(selectedValue);
+};
+
+const haritaMaxPlayersSelectForRounds = document.getElementById("haritaMaxPlayersSelect");
+if (haritaMaxPlayersSelectForRounds) {
+    haritaMaxPlayersSelectForRounds.addEventListener("change", () => {
+        window.updateHaritaRoundOptions(haritaMaxPlayersSelectForRounds.value);
+    });
+    window.updateHaritaRoundOptions(haritaMaxPlayersSelectForRounds.value);
+}
 
 // Mod kartına tıklama
 document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
@@ -284,7 +365,15 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
                 if (maxPSel && savedMaxP) maxPSel.value = savedMaxP;
                 if (diffSel && savedDiff) diffSel.value = savedDiff;
                 if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
-                if (totalRSel && savedTotalR) totalRSel.value = savedTotalR;
+                if (totalRSel && typeof window.updateHaritaRoundOptions === "function") {
+                    window.updateHaritaRoundOptions(
+                        maxPSel ? maxPSel.value : 2,
+                        savedTotalR || totalRSel.value,
+                        "haritaTotalRoundsSelect"
+                    );
+                } else if (totalRSel && savedTotalR) {
+                    totalRSel.value = savedTotalR;
+                }
             } catch(e) {}
 
             showScreen("createHarita");
@@ -399,6 +488,7 @@ if (_haritaChangeModeBtn) {
 
 // Oda Ayarları butonu
 document.getElementById("haritaRoomSettingsBtn").onclick = () => {
+    const roundOptions = window.getHaritaRoundOptions(haritaData.maxPlayers || 2);
     window.openRoomSettingsGeneric({
         title: "Haritadan Bul - Oda Ayarları",
         fields: [
@@ -418,13 +508,14 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
             {
                 id: "totalRounds",
                 label: "🔢 Tur Sayısı",
-                current: haritaData.totalRounds || 10,
-                options: [
-                    {value: 5, label: "5 Tur"},
-                    {value: 10, label: "10 Tur"},
-                    {value: 15, label: "15 Tur"},
-                    {value: 20, label: "20 Tur"}
-                ]
+                current: window.getNearestHaritaRoundCount(
+                    haritaData.totalRounds || 10,
+                    roundOptions
+                ),
+                options: roundOptions.map(value => ({
+                    value: value,
+                    label: `${value} Tur`
+                }))
             },
             {
                 id: "difficulty",
@@ -469,6 +560,21 @@ document.getElementById("haritaRoomSettingsBtn").onclick = () => {
             });
         }
     });
+
+    const settingsMaxPlayersSelect = document.getElementById("settingsField_maxPlayers");
+    const settingsTotalRoundsSelect = document.getElementById("settingsField_totalRounds");
+    if (settingsMaxPlayersSelect && settingsTotalRoundsSelect) {
+        const syncRoundOptions = () => {
+            window.updateHaritaRoundOptions(
+                settingsMaxPlayersSelect.value,
+                settingsTotalRoundsSelect.value,
+                "settingsField_totalRounds"
+            );
+        };
+
+        settingsMaxPlayersSelect.addEventListener("change", syncRoundOptions);
+        syncRoundOptions();
+    }
 };
 
 const haritaRoomHelper = window.setupRoomCodeAndLink({
@@ -739,15 +845,26 @@ haritaMapWrapper.addEventListener("mouseleave", (e) => {
     broadcastHaritaMouse(-999, -999, null);
 });
 
+// 🔒 Oyun ekranı gerçekten görünür mü?
+function isHaritaGameVisible() {
+    const el = document.getElementById("haritaGameScreen");
+    if (!el) return false;
+    return !el.classList.contains("hidden");
+}
+
 // Timer
 function startHaritaTimer(seconds) {
     stopHaritaTimer();
+    // 🔒 Oyun ekranı görünmüyorsa sayaç hiç başlamaz
+    if (!isHaritaGameVisible()) return;
     haritaData.timerSeconds = seconds;
     haritaData.timerUnlimited = (seconds === 0);
     haritaData.timerWarningPlaying = false;
     updateHaritaTimerDisplay();
     if (haritaData.timerUnlimited) return;
     haritaData.timerInterval = setInterval(() => {
+        // 🔒 Güvenlik: ekrandan çıkıldıysa sayaç kendini imha eder
+        if (!isHaritaGameVisible()) { stopHaritaTimer(); return; }
         haritaData.timerSeconds--;
         updateHaritaTimerDisplay();
         if (haritaData.timerSeconds <= 10 && !haritaData.timerWarningPlaying) {
@@ -771,7 +888,11 @@ function stopHaritaTimer() {
         haritaData.timerInterval = null;
     }
     if (haritaData._timerWarningAudio) {
-        try { haritaData._timerWarningAudio.pause(); haritaData._timerWarningAudio.currentTime = 0; } catch(e) {}
+        try {
+            haritaData._timerWarningAudio.pause();
+            haritaData._timerWarningAudio.loop = false;   // 🔑 kısır döngü burada kırılıyor
+            haritaData._timerWarningAudio.currentTime = 0;
+        } catch(e) {}
         haritaData._timerWarningAudio = null;
     }
     haritaData.timerWarningPlaying = false;

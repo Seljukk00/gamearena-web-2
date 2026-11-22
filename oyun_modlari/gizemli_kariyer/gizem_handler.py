@@ -22,6 +22,43 @@ def gizem_team_slug(name):
 
 GIZEM_TOPLAM_TUR = 10
 GIZEM_ALLOWED_ROUNDS = [5, 10, 15, 20]
+
+
+def get_gizem_round_options(max_players):
+    """Oyuncu sayısına göre izin verilen tur sayısı seçeneklerini döndür"""
+    try:
+        player_count = int(max_players)
+    except:
+        player_count = 2
+
+    if player_count == 1:
+        return [2, 4, 5, 10, 15, 20]
+
+    max_rounds = 32 if player_count == 4 else 30
+    options = []
+    count = player_count
+    while count <= max_rounds:
+        options.append(count)
+        count += player_count
+    return options
+
+
+def get_nearest_gizem_round_count(value, options):
+    """Verilen değere en yakın izinli tur sayısını döndür"""
+    if not options:
+        return GIZEM_TOPLAM_TUR
+    try:
+        parsed = int(value)
+    except:
+        return options[0]
+    nearest = options[0]
+    nearest_dist = abs(nearest - parsed)
+    for candidate in options[1:]:
+        dist = abs(candidate - parsed)
+        if dist < nearest_dist or (dist == nearest_dist and candidate < nearest):
+            nearest = candidate
+            nearest_dist = dist
+    return nearest
 GIZEM_TUR_SURESI = 60
 GIZEM_PUAN_DOGRU = 10
 GIZEM_PUAN_ERKEN_BONUS = 5
@@ -412,8 +449,9 @@ async def handle_gizem_message(
 
         try:
             total_rounds = int(total_rounds_raw)
-            if total_rounds not in GIZEM_ALLOWED_ROUNDS:
-                total_rounds = GIZEM_TOPLAM_TUR
+            allowed_rounds = get_gizem_round_options(max_players)
+            if total_rounds not in allowed_rounds:
+                total_rounds = get_nearest_gizem_round_count(total_rounds, allowed_rounds)
         except:
             total_rounds = GIZEM_TOPLAM_TUR
 
@@ -565,8 +603,9 @@ async def handle_gizem_message(
 
         try:
             new_total = int(data.get("total_rounds", room.get("total_rounds", GIZEM_TOPLAM_TUR)))
-            if new_total not in GIZEM_ALLOWED_ROUNDS:
-                new_total = room.get("total_rounds", GIZEM_TOPLAM_TUR)
+            allowed_rounds = get_gizem_round_options(new_max)
+            if new_total not in allowed_rounds:
+                new_total = get_nearest_gizem_round_count(new_total, allowed_rounds)
         except:
             new_total = room.get("total_rounds", GIZEM_TOPLAM_TUR)
 

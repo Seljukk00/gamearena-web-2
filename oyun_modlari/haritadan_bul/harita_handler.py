@@ -14,6 +14,43 @@ from oyun_modlari.haritadan_bul.harita_data import (
 HARITA_TOPLAM_TUR = 10
 HARITA_ALLOWED_ROUNDS = [5, 10, 15, 20]
 
+
+def get_harita_round_options(max_players):
+    """Oyuncu sayısına göre izin verilen tur sayısı seçeneklerini döndür"""
+    try:
+        player_count = int(max_players)
+    except:
+        player_count = 2
+
+    if player_count == 1:
+        return [2, 4, 5, 10, 15, 20]
+
+    max_rounds = 32 if player_count == 4 else 30
+    options = []
+    count = player_count
+    while count <= max_rounds:
+        options.append(count)
+        count += player_count
+    return options
+
+
+def get_nearest_harita_round_count(value, options):
+    """Verilen değere en yakın izinli tur sayısını döndür"""
+    if not options:
+        return HARITA_TOPLAM_TUR
+    try:
+        parsed = int(value)
+    except:
+        return options[0]
+    nearest = options[0]
+    nearest_dist = abs(nearest - parsed)
+    for candidate in options[1:]:
+        dist = abs(candidate - parsed)
+        if dist < nearest_dist or (dist == nearest_dist and candidate < nearest):
+            nearest = candidate
+            nearest_dist = dist
+    return nearest
+
 # ✨ Süre bonusu eşikleri
 FAST_BONUS_SECONDS = 10  # 10 sn içinde doğru → +2
 NORMAL_ANSWER_POINT = 1  # 10 sn sonrası doğru → +1
@@ -310,8 +347,9 @@ async def handle_harita_message(
 
         try:
             total_rounds = int(total_rounds_raw)
-            if total_rounds not in HARITA_ALLOWED_ROUNDS:
-                total_rounds = HARITA_TOPLAM_TUR
+            allowed_rounds = get_harita_round_options(max_players)
+            if total_rounds not in allowed_rounds:
+                total_rounds = get_nearest_harita_round_count(total_rounds, allowed_rounds)
         except:
             total_rounds = HARITA_TOPLAM_TUR
 
@@ -461,8 +499,9 @@ async def handle_harita_message(
 
         try:
             new_total_rounds = int(data.get("total_rounds", room.get("total_rounds", HARITA_TOPLAM_TUR)))
-            if new_total_rounds not in HARITA_ALLOWED_ROUNDS:
-                new_total_rounds = room.get("total_rounds", HARITA_TOPLAM_TUR)
+            allowed_rounds = get_harita_round_options(new_max)
+            if new_total_rounds not in allowed_rounds:
+                new_total_rounds = get_nearest_harita_round_count(new_total_rounds, allowed_rounds)
         except:
             new_total_rounds = room.get("total_rounds", HARITA_TOPLAM_TUR)
 

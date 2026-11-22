@@ -10,8 +10,8 @@
 
     <!-- SEO Ayarları (Arama Motorları İçin) -->
     <title>GameArena Web - Online Multiplayer Futbol Bilgi Yarışması ve Satranç</title>
-    <meta name="description" content="GameArena Web: Arkadaşlarınla online futbol bilgi yarışması oyna, stadyum tanı, ilk 11 kur, mini futbol maçı yap ve 34 farklı jokerli satranç modunda yarış!">
-    <meta name="keywords" content="gamearena, gamearena web, game arena, futbol oyunu, futbol bilgi yarışması, stadyum tanıma, ilk 11 challenge, online futbol oyunları, jokerli satranç, bil bakalım, haxball, mini futbol">
+    <meta name="description" content="GameArena Web: Arkadaşlarınla online futbol bilgi yarışması oyna, ilk 11 kur, mini futbol maçı yap ve 30 farklı jokerle satrançta yarış!">
+    <meta name="keywords" content="gamearena, gamearena web, game arena, futbol oyunu, futbol bilgi yarışması, ilk 11 challenge, online futbol oyunları, jokerli satranç, bil bakalım, haxball, mini futbol">
     <meta name="author" content="GameArena Web">
     <meta name="robots" content="index, follow">
 
@@ -26,7 +26,6 @@
     <link rel="stylesheet" href="/oyun_modlari/haritadan_bul/haritadan_bul.css">
     <link rel="stylesheet" href="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.css">
     <link rel="stylesheet" href="/oyun_modlari/ilk_11_challenge/ilk_11.css">
-    <link rel="stylesheet" href="/oyun_modlari/stadyum_tanima/stadyum_tanima.css">
     
     <link rel="stylesheet" href="/oyun_modlari/sarkidan_bul/sarkidan_bul.css">
     <link rel="stylesheet" href="/oyun_modlari/mini_futbol/mini_futbol.css">
@@ -37,7 +36,6 @@
     <script src="/oyun_modlari/haritadan_bul/haritadan_bul.js" defer></script>
     <script src="/oyun_modlari/gizemli_kariyer/gizemli_kariyer.js" defer></script>
     <script src="/oyun_modlari/ilk_11_challenge/ilk_11.js" defer></script>
-    <script src="/oyun_modlari/stadyum_tanima/stadyum_tanima.js" defer></script>
     
     <script src="/oyun_modlari/sarkidan_bul/sarkidan_bul.js" defer></script>
     <script src="/oyun_modlari/mini_futbol/mini_futbol_state.js" defer></script>
@@ -125,7 +123,7 @@
 
         <!-- MOD SEÇİM EKRANI -->
         <section id="modSelectScreen" class="panel hidden">
-            <h2 class="mainTitle">Arenayı Seç</h2>
+            <h2 class="mainTitle">Oynamak istediğiniz Oyun Modunu Seçin!</h2>
             <p style="text-align:center; color:#adb5bd; margin-bottom:10px;">Oynamak istediğiniz modu seçin!</p>
             <div class="mod-grid">
                 <div class="mod-card" data-mod="bil_bakalim">
@@ -170,13 +168,7 @@
                         <p>Futbolcunun doğduğu ülkeyi dünya haritasında bul!</p>
                     </div>
                 </div>
-                <div class="mod-card" data-mod="stadyum_tanima">
-                    <img src="/mod_resimleri/stadyum_tanima.webp" alt="Stadyum Tanıma">
-                    <div class="mod-info">
-                        <h3>Stadyum Tanıma</h3>
-                        <p>Fotoğraftan hangi stadyum olduğunu bul.</p>
-                    </div>
-                </div>
+                
                 
                 <div class="mod-card" data-mod="sarkidan_bul">
                     <img src="/mod_resimleri/sarkidan_bul.webp" alt="Şarkıdan Bul" onerror="this.style.display='none'">
@@ -1384,7 +1376,10 @@
         <!-- İLK 11 CHALLENGE - FUTBOLCU SEÇ POPUP -->
         <div id="ilk11PopupBox" class="overlay hidden">
             <div class="overlayCard ilk11PopupCard">
-                <h2 id="ilk11PopupTitle" style="color:#ffd43b;">--- için futbolcu seç</h2>
+                <div class="ilk11PopupHeader">
+                    <h2 id="ilk11PopupTitle" style="color:#ffd43b;">--- için futbolcu seç</h2>
+                    <button id="ilk11RerollBtn" class="ilk11RerollBtn" type="button" disabled>🔄 Değiştir (3)</button>
+                </div>
                 <div id="ilk11PopupOptions" class="ilk11PopupGrid"></div>
                 <button id="ilk11PopupCloseBtn" class="bigBtn">✕ İPTAL</button>
             </div>
@@ -1434,189 +1429,13 @@
             </div>
         </div>
 
-        <!-- STADYUM TANIMA - ODA OLUŞTUR -->
-        <section id="createStadScreen" class="panel hidden">
-            <h2 class="mainTitle">Stadyum Tanıma</h2>
+        
 
-            <div class="centerBox">
-                <input id="createStadNameInput" type="text" placeholder="Adını yaz" maxlength="15">
-            </div>
+        
 
-            <div class="centerBox">
-                <label class="timerLabel">
-                    👥 Oyuncu Sayısı:
-                    <select id="stadMaxPlayersSelect">
-                        <option value="1">1 Oyuncu</option>
-                        <option value="2" selected>2 Oyuncu</option>
-                        <option value="3">3 Oyuncu</option>
-                        <option value="4">4 Oyuncu</option>
-                        <option value="5">5 Oyuncu</option>
-                    </select>
-                </label>
-            </div>
+        
 
-            <div class="centerBox">
-                <label class="timerLabel">
-                    🔢 Tur Sayısı:
-                    <select id="stadTotalRoundsSelect">
-                        <option value="5">5 Tur</option>
-                        <option value="10" selected>10 Tur</option>
-                        <option value="15">15 Tur</option>
-                        <option value="20">20 Tur</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="centerBox">
-                <label class="timerLabel">
-                    Tur Süresi:
-                    <select id="stadTurnSecondsSelect">
-                        <option value="15">15 saniye</option>
-                        <option value="20" selected>20 saniye</option>
-                        <option value="30">30 saniye</option>
-                        <option value="45">45 saniye</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="ilk11InfoBox">
-                <h3>🏟️ Nasıl Oynanır?</h3>
-                <p>Stadyum resmi ve <b style="color:#ffd43b">4 şık</b> gösterilir</p>
-                <p>Sırayla oynanır, ilk turu host başlatır</p>
-                <p>Doğru şık: <b style="color:#51cf66">+10</b></p>
-                <p>10 sn içinde doğru bilirsen: <b style="color:#ffd43b">+5 bonus</b></p>
-                <p>Yanlış şık: <b style="color:#ff6b6b">-3</b></p>
-                <p>Her joker kullanımında: <b style="color:#ffa94d">-2 ceza</b></p>
-                <p>Jokerler: <b>🏆 Takım</b> / <b>🌍 Ülke</b> / <b>💡 50:50</b></p>
-            </div>
-
-            <div class="row">
-                <button id="createStadBtn" class="bigBtn greenBtn">Oda Oluştur</button>
-                <button id="createStadBackBtn" class="bigBtn">← Geri</button>
-            </div>
-
-            <p id="createStadMsg" class="msg"></p>
-        </section>
-
-        <!-- STADYUM TANIMA - LOBBY -->
-        <section id="stadLobbyScreen" class="panel hidden">
-            <h2 class="mainTitle">Stadyum Tanıma - Lobby</h2>
-            <div class="roomCodeBox">
-                <span class="roomCodeLabel">Oda Kodu:</span>
-                <span id="stadRoomCodeText" class="roomCode hiddenCode" title="Kopyalamak için tıkla">••••••</span>
-                <button class="eyeToggleBtn" id="stadRoomCodeEyeBtn" title="Göster/Gizle">👁️</button>
-                <span id="stadCopyHint" class="copyHint"></span>
-            </div>
-            <div class="inviteLinkBox">
-                <span class="inviteLinkLabel">🔗 Davet Linki:</span>
-                <span id="stadInviteLinkText" class="inviteLink" title="Kopyalamak için tıkla">Yükleniyor...</span>
-                <button class="eyeToggleBtn" id="stadInviteLinkEyeBtn" title="Göster/Gizle">👁️</button>
-                <span id="stadInviteLinkHint" class="copyHint"></span>
-            </div>
-            <ul id="stadPlayersList"></ul>
-            <div class="lobbyInfo">
-                <span>👥 <span id="stadLobbyMaxPlayers">2</span> Oyuncu</span>
-                <span style="margin-left: 20px;">Toplam Tur: <span id="stadLobbyTotalRounds">10</span></span>
-                <span style="margin-left:20px;">Süre: <span id="stadLobbyTurnSeconds">30</span> sn</span>
-            </div>
-            <div class="centerBox">
-                <button id="stadStartBtn" class="bigBtn greenBtn hidden">Oyunu Başlat</button>
-                <button id="stadRoomSettingsBtn" class="bigBtn hidden" style="background:#6741d9;">⚙️ Oda Ayarları</button>
-                <button id="stadChangeModeBtn" class="bigBtn hidden" style="background:#e67e22;">🔄 Mod Değiştir</button>
-                <button id="stadLobbyLeaveBtn" class="bigBtn redBtn">Odadan Ayrıl</button>
-            </div>
-            <p id="stadLobbyMsg" class="msg"></p>
-        </section>
-
-        <!-- STADYUM TANIMA - OYUN -->
-        <section id="stadGameScreen" class="hidden">
-            <div class="haritaTopBar">
-                <div class="haritaTopLeft">
-                    <div id="stadRoundInfo">Tur 1/10</div>
-                    <div id="stadTurnInfo">Sıra: ---</div>
-                </div>
-                <div class="haritaScoreboard" id="stadScoreboard2P">
-                    <span id="stadP1Name" class="scoreMine">---</span>
-                    <span id="stadScore" class="haritaScoreText">0 - 0</span>
-                    <span id="stadP2Name" class="scoreOpp">---</span>
-                </div>
-                <div class="haritaTopRight">
-                    <div id="stadTimer" class="haritaTimerBig">30s</div>
-                </div>
-            </div>
-
-            <!-- ✨ Sıralama paneli (3+ kişide görünür) -->
-            <div class="stadScoreboardPanel" id="stadScoreboardPanel" style="display:none;">
-                <h3 style="color:gold; margin:0 0 10px 0; text-align:center; font-size:16px;">🏆 SIRALAMA</h3>
-                <ol id="stadScoreboardList" class="stadScoreboardList"></ol>
-            </div>
-
-            <div class="stadMainLayout">
-                <div class="stadImagePanel">
-                    <img id="stadImage" src="" alt="Stadyum">
-                    <div id="stadAnswerReveal" class="stadAnswerReveal hidden"></div>
-
-                    <div class="stadOptions" id="stadOptions">
-                        <button class="stadOptBtn" data-index="0"><span class="optLetter">A)</span> <span class="optText">---</span></button>
-                        <button class="stadOptBtn" data-index="1"><span class="optLetter">B)</span> <span class="optText">---</span></button>
-                        <button class="stadOptBtn" data-index="2"><span class="optLetter">C)</span> <span class="optText">---</span></button>
-                        <button class="stadOptBtn" data-index="3"><span class="optLetter">D)</span> <span class="optText">---</span></button>
-                    </div>
-                </div>
-
-                <div class="stadSidePanel">
-                    <div class="stadJokerBox">
-                        <h3>Jokerler (<span id="stadJokerCount">3</span>)</h3>
-                        <div class="stadJokerGrid">
-                            <button id="stadJokerTakimBtn" class="takimJokerBtn purpleJoker">🏆 TAKIM</button>
-                            <button id="stadJokerUlkeBtn" class="takimJokerBtn blueJoker">🌍 ÜLKE</button>
-                            <button id="stadJoker5050Btn" class="takimJokerBtn cyanJoker">💡 50:50</button>
-                        </div>
-                    </div>
-
-                    <div class="stadHintBox">
-                        <h3>İpuçları</h3>
-                        <div id="stadHintTakim" class="stadHintLine hidden"></div>
-                        <div id="stadHintUlke" class="stadHintLine hidden"></div>
-                    </div>
-
-                    <p id="stadStatusMsg" class="gizemStatus"></p>
-                </div>
-            </div>
-
-            <div class="centerBox">
-                <button id="stadBackBtn" class="bigBtn">← Menüye Dön</button>
-            </div>
-        </section>
-
-        <!-- STADYUM TANIMA - OYUN SONU -->
-        <div id="stadGameOverBox" class="overlay hidden">
-            <div class="overlayCard">
-                <h1 id="stadGameOverTitle"></h1>
-                <p id="stadGameOverText" style="font-size:22px; margin:15px 0;"></p>
-
-                <ol id="stadGameOverList" class="stadGameOverList"></ol>
-
-                <!-- Reklam -->
-                <div class="ad-container" style="max-width:400px; margin: 15px auto;">
-                    <ins class="adsbygoogle"
-                         style="display:block"
-                         data-ad-client="ca-pub-1324481943948742"
-                         data-ad-slot="8484507556"
-                         data-ad-format="auto"
-                         data-full-width-responsive="true"></ins>
-                    <script>
-                         (adsbygoogle = window.adsbygoogle || []).push({});
-                    </script>
-                </div>
-
-                <div class="confirmButtons">
-                    <button id="stadRematchBtn" class="bigBtn greenBtn hidden">Tekrar Oyna</button>
-                    <button id="stadBackToLobbyBtn" class="bigBtn hidden" style="background:#e67e22;">🚪 Lobiye Dön</button>
-                    <button id="stadBackToMenuBtn" class="bigBtn">Ana Menüye Dön</button>
-                </div>
-            </div>
-        </div>
+        
 
         <!-- ==========================================
              ŞARKIDAN BUL - ODA OLUŞTUR
@@ -2715,7 +2534,10 @@
                 <h2 class="mainTitle">Gizli Futbolcunu Seç</h2>
                 <div class="topbar">
                     <div>Süre: <span id="selectTimer" class="timerText">--</span></div>
-                    <div id="selectMsg" class="msg"></div>
+                    <div class="selectionStatusGroup">
+                        <button id="cancelSecretBtn" class="cancelSecretBtn redBtn hidden" type="button">❌ İPTAL</button>
+                        <div id="selectMsg" class="msg"></div>
+                    </div>
                 </div>
             </div>
             <div id="selectGrid" class="grid"></div>
@@ -2975,27 +2797,7 @@
 
     
 
-    <!-- STADYUM TANIMA CHAT POPUP STACK -->
-    <div id="stadChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
-
-    <!-- STADYUM TANIMA CHAT -->
-    <div id="stadChatContainer" class="miniChatContainer" style="display:none;">
-        <button id="stadChatToggleBtn" class="miniChatToggleBtn">
-            💬
-            <span id="stadChatBadge" class="miniChatBadge" style="display:none;">0</span>
-        </button>
-        <div id="stadChatPanel" class="miniChatPanel" style="display:none;">
-            <div class="miniChatHeader">
-                <span>💬 Sohbet</span>
-                <button id="stadChatCloseBtn" class="miniChatCloseBtn">✕</button>
-            </div>
-            <div id="stadChatMessages" class="miniChatMessages"></div>
-            <div class="miniChatInputRow">
-                <input type="text" id="stadChatInput" class="miniChatInput" placeholder="Mesaj yaz..." maxlength="100" autocomplete="off">
-                <button id="stadChatSendBtn" class="miniChatSendBtn">➤</button>
-            </div>
-        </div>
-    </div>
+    
 
     <!-- HARİTADAN BUL CHAT POPUP STACK -->
     <div id="haritaChatPopupStack" class="miniChatPopupStack" style="display:none;"></div>
@@ -3295,7 +3097,7 @@
             <h2 style="color:#51cf66;">ℹ️ Hakkımızda</h2>
             <div style="text-align:left; color:#ced4da; font-size:14px; line-height:1.6;">
                 <p><b>🎮 GameArena Nedir?</b></p>
-                <p>GameArena, rekabetçi oyuncular ve futbol severler için geliştirilmiş, 10 farklı benzersiz mod içeren gerçek zamanlı multiplayer oyun platformudur.</p>
+                <p>GameArena, rekabetçi oyuncular ve futbol severler için geliştirilmiş, 9 farklı benzersiz mod içeren gerçek zamanlı multiplayer oyun platformudur.</p>
                 
                 <p style="margin-top:15px;"><b>⚽ Arenalarımız:</b></p>
                 <ul style="padding-left:20px;">
@@ -3305,7 +3107,6 @@
                     <li>Haritadan Bul - Dünya coğrafyası kapışması</li>
                     <li>Gizemli Kariyer - Kariyer izini sür</li>
                     <li>İlk 11 Challenge - Rüya 4-3-3 kadronu kur</li>
-                    <li>Stadyum Tanıma - Tribünden mabedi tanı</li>
                     <li>Şarkıdan Bul - Sesi aç, parçayı yakala</li>
                     <li>Mini Futbol - 60 FPS Gerçek Zamanlı Haxball</li>
                     <li>Jokerli Satranç - 30 özel güçle kaos dolu satranç</li>

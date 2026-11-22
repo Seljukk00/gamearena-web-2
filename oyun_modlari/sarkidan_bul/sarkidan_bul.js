@@ -34,6 +34,41 @@
     let sarkiPoolPercent = 0;          // ✨ Havuz hazırlanma yüzdesi
 
     const $ = (id) => document.getElementById(id);
+
+    // ==========================================
+    // ŞARKI SAYISI SEÇENEKLERİ (oyuncu sayısına göre)
+    // ==========================================
+    function getSarkiSongOptions(maxPlayers) {
+        const mp = parseInt(maxPlayers) || 2;
+        if (mp === 1) return [2, 4, 5, 6, 10, 12, 15, 20, 25, 30];
+        if (mp === 2) return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+        if (mp === 3) return [3, 6, 9, 12, 15, 18, 21, 24, 27, 30];
+        if (mp === 4) return [4, 8, 12, 16, 20, 24, 28, 32];
+        if (mp === 5) return [5, 10, 15, 20, 25, 30];
+        return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
+    }
+
+    function getNearestSarkiSongCount(maxPlayers, value) {
+        const options = getSarkiSongOptions(maxPlayers);
+        const v = parseInt(value);
+        if (isNaN(v)) return options[0];
+        if (options.includes(v)) return v;
+        return options.reduce((prev, curr) => Math.abs(curr - v) < Math.abs(prev - v) ? curr : prev);
+    }
+
+    function updateSarkiSongOptions(selectEl, maxPlayers, currentValue) {
+        if (!selectEl) return;
+        const options = getSarkiSongOptions(maxPlayers);
+        const nearest = getNearestSarkiSongCount(maxPlayers, currentValue);
+        selectEl.innerHTML = "";
+        options.forEach(v => {
+            const opt = document.createElement("option");
+            opt.value = v;
+            opt.textContent = v + " Şarkı";
+            if (v === nearest) opt.selected = true;
+            selectEl.appendChild(opt);
+        });
+    }
     
     // ✨ ESC popup için global helper (app.js _isCurrentHost bunu kullanır)
     window._sarkiIsHostRef = () => sarkiIsHost;
@@ -137,6 +172,12 @@
         
         // Kayıtlı ayarları yükle
         loadSarkiSavedSettings();
+        
+        // ✨ Oyuncu sayısına göre şarkı listesini senkronla
+        const sarkiMaxSel = document.getElementById("sarkiMaxPlayersSelect");
+        if (sarkiMaxSel) {
+            sarkiMaxSel.dispatchEvent(new Event("change"));
+        }
         
         // Tür dropdown'unu dil'e göre güncelle
         const dilSel = document.getElementById("sarkiDilSelect");
@@ -389,6 +430,15 @@
             // Sayfa açılışında da uygula
             updateTurOptions();
         }
+
+        // ✨ Oyuncu sayısı değişince şarkı listesini güncelle
+        const sarkiMaxSel = $("sarkiMaxPlayersSelect");
+        const sarkiTotalSel = $("sarkiTotalSongsSelect");
+        if (sarkiMaxSel && sarkiTotalSel) {
+            sarkiMaxSel.addEventListener("change", () => {
+                updateSarkiSongOptions(sarkiTotalSel, sarkiMaxSel.value, sarkiTotalSel.value);
+            });
+        }
     });
 
     // ==========================================
@@ -410,11 +460,13 @@
             localStorage.setItem("playerName", name);
         }
 
+        const _mp = parseInt($("sarkiMaxPlayersSelect").value) || 2;
+        const _total = getNearestSarkiSongCount(_mp, parseInt($("sarkiTotalSongsSelect").value));
         const settings = {
-            max_players: parseInt($("sarkiMaxPlayersSelect").value),
+            max_players: _mp,
             dil: $("sarkiDilSelect").value,
             tur: $("sarkiTurSelect") ? $("sarkiTurSelect").value || null : null,
-            total_songs: parseInt($("sarkiTotalSongsSelect").value),
+            total_songs: _total,
             song_duration: parseInt($("sarkiSongDurationSelect").value),
             answer_duration: parseInt($("sarkiAnswerDurationSelect").value)
         };
@@ -488,7 +540,12 @@
             
             setSelect("sarkiMaxPlayersSelect", s.max_players);
             setSelect("sarkiDilSelect", s.dil);
-            setSelect("sarkiTotalSongsSelect", s.total_songs);
+            // ✨ Oyuncu sayısına göre şarkı listesini güncelle, sonra kayıtlı değeri seç
+            const _mp = s.max_players || 2;
+            const _totalSel = $("sarkiTotalSongsSelect");
+            if (_totalSel) {
+                updateSarkiSongOptions(_totalSel, _mp, s.total_songs);
+            }
             setSelect("sarkiSongDurationSelect", s.song_duration);
             setSelect("sarkiAnswerDurationSelect", s.answer_duration);
 			setSelect("sarkiTurSelect", s.tur || "");
@@ -561,17 +618,8 @@
                 {
                     id: "settingSarkiTotal",
                     label: "🔢 Şarkı Sayısı",
-                    current: sarkiSettings.total_songs,
-                    options: [
-                        { value: 5, label: "5 Şarkı" },
-                        { value: 6, label: "6 Şarkı" },
-                        { value: 10, label: "10 Şarkı" },
-                        { value: 12, label: "12 Şarkı" },
-                        { value: 15, label: "15 Şarkı" },
-                        { value: 20, label: "20 Şarkı" },
-                        { value: 25, label: "25 Şarkı" },
-                        { value: 30, label: "30 Şarkı" }
-                    ]
+                    current: getNearestSarkiSongCount(sarkiSettings.max_players, sarkiSettings.total_songs),
+                    options: getSarkiSongOptions(sarkiSettings.max_players).map(v => ({ value: v, label: v + " Şarkı" }))
                 },
                 {
                     id: "settingSarkiSongDur",
@@ -615,8 +663,8 @@
             readonly: !sarkiIsHost,
             onSave: (values) => {
                 const newDil = values.settingSarkiDil;
-                const newTotal = parseInt(values.settingSarkiTotal);
                 const newMax = parseInt(values.settingSarkiMax);
+                const newTotal = getNearestSarkiSongCount(newMax, parseInt(values.settingSarkiTotal));
                 const newSongDur = parseInt(values.settingSarkiSongDur);
                 const newAnsDur = parseInt(values.settingSarkiAnsDur);
 				const newTur = values.settingSarkiTur || null;
@@ -997,8 +1045,10 @@
         }
         
         // ✨ 1.8 saniye sonra gizle (backend 2sn sonra round_start gönderecek)
-        setTimeout(() => {
+        if (window._sarkiOverlayTimer) clearTimeout(window._sarkiOverlayTimer);
+        window._sarkiOverlayTimer = setTimeout(() => {
             overlay.classList.add("hidden");
+            window._sarkiOverlayTimer = null;
         }, 1800);
     }
 
@@ -1300,6 +1350,9 @@
     }
 
     function stopSarkiAudio() {
+        // 🔑 Play ID'yi artır → bekleyen setTimeout/play() çağrıları kendini iptal eder
+        window._sarkiPlayId = (window._sarkiPlayId || 0) + 1;
+
         // ✨ Stop timer varsa iptal et
         if (sarkiAudioStopTimer) {
             clearTimeout(sarkiAudioStopTimer);
@@ -1329,13 +1382,24 @@
         sarkiAudio = null;
     }
 
+    // 🔒 Oyun ekranı gerçekten görünür mü?
+    function isSarkiGameVisible() {
+        const el = document.getElementById("sarkiGameScreen");
+        if (!el) return false;
+        return !el.classList.contains("hidden");
+    }
+
     function startSarkiTimer(totalSeconds) {
         stopSarkiTimer();
+        // 🔒 Oyun ekranı görünmüyorsa sayaç hiç başlamaz
+        if (!isSarkiGameVisible()) return;
         sarkiTimerRemaining = totalSeconds;
         sarkiTimerWarningPlaying = false;
         updateSarkiTimerDisplay(sarkiTimerRemaining);
 
         sarkiTimerInterval = setInterval(() => {
+            // 🔒 Güvenlik: ekrandan çıkıldıysa sayaç kendini imha eder
+            if (!isSarkiGameVisible()) { stopSarkiTimer(); return; }
             sarkiTimerRemaining--;
             updateSarkiTimerDisplay(sarkiTimerRemaining);
             if (sarkiTimerRemaining <= 10 && !sarkiTimerWarningPlaying) {
@@ -1402,7 +1466,11 @@
             sarkiTimerInterval = null;
         }
         if (_sarkiTimerWarningAudio) {
-            try { _sarkiTimerWarningAudio.pause(); _sarkiTimerWarningAudio.currentTime = 0; } catch(e) {}
+            try {
+                _sarkiTimerWarningAudio.pause();
+                _sarkiTimerWarningAudio.loop = false;   // 🔑 kısır döngü burada kırılıyor
+                _sarkiTimerWarningAudio.currentTime = 0;
+            } catch(e) {}
             _sarkiTimerWarningAudio = null;
         }
         sarkiTimerWarningPlaying = false;
@@ -2256,6 +2324,12 @@
         hideSarkiChat();
         stopSarkiAudio();
         stopSarkiTimer();
+        
+        // 🛑 Bekleyen tur overlay zamanlayıcısı da kesin iptal
+        if (window._sarkiOverlayTimer) {
+            clearTimeout(window._sarkiOverlayTimer);
+            window._sarkiOverlayTimer = null;
+        }
         
         Object.values(SARKI_SCREEN_IDS).forEach(id => {
             const el = document.getElementById(id);

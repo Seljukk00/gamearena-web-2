@@ -18,6 +18,41 @@ from .playlists import (
 
 
 # ========================================
+# ŞARKI SAYISI SEÇENEKLERİ (oyuncu sayısına göre)
+# ========================================
+
+def get_sarki_song_options(max_players):
+    """Oyuncu sayısına göre geçerli toplam şarkı listesini döner."""
+    try:
+        mp = int(max_players)
+    except:
+        mp = 2
+    if mp == 1:
+        return [2, 4, 5, 6, 10, 12, 15, 20, 25, 30]
+    if mp == 2:
+        return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
+    if mp == 3:
+        return [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
+    if mp == 4:
+        return [4, 8, 12, 16, 20, 24, 28, 32]
+    if mp == 5:
+        return [5, 10, 15, 20, 25, 30]
+    return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
+
+
+def get_nearest_sarki_song_count(max_players, value):
+    """Geçersiz şarkı sayısını en yakın geçerli değere çeker."""
+    options = get_sarki_song_options(max_players)
+    try:
+        v = int(value)
+    except:
+        return options[0]
+    if v in options:
+        return v
+    return min(options, key=lambda x: abs(x - v))
+
+
+# ========================================
 # LOBBY UPDATE
 # ========================================
 
@@ -413,8 +448,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             max_players = 2
         if dil not in ["tr", "yabanci", "karisik"]:
             dil = "karisik"
-        if total_songs not in [5, 6, 10, 12, 15, 20, 25, 30]:
-            total_songs = 10
+        total_songs = get_nearest_sarki_song_count(max_players, total_songs)
         if song_duration not in [5, 10, 15, 20, 30]:
             song_duration = 10
         if answer_duration not in [5, 10, 15, 20, 30]:
@@ -577,8 +611,7 @@ async def handle_sarki_message(msg_type, data, websocket, rooms, room_code, play
             max_players = 2
         if dil not in ["tr", "yabanci", "karisik"]:
             dil = "karisik"
-        if total_songs not in [5, 6, 10, 12, 15, 20, 25, 30]:
-            total_songs = 10
+        total_songs = get_nearest_sarki_song_count(max_players, total_songs)
         if song_duration not in [5, 10, 15, 20, 30]:
             song_duration = 10
         if answer_duration not in [5, 10, 15, 20, 30]:

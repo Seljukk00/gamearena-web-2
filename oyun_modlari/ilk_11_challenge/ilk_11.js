@@ -9,6 +9,10 @@ let ilk11Data = {
     players: [],
     turnSeconds: 120,
     positions: {},
+    rerollsLeft: 3,
+    rerollPending: false,
+    rerollDelayTimer: null,
+    optionsLoading: false,
     myTeam: {},
     myCount: 0,
     oppCount: 0,
@@ -22,6 +26,7 @@ const createIlk11Screen = document.getElementById("createIlk11Screen");
 const ilk11LobbyScreen = document.getElementById("ilk11LobbyScreen");
 const ilk11GameScreen = document.getElementById("ilk11GameScreen");
 const ilk11PopupBox = document.getElementById("ilk11PopupBox");
+const ilk11RerollBtn = document.getElementById("ilk11RerollBtn");
 const ilk11ResultBox = document.getElementById("ilk11ResultBox");
 
 // ========================================
@@ -203,6 +208,11 @@ showScreen = function(screenName) {
     if (!ilk11Screens.includes(screenName)) {
         hideIlk11Chat();
     }
+    
+    // 🛑 Oyun ekranından çıkıldı → sayaç + uyarı sesi + popup + simülasyon kesin kapanır
+    if (screenName !== "ilk11Game") {
+        ilk11CleanupGameplay();
+    }
 };
 
 // Mod kartına tıklama
@@ -352,9 +362,7 @@ document.getElementById("ilk11BackBtn").onclick = () => {
 
 document.getElementById("ilk11BackToMenuBtn").onclick = () => {
     // Popup'ları kapat
-    ilk11ResultBox.classList.add("hidden");
-    ilk11PopupBox.classList.add("hidden");
-    stopIlk11Timer();
+    ilk11CleanupGameplay();
     
     // WebSocket kapat
     if (typeof ws !== "undefined" && ws) {
@@ -393,6 +401,22 @@ document.getElementById("ilk11BackToLobbyBtn").onclick = () => {
 };
 
 document.getElementById("ilk11PopupCloseBtn").onclick = () => {
+    if (ilk11Data.rerollDelayTimer !== null) {
+        clearTimeout(ilk11Data.rerollDelayTimer);
+        ilk11Data.rerollDelayTimer = null;
+        ilk11Data.rerollPending = false;
+
+        const grid = document.getElementById("ilk11PopupOptions");
+        if (grid) {
+            grid.classList.remove("rerolling");     
+            grid.querySelectorAll(".ilk11PopupOptionExiting").forEach(card => {
+                card.classList.remove("ilk11PopupOptionExiting");
+            });
+        }
+
+        updateIlk11RerollButton();
+    }
+
     ilk11PopupBox.classList.add("hidden");
 };
 
@@ -465,12 +489,23 @@ function updateIlk11Lobby() {
     }
 }
 
+// 🔒 Oyun ekranı gerçekten görünür mü?
+function isIlk11GameVisible() {
+    const el = document.getElementById("ilk11GameScreen");
+    if (!el) return false;
+    return !el.classList.contains("hidden");
+}
+
 function startIlk11Timer(seconds) {
     stopIlk11Timer();
+    // 🔒 Oyun ekranı görünmüyorsa sayaç hiç başlamaz
+    if (!isIlk11GameVisible()) return;
     ilk11Data.timerSeconds = seconds;
     ilk11Data.timerWarningPlaying = false;
     updateIlk11TimerDisplay();
     ilk11Data.timerInterval = setInterval(() => {
+        // 🔒 Güvenlik: ekrandan çıkıldıysa sayaç kendini imha eder
+        if (!isIlk11GameVisible()) { stopIlk11Timer(); return; }
         ilk11Data.timerSeconds--;
         updateIlk11TimerDisplay();
         if (ilk11Data.timerSeconds <= 10 && !ilk11Data.timerWarningPlaying) {
@@ -493,10 +528,35 @@ function stopIlk11Timer() {
         ilk11Data.timerInterval = null;
     }
     if (ilk11Data._timerWarningAudio) {
-        try { ilk11Data._timerWarningAudio.pause(); ilk11Data._timerWarningAudio.currentTime = 0; } catch(e) {}
+        try {
+            ilk11Data._timerWarningAudio.pause();
+            ilk11Data._timerWarningAudio.loop = false;   // 🔑 kısır döngü burada kırılıyor
+            ilk11Data._timerWarningAudio.currentTime = 0;
+        } catch(e) {}
         ilk11Data._timerWarningAudio = null;
     }
     ilk11Data.timerWarningPlaying = false;
+}
+
+// 🧹 OYUNDAN ÇIKIŞ TEMİZLİĞİ — tek kapı
+function ilk11CleanupGameplay() {
+    // 1) Süre sayacı + uyarı sesi
+    stopIlk11Timer();
+
+    // 2) Bekleyen reroll gecikmesi
+    if (ilk11Data.rerollDelayTimer !== null) {
+        clearTimeout(ilk11Data.rerollDelayTimer);
+        ilk11Data.rerollDelayTimer = null;
+    }
+    ilk11Data.rerollPending = false;
+    ilk11Data.optionsLoading = false;
+
+    // 3) Açık popup'lar
+    if (ilk11PopupBox) ilk11PopupBox.classList.add("hidden");
+    if (ilk11ResultBox) ilk11ResultBox.classList.add("hidden");
+
+    // 4) Simülasyon motoru
+    if (typeof stopIlk11Simulation === "function") stopIlk11Simulation();
 }
 
 function updateIlk11TimerDisplay() {
@@ -614,12 +674,34 @@ function renderIlk11Field() {
     });
 }
 
+function updateIlk11RerollButton() {
+    if (!ilk11RerollBtn) return;
+
+    const rerollsLeft = Number.isInteger(ilk11Data.rerollsLeft)
+        ? ilk11Data.rerollsLeft
+        : 0;
+    const grid = document.getElementById("ilk11PopupOptions");
+    const hasOptions = !!(grid && grid.querySelector(".ilk11PopupOption"));
+
+    ilk11RerollBtn.textContent = `🔄 Değiştir (${rerollsLeft})`;
+    ilk11RerollBtn.disabled = rerollsLeft <= 0
+        || !hasOptions
+        || ilk11Data.optionsLoading
+        || ilk11Data.rerollPending;
+}
+
 function openIlk11Popup(posId, posData) {
+    if (ilk11Data.rerollPending) {
+        showToast("⏳ Kartlar Değiştiriliyor", "Yeni kartlar yüklenene kadar bekle.", null, "warning");
+        return;
+    }
+
     document.getElementById("ilk11PopupTitle").textContent =
         `${posData.name} için futbolcu seç`;
 
     const grid = document.getElementById("ilk11PopupOptions");
     grid.innerHTML = "";
+    grid.classList.remove("rerolling");
 
     const loading = document.createElement("div");
     loading.textContent = "Yükleniyor...";
@@ -627,22 +709,94 @@ function openIlk11Popup(posId, posData) {
     loading.style.padding = "20px";
     grid.appendChild(loading);
 
+    ilk11PopupBox.dataset.currentPosId = posId;
+    ilk11Data.optionsLoading = true;
+
     ilk11PopupBox.classList.remove("hidden");
+    updateIlk11RerollButton();
 
     send({ type: "ilk11_get_options", pos_id: posId });
-
-    ilk11PopupBox.dataset.currentPosId = posId;
 }
 
-function renderIlk11PopupOptions(options) {
-    const grid = document.getElementById("ilk11PopupOptions");
-    grid.innerHTML = "";
+function requestIlk11Reroll() {
+    if (!ilk11RerollBtn || ilk11Data.optionsLoading || ilk11Data.rerollPending) return;
+    if (!Number.isInteger(ilk11Data.rerollsLeft) || ilk11Data.rerollsLeft <= 0) return;
+    if (ilk11PopupBox.classList.contains("hidden")) return;
 
     const posId = ilk11PopupBox.dataset.currentPosId;
+    const grid = document.getElementById("ilk11PopupOptions");
+    if (!posId || !grid) return;
 
-    options.forEach(opt => {
+    const cards = grid.querySelectorAll(".ilk11PopupOption");
+    if (cards.length === 0) return;
+
+    ilk11Data.rerollPending = true;
+    grid.classList.add("rerolling");
+
+    cards.forEach(card => {
+        card.classList.remove("ilk11PopupOptionEntering");
+        card.classList.add("ilk11PopupOptionExiting");
+    });
+
+    updateIlk11RerollButton();
+
+    ilk11Data.rerollDelayTimer = setTimeout(() => {
+        ilk11Data.rerollDelayTimer = null;
+
+        if (!ilk11Data.rerollPending || ilk11PopupBox.classList.contains("hidden")) {
+            ilk11Data.rerollPending = false;
+            grid.classList.remove("rerolling");
+            updateIlk11RerollButton();
+            return;
+        }
+
+        send({ type: "ilk11_reroll_options", pos_id: posId });
+    }, 240);
+}
+
+if (ilk11RerollBtn) {
+    ilk11RerollBtn.onclick = requestIlk11Reroll;
+}
+
+function renderIlk11PopupOptions(options, response = {}) {
+    const grid = document.getElementById("ilk11PopupOptions");
+    if (!grid) return;
+
+    grid.innerHTML = "";
+    grid.classList.remove("rerolling");
+
+    ilk11Data.optionsLoading = false;
+    ilk11Data.rerollPending = false;
+
+    if (ilk11Data.rerollDelayTimer !== null) {
+        clearTimeout(ilk11Data.rerollDelayTimer);
+        ilk11Data.rerollDelayTimer = null;
+    }
+
+    if (Number.isInteger(response.rerolls_left)) {
+        ilk11Data.rerollsLeft = response.rerolls_left;
+    }
+
+    if (response.reroll_success === false && response.message) {
+        showToast("⚠️ Kartlar Değiştirilemedi", response.message, null, "warning");
+    }
+
+    const posId = ilk11PopupBox.dataset.currentPosId;
+    const optionList = Array.isArray(options) ? options : [];
+
+    if (optionList.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "ilk11PopupEmpty";
+        empty.textContent = response.message || "Bu mevkiye uygun futbolcu bulunamadı.";
+        grid.appendChild(empty);
+        updateIlk11RerollButton();
+        return;
+    }
+
+    optionList.forEach((opt, optionIndex) => {
         const card = document.createElement("div");
-        card.className = "ilk11PopupOption";
+        card.className = "ilk11PopupOption ilk11PopupOptionEntering";
+        card.style.animationDelay = `${optionIndex * 55}ms`;
 
         const img = document.createElement("img");
         img.className = "ilk11PopupImg";
@@ -672,6 +826,8 @@ function renderIlk11PopupOptions(options) {
         card.appendChild(nat);
 
         card.addEventListener("click", () => {
+            if (ilk11Data.rerollPending) return;
+
             ilk11PopupBox.classList.add("hidden");
             send({
                 type: "ilk11_select",
@@ -682,6 +838,8 @@ function renderIlk11PopupOptions(options) {
 
         grid.appendChild(card);
     });
+
+    updateIlk11RerollButton();
 }
 
 function renderIlk11Result(data) {
@@ -872,6 +1030,16 @@ handleMessage = function(msg) {
         ilk11Data.players = msg.players;
         ilk11Data.turnSeconds = msg.turn_seconds;
         ilk11Data.positions = msg.positions;
+
+        if (ilk11Data.rerollDelayTimer !== null) {
+            clearTimeout(ilk11Data.rerollDelayTimer);
+            ilk11Data.rerollDelayTimer = null;
+        }
+
+        ilk11Data.rerollsLeft = Number.isInteger(msg.rerolls_left) ? msg.rerolls_left : 3;
+        ilk11Data.rerollPending = false;
+        ilk11Data.optionsLoading = false;
+
         ilk11Data.myTeam = {};
         ilk11Data.myCount = 0;
         ilk11Data.oppCount = 0;
@@ -900,7 +1068,24 @@ handleMessage = function(msg) {
     }
 
     if (msg.type === "ilk11_options") {
-        renderIlk11PopupOptions(msg.options);
+        if (Number.isInteger(msg.rerolls_left)) {
+            ilk11Data.rerollsLeft = msg.rerolls_left;
+        }
+
+        const isRerollResponse = typeof msg.reroll_success === "boolean";
+        if (isRerollResponse) {
+            ilk11Data.rerollPending = false;
+        }
+
+        if (msg.pos_id !== ilk11PopupBox.dataset.currentPosId) {
+            if (isRerollResponse) {
+                ilk11Data.optionsLoading = false;
+                updateIlk11RerollButton();
+            }
+            return;
+        }
+
+        renderIlk11PopupOptions(msg.options, msg);
         return;
     }
 
@@ -1029,7 +1214,17 @@ handleMessage = function(msg) {
                     </div>
                 </div>
             `;
+
+            const canChangeSimSpeed = ilk11Data.playerId === 1;
+            simBox.querySelectorAll(".simSpeedBtn").forEach(button => {
+                button.disabled = !canChangeSimSpeed;
+                button.title = canChangeSimSpeed
+                    ? "Simülasyon hızını değiştirebilirsin."
+                    : "Simülasyon hızını sadece oda yöneticisi değiştirebilir.";
+            });
+
             const winnerEl = document.getElementById("ilk11ResultWinner");
+
             if (winnerEl) {
                 winnerEl.textContent = "MAÇ OYNANIYOR...";
                 winnerEl.style.color = "#845ef7";
@@ -1075,6 +1270,7 @@ function stopIlk11Simulation() {
 }
 
 function setIlk11SimSpeed(multiplier) {
+    if (ilk11Data.playerId !== 1) return;
     send({ type: "ilk11_sim_speed", speed: multiplier });
 }
 

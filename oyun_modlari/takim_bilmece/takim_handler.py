@@ -14,6 +14,37 @@ TAKIM_JOKER_AYARLARI = {
 }
 
 
+def get_takim_question_options(max_players):
+    """Oyuncu sayısına göre geçerli toplam soru listesini döner."""
+    try:
+        mp = int(max_players)
+    except:
+        mp = 2
+    if mp == 1:
+        return [2, 4, 6, 9, 12, 15, 20, 25]
+    if mp == 2:
+        return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
+    if mp == 3:
+        return [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
+    if mp == 4:
+        return [4, 8, 12, 16, 20, 24, 28, 32]
+    if mp == 5:
+        return [5, 10, 15, 20, 25, 30]
+    return [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
+
+
+def get_nearest_takim_question_count(max_players, value):
+    """Geçersiz soru sayısını en yakın geçerli değere çeker."""
+    options = get_takim_question_options(max_players)
+    try:
+        v = int(value)
+    except:
+        return options[0]
+    if v in options:
+        return v
+    return min(options, key=lambda x: abs(x - v))
+
+
 def _handled(room_code, player_id):
     return {"handled": True, "room_code": room_code, "player_id": player_id}
 
@@ -370,10 +401,9 @@ async def handle_takim_message(
 
         try:
             total_q = int(total_q_raw)
-            if total_q not in [6, 9, 12, 15, 20, 25]:
-                total_q = TAKIM_TOPLAM_SORU
         except:
             total_q = TAKIM_TOPLAM_SORU
+        total_q = get_nearest_takim_question_count(max_players, total_q)
 
         print(f"[TAKIM ODA] Zorluk: {difficulty} | Süre: {takim_turn_seconds}sn | Oyuncu: {max_players} | Soru: {total_q}")
 
@@ -528,10 +558,9 @@ async def handle_takim_message(
 
         try:
             new_total_q = int(data.get("total_questions", room.get("total_questions", TAKIM_TOPLAM_SORU)))
-            if new_total_q not in [6, 9, 12, 15, 20, 25]:
-                new_total_q = room.get("total_questions", TAKIM_TOPLAM_SORU)
         except:
             new_total_q = room.get("total_questions", TAKIM_TOPLAM_SORU)
+        new_total_q = get_nearest_takim_question_count(new_max, new_total_q)
 
         room["difficulty"] = difficulty
         room["turn_seconds"] = new_turn_sec

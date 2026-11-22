@@ -161,6 +161,59 @@ button:disabled {
     font-weight: 500;
 }
 
+/* Bil Bakalım gizli futbolcu seçimini iptal et */
+.selectionStatusGroup {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.selectionStatusGroup .msg {
+    margin: 0;
+    min-width: 180px;
+}
+
+.cancelSecretBtn {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 107, 107, 0.8);
+    border-radius: 8px;
+    background: linear-gradient(135deg, #c92a2a, #e03131);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    box-shadow: 0 0 12px rgba(255, 107, 107, 0.28);
+}
+
+.cancelSecretBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #e03131, #ff4d4f);
+    box-shadow: 0 0 16px rgba(255, 107, 107, 0.45);
+}
+
+.cancelSecretBtn:disabled {
+    cursor: wait;
+    opacity: 0.55;
+    transform: none;
+}
+
+@media (max-width: 768px) {
+    .selectionStatusGroup {
+        width: 100%;
+        justify-content: center;
+        margin-left: 0;
+    }
+
+    .selectionStatusGroup .msg {
+        min-width: 0;
+    }
+}
+
 /* ODA KODU */
 .roomCodeBox {
     text-align: center;
@@ -2973,4 +3026,50 @@ body > .container {
         max-width: calc(100vw - 40px);
         font-size: 12px;
     }
+}
+
+/* ============================================
+   🖱️ LOGO / BAŞLIK — mavi seçim kutusunu engelle
+   ============================================ */
+header,
+.header,
+.siteHeader,
+.topHeader,
+.topbar,
+.logo,
+.logoWrap,
+.logoBox,
+.mainTitle,
+h1,
+h1.mainTitle,
+.brand {
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    cursor: default;
+}
+
+/* Seçim yine de olursa mavi kutu GÖRÜNMESİN */
+header::selection,
+header *::selection,
+.h1::selection,
+h1::selection,
+h1 *::selection,
+.mainTitle::selection,
+.logo::selection,
+.logo *::selection {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* Logo resmi sürüklenmesin */
+.logo img,
+header img,
+.mainTitle img {
+    -webkit-user-drag: none;
+    user-select: none;
+    pointer-events: none;
 }

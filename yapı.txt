@@ -36,7 +36,6 @@ GameArena_Web/
 │ ├── kim_milyoner.png
 │ ├── mini_futbol.png
 │ ├── sarkidan_bul.png
-│ ├── stadyum_tanima.png
 │ └── takim_bilmece.png
 │
 ├── static/
@@ -106,15 +105,6 @@ GameArena_Web/
 │ ├── ilk11_handler.py
 │ ├── ilk_11.css
 │ └── ilk_11.js
-│
-├── stadyum_tanima/
-│ ├── init.py
-│ ├── stadyum.py
-│ ├── stadyumlar.py
-│ ├── stadyum_handler.py
-│ ├── stadyum_tanima.css
-│ ├── stadyum_tanima.js
-│ └── images/ (48 stadyum .webp — camp_nou, ali_sami_yen vb.)
 │
 ├── sarkidan_bul/
 │ ├── init.py

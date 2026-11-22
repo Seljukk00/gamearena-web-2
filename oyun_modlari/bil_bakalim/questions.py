@@ -19,9 +19,9 @@ ALL_QUESTIONS = [
     ("Avrupada mı?", "europe", True),
     ("SüperLig geçmişi var mı?", "superlig", True),
     ("Afrikalı mı?", "african", True),
-    ("10 numara mı?", "number10", True),
-    ("9 numara mı?", "number9", True),
-    ("7 numara mı?", "number7", True),
+    ("10 numara kullandı mı?", "number10", True),
+    ("9 numara kullandı mı?", "number9", True),
+    ("7 numara kullandı mı?", "number7", True),
     
     # === YENİ ÖZEL SORULAR ===
     ("Real Madrid'de oynadı mı?", "real_madrid", True),
@@ -57,12 +57,11 @@ ALL_QUESTIONS = [
     ("Ukraynalı mı?", "nationality", "Ukrayna"),
     ("Rus mu?", "nationality", "Rusya"),
     ("Macar mı?", "nationality", "Macaristan"),
-    ("Kuzey İrlandalı mı?", "nationality", "Kuzey irlanda"),
+    ("Kuzey İrlandalı mı?", "nationality", "Kuzey Irlanda"),
     ("Şilili mi?", "nationality", "Sili"),
     ("Galli mi?", "nationality", "Galler"),
     ("Avrupalı mı?", "continent", "Avrupa"),
     ("G.Amerikalı mı?", "continent", "G.Amerika"),
-    ("Afrikalı (kıta)?", "continent", "Afrika"),
     ("Asyalı mı?", "continent", "Asya"),
 
     # === GENEL POZİSYONLAR ===
@@ -92,6 +91,22 @@ ALL_QUESTIONS = [
     ("Bundesliga'da mı oynuyor?", "league", "Bundesliga"),
     ("Emekli mi?", "league", "Emekli"),
     ("MLS'de mi oynuyor?", "league", "MLS"),
+    ("Serbest oyuncu mu?", "league", "Serbest"),
+
+    # === YENİ MİLLİYET & KITA SORULARI ===
+    ("Kuzey Amerikalı mı?", "continent", "K.Amerika"),
+    ("Nijeryalı mı?", "nationality", "Nijerya"),
+    ("Faslı mı?", "nationality", "Fas"),
+    ("Senegalli mi?", "nationality", "Senegal"),
+    ("Kamerunlu mu?", "nationality", "Kamerun"),
+    ("Fildişili mi?", "nationality", "Fildisi"),
+    ("Ganalı mı?", "nationality", "Gana"),
+    ("Sırp mı?", "nationality", "Sirbistan"),
+    ("İsviçreli mi?", "nationality", "Isvicre"),
+    ("Japon mu?", "nationality", "Japonya"),
+    ("Meksikalı mı?", "nationality", "Meksika"),
+    ("Amerikalı mı?", "nationality", "ABD"),
+    ("Romen mi?", "nationality", "Romanya"),
 ]
 
 

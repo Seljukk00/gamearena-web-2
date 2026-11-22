@@ -912,6 +912,31 @@ async def handle_bil_bakalim_message(
         result["handled"] = True
         return result
 
+    # --- CANCEL SECRET SELECTION ---
+    if msg_type == "cancel_secret_selection":
+        selections = room.get("selections", {})
+        if (
+            room.get("phase") != "selection"
+            or player_id not in room.get("players", {})
+            or player_id not in selections
+            or len(selections) >= 2
+        ):
+            await safe_send(websocket, {
+                "type": "selection_cancel_denied",
+                "message": "Oyun başladı veya seçimin iptal edilemiyor."
+            })
+            result["handled"] = True
+            return result
+
+        del selections[player_id]
+        await broadcast(room, {
+            "type": "selection_status",
+            "selected_count": len(selections),
+            "cancelled_player_id": player_id
+        })
+        result["handled"] = True
+        return result
+
     # --- SELECT SECRET ---
     if msg_type == "select_secret":
         if room["phase"] != "selection":
@@ -930,7 +955,8 @@ async def handle_bil_bakalim_message(
 
         await broadcast(room, {
             "type": "selection_status",
-            "selected_count": len(room["selections"])
+            "selected_count": len(room["selections"]),
+            "selected_player_id": player_id
         })
 
         if len(room["selections"]) == 2:

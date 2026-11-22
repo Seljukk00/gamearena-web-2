@@ -144,6 +144,43 @@ ML_TOPLAM_SORU = 12
 ML_ALLOWED_TOTAL_Q = [6, 8, 10, 12, 15, 20, 25]
 
 
+def get_ml_question_options(max_players):
+    """Oyuncu sayısına göre izin verilen soru sayısı seçeneklerini döndür"""
+    try:
+        player_count = int(max_players)
+    except:
+        player_count = 2
+
+    if player_count == 1:
+        return [2, 4, 6, 8, 10, 12, 15, 20, 25]
+
+    max_questions = 32 if player_count == 4 else 30
+    options = []
+    count = player_count
+    while count <= max_questions:
+        options.append(count)
+        count += player_count
+    return options
+
+
+def get_nearest_ml_question_count(value, options):
+    """Verilen değere en yakın izinli soru sayısını döndür"""
+    if not options:
+        return ML_TOPLAM_SORU
+    try:
+        parsed = int(value)
+    except:
+        return options[0]
+    nearest = options[0]
+    nearest_dist = abs(nearest - parsed)
+    for candidate in options[1:]:
+        dist = abs(candidate - parsed)
+        if dist < nearest_dist or (dist == nearest_dist and candidate < nearest):
+            nearest = candidate
+            nearest_dist = dist
+    return nearest
+
+
 def get_ml_flow(difficulty, total_q=12):
     """Zorluk seçimine göre N soruluk zorluk dizisini döndür"""
     if difficulty == "karisik":
@@ -412,8 +449,21 @@ async def ml_next_turn(room, broadcast):
     flow = get_ml_flow(difficulty, total_q)
     prize, prize_str = get_ml_prize(q_idx, total_q)
 
+    # ✨ SIRA INTROSU (Şarkıdan Bul'daki gibi: önce intro, 2sn bekle, sonra soru)
+    next_name = room["players"][next_player]["name"]
+    await broadcast(room, {
+        "type": "ml_turn_intro",
+        "current_player": next_player,
+        "current_player_name": next_name,
+        "q_idx": q_idx,
+        "total_questions": total_q
+    })
+    print(f"[ML] 🎬 Turn intro gösteriliyor (2sn)...")
+    await asyncio.sleep(2)
+
     await broadcast(room, {
         "type": "ml_new_question",
+
         "current_player": next_player,
         "q_idx": q_idx,
         "question": q["soru"],
@@ -509,6 +559,18 @@ async def start_ml_game(room, safe_send, broadcast):
         {"id": pid, "name": pdata["name"]}
         for pid, pdata in sorted(room["players"].items())
     ]
+
+    # ✨ SIRA INTROSU (Şarkıdan Bul'daki gibi: önce intro, 2sn bekle, sonra soru)
+    first_name = room["players"][first_player]["name"]
+    await broadcast(room, {
+        "type": "ml_turn_intro",
+        "current_player": first_player,
+        "current_player_name": first_name,
+        "q_idx": q_idx,
+        "total_questions": total_q
+    })
+    print(f"[ML] 🎬 Turn intro gösteriliyor (2sn)...")
+    await asyncio.sleep(2)
 
     for pid, pdata in room["players"].items():
         await safe_send(pdata["ws"], {
@@ -700,8 +762,9 @@ async def handle_milyoner_message(
 
         try:
             total_q = int(total_q_raw)
-            if total_q not in ML_ALLOWED_TOTAL_Q:
-                total_q = ML_TOPLAM_SORU
+            allowed_q = get_ml_question_options(max_players)
+            if total_q not in allowed_q:
+                total_q = get_nearest_ml_question_count(total_q, allowed_q)
         except:
             total_q = ML_TOPLAM_SORU
 
@@ -869,8 +932,9 @@ async def handle_milyoner_message(
 
         try:
             new_total_q = int(data.get("total_questions", room.get("ml_total_questions", ML_TOPLAM_SORU)))
-            if new_total_q not in ML_ALLOWED_TOTAL_Q:
-                new_total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
+            allowed_q = get_ml_question_options(new_max)
+            if new_total_q not in allowed_q:
+                new_total_q = get_nearest_ml_question_count(new_total_q, allowed_q)
         except:
             new_total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
 

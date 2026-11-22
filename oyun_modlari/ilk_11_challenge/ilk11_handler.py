@@ -23,6 +23,21 @@ POSITIONS = {
 
 ILK11_SURE = 120  # saniye
 
+# Adaylar footballers.py içindeki detailed_position değerine göre filtrelenir.
+ILK11_POSITION_ROLES = {
+    "GK": {"Kaleci"},
+    "LB": {"SolBek"},
+    "CB1": {"Stoper"},
+    "CB2": {"Stoper"},
+    "RB": {"SagBek"},
+    "CM1": {"DOS", "MOS", "OOS"},
+    "CM2": {"DOS", "MOS", "OOS"},
+    "CM3": {"DOS", "MOS", "OOS"},
+    "LW": {"SolKanat"},
+    "ST": {"Santrafor"},
+    "RW": {"SagKanat"},
+}
+
 
 def _handled(room_code, player_id):
     return {"handled": True, "room_code": room_code, "player_id": player_id}
@@ -37,15 +52,18 @@ def get_other_player_id(pid):
 
 
 def normalize_position(pos):
-    pos = str(pos or "").strip().lower()
+    raw = str(pos or "").strip().lower()
 
-    if pos in ["orta saha", "ortasaha"]:
-        return "Orta Saha"
-    if pos == "kaleci":
+    if raw == "gk" or "kaleci" in raw or "goalkeeper" in raw:
         return "Kaleci"
-    if pos == "defans":
+
+    if "orta saha" in raw or "ortasaha" in raw or "midfield" in raw:
+        return "Orta Saha"
+
+    if any(term in raw for term in ["defans", "stoper", "bek", "defender", "fullback", "back"]):
         return "Defans"
-    if pos == "forvet":
+
+    if any(term in raw for term in ["forvet", "santrafor", "kanat", "forward", "striker", "wing"]):
         return "Forvet"
 
     return str(pos or "").strip()
@@ -146,64 +164,36 @@ def calculate_total_score(team_indices):
 # YARDIMCI FONKSİYONLAR
 # ==========================================
 
-def get_options_for_position(pos_type, used_indices, count=5):
-    target_pos = normalize_position(pos_type)
+def is_player_eligible_for_position(player, pos_id):
+    allowed_roles = ILK11_POSITION_ROLES.get(pos_id)
+    if not allowed_roles:
+        return False
 
-    exact_matches = []
-    secondary_matches = []
+    detailed_position = str(player.get("detailed_position") or "").strip()
+    return detailed_position in allowed_roles
 
-    for idx, f in enumerate(ALL_FOOTBALLERS):
-        if idx in used_indices:
-            continue
 
-        f_pos = normalize_position(f.get('position', 'Forvet'))
+def get_options_for_position(pos_id, used_indices, count=5, excluded_indices=None):
+    excluded = set(used_indices or [])
+    if excluded_indices:
+        excluded.update(excluded_indices)
 
-        # Öncelik: tam mevki eşleşmesi
-        if f_pos == target_pos:
-            exact_matches.append(idx)
-            continue
+    matching_indices = [
+        idx for idx, f in enumerate(ALL_FOOTBALLERS)
+        if idx not in excluded
+        and is_player_eligible_for_position(f, pos_id)
+    ]
 
-        # Yedek havuz: tam eşleşme yetmezse
-        if target_pos == 'Kaleci':
-            continue
-        elif target_pos == 'Defans' and f_pos == 'Orta Saha':
-            secondary_matches.append(idx)
-        elif target_pos == 'Orta Saha' and f_pos in ['Defans', 'Forvet']:
-            secondary_matches.append(idx)
-        elif target_pos == 'Forvet' and f_pos == 'Orta Saha':
-            secondary_matches.append(idx)
+    if not matching_indices:
+        return []
 
-    selected_indices = []
-
-    # Ana mantık: tüm doğru pozisyondakiler arasından rastgele seç
-    if exact_matches:
-        selected_indices.extend(
-            random.sample(exact_matches, min(count, len(exact_matches)))
-        )
-
-    # Yetmezse yedek havuzdan tamamla
-    if len(selected_indices) < count and secondary_matches:
-        need = count - len(selected_indices)
-        selected_indices.extend(
-            random.sample(secondary_matches, min(need, len(secondary_matches)))
-        )
-
-    # Hâlâ yetmezse kalan herkesten tamamla
-    if len(selected_indices) < count:
-        fallback_pool = [
-            i for i in range(len(ALL_FOOTBALLERS))
-            if i not in used_indices and i not in selected_indices
-        ]
-        if fallback_pool:
-            need = count - len(selected_indices)
-            selected_indices.extend(
-                random.sample(fallback_pool, min(need, len(fallback_pool)))
-            )
-
-    random.shuffle(selected_indices)
+    selected_indices = random.sample(
+        matching_indices,
+        min(count, len(matching_indices))
+    )
 
     result = []
-    for idx in selected_indices[:count]:
+    for idx in selected_indices:
         f = ALL_FOOTBALLERS[idx]
         result.append({
             "index": idx,
@@ -342,6 +332,7 @@ async def start_ilk11_game(room, safe_send, broadcast):
     room["ilk11_used"] = {1: set(), 2: set()}
     room["ilk11_finished"] = {1: False, 2: False}
     room["ilk11_options_cache"] = {1: {}, 2: {}}
+    room["ilk11_rerolls_left"] = {1: 3, 2: 3}
 
     players = [
         {"id": pid, "name": pdata["name"]}
@@ -363,7 +354,8 @@ async def start_ilk11_game(room, safe_send, broadcast):
             "player_id": pid,
             "players": players,
             "turn_seconds": room.get("turn_seconds", ILK11_SURE),
-            "positions": positions_data
+            "positions": positions_data,
+            "rerolls_left": room["ilk11_rerolls_left"].get(pid, 3)
         })
 
     room["ilk11_task"] = asyncio.create_task(
@@ -718,6 +710,83 @@ async def handle_ilk11_message(
         await start_ilk11_game(room, safe_send, broadcast)
         return _handled(current_room_code, current_player_id)
 
+    # ---------- REROLL OPTIONS (mevki kartlarını değiştir) ----------
+    if msg_type == "ilk11_reroll_options":
+        pos_id = (data.get("pos_id") or "").strip()
+        rerolls_by_player = room.setdefault("ilk11_rerolls_left", {1: 3, 2: 3})
+        rerolls_left = rerolls_by_player.get(current_player_id, 0)
+
+        options_cache = room.get("ilk11_options_cache", {})
+        player_cache = options_cache.get(current_player_id, {})
+        current_options = player_cache.get(pos_id, []) if isinstance(player_cache, dict) else []
+
+        failure_message = ""
+        if current_player_id not in room.get("players", {}):
+            failure_message = "Oyuncu odada bulunamadı."
+        elif room.get("phase") != "playing":
+            failure_message = "Oyun devam etmiyor."
+        elif pos_id not in POSITIONS:
+            failure_message = "Geçersiz mevki."
+        elif room.get("ilk11_finished", {}).get(current_player_id, False):
+            failure_message = "Kadron tamamlandı; kartları değiştiremezsin."
+        elif pos_id in room.get("ilk11_teams", {}).get(current_player_id, {}):
+            failure_message = "Bu mevki zaten doldurulmuş."
+        elif rerolls_left <= 0:
+            failure_message = "Değiştirme hakkın kalmadı."
+        elif not current_options:
+            failure_message = "Bu mevki için futbolcu seçenekleri bulunamadı."
+
+        if failure_message:
+            await safe_send(websocket, {
+                "type": "ilk11_options",
+                "pos_id": pos_id,
+                "pos_name": POSITIONS.get(pos_id, {}).get("name", ""),
+                "options": current_options,
+                "rerolls_left": rerolls_left,
+                "reroll_success": False,
+                "message": failure_message
+            })
+            return _handled(current_room_code, current_player_id)
+
+        used = room.get("ilk11_used", {}).get(current_player_id, set())
+        excluded_indices = {
+            option.get("index")
+            for option in current_options
+            if isinstance(option, dict) and isinstance(option.get("index"), int)
+        }
+        new_options = get_options_for_position(
+            pos_id,
+            used,
+            5,
+            excluded_indices
+        )
+
+        if not new_options:
+            await safe_send(websocket, {
+                "type": "ilk11_options",
+                "pos_id": pos_id,
+                "pos_name": POSITIONS[pos_id]["name"],
+                "options": current_options,
+                "rerolls_left": rerolls_left,
+                "reroll_success": False,
+                "message": "Bu mevkiye uygun başka futbolcu kalmadı."
+            })
+            return _handled(current_room_code, current_player_id)
+
+        rerolls_left -= 1
+        rerolls_by_player[current_player_id] = rerolls_left
+        player_cache[pos_id] = new_options
+
+        await safe_send(websocket, {
+            "type": "ilk11_options",
+            "pos_id": pos_id,
+            "pos_name": POSITIONS[pos_id]["name"],
+            "options": new_options,
+            "rerolls_left": rerolls_left,
+            "reroll_success": True
+        })
+        return _handled(current_room_code, current_player_id)
+
     # ---------- GET OPTIONS (pozisyon için seçenek iste) ----------
     if msg_type == "ilk11_get_options":
         if room.get("phase") != "playing":
@@ -743,8 +812,18 @@ async def handle_ilk11_message(
         
         if pos_id in cache:
             cached_options = cache[pos_id]
-            # Cache'deki bir futbolcu artık başka pozisyonda seçilmişse geçersiz
-            still_valid = all(opt["index"] not in used for opt in cached_options)
+            # Önbellek hem seçilmemiş hem de bu mevkiye uygun adaylardan oluşmalı
+            still_valid = isinstance(cached_options, list) and all(
+                isinstance(opt, dict)
+                and isinstance(opt.get("index"), int)
+                and 0 <= opt["index"] < len(ALL_FOOTBALLERS)
+                and opt["index"] not in used
+                and is_player_eligible_for_position(
+                    ALL_FOOTBALLERS[opt["index"]],
+                    pos_id
+                )
+                for opt in cached_options
+            )
             if still_valid:
                 await safe_send(websocket, {
                     "type": "ilk11_options",
@@ -755,8 +834,7 @@ async def handle_ilk11_message(
                 return _handled(current_room_code, current_player_id)
         
         # Cache yok veya geçersiz → yeni üret
-        pos_type = POSITIONS[pos_id]['type']
-        options = get_options_for_position(pos_type, used, 5)
+        options = get_options_for_position(pos_id, used, 5)
         cache[pos_id] = options
 
         await safe_send(websocket, {
@@ -787,6 +865,36 @@ async def handle_ilk11_message(
 
         if pos_id in team:
             return _handled(current_room_code, current_player_id)
+
+        if not is_player_eligible_for_position(ALL_FOOTBALLERS[f_index], pos_id):
+            await safe_send(websocket, {
+                "type": "error",
+                "message": "Bu futbolcu seçilen mevkiye uygun değil."
+            })
+            return _handled(current_room_code, current_player_id)
+
+        all_options_cache = room.get("ilk11_options_cache", {})
+        player_options_cache = (
+            all_options_cache.get(current_player_id, {})
+            if isinstance(all_options_cache, dict)
+            else {}
+        )
+        offered_options = (
+            player_options_cache.get(pos_id, [])
+            if isinstance(player_options_cache, dict)
+            else []
+        )
+
+        if not any(
+            isinstance(option, dict) and option.get("index") == f_index
+            for option in offered_options
+        ):
+            await safe_send(websocket, {
+                "type": "error",
+                "message": "Bu futbolcu bu mevki için sunulan adaylar arasında değil."
+            })
+            return _handled(current_room_code, current_player_id)
+
         if f_index in used:
             await safe_send(websocket, {"type": "error", "message": "Bu futbolcu zaten seçildi."})
             return _handled(current_room_code, current_player_id)
@@ -862,6 +970,13 @@ async def handle_ilk11_message(
 
     # ---------- SIMULATION SPEED ----------
     if msg_type == "ilk11_sim_speed":
+        if current_player_id != 1:
+            await safe_send(websocket, {
+                "type": "error",
+                "message": "Simülasyon hızını sadece oda yöneticisi değiştirebilir."
+            })
+            return _handled(current_room_code, current_player_id)
+
         speed = data.get("speed", 1)
         try:
             speed = float(speed)

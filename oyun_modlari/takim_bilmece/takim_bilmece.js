@@ -20,6 +20,7 @@ let takimData = {
     yearRevealed: {},
     eliminatedOptions: {},
     answered: false,
+    answerReveal: false,
     timerInterval: null,
     timerSeconds: 60
 };
@@ -204,6 +205,11 @@ showScreen = function(screenName) {
     if (!takimScreens.includes(screenName)) {
         hideTakimChat();
     }
+    
+    // 🛑 Oyun ekranından çıkıldı → sayaç + uyarı sesi + overlay kesin kapanır
+    if (screenName !== "takimGame") {
+        takimCleanupGameplay();
+    }
 };
 
 // Oda oluştur butonu
@@ -282,6 +288,7 @@ if (_takimChangeModeBtn) {
 
 // Oda Ayarları butonu
 document.getElementById("takimRoomSettingsBtn").onclick = () => {
+    const questionOptions = window.getTakimQuestionOptions(takimData.maxPlayers || 2);
     window.openRoomSettingsGeneric({
         title: "Takım Bilmece - Oda Ayarları",
         fields: [
@@ -301,15 +308,14 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
             {
                 id: "totalQ",
                 label: "❓ Soru Sayısı",
-                current: takimData.totalQuestions || 12,
-                options: [
-                    {value: 6, label: "6 Soru"},
-                    {value: 9, label: "9 Soru"},
-                    {value: 12, label: "12 Soru"},
-                    {value: 15, label: "15 Soru"},
-                    {value: 20, label: "20 Soru"},
-                    {value: 25, label: "25 Soru"}
-                ]
+                current: window.getNearestTakimQuestionCount(
+                    takimData.totalQuestions || 12,
+                    questionOptions
+                ),
+                options: questionOptions.map(value => ({
+                    value: value,
+                    label: `${value} Soru`
+                }))
             },
             {
                 id: "difficulty",
@@ -353,6 +359,21 @@ document.getElementById("takimRoomSettingsBtn").onclick = () => {
             });
         }
     });
+
+    const settingsMaxPlayersSelect = document.getElementById("settingsField_maxPlayers");
+    const settingsTotalQuestionsSelect = document.getElementById("settingsField_totalQ");
+    if (settingsMaxPlayersSelect && settingsTotalQuestionsSelect) {
+        const syncTotalQuestionOptions = () => {
+            window.updateTakimQuestionOptions(
+                settingsMaxPlayersSelect.value,
+                settingsTotalQuestionsSelect.value,
+                "settingsField_totalQ"
+            );
+        };
+
+        settingsMaxPlayersSelect.addEventListener("change", syncTotalQuestionOptions);
+        syncTotalQuestionOptions();
+    }
 };
 
 const takimRoomHelper = window.setupRoomCodeAndLink({
@@ -636,7 +657,7 @@ function renderTakimField() {
         const flagBox = document.createElement("div");
         flagBox.className = "takimFlagBox";
         
-        if (takimPickPlayerMode && !takimData.revealedNames[takimData.playerId][idx]) {
+        if (takimPickPlayerMode && !takimData.answered && !takimData.revealedNames[takimData.playerId][idx]) {
             flagBox.classList.add("clickable");
             flagBox.onclick = () => {
                 send({ type: "takim_joker_name", player_index: idx });
@@ -672,7 +693,13 @@ function renderTakimField() {
             const turnRevealed = takimData.revealedNames[takimData.currentTurn] || {};
             oppName = turnRevealed[idx];
         }
-        if (myNameShown) {
+        if (takimData.answerReveal) {
+            // ✨ Cevap sonrası: joker kullanıyormuş gibi TÜM isimler hemen açılır
+            const nameDiv = document.createElement("div");
+            nameDiv.className = "takimPlayerName";
+            nameDiv.textContent = p.name || "";
+            slot.appendChild(nameDiv);
+        } else if (myNameShown) {
             const nameDiv = document.createElement("div");
             nameDiv.className = "takimPlayerName";
             nameDiv.textContent = myNameShown;
@@ -887,7 +914,11 @@ function renderTakimScoreboard() {
     
     const yearEl = document.getElementById("takimYearDisplay");
     const activePlayerForYear = takimData.currentTurn;
-    if (takimData.yearRevealed[activePlayerForYear]) {
+    if (takimData.answerReveal && takimData.teamData) {
+        // ✨ Cevap sonrası yıl hemen açılır (joker kullanıyormuş gibi)
+        yearEl.textContent = `Yıl: ${takimData.teamData.year}`;
+        yearEl.classList.add("revealed");
+    } else if (takimData.yearRevealed[activePlayerForYear]) {
         yearEl.textContent = `Yıl: ${takimData.teamData.year}`;
         yearEl.classList.add("revealed");
     } else {
@@ -994,14 +1025,25 @@ function renderTakimAll() {
     renderTakimJokers();
 }
 
+// 🔒 Oyun ekranı gerçekten görünür mü?
+function isTakimGameVisible() {
+    const el = document.getElementById("takimGameScreen");
+    if (!el) return false;
+    return !el.classList.contains("hidden");
+}
+
 function startTakimTimer(seconds) {
     stopTakimTimer();
+    // 🔒 Oyun ekranı görünmüyorsa sayaç hiç başlamaz
+    if (!isTakimGameVisible()) return;
     takimData.timerSeconds = seconds;
     takimData.timerUnlimited = (seconds === 0);  // ✨ Sınırsız mı?
     takimData.timerWarningPlaying = false;
     updateTakimTimerDisplay();
     if (takimData.timerUnlimited) return;  // Sınırsızda geri sayım yok
     takimData.timerInterval = setInterval(() => {
+        // 🔒 Güvenlik: ekrandan çıkıldıysa sayaç kendini imha eder
+        if (!isTakimGameVisible()) { stopTakimTimer(); return; }
         takimData.timerSeconds--;
         updateTakimTimerDisplay();
         if (takimData.timerSeconds <= 10 && !takimData.timerWarningPlaying) {
@@ -1024,10 +1066,47 @@ function stopTakimTimer() {
         takimData.timerInterval = null;
     }
     if (takimData._timerWarningAudio) {
-        try { takimData._timerWarningAudio.pause(); takimData._timerWarningAudio.currentTime = 0; } catch(e) {}
+        try {
+            takimData._timerWarningAudio.pause();
+            takimData._timerWarningAudio.loop = false;   // 🔑 kısır döngü burada kırılıyor
+            takimData._timerWarningAudio.currentTime = 0;
+        } catch(e) {}
         takimData._timerWarningAudio = null;
     }
     takimData.timerWarningPlaying = false;
+}
+
+// 🧹 Açık kalmış tur overlay'ini kapatır
+function hideTakimTurnOverlay() {
+    if (window._takimOverlayTimer) {
+        clearTimeout(window._takimOverlayTimer);
+        window._takimOverlayTimer = null;
+    }
+    const overlay = document.getElementById("sarkiBigOverlay");
+    if (overlay) {
+        overlay.classList.add("hidden");
+        overlay.classList.remove("mine", "other");
+    }
+}
+
+// 🧹 OYUNDAN ÇIKIŞ TEMİZLİĞİ — tek kapı
+function takimCleanupGameplay() {
+    // 1) Süre sayacı + uyarı sesi
+    stopTakimTimer();
+
+    // 2) Tur overlay'i
+    hideTakimTurnOverlay();
+
+    // 3) Joker seçim modu (ismi göstermek için oyuncu seçme)
+    if (typeof takimPickPlayerMode !== "undefined") takimPickPlayerMode = false;
+
+    // 4) Açık popup'lar
+    const goBox = document.getElementById("takimGameOverBox");
+    if (goBox) goBox.classList.add("hidden");
+    const passBox = document.getElementById("takimPassConfirmBox");
+    if (passBox) passBox.classList.add("hidden");
+    const cancelBtn = document.getElementById("takimJokerCancelBtn");
+    if (cancelBtn) cancelBtn.classList.add("hidden");
 }
 
 function updateTakimTimerDisplay() {
@@ -1130,6 +1209,7 @@ handleMessage = function(msg) {
         });
         takimData.answered = false;
         takimPickPlayerMode = false;
+        takimData.answerReveal = false;
         // Game Over popup açık kalmışsa (rematch bug'ı) kapat
         document.getElementById("takimGameOverBox").classList.add("hidden");
         showScreen("takimGame");
@@ -1161,6 +1241,7 @@ handleMessage = function(msg) {
         });
         takimData.answered = false;
         takimPickPlayerMode = false;
+        takimData.answerReveal = false;
         document.getElementById("takimJokerCancelBtn").classList.add("hidden");
         renderTakimAll();
         showTakimTurnOverlay();
@@ -1206,6 +1287,9 @@ handleMessage = function(msg) {
     
     if (msg.type === "takim_answer_result") {
         takimData.answered = true;
+        takimData.answerReveal = true;
+        takimPickPlayerMode = false;
+        document.getElementById("takimJokerCancelBtn").classList.add("hidden");
         takimData.scores = msg.scores;
         stopTakimTimer();
 
@@ -1232,6 +1316,8 @@ handleMessage = function(msg) {
         else statusText = `${getTakimPlayerName(msg.player_id)} YANLIŞ! -1`;
         updateTakimStatus(statusText, msg.correct ? "#51cf66" : "#ff6b6b");
         renderTakimScoreboard();
+        renderTakimJokers();
+        renderTakimField();
         return;
     }
     

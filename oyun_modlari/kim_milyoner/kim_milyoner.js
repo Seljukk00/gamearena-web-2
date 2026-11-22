@@ -27,6 +27,11 @@ let mlData = {
     removed: [],
     timerInterval: null,
     timerSeconds: 60,
+    timerWarningPlaying: false,
+    _audienceInterval: null,
+    _pendingTimeouts: [],
+    _introTimeoutId: null,
+    _introFadeId: null,
     audienceMode: false,
     rightPanelPage: "money"  // "money" veya "board"
 };
@@ -38,6 +43,9 @@ const mlSounds = {
     menu: null,
     timer_warning: null
 };
+
+// 🔁 Sadece bu sesler döngüde çalar, diğerleri tek seferlik
+const ML_LOOP_SOUNDS = ["question", "menu", "timer_warning"];
 
 // ========================================
 // 💬 KİM MİLYONER CHAT
@@ -366,7 +374,12 @@ function showAudienceAnimated(finalResult) {
     let ticks = 0;
     const maxTicks = 20; // 4 saniye dalgalanma (20 * 200ms)
     
-    const animInterval = setInterval(() => {
+    if (mlData._audienceInterval) {
+        clearInterval(mlData._audienceInterval);
+        mlData._audienceInterval = null;
+    }
+    
+    mlData._audienceInterval = setInterval(() => {
         ticks++;
         
         if (ticks < maxTicks) {
@@ -378,8 +391,8 @@ function showAudienceAnimated(finalResult) {
             });
         } else {
             // Bitiş - final değerler
-            clearInterval(animInterval);
-            bars.forEach(bar => {
+            clearInterval(mlData._audienceInterval);
+            mlData._audienceInterval = null;            bars.forEach(bar => {
                 bar.classList.remove("animating");
                 const letter = bar.dataset.letter;
                 const pct = finalResult[letter] || 0;
@@ -522,20 +535,78 @@ function animateFifty(removedLetters) {
 
 loadMlSounds();
 
+// ========================================
+// 🔒 SES GÜVENLİK KATMANI (v10.3)
+// ========================================
+
+// Ekran gerçekten görünür mü?
+function isMlScreenVisible(screenId) {
+    const el = document.getElementById(screenId);
+    if (!el) return false;
+    return !el.classList.contains("hidden");
+}
+
+// Bu ses şu an çalınabilir mi? (menüde oyun sesi ÇALMAZ)
+function isMlSoundAllowed(name) {
+    if (name === "menu") {
+        return isMlScreenVisible("createMlScreen") || isMlScreenVisible("mlLobbyScreen");
+    }
+    return isMlScreenVisible("mlGameScreen");
+}
+
 function playMlSound(name) {
     const s = mlSounds[name];
     if (!s) return;
-    try { s.currentTime = 0; s.play().catch(() => {}); } catch (e) {}
+    // 🛡️ KORUMA: Yanlış ekranda ses çalmaz
+    if (!isMlSoundAllowed(name)) return;
+    try {
+        s.loop = ML_LOOP_SOUNDS.indexOf(name) !== -1;
+        s.currentTime = 0;
+        s.play().catch(() => {});
+    } catch (e) {}
 }
 
 function stopMlSound(name) {
     const s = mlSounds[name];
     if (!s) return;
-    try { s.pause(); s.currentTime = 0; } catch (e) {}
+    try {
+        s.pause();
+        s.loop = false;      // 🔑 kısır döngü burada kırılıyor
+        s.currentTime = 0;
+    } catch (e) {}
 }
 
 function stopAllMlSounds() {
     Object.keys(mlSounds).forEach(k => stopMlSound(k));
+}
+
+// 🧹 OYUNDAN ÇIKIŞ TEMİZLİĞİ — tek kapı
+function mlCleanupGameplay() {
+    // 1) Süre sayacı
+    if (mlData.timerInterval) {
+        clearInterval(mlData.timerInterval);
+        mlData.timerInterval = null;
+    }
+    mlData.timerWarningPlaying = false;
+
+    // 2) Bekleyen gecikmeli işler
+    if (Array.isArray(mlData._pendingTimeouts) && mlData._pendingTimeouts.length) {
+        mlData._pendingTimeouts.forEach(id => clearTimeout(id));
+    }
+    mlData._pendingTimeouts = [];
+
+    // 3) Seyirci animasyonu
+    if (mlData._audienceInterval) {
+        clearInterval(mlData._audienceInterval);
+        mlData._audienceInterval = null;
+    }
+
+    // 4) Açık kalmış "SIRA SENDE" overlay'i + zamanlayıcıları
+    if (mlData._introTimeoutId) { clearTimeout(mlData._introTimeoutId); mlData._introTimeoutId = null; }
+    if (mlData._introFadeId) { clearTimeout(mlData._introFadeId); mlData._introFadeId = null; }
+    mlHideTurnIntro();
+
+    // 5) Tüm sesler (loop dahil) kapanır    stopAllMlSounds();
 }
 
 const createMlScreen = document.getElementById("createMlScreen");
@@ -552,7 +623,11 @@ showScreen = function(screenName) {
     if (screenName === "mlLobby") mlLobbyScreen.classList.remove("hidden");
     if (screenName === "mlGame") mlGameScreen.classList.remove("hidden");
     
-    if (screenName !== "mlGame") stopMlSound("question");
+    if (screenName !== "mlGame") {
+        // 🛑 Oyun ekranından çıkıldı → sayaç + uyarı sesi + tüm sesler kapanır
+        mlCleanupGameplay();
+        stopMlSound("question");
+    }
     if (screenName === "createMl" || screenName === "mlLobby") playMlSound("menu");
     else stopMlSound("menu");
     
@@ -562,6 +637,81 @@ showScreen = function(screenName) {
         hideMlChat();
     }
 };
+
+window.getMlQuestionOptions = function(maxPlayers) {
+    const playerCount = parseInt(maxPlayers, 10) || 2;
+
+    if (playerCount === 1) {
+        return [2, 4, 6, 8, 10, 12, 15, 20, 25];
+    }
+
+    const maxQuestions = playerCount === 4 ? 32 : 30;
+    const options = [];
+
+    for (let count = playerCount; count <= maxQuestions; count += playerCount) {
+        options.push(count);
+    }
+
+    return options;
+};
+
+window.getNearestMlQuestionCount = function(value, options) {
+    if (!Array.isArray(options) || options.length === 0) return null;
+
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue)) return options[0];
+
+    return options.reduce((nearest, candidate) => {
+        const candidateDistance = Math.abs(candidate - parsedValue);
+        const nearestDistance = Math.abs(nearest - parsedValue);
+
+        if (
+            candidateDistance < nearestDistance ||
+            (candidateDistance === nearestDistance && candidate < nearest)
+        ) {
+            return candidate;
+        }
+
+        return nearest;
+    }, options[0]);
+};
+
+window.updateMlQuestionOptions = function(maxPlayersValue, preferredValue, selectId) {
+    const createMaxPlayersSelect = document.getElementById("mlMaxPlayersSelect");
+    const questionSelect = document.getElementById(selectId || "mlTotalQuestionsSelect");
+
+    if (!questionSelect) return;
+
+    const playerCount = maxPlayersValue !== undefined && maxPlayersValue !== null
+        ? maxPlayersValue
+        : (createMaxPlayersSelect ? createMaxPlayersSelect.value : 2);
+
+    const options = window.getMlQuestionOptions(playerCount);
+    const currentValue = preferredValue !== undefined && preferredValue !== null
+        ? preferredValue
+        : questionSelect.value;
+    const selectedValue = window.getNearestMlQuestionCount(currentValue, options);
+
+    if (selectedValue === null) return;
+
+    questionSelect.innerHTML = "";
+    options.forEach(value => {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = `${value} Soru`;
+        questionSelect.appendChild(option);
+    });
+
+    questionSelect.value = String(selectedValue);
+};
+
+const mlMaxPlayersSelectForQuestions = document.getElementById("mlMaxPlayersSelect");
+if (mlMaxPlayersSelectForQuestions) {
+    mlMaxPlayersSelectForQuestions.addEventListener("change", () => {
+        window.updateMlQuestionOptions(mlMaxPlayersSelectForQuestions.value);
+    });
+    window.updateMlQuestionOptions(mlMaxPlayersSelectForQuestions.value);
+}
 
 // Mod kartına tıklama - Kim Milyoner
 document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
@@ -602,7 +752,15 @@ document.querySelectorAll(".mod-card:not(.mod-disabled)").forEach(card => {
                 if (catSel && savedCat) catSel.value = savedCat;
                 if (diffSel && savedDiff) diffSel.value = savedDiff;
                 if (turnSecSel && savedTurnSec) turnSecSel.value = savedTurnSec;
-                if (totalQSel && savedTotalQ) totalQSel.value = savedTotalQ;
+                if (totalQSel && typeof window.updateMlQuestionOptions === "function") {
+                    window.updateMlQuestionOptions(
+                        maxPSel ? maxPSel.value : 2,
+                        savedTotalQ || totalQSel.value,
+                        "mlTotalQuestionsSelect"
+                    );
+                } else if (totalQSel && savedTotalQ) {
+                    totalQSel.value = savedTotalQ;
+                }
             } catch(e) {}
 
             showScreen("createMl");
@@ -738,6 +896,7 @@ if (_mlChangeModeBtn) {
 
 // Oda Ayarları butonu
 document.getElementById("mlRoomSettingsBtn").onclick = () => {
+    const questionOptions = window.getMlQuestionOptions(mlData.maxPlayers || 2);
     window.openRoomSettingsGeneric({
         title: "Kim Milyoner - Oda Ayarları",
         fields: [
@@ -757,16 +916,14 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
             {
                 id: "totalQ",
                 label: "❓ Soru Sayısı",
-                current: mlData.totalQuestions || 12,
-                options: [
-                    {value: 6, label: "6 Soru"},
-                    {value: 8, label: "8 Soru"},
-                    {value: 10, label: "10 Soru"},
-                    {value: 12, label: "12 Soru"},
-                    {value: 15, label: "15 Soru"},
-                    {value: 20, label: "20 Soru"},
-                    {value: 25, label: "25 Soru"}
-                ]
+                current: window.getNearestMlQuestionCount(
+                    mlData.totalQuestions || 12,
+                    questionOptions
+                ),
+                options: questionOptions.map(value => ({
+                    value: value,
+                    label: `${value} Soru`
+                }))
             },
             {
                 id: "category",
@@ -821,6 +978,21 @@ document.getElementById("mlRoomSettingsBtn").onclick = () => {
             });
         }
     });
+
+    const settingsMaxPlayersSelect = document.getElementById("settingsField_maxPlayers");
+    const settingsTotalQuestionsSelect = document.getElementById("settingsField_totalQ");
+    if (settingsMaxPlayersSelect && settingsTotalQuestionsSelect) {
+        const syncTotalQuestionOptions = () => {
+            window.updateMlQuestionOptions(
+                settingsMaxPlayersSelect.value,
+                settingsTotalQuestionsSelect.value,
+                "settingsField_totalQ"
+            );
+        };
+
+        settingsMaxPlayersSelect.addEventListener("change", syncTotalQuestionOptions);
+        syncTotalQuestionOptions();
+    }
 };
 // Ortak setup
 const mlRoomHelper = window.setupRoomCodeAndLink({
@@ -903,10 +1075,17 @@ document.getElementById("mlJokerPhone").onclick = () => {
 
 function startMlTimer(seconds) {
     stopMlTimer();
+    // 🔒 Oyun ekranı görünmüyorsa sayaç hiç başlamaz
+    if (!isMlScreenVisible("mlGameScreen")) return;
     mlData.timerSeconds = seconds;
     mlData.timerWarningPlaying = false;
     updateMlTimerDisplay();
     mlData.timerInterval = setInterval(() => {
+        // 🔒 Güvenlik: ekrandan çıkıldıysa sayaç kendini imha eder
+        if (!isMlScreenVisible("mlGameScreen")) {
+            mlCleanupGameplay();
+            return;
+        }
         mlData.timerSeconds--;
         updateMlTimerDisplay();
         if (mlData.timerSeconds <= 10 && mlData.timerSeconds > 0 && !mlData.timerWarningPlaying) {
@@ -1248,6 +1427,108 @@ function renderMlScoreboardList() {
     });
 }
 
+// ========================================
+// 🎬 TUR GİRİŞ EKRANI — HARİTADAN BUL SİSTEMİ (birebir)
+// ========================================
+
+// Harita overlay'ini şablon olarak klonlar → CSS otomatik miras alınır
+function getMlTurnIntroEl() {
+    let overlay = document.getElementById("mlBigOverlay");
+    if (overlay && overlay.dataset.cloned === "1") return overlay;
+
+    const tpl = document.getElementById("haritaBigOverlay");
+    if (!tpl) {
+        // Harita DOM'da yoksa element yine de oluştur (CSS'i class'tan alır)
+        overlay = document.createElement("div");
+        overlay.id = "mlBigOverlay";
+        overlay.className = "hidden";
+        const t = document.createElement("div");
+        t.id = "mlBigOverlayText";
+        overlay.appendChild(t);
+        document.body.appendChild(overlay);
+        overlay.dataset.cloned = "1";
+        return overlay;
+    }
+
+    // ✨ Harita overlay'i klonla → tüm stiller birebir aynı
+    overlay = tpl.cloneNode(true);
+    overlay.id = "mlBigOverlay";
+    overlay.dataset.cloned = "1";
+    overlay.className = "hidden";
+
+    const oldText = overlay.querySelector("#haritaBigOverlayText");
+    if (oldText) {
+        oldText.id = "mlBigOverlayText";
+        oldText.className = "";
+    } else {
+        const t = document.createElement("div");
+        t.id = "mlBigOverlayText";
+        overlay.appendChild(t);
+    }
+
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+// Harita'daki showHaritaBigOverlay ile AYNI mantık
+function mlShowTurnIntro(text, type, duration) {
+    const overlay = getMlTurnIntroEl();
+    const textEl = document.getElementById("mlBigOverlayText");
+    if (!overlay || !textEl) return;
+
+    if (mlData._introTimeoutId) { clearTimeout(mlData._introTimeoutId); mlData._introTimeoutId = null; }
+    if (mlData._introFadeId) { clearTimeout(mlData._introFadeId); mlData._introFadeId = null; }
+
+    textEl.textContent = text;
+    overlay.classList.remove("hidden", "correct", "wrong", "turn");
+    if (type) overlay.classList.add(type);
+
+    // Pop animasyonunu her gösterimde baştan çalıştır
+    textEl.style.animation = "none";
+    void textEl.offsetWidth;
+    textEl.style.animation = "";
+
+    if (duration) {
+        mlData._introTimeoutId = setTimeout(() => {
+            mlHideTurnIntro();
+        }, duration);
+    }
+}
+
+function mlHideTurnIntro() {
+    if (mlData._introTimeoutId) { clearTimeout(mlData._introTimeoutId); mlData._introTimeoutId = null; }
+    if (mlData._introFadeId) { clearTimeout(mlData._introFadeId); mlData._introFadeId = null; }
+
+    const overlay = document.getElementById("mlBigOverlay");
+    if (overlay) overlay.classList.add("hidden");
+}
+
+function onMlTurnIntro(msg) {
+    // Oyun ekranını göster (arka planda hazırlansın)
+    showScreen("mlGame");
+    
+    // Önceki turdan kalanları temizle
+    document.getElementById("mlGameOverBox").classList.add("hidden");
+    document.getElementById("mlAudienceBox").classList.add("hidden");
+    document.getElementById("mlPhoneBox").classList.add("hidden");
+    
+    // ✨ Yeni tur - sesler dursun, cevap flag'i sıfırlansın
+    stopMlTimer();
+    stopAllMlSounds();
+    mlData.answered = false;
+    mlData.removed = [];
+    
+    // ✨ BÜYÜK TUR GİRİŞ OVERLAY'İ — Haritadan Bul ile birebir aynı
+    const isMyTurn = (msg.current_player === mlData.playerId);
+
+    if (isMyTurn) {
+        mlShowTurnIntro("SIRA SENDE!", "correct", 1800);
+    } else {
+        const upperName = (msg.current_player_name || "").toUpperCase();
+        mlShowTurnIntro(`${upperName} OYNUYOR`, "wrong", 1800);
+    }
+}
+
 const _originalHandleMessageML = handleMessage;
 handleMessage = function(msg) {
     if (msg.type && msg.type.startsWith("ml_")) {
@@ -1316,10 +1597,11 @@ handleMessage = function(msg) {
             document.getElementById("mlGameOverBox").classList.add("hidden");
             document.getElementById("mlPhoneBox").classList.add("hidden");
             document.getElementById("mlAudienceBox").classList.add("hidden");
-            stopAllMlSounds();
+            mlCleanupGameplay();
             showScreen("mlLobby");
             updateMlLobby();
-        } else if (msg.type === "ml_game_started" || msg.type === "ml_new_question") {
+        } else if (msg.type === "ml_turn_intro") { onMlTurnIntro(msg); }
+        else if (msg.type === "ml_game_started" || msg.type === "ml_new_question") {
             if (msg.player_id !== undefined) mlData.playerId = msg.player_id;
             if (msg.players) mlData.players = msg.players;
             if (msg.current_player !== undefined) mlData.currentPlayer = msg.current_player;
@@ -1346,6 +1628,8 @@ handleMessage = function(msg) {
             document.getElementById("mlAudienceBox").classList.add("hidden");
             document.getElementById("mlPhoneBox").classList.add("hidden");
             mlData.rightPanelPage = "money";
+            // 🔑 Soru geldi → "SIRA SENDE" overlay'i ANINDA kapanır, soruyla çakışmaz
+            mlHideTurnIntro();
             showScreen("mlGame"); playMlSound("question"); renderMlAll(); startMlTimer(mlData.turnSeconds);
         } else if (msg.type === "ml_answer_result") {
             mlData.answered = true; mlData.scores = msg.scores; stopMlTimer(); stopMlSound("question");
@@ -1406,6 +1690,7 @@ handleMessage = function(msg) {
                 showToast(msg.message || "⚠️ Uyarı", "warn");
             }
         } else if (msg.type === "ml_game_over") {
+            stopMlTimer();
             stopAllMlSounds();
             
             const title = document.getElementById("mlGameOverTitle");
