@@ -4094,21 +4094,21 @@ function showSatrancGameOver(msg) {
 
     if (title) {
         if (isDraw) {
-            title.textContent = "🤝 Berabere!";
+            title.textContent = "Berabere!";
             title.style.color = "#ffd43b";
         } else if (isWinner) {
-            title.textContent = "🏆 KAZANDIN!";
+            title.textContent = "KAZANDIN!";
             title.style.color = "#51cf66";
             if (typeof startConfetti === "function") startConfetti();
         } else {
-            title.textContent = "😢 KAYBETTİN!";
+            title.textContent = "KAYBETTİN!";
             title.style.color = "#ff6b6b";
         }
     }
 
     if (text) text.textContent = msg.message || "";
     if (rematchBtn) rematchBtn.classList.toggle("hidden", satrancData.playerId !== 1);
-    if (lobbyBtn) lobbyBtn.classList.remove("hidden");
+    if (lobbyBtn) lobbyBtn.classList.toggle("hidden", satrancData.playerId !== 1);
 
     box.classList.remove("hidden");
 }
@@ -4577,6 +4577,19 @@ showScreen = function(name) {
     if (satrancScreens.includes(name)) showSatrancChat();
     else hideSatrancChat();
 };
+
+// Oda kurma ekranındayken ESC, mod seçimine döner.
+window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+
+    const createScreen = document.getElementById("createSatrancScreen");
+    if (!createScreen || createScreen.classList.contains("hidden")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    showScreen("modselect");
+}, true);
 
 // ==========================================
 // WRAP: handleMessage

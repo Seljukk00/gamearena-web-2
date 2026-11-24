@@ -131,6 +131,19 @@
         const el = document.getElementById(targetId);
         if (el) el.classList.remove("hidden");
     }
+
+    // Oda kurma ekranındayken ESC, geri butonuyla aynı şekilde mod seçimine döner.
+    window.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+
+        const createScreen = document.getElementById("createSarkiScreen");
+        if (!createScreen || createScreen.classList.contains("hidden")) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        showScreen("modselect");
+    }, true);
     
     // ✨ MOD DEĞİŞTİRME - Şarkıdan Bul özel: host önce createSarki ekranını görsün
     window._sarkiPrepareModeChange = function() {
@@ -577,6 +590,9 @@
     }
 
     function leaveSarkiRoom() {
+        // Oda rolünü state sıfırlanmadan önce kaydet.
+        const wasHost = sarkiIsHost;
+
         stopSarkiAudio();
         stopSarkiTimer();
         sarkiRoomCode = null;
@@ -595,7 +611,9 @@
         if (ws) { try { ws.close(); } catch(e) {} }
         setTimeout(() => {
             if (typeof connectWS === "function") connectWS();
-            if (typeof showScreen === "function") showScreen("home");
+            if (typeof showScreen === "function") {
+                showScreen(wasHost ? "modselect" : "join");
+            }
         }, 300);
     }
 
@@ -1806,7 +1824,7 @@
             const myScore = msg.scores && msg.scores[0] ? msg.scores[0].score : 0;
             $("sarkiGameOverText").innerHTML = `Solo skorun: <b style="color:#51cf66">${myScore} puan</b>`;
         } else {
-            title.textContent = iWon ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
+            title.textContent = iWon ? "KAZANDIN!" : "KAYBETTİN";
             title.className = iWon ? "win" : "lose";
             $("sarkiGameOverText").textContent = `Kazanan: ${msg.winner_name}`;
         }

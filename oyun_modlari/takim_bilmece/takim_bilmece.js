@@ -1363,11 +1363,11 @@ handleMessage = function(msg) {
             title.textContent = "BERABERE!";
             title.style.color = "#74c0fc";
         } else if (msg.winner_id === takimData.playerId) {
-            title.textContent = "KAZANDIN! 🏆";
+            title.textContent = "KAZANDIN!";
             title.style.color = "#51cf66";
             startConfetti();
         } else {
-            title.textContent = "KAYBETTİN 😢";
+            title.textContent = "KAYBETTİN";
             title.style.color = "#ff6b6b";
         }
         
@@ -1414,8 +1414,7 @@ handleMessage = function(msg) {
             lobbyBtn.classList.remove("hidden");
         } else {
             rematchBtn.classList.add("hidden");
-            // ✨ Misafir de kendi lobisine dönebilsin (izleyici olur)
-            lobbyBtn.classList.remove("hidden");
+            lobbyBtn.classList.add("hidden");
         }
         document.getElementById("takimGameOverBox").classList.remove("hidden");
         return;

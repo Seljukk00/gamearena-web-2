@@ -892,11 +892,11 @@ function renderIlk11Result(data) {
         winnerEl.textContent = "⚖️ BERABERE!";
         winnerEl.style.color = "#74c0fc";
     } else if (data.winner_id === ilk11Data.playerId) {
-        winnerEl.textContent = "🏆 KAZANDIN!";
+        winnerEl.textContent = "KAZANDIN!";
         winnerEl.style.color = "#51cf66";
         startConfetti();
     } else {
-        winnerEl.textContent = "😢 KAYBETTİN";
+        winnerEl.textContent = "KAYBETTİN";
         winnerEl.style.color = "#ff6b6b";
     }
 
@@ -931,8 +931,7 @@ function renderIlk11Result(data) {
         simBtn.style.display = "inline-block";
     } else {
         rematchBtn.classList.add("hidden");
-        // ✨ Misafir de kendi lobisine dönebilsin
-        lobbyBtn.classList.remove("hidden");
+        lobbyBtn.classList.add("hidden");
         if(simBtn) simBtn.style.display = "none";
     }
 
@@ -1341,15 +1340,15 @@ function runNextIlk11SimEvent() {
         const winnerEl = document.getElementById("ilk11ResultWinner");
         if (winnerEl) {
             if (st.final1 > st.final2) {
-                winnerEl.textContent = ilk11Data.playerId === 1 ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
+                winnerEl.textContent = ilk11Data.playerId === 1 ? "KAZANDIN!" : "KAYBETTİN";
                 winnerEl.style.color = ilk11Data.playerId === 1 ? "#51cf66" : "#ff6b6b";
                 if (ilk11Data.playerId === 1) startConfetti();
             } else if (st.final2 > st.final1) {
-                winnerEl.textContent = ilk11Data.playerId === 2 ? "🏆 KAZANDIN!" : "😢 KAYBETTİN";
+                winnerEl.textContent = ilk11Data.playerId === 2 ? "KAZANDIN!" : "KAYBETTİN";
                 winnerEl.style.color = ilk11Data.playerId === 2 ? "#51cf66" : "#ff6b6b";
                 if (ilk11Data.playerId === 2) startConfetti();
             } else {
-                winnerEl.textContent = "⚖️ BERABERE!";
+                winnerEl.textContent = "BERABERE!";
                 winnerEl.style.color = "#74c0fc";
             }
         }

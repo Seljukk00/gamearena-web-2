@@ -1,9 +1,0 @@
-kodla girme kısmını kaldırıcaz 
-şifre ekleme olcak 
-lobi sonları ekranını değişicez sadece adminde lobiye dön olacak
-
-
-
-minifutboldan cıkınca gol müziği devam etmesi ve esc menü bug sesi 3 2 1
-
-şarkıdan bulda ayrıla basınca hemen cıkıyo 

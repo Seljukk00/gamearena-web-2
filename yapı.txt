@@ -275,3 +275,13 @@ TEST ETMEDEN PUSH İSTEME: batlar/test_lokal.bat ile yerelde test ettirmeden Git
 8.kodları notepad için ver bul değiştirde bulabilsin hatalı kesik kod istemiyorum
 🎬 YEREL ÇALIŞTIRMA
 batlar/test_lokal.bat → http://127.0.0.1:8000
+
+
+
+
+
+
+
+ai slop tasarım istemiyorum 
+sublime text kullanıyorum 
+buglu kod istemiyorum 

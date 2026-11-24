@@ -1031,13 +1031,13 @@ function openGameOver(msg) {
     gameOverTitle.classList.remove("win", "lose");
     if (winnerId === playerId) {
         playBilSound("cevap_evet.mp3");
-        gameOverTitle.textContent = "KAZANDIN! 🏆";
-        gameOverTitle.classList.add("win");
-        startConfetti();
-    } else {
-        playBilSound("cevap_hayir.mp3");
-        gameOverTitle.textContent = "KAYBETTİN 😢";
-        gameOverTitle.classList.add("lose");
+        gameOverTitle.textContent = "KAZANDIN!";
+            gameOverTitle.classList.add("win");
+            startConfetti();
+        } else {
+            playBilSound("cevap_hayir.mp3");
+            gameOverTitle.textContent = "KAYBETTİN";
+            gameOverTitle.classList.add("lose");
     }
 
     const mySecretIndex = msg.reveal[String(playerId)];
@@ -1083,9 +1083,12 @@ function openGameOver(msg) {
     if (playerId === 1) newRoundBtn.classList.remove("hidden");
     else newRoundBtn.classList.add("hidden");
     
-    // ✨ Lobiye Dön butonu - HERKESE göster (host ve misafir)
+    // ✨ Lobiye Dön butonu - sadece host'a göster
     const lobbyBtn = document.getElementById("backToLobbyBtn");
-    if (lobbyBtn) lobbyBtn.classList.remove("hidden");
+    if (lobbyBtn) {
+        if (playerId === 1) lobbyBtn.classList.remove("hidden");
+        else lobbyBtn.classList.add("hidden");
+    }
 }
 
 function resetForNewRound() {

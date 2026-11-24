@@ -1733,11 +1733,11 @@ handleMessage = function(msg) {
                 title.textContent = "BERABERE!"; 
                 title.style.color = "#74c0fc"; 
             } else if (msg.winner_id === mlData.playerId) { 
-                title.textContent = "KAZANDIN! 🏆"; 
+                title.textContent = "KAZANDIN!"; 
                 title.style.color = "#51cf66"; 
                 if (typeof startConfetti === "function") startConfetti(); 
             } else { 
-                title.textContent = "KAYBETTİN 😢"; 
+                title.textContent = "KAYBETTİN"; 
                 title.style.color = "#ff6b6b"; 
             }
             

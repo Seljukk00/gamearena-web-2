@@ -401,37 +401,29 @@ async def ml_turn_timer(room, turn_id, question_no, broadcast):
 
 
 async def ml_next_turn(room, broadcast):
-    """Sıra bitti → sıradaki oyuncuya geç, gerektiğinde q_idx artır"""
+    """Soru tamamlandı → toplam soru sayısına göre sıradaki soruya veya oyun sonuna geç"""
     current_player = room["ml_current_player"]
     total_q = room.get("ml_total_questions", ML_TOPLAM_SORU)
     
-    # Şu anki oyuncunun soru sayacını artır
+    # Cevaplanan toplam soru sayısını artır
     if current_player in room["ml_player_q_idx"]:
         room["ml_player_q_idx"][current_player] += 1
+    
+    completed_questions = sum(room.get("ml_player_q_idx", {}).values())
+    
+    # Oda genelindeki seçili toplam soru sayısı tamamlandıysa oyunu bitir
+    if completed_questions >= total_q:
+        await ml_finish(room, broadcast)
+        return
     
     # Sıradaki oyuncuyu bul (round-robin, aktif oyuncular arasında)
     next_player = get_next_ml_turn_player(room)
     if next_player is None:
         await ml_finish(room, broadcast)
         return
-    
-    # Sıradaki oyuncu total_q'ya ulaştıysa oyun bitti
-    if room["ml_player_q_idx"].get(next_player, 0) >= total_q:
-        # Herkesin sorusu bitti mi?
-        all_done = all(
-            room["ml_player_q_idx"].get(pid, 0) >= total_q
-            for pid in room["players"].keys()
-        )
-        if all_done:
-            await ml_finish(room, broadcast)
-            return
-        # Bir tur daha at (bu oyuncu bitti ama diğerleri devam)
-        # Sıra atlama: bu oyuncuyu pas geç, sıra bir sonraki oyuncuya
-        room["ml_current_player"] = next_player  # geçici
-        await ml_next_turn(room, broadcast)
-        return
 
-    q_idx = room["ml_player_q_idx"][next_player]
+    # Soru numarası oda genelindeki toplam ilerlemeye göre belirlenir
+    q_idx = completed_questions
     q = ml_pick_question(room, q_idx)
     q = {
         "soru": q["soru"],
@@ -449,7 +441,7 @@ async def ml_next_turn(room, broadcast):
     flow = get_ml_flow(difficulty, total_q)
     prize, prize_str = get_ml_prize(q_idx, total_q)
 
-    # ✨ SIRA INTROSU (Şarkıdan Bul'daki gibi: önce intro, 2sn bekle, sonra soru)
+    # ✨ SIRA INTROSU (önce intro, 2sn bekle, sonra soru)
     next_name = room["players"][next_player]["name"]
     await broadcast(room, {
         "type": "ml_turn_intro",
@@ -463,7 +455,6 @@ async def ml_next_turn(room, broadcast):
 
     await broadcast(room, {
         "type": "ml_new_question",
-
         "current_player": next_player,
         "q_idx": q_idx,
         "question": q["soru"],

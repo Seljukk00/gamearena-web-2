@@ -3232,14 +3232,14 @@ function showMiniGameOver(msg) {
     
     const title = document.getElementById("miniGameOverTitle");
     if (msg.winner_id === miniData.playerId) {
-        title.textContent = "🏆 KAZANDIN!";
+        title.textContent = "KAZANDIN!";
         title.style.color = "#51cf66";
         if (typeof startConfetti === "function") startConfetti();
     } else if (msg.winner_id === 0) {
-        title.textContent = "🤝 BERABERE!";
+        title.textContent = "BERABERE!";
         title.style.color = "#ffd43b";
     } else {
-        title.textContent = "😢 KAYBETTİN";
+        title.textContent = "KAYBETTİN";
         title.style.color = "#ff6b6b";
     }
     
@@ -3375,6 +3375,13 @@ function showMiniGameOver(msg) {
     // ========================================
     const _rematchBtn = document.getElementById("miniRematchBtn");
     const _menuBtn = document.getElementById("miniGameOverMenuBtn");
+    if (_menuBtn) {
+        if (miniData.playerId === 1) {
+            _menuBtn.classList.remove("hidden");
+        } else {
+            _menuBtn.classList.add("hidden");
+        }
+    }
     let statsContainer = document.getElementById("miniGameOverTeamStats");
     const btnBox = (_rematchBtn && _rematchBtn.parentElement) || (_menuBtn && _menuBtn.parentElement) || document.querySelector("#miniGameOverBox .confirmButtons");
     
